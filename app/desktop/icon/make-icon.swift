@@ -1,4 +1,4 @@
-// Renders AppIcon.icns: a warm gradient squircle with a white bolt.
+// Renders the 1024 px app icon as a PNG: a warm gradient squircle with a white bolt.
 // Run via make-icons.sh, which makes every size Tauri needs.
 import AppKit
 

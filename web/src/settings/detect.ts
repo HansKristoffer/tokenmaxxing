@@ -7,6 +7,7 @@ function probe(): WebGL2RenderingContext | null {
   try {
     gl2 = document.createElement("canvas").getContext("webgl2");
   } catch {
+    // Some browsers throw from getContext instead of returning null: either way there is no WebGL2.
     gl2 = null;
   }
   return gl2;
@@ -25,15 +26,19 @@ interface BatteryManager {
   level: number;
 }
 let battery: BatteryManager | null = null;
-if (typeof navigator !== "undefined")
+if (typeof navigator !== "undefined") {
+  // Until the battery is read, it counts as charged: no battery warnings or power saving.
   (navigator as { getBattery?: () => Promise<BatteryManager> }).getBattery?.().then(
     (b) => {
       battery = b;
     },
-    () => {},
+    () => {
+      // A browser without the Battery API has nothing to read: the signals stay off.
+    },
   );
+}
 
-/** On battery and under 20%, or not charging at all . */
+/** Unplugged and under 20%. */
 export const lowBattery = (): boolean => !!battery && !battery.charging && battery.level < 0.2;
 /** Unplugged with under half left. */
 const powerSaver = (): boolean => !!battery && !battery.charging && battery.level < 0.5;
@@ -54,6 +59,7 @@ export function collectSignals(benchMs: number | null = null): Signals {
   };
 }
 
+/** Triangles per frame, and the most time the frames may take in all: the benchmark stays under a second. */
 const TRIANGLES = 300_000;
 const BENCH_BUDGET_MS = 600;
 
@@ -110,6 +116,7 @@ export async function benchmark(): Promise<number | null> {
     };
     let total = 0;
     let frames = 0;
+    // Up to nine frames. The first one warms the GPU up and is not counted.
     for (let i = 0; i < 9 && total < BENCH_BUDGET_MS; i++) {
       await new Promise<void>((resolve) => requestAnimationFrame(() => setTimeout(resolve, 0)));
       if (document.hidden || graphics.get().choice !== "auto") return null;
@@ -122,6 +129,7 @@ export async function benchmark(): Promise<number | null> {
     }
     return frames ? total / frames : null;
   } catch {
+    // No context, or the GPU failed: the score goes on without a benchmark.
     return null;
   } finally {
     context?.getExtension("WEBGL_lose_context")?.loseContext();
@@ -149,5 +157,6 @@ export function startDetection(): void {
     if (graphics.get().choice === "auto") graphics.setDetected(detected);
   };
   if (typeof requestIdleCallback === "function") requestIdleCallback(run, { timeout: 5000 });
+  // Without requestIdleCallback (Safari), the benchmark waits two seconds instead.
   else setTimeout(run, 2000);
 }

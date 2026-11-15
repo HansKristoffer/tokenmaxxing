@@ -13,5 +13,9 @@ export type TavernSet = "hearth-jig" | "lantern-reel";
 export function tavernSet(at: number): TavernSet | null {
   const { hour, minute } = worldWall(at);
   if (hour < BAND_START) return null;
-  return Math.floor(((hour - BAND_START) * 60 + minute) / 5) % 2 === 0 ? "hearth-jig" : "lantern-reel";
+
+  // The two sets take turns every five minutes from 16:00, so the band is never still for long.
+  const minutesIntoEvening = (hour - BAND_START) * 60 + minute;
+  const fiveMinuteSlot = Math.floor(minutesIntoEvening / 5);
+  return fiveMinuteSlot % 2 === 0 ? "hearth-jig" : "lantern-reel";
 }

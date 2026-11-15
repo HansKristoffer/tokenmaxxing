@@ -34,14 +34,12 @@ import {
   type TickScope,
   tint,
   toon,
-  type V3,
 } from "../kit/kit.ts";
 import { invalidateBaked } from "../perf/bake.ts";
+import { SEAT_Y } from "./rooms.ts";
 import { wallEase } from "./walls.ts";
 
 export type { MapId, SeatKind };
-
-// MARK: The tile registry
 
 /** What a builder knows about the tile (or block of tiles) it is drawing. */
 export interface TileCtx {
@@ -117,8 +115,6 @@ export function registerTileAssets(list: readonly Asset[], rooms?: readonly MapI
   for (const a of list) if (/^tile:[^:.]$/u.test(a.id)) registerTile(a.id.slice(5), a, { rooms });
 }
 
-// MARK: Hand-built rooms
-
 /**
  * A room drawn by a slice instead of tile by tile (the town, the hq, the Tavern...). The room's map still
  * says where you can walk and where the doors are; the skin only supplies the picture. `offset` is where
@@ -141,24 +137,20 @@ export function registerRoomSkin(id: MapId, build: () => RoomSkin): void {
 /** A fresh skin of room `id` (the real game builds a room every time it is entered), or null when it has none. */
 export const buildRoomSkin = (id: MapId): RoomSkin | null => skins.get(id)?.() ?? null;
 
-// MARK: Maps
-
 const WALL_H = 2.6;
 const GROUND = new Set([".", ",", ":", '"', "_", "=", "q", "e", "~", "Δ", "W"]);
 
 /** The maps, as the 3D world has them: the town with one company house, the hq with doors to its offices. */
-export function worldMaps(): Record<MapId, GameMap> {
+function worldMaps(): Record<MapId, GameMap> {
   const town = townMap([plotId(2, 0)]);
-  const base = MAPS;
   // The hq's hallway of office doors (the 2D game adds these per company, `hqMap`).
-  const hq = base.hq;
-  const rows = hq.rows.map((r) => r);
+  const rows = [...MAPS.hq.rows];
   const row = rows[1]!.split("");
   row[3] = "R";
   row[7] = "R";
   rows[1] = row.join("");
   return {
-    ...base,
+    ...MAPS,
     town,
     hq: new GameMap("hq", "Company house", rows),
   };
@@ -195,10 +187,8 @@ export interface Portal {
   to: MapId;
 }
 
-// MARK: Walking
-
 /** A shortest 8-way walk (no cutting corners) from one tile to the nearest tile `goal` accepts. */
-export function walk(
+function walk(
   W: number,
   D: number,
   from: [number, number],
@@ -248,13 +238,16 @@ const DIRS = [
   [-1, -1],
 ] as const;
 
-// MARK: Rooms
-
-function hash(s: string): number {
+/** A small number from a string, for seeding the random look of a tile. */
+export function hash(s: string): number {
   let h = 7;
   for (const c of s) h = (h * 31 + c.charCodeAt(0)) >>> 0;
   return h;
 }
+
+/** The floor tile a room with no legend of its own is painted with: grass outside, a dark floor in the dungeon. */
+const GROUND_TILE: Record<string, string> = { town: ".", dungeon: "q" };
+export const groundTileOf = (roomId: string): string => GROUND_TILE[roomId] ?? "_";
 
 const GROUND_COLOURS: Record<string, [string, string]> = {
   ".": ["#6fb35a", "#66a852"],
@@ -317,8 +310,6 @@ export function placeholder(ch: string): Model {
   return m;
 }
 
-const SEAT_Y: Record<SeatKind, number> = { bench: 0.31, chair: 0.33, sofa: 0.36, bed: 0.3 };
-
 export class WorldRoom {
   readonly group = new THREE.Group();
   readonly W: number;
@@ -342,10 +333,10 @@ export class WorldRoom {
     this.D = map.height;
     this.skin = skin;
     this.group.userData.bake = true;
+    this.findPortals();
     if (skin) {
       skin.group.position.set(skin.offset[0], 0, skin.offset[1]);
       this.group.add(skin.group);
-      this.findPortals();
       return;
     }
     if (!staged) for (const _ of this.steps());
@@ -362,12 +353,13 @@ export class WorldRoom {
   }
 
   private findPortals(): void {
-    for (let y = 0; y < this.D; y++)
+    for (let y = 0; y < this.D; y++) {
       for (let x = 0; x < this.W; x++) {
         const ch = this.ch(x, y);
         const link = LINKS[`${this.id}:${ch}`];
         if (link && LEGEND[ch]?.portal) this.portals.push({ x, y, ch, to: link[0] });
       }
+    }
   }
 
   get name(): string {
@@ -459,19 +451,13 @@ export class WorldRoom {
     }
   }
 
-  // — Building —
-
-  private groundOf(): string {
-    return this.id === "town" ? "." : this.id === "dungeon" ? "q" : "_";
-  }
-
   private paintGround(): void {
     const { W, D } = this;
     const px = 8;
     const rnd = seeded(hash(this.id));
-    const base = this.groundOf();
+    const base = groundTileOf(this.id);
     const tex = canvasTexture(W * px, D * px, (g) => {
-      for (let y = 0; y < D; y++)
+      for (let y = 0; y < D; y++) {
         for (let x = 0; x < W; x++) {
           const ch = this.ch(x, y);
           const [a, b] = GROUND_COLOURS[ch] ?? GROUND_COLOURS[base]!;
@@ -486,8 +472,9 @@ export class WorldRoom {
             g.globalAlpha = 1;
           } else if (ch === "." || ch === '"') {
             g.fillStyle = "#86c76d";
-            for (let i = 0; i < 3; i++)
+            for (let i = 0; i < 3; i++) {
               g.fillRect(x * px + Math.floor(rnd() * 7), y * px + Math.floor(rnd() * 7), 1, 1);
+            }
             if (ch === '"') {
               for (const col of ["#f28bb2", "#f0b53c", "#fbf7ef"]) {
                 g.fillStyle = col;
@@ -509,6 +496,7 @@ export class WorldRoom {
             g.fillRect(x * px + Math.floor(rnd() * 6), y * px + Math.floor(rnd() * 6), 1, 1);
           }
         }
+      }
     });
     const side = toon(tint(base === "." ? "#6fb35a" : C.floor, -0.4));
     const slab = new THREE.Mesh(new THREE.BoxGeometry(W, 0.35, D), [
@@ -554,7 +542,7 @@ export class WorldRoom {
     const wall = stone ? "#3a3446" : C.wall;
     const top = stone ? "#1c1924" : C.wallTop;
     const base = stone ? "#2a2533" : C.woodDark;
-    for (let y = 0; y < this.D; y++)
+    for (let y = 0; y < this.D; y++) {
       for (let x = 0; x < this.W; x++) {
         if (this.ch(x, y) !== "W") continue;
         const g = groups.get(this.edgeOf(x, y) ?? "none")!;
@@ -566,6 +554,7 @@ export class WorldRoom {
         g.box([1.02, 0.1, 1.02], top, [tx, WALL_H, tz], 0.01);
         g.box([1.01, 0.12, 1.01], base, [tx, 0, tz], 0.01);
       }
+    }
   }
 
   private *props(): Generator<void> {
@@ -576,8 +565,6 @@ export class WorldRoom {
       for (let x = 0; x < W; x++) {
         if (claimed[y * W + x]) continue;
         const ch = this.ch(x, y);
-        const link = LINKS[`${this.id}:${ch}`];
-        if (link && LEGEND[ch]?.portal) this.portals.push({ x, y, ch, to: link[0] });
         const entry = tileFor(this.id, ch);
         const kind = LEGEND[ch];
         if (!entry && (GROUND.has(ch) || !kind)) continue;
@@ -586,15 +573,19 @@ export class WorldRoom {
         let d = 1;
         if (bw > 1 || bd > 1) {
           let fits = x + bw <= W && y + bd <= D;
-          for (let j = 0; fits && j < bd; j++)
-            for (let i = 0; fits && i < bw; i++)
+          for (let j = 0; fits && j < bd; j++) {
+            for (let i = 0; fits && i < bw; i++) {
               if (this.ch(x + i, y + j) !== ch || claimed[(y + j) * W + x + i]) fits = false;
+            }
+          }
           if (fits) {
             w = bw;
             d = bd;
           }
         }
-        for (let j = 0; j < d; j++) for (let i = 0; i < w; i++) claimed[(y + j) * W + x + i] = 1;
+        for (let j = 0; j < d; j++) {
+          for (let i = 0; i < w; i++) claimed[(y + j) * W + x + i] = 1;
+        }
         const edge = this.edgeOf(x, y);
         const ctx: TileCtx = { ch, room: this.id, x, y, w, d, edge, name: kind?.name ?? ch };
         const model = entry ? entry.build(ctx) : placeholder(ch);
@@ -604,14 +595,14 @@ export class WorldRoom {
           model.rotation.y = { n: 0, s: Math.PI, w: Math.PI / 2, e: -Math.PI / 2 }[edge];
         // Things in an edge wall lower with it when the camera looks through; a door or stairs stays up, so the way out
         // is seen through the skirting the wall becomes.
-        (edge && !kind?.portal ? this.wallGroups.get(edge)! : this.group).add(model);
+        const lowersWithWall = edge && !kind?.portal;
+        const parent = lowersWithWall ? this.wallGroups.get(edge)! : this.group;
+        parent.add(model);
         this.drawn.set(ch, [...(this.drawn.get(ch) ?? []), model]);
       }
     }
   }
 }
-
-// MARK: The world
 
 /**
  * How a room gets its code: world-rooms.ts registers a loader per hand-built room (a dynamic import of its builder and a
@@ -635,7 +626,7 @@ export function loadRoomCode(id: MapId): Promise<void> {
   }
   return p;
 }
-export const roomCodeReady = (id: MapId): boolean => !loaders.has(id) || loaded.has(id);
+const roomCodeReady = (id: MapId): boolean => !loaders.has(id) || loaded.has(id);
 
 /** A frame boundary: lets the browser paint (the loading veil) between pieces of work. */
 const nextFrame = (): Promise<void> =>
@@ -647,11 +638,6 @@ const nextFrame = (): Promise<void> =>
         done();
       });
   });
-
-/** Frees what a room held on the GPU; the shared kit geometry and materials upload again if another room uses them. */
-function disposeRoom(root: THREE.Object3D): void {
-  disposeObject(root);
-}
 
 export class World {
   readonly maps: Record<MapId, GameMap> = worldMaps();
@@ -734,6 +720,7 @@ export class World {
       const t0 = performance.now();
       const open = beginTickScope();
       let end = false;
+      // Six milliseconds of building per frame leaves the rest of a 60 fps frame to the game.
       while (performance.now() - t0 < 6) {
         const s = steps.next();
         if (s.done) {
@@ -772,11 +759,6 @@ export class World {
     return [...out];
   }
 
-  /** Preloads the doors of `id`. */
-  preloadNeighbours(id: MapId): void {
-    for (const n of this.neighbours(id)) this.preload(n);
-  }
-
   /** Drops the least recently used rooms beyond `maxBuilt` (never a pinned one). */
   trim(): void {
     while (this.built.size > this.maxBuilt) {
@@ -795,7 +777,8 @@ export class World {
     this.scopes.delete(id);
     invalidateBaked(r.group);
     r.group.removeFromParent();
-    disposeRoom(r.group);
+    // Frees what the room held on the GPU; the shared kit geometry and materials upload again if another room uses them.
+    disposeObject(r.group);
     this.built.delete(id);
     this.used.splice(this.used.indexOf(id), 1);
     return true;
@@ -826,5 +809,3 @@ export class World {
     return { room, at: b.at, turn: b.turn };
   }
 }
-
-export type { V3 };

@@ -12,9 +12,6 @@ const BLACK = "#14091f";
 const BONE = "#eef2ff";
 const SHADE = "#b9c0e6";
 
-// MARK: Bats and ghosts
-
-// Pixel art reads as a grid.
 // prettier-ignore
 const BAT = [
   ["oo.....oo", "ooo.o.ooo", ".ooooooo.", "..ooooo..", "...o.o..."],
@@ -62,8 +59,6 @@ export const ghostSprite = cached(
     ),
 );
 
-// MARK: The cauldron
-
 /** The cauldron, its brew bubbling one of three ways: 16 x 14, feet at the bottom. */
 export const cauldronSprite = cached(
   (frame: number) => `cauldron:${frame}`,
@@ -97,8 +92,6 @@ export const cauldronSprite = cached(
     }),
 );
 
-// MARK: Cobweb and sweets
-
 /** A cobweb for the top-left corner of a door (flip it for the right): 8 x 8, spokes and sagging threads. */
 export const cobwebSprite = once(() =>
   bake(8, 8, (p) => {
@@ -113,7 +106,9 @@ export const cobwebSprite = once(() =>
       p.px(i + 1, Math.floor((i + 1) / 2), thin);
       p.px(Math.floor((i + 1) / 2), i + 1, thin);
     }
-    for (const r of [3, 5, 7]) for (let x = 1; x < r; x++) p.px(x, r - x + (x % 2 === 0 ? 0 : 0), thin);
+    for (const r of [3, 5, 7]) {
+      for (let x = 1; x < r; x++) p.px(x, r - x, thin);
+    }
     p.px(6, 6, BLACK);
   }),
 );
@@ -130,8 +125,6 @@ export const candySprite = cached(
       p.px(2, 0, "#ffffffaa");
     }),
 );
-
-// MARK: The lawn's tombstones
 
 const STONE_MARK: Record<string, string> = { BRB: "BRB", "404": "404", TODO: "TD", "RIP npm": "RIP" };
 
@@ -164,13 +157,12 @@ export const extraStoneSprite = cached(
         p.rect(2, 3, 1, 13, C.stoneLight);
         p.rect(13, 3, 1, 14, C.stoneDark);
       }
-      if (kind !== "cross")
-        p.text(
-          STONE_MARK[text] ?? text.slice(0, 3),
-          kind === "slab" ? 4 : 3,
-          kind === "slab" ? 10 : 6,
-          C.ink,
-        );
+      if (kind !== "cross") {
+        const label = STONE_MARK[text] ?? text.slice(0, 3);
+        const isSlab = kind === "slab";
+        p.text(label, isSlab ? 4 : 3, isSlab ? 10 : 6, C.ink);
+      }
+
       // The mound, and a tuft of grass.
       p.rect(1, 16, 14, 3, C.trunkDark);
       p.rect(2, 16, 12, 1, C.trunk);
@@ -178,8 +170,6 @@ export const extraStoneSprite = cached(
       p.px(12, 15, C.leafDark);
     }),
 );
-
-// MARK: Gerda
 
 const CLOAK = "#4b2a78";
 const CLOAK_DARK = "#2a1646";
@@ -224,12 +214,11 @@ export const gerdaSprite = cached(
         if (side) rect(10, 5, 1, 2, SKIN);
       }
       // The lantern on its crook, swinging a pixel.
-      const sway = breath;
       rect(side ? 11 : 12, 11, 1, 5, BLACK);
-      rect(side ? 10 : 11, 12 + sway, 3, 1, "#8a5a2b");
-      rect(side ? 10 : 11, 13 + sway, 3, 3, "#ffc23a");
-      rect(side ? 11 : 12, 14 + sway, 1, 1, "#fff2b0");
-      rect(side ? 10 : 11, 16 + sway, 3, 1, BLACK);
+      rect(side ? 10 : 11, 12 + breath, 3, 1, "#8a5a2b");
+      rect(side ? 10 : 11, 13 + breath, 3, 3, "#ffc23a");
+      rect(side ? 11 : 12, 14 + breath, 1, 1, "#fff2b0");
+      rect(side ? 10 : 11, 16 + breath, 3, 1, BLACK);
       // Her free hand.
       rect(side ? 7 : 4, 13, 2, 2, SKIN);
     }),

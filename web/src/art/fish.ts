@@ -8,7 +8,7 @@ import { bake, type Palette, type Pen } from "./pixels.ts";
  * `render3d/town/fish3d.ts`). `o` is the outline; `.` is clear. `shift` slides the columns from there one pixel
  * down: the off-by-one bass is never quite where you drew it.
  */
-export interface FishArt {
+interface FishArt {
   rows: readonly string[];
   pal: Palette;
   shift?: number;
@@ -126,13 +126,14 @@ export function drawFish(p: Pen, id: string, ox = 0, oy = 0, ghost = false): voi
   const art = FISH_ART[id];
   if (!art) return;
   const pal = ghost ? silhouette(art.pal) : art.pal;
-  if (art.shift === undefined) {
+  const shift = art.shift;
+  if (shift === undefined) {
     p.grid(art.rows, pal, ox, oy);
     return;
   }
-  // The back columns where drawn, the front ones a pixel lower.
-  const back = art.rows.map((r) => r.slice(0, art.shift).padEnd(FISH_W, "."));
-  const front = art.rows.map((r) => ".".repeat(art.shift!) + r.slice(art.shift));
+  // The columns before `shift` stay where they are; the rest sit a pixel lower.
+  const back = art.rows.map((r) => r.slice(0, shift).padEnd(FISH_W, "."));
+  const front = art.rows.map((r) => ".".repeat(shift) + r.slice(shift));
   p.grid(back, pal, ox, oy);
   p.grid(front, pal, ox, oy + 1);
 }
@@ -155,5 +156,5 @@ export function fishCanvas(id: string, scale: number, ghost = false): HTMLCanvas
   return c;
 }
 
-/** Every fish in the pond has art. */
+/** The ids of the pond's fish that have no art yet. An empty list means every fish is drawn. */
 export const missingFishArt = (): string[] => FISH.filter((f) => !FISH_ART[f.id]).map((f) => f.id);

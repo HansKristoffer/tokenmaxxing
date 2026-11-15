@@ -63,8 +63,6 @@ test("the 3D props stand on their tiles, in a few meshes, and go when the theme 
     expect(box.max.z).toBeLessThan(map.height + 3);
     where.set(`${meshes}`, box.clone());
   });
-  const all = new THREE.Box3();
-  for (const b of where.values()) all.union(b);
   // The clock is the tall one: over its tile, higher than a person.
   const [cx, cz] = toWorld(NYTAR_CLOCK.x, NYTAR_CLOCK.y);
   let tallest: THREE.Box3 | null = null;

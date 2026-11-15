@@ -33,6 +33,7 @@ function boxes(list: Cube[]): THREE.BufferGeometry {
       .translate(x, y, z)
       .toNonIndexed(),
   );
+  // Every part is a non-indexed box, so their attributes match and the merge cannot come back null.
   const g = mergeGeometries(parts)!;
   for (const p of parts) p.dispose();
   return g;
@@ -81,7 +82,7 @@ export class VoxModel extends Model {
     return this.put(new THREE.Mesh(g, material(paint)), at);
   }
 
-  /** A ball is a cube of the same width (a touch smaller, so it keeps the ball's mass). */
+  /** A ball is a cube 1.8 radii across, so its outline stays inside the ball's diameter. */
   override ball(
     radius: number,
     paint: Paint,
@@ -140,6 +141,7 @@ function prismOrSteps(radius: number, top: number, h: number): THREE.BufferGeome
     const s = Math.max(w * 1.84, 0.012);
     return new THREE.BoxGeometry(s, h, s).translate(0, h / 2, 0);
   }
+  // Each step is about 5.5 cm tall, and a cone has between two and five of them.
   const n = Math.max(2, Math.min(5, Math.round(h / 0.055)));
   const list: Cube[] = [];
   for (let i = 0; i < n; i++) {
@@ -203,6 +205,7 @@ export function stepDome(
   from = 0,
   to = Math.PI * 2,
 ): THREE.Mesh {
+  // A deep dome takes three slabs to look round, a shallow one two.
   const n = cut >= 0.4 ? 3 : 2;
   const g = cached(`vdome${r},${cut},${from},${to}`, () => {
     const list: Cube[] = [];
@@ -250,12 +253,14 @@ export function voxShape(
     const c = Math.max(size.x, size.y) / n;
     const nx = Math.max(1, Math.round(size.x / c));
     const ny = Math.max(1, Math.round(size.y / c));
+    // Even-odd ray cast: a point is inside when a ray going left from it crosses the outline an odd number of times.
     const inside = (x: number, y: number) => {
       let on = false;
       for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
         const a = pts[i]!;
         const b = pts[j]!;
-        if (a.y > y !== b.y > y && x < ((b.x - a.x) * (y - a.y)) / (b.y - a.y) + a.x) on = !on;
+        const crosses = a.y > y !== b.y > y;
+        if (crosses && x < ((b.x - a.x) * (y - a.y)) / (b.y - a.y) + a.x) on = !on;
       }
       return on;
     };
@@ -315,16 +320,20 @@ export function pixelPatch(
   const c = document.createElement("canvas");
   c.width = cw;
   c.height = ch;
+  // A canvas made here always has a 2D context.
   const g = c.getContext("2d", { willReadFrequently: true })!;
   g.imageSmoothingEnabled = false;
   o.draw(g, cw, ch);
   const data = g.getImageData(0, 0, cw, ch).data;
   const colour = new THREE.Color();
   const parts: THREE.BufferGeometry[] = [];
+  // A block is one cube, coloured by its commonest opaque colour. Alpha under 110 of 255 is background, and a block
+  // needs `fill` of its pixels opaque (34% by default) before it is solid at all. Colours are counted in 8-step
+  // buckets, so near-equal shades vote together.
   const cellAt = (i: number, j: number): string | null => {
     const count = new Map<string, number>();
     let solid = 0;
-    for (let y = 0; y < k; y++)
+    for (let y = 0; y < k; y++) {
       for (let x = 0; x < k; x++) {
         const q = ((j * k + y) * cw + i * k + x) * 4;
         if (data[q + 3]! < 110) continue;
@@ -332,10 +341,16 @@ export function pixelPatch(
         const key = `${data[q]! >> 3},${data[q + 1]! >> 3},${data[q + 2]! >> 3}`;
         count.set(key, (count.get(key) ?? 0) + 1);
       }
+    }
     if (solid < k * k * (o.fill ?? 0.34)) return null;
     let best = "";
-    let n = 0;
-    for (const [key, v] of count) if (v > n) [best, n] = [key, v];
+    let most = 0;
+    for (const [key, v] of count) {
+      if (v > most) {
+        best = key;
+        most = v;
+      }
+    }
     const [r, gg, b] = best.split(",").map((s) => (Number(s) << 3) + 4);
     return `${r},${gg},${b}`;
   };
@@ -355,8 +370,11 @@ export function pixelPatch(
         const [r, gg, b] = cur!.split(",").map(Number);
         colour.setRGB(r! / 255, gg! / 255, b! / 255, THREE.SRGBColorSpace);
         const arr = new Float32Array(box.getAttribute("position").count * 3);
-        for (let q = 0; q < arr.length; q += 3)
-          [arr[q], arr[q + 1], arr[q + 2]] = [colour.r, colour.g, colour.b];
+        for (let q = 0; q < arr.length; q += 3) {
+          arr[q] = colour.r;
+          arr[q + 1] = colour.g;
+          arr[q + 2] = colour.b;
+        }
         box.setAttribute("color", new THREE.BufferAttribute(arr, 3));
         parts.push(box);
         run = -1;
@@ -367,6 +385,7 @@ export function pixelPatch(
       }
     }
   }
+  // The parts are all non-indexed boxes with the same attributes, so the merge cannot come back null.
   const geo = parts.length ? mergeGeometries(parts)! : new THREE.BufferGeometry();
   for (const p of parts) p.dispose();
   const mesh = place(m, geo, o.lit ? vertexLit : vertexToon, o.at);
@@ -377,8 +396,8 @@ export function pixelPatch(
 // MARK: Grid placement
 
 /**
- * Blocks by cube coordinates: (x, y, z) is a box's low corner and (w, h, d) its size, all in `unit` metres,
- * relative to `origin` (which is the frame `parent` already is).
+ * Blocks by cube coordinates in `parent`'s frame: (x, y, z) is a box's low corner and (w, h, d) its size, all in
+ * `unit` metres.
  */
 export class Vx {
   constructor(

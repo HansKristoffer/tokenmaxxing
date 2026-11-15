@@ -1,4 +1,6 @@
 import { describe, expect, test } from "bun:test";
+import { BADGES } from "@tokenmaxxing/core/badges.ts";
+import { levelAt } from "@tokenmaxxing/core/format.ts";
 import { awardStep, awardSweep, backfillDone, backfillStep, collectionOf } from "../src/town/awards.ts";
 import { hallOfFame } from "../src/town/hall.ts";
 import { migrate } from "../src/town/schema.ts";
@@ -62,7 +64,6 @@ describe("awardSweep", () => {
     // Something already recorded, so this isn't their first look.
     db.run("INSERT INTO badge_awards VALUES (1, 'shipper', 1, 0, 1)");
     // Level 30 needs this many tokens in all: far past level 20's.
-    const { levelAt } = await import("@tokenmaxxing/core/format.ts");
     db.run(
       "INSERT INTO usage_daily (user_id, day, model, input, output, cache_creation, cache_read, turns) VALUES (1, '2026-10-01', 'm', ?, 0, 0, 0, 1)",
       [levelAt(30)],
@@ -138,7 +139,7 @@ test("the collection log: every badge's standing, and when a tier really came", 
   expect(shipper).toEqual({ id: "shipper", tier: 2, value: 60, at: now + 5 });
   // Not earned: still listed, with its value.
   expect(state.badges.find((b) => b.id === "whale")).toEqual({ id: "whale", tier: 0, value: 0, at: null });
-  expect(state.badges).toHaveLength((await import("@tokenmaxxing/core/badges.ts")).BADGES.length);
+  expect(state.badges).toHaveLength(BADGES.length);
   expect(state.trophies).toEqual([{ id: "3am", day: "2026-07-01" }]);
   expect(state.titles).toEqual([]);
 });

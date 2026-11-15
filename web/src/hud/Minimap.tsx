@@ -59,19 +59,23 @@ function base(map: GameMap, scale: number): HTMLCanvasElement {
   canvas.width = map.width * scale;
   canvas.height = map.height * scale;
   const g = canvas.getContext("2d")!;
+  const wallColor = map.decor?.wall ? WALL_COLORS[map.decor.wall] : undefined;
+  const floorColor = map.decor?.floor ? FLOOR_COLORS[map.decor.floor] : undefined;
   const colors: Record<string, string> = {
     ...COLORS,
-    ...(map.decor?.wall && WALL_COLORS[map.decor.wall] && { W: WALL_COLORS[map.decor.wall]! }),
-    ...(map.decor?.floor && FLOOR_COLORS[map.decor.floor] && { _: FLOOR_COLORS[map.decor.floor]! }),
+    ...(wallColor && { W: wallColor }),
+    ...(floorColor && { _: floorColor }),
   };
   for (let y = 0; y < map.height; y++)
     for (let x = 0; x < map.width; x++) {
-      const ch = map.at(map.x0 + x, map.y0 + y);
-      // Only a wall's face has the wallpaper (the game's own rule); its top stays plain.
-      const face =
-        ch !== "W" ||
-        (!"WR".includes(map.at(map.x0 + x, map.y0 + y + 1)) && map.contains(map.x0 + x, map.y0 + y + 1));
-      g.fillStyle = (face ? colors[ch] : COLORS[ch]) ?? (map.id === "town" ? C.grass : C.woodDark);
+      const worldX = map.x0 + x;
+      const worldY = map.y0 + y;
+      const ch = map.at(worldX, worldY);
+      // Only a wall's face has the wallpaper (the game's own rule); a wall whose tile below is wall, roof or
+      // outside the map is its top, and stays plain.
+      const below = map.at(worldX, worldY + 1);
+      const isPlainWall = ch === "W" && ("WR".includes(below) || !map.contains(worldX, worldY + 1));
+      g.fillStyle = (isPlainWall ? COLORS[ch] : colors[ch]) ?? (map.id === "town" ? C.grass : C.woodDark);
       g.fillRect(x * scale, y * scale, scale, scale);
     }
   bases.set(map, canvas);
@@ -100,7 +104,9 @@ export function Minimap() {
       const avatars = `${world.selfId}:${[...world.avatars.values()]
         .map((a) => `${a.info.id} ${a.x} ${a.y} ${a.info.online}`)
         .join()}`;
-      if (drawn?.map === now && drawn.companies === world.companies && drawn.avatars === avatars) return;
+      const unchanged =
+        drawn?.map === now && drawn.companies === world.companies && drawn.avatars === avatars;
+      if (unchanged) return;
       drawn = { map: now, companies: world.companies, avatars };
       g.drawImage(base(now, scale), 0, 0);
       for (const b of buildings(map)) {
@@ -120,6 +126,7 @@ export function Minimap() {
       }
     };
     draw();
+    // Five times a second keeps the dots moving; a redraw that changed nothing returns early.
     const id = setInterval(draw, 200);
     return () => clearInterval(id);
   }, [room, map, scale, myCompany]);
@@ -164,10 +171,9 @@ export function Minimap() {
         onClick={(e) => {
           const rect = e.currentTarget.getBoundingClientRect();
           // As a fraction of the canvas shown: CSS can draw it bigger or smaller than its pixels.
-          walkTo(
-            map.x0 + Math.floor(((e.clientX - rect.left) / rect.width) * map.width),
-            map.y0 + Math.floor(((e.clientY - rect.top) / rect.height) * map.height),
-          );
+          const tileX = Math.floor(((e.clientX - rect.left) / rect.width) * map.width);
+          const tileY = Math.floor(((e.clientY - rect.top) / rect.height) * map.height);
+          walkTo(map.x0 + tileX, map.y0 + tileY);
         }}
       />
     </section>

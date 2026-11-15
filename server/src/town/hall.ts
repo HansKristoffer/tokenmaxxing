@@ -127,7 +127,9 @@ export async function hallOfFame(sql: Sql, now: number, weeks: RaidWeek[]): Prom
   const best = new Map<string, (typeof games)[number]>();
   for (const g of games) {
     const cur = best.get(g.game);
-    if (g.net > 0 && (!cur || g.net > cur.net || (g.net === cur.net && g.id < cur.id))) best.set(g.game, g);
+    // A tie goes to the lower id, so the same games always name the same winner.
+    const beatsCurrent = !cur || g.net > cur.net || (g.net === cur.net && g.id < cur.id);
+    if (g.net > 0 && beatsCurrent) best.set(g.game, g);
   }
   for (const g of [...best.values()].sort((a, b) => a.game.localeCompare(b.game)))
     hall.winners.push({ ...person(g), kind: "game", game: g.game, value: g.net });

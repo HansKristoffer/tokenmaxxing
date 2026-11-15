@@ -14,7 +14,6 @@
 import { GameMap, MAPS, type MapId } from "../data/maps.ts";
 import type { Asset } from "../furniture/furniture.ts";
 import type { Model } from "../kit/kit.ts";
-import type { TileBuilder } from "./world.ts";
 import { loadRoomCode, registerRoomLoader, registerRoomSkin, registerTile } from "./world.ts";
 
 export const INSET: [number, number] = [1, 2];
@@ -43,13 +42,14 @@ room(["hq"], async () => {
     const hq = buildHq();
     // The hallway of office doors on the north wall, drawn as the registered `R` tile.
     const door = tileModel(DUNGEON_ASSETS, "R");
-    if (door)
+    if (door) {
       for (const x of [3, 7]) {
         const m = door();
         if (!m) continue;
         m.position.set(x - INSET[0] + 0.5, 0, 1 - INSET[1] + 0.5);
         hq.room.group.add(m);
       }
+    }
     return { group: hq.room.group, offset: INSET, facing: (v) => hq.room.facing(v), extra: hq };
   });
 });
@@ -151,9 +151,8 @@ export async function loadRoomSkins(ids: readonly MapId[] = ALL): Promise<void> 
 }
 
 /** A drawing function for a tile registered with `assets`, for skins that want to add a door by hand. */
-function tileModel(assets: readonly Asset[], ch: string): (() => Model | null) | null {
+function tileModel(assets: readonly Asset[], ch: string): (() => Model) | null {
   const asset: Asset | undefined = assets.find((a) => a.id === `tile:${ch}`);
   if (!asset) return null;
-  const build: TileBuilder = () => asset.build();
-  return () => build({} as never);
+  return () => asset.build();
 }

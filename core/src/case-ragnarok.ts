@@ -2,8 +2,9 @@
  * The Ragnarok Eve case: the gods' last feast before the end of the world, in cosmetics only a case opening
  * gives (never sold in a shop, never dropped by a raid). Like the Night Market case (`case.ts`) they are worn
  * through `Look` and tradeable the moment they're opened, but their indices start at `RAGNAROK_BASE`, so the
- * three ranges (shop and loot below 300, Night Market 300 to 399, Nusantara 400 to 499, this 500 to 599, a later Julemarked 800 to 899) never
- * meet. The art is keyed by the same indices. Design brief: `docs/cases/ragnarok-eve.md`.
+ * ranges never meet: shop and loot below 300, Night Market 300 to 399, Nusantara 400 to 499, this 500 to 599,
+ * the pond's treasures 600 to 699, prestige 700 to 799 and the Julemarked 800 to 899. The art is keyed by the
+ * same indices. Design brief: `docs/cases/ragnarok-eve.md`.
  */
 import type { CaseItem, CaseSlot } from "./case.ts";
 import type { Rarity } from "./rarity.ts";

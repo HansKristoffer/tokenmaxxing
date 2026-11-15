@@ -25,7 +25,7 @@ export const PRESTIGE_PIECES: readonly CasePiece[] = PRESTIGE_TRACKS.map((t, i) 
 }));
 
 const IDS = new Set(PRESTIGE_PIECES.map((p) => p.ch));
-export const isPrestigePiece = (ch: unknown): boolean => IDS.has(ch as string);
+export const isPrestigePiece = (ch: unknown): boolean => typeof ch === "string" && IDS.has(ch);
 
 /** The bag id of a track's trophy (`furn.<ch>`); rank 1 is the first track. */
 export const prestigeTrophyId = (rank: number): string | undefined => {

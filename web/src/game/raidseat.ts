@@ -6,7 +6,7 @@ import { seatTile } from "./raid.ts";
 import { self, world } from "./world.ts";
 
 /** The pet's location for its raid shots, in 3D world coordinates. */
-export const raidPet = { at: null as [number, number] | null };
+export const raidPet: { at: [number, number] | null } = { at: null };
 
 export function mySeat(): [number, number] | null {
   return world.room === "dungeon" ? seatTile(world.selfId) : null;
@@ -51,9 +51,9 @@ export function sitsAt(x: number, y: number): boolean {
 }
 
 export function sit(x: number, y: number): boolean {
-  if (!sitsAt(x, y)) return false;
-  const me = self()!;
-  const seat = mySeat()!;
+  const me = self();
+  const seat = mySeat();
+  if (!me || !seat || !sitsAt(x, y)) return false;
   const dx = seat[0] - me.x;
   const dy = seat[1] - me.y;
   const dir: Facing = dx < 0 ? "left" : dx > 0 ? "right" : dy < 0 ? "up" : "down";

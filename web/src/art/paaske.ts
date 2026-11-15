@@ -6,8 +6,8 @@ import { bake, cached, once, type Pen } from "./pixels.ts";
 
 /**
  * Påske's 2D art (`game/paaske.ts`; the 3D twins are `render3d/town/paaske3d.ts`): flower clumps, painted eggs, lambs,
- * bunnies and chicks, the påskeris, Gudrun's stall and the påskefrokost table, strings of pastel bunting, Gudrun
- * herself and the three costumes' hat art. Everything is baked once.
+ * bunnies and chicks, the påskeris, Gudrun's stall and the påskefrokost table, strings of pastel bunting and Gudrun
+ * herself. The hats are in `paaske-hats.ts`. Everything is baked once.
  */
 
 const INK = C.ink;
@@ -22,15 +22,17 @@ function outlined(w: number, h: number, draw: (p: Pen) => void, line = "#4a3b42"
   const { data } = g.getImageData(0, 0, raw.width, raw.height);
   const solid = (x: number, y: number) =>
     x >= 0 && y >= 0 && x < raw.width && y < raw.height && data[(y * raw.width + x) * 4 + 3]! > 20;
+
+  // A pixel is outlined when it is empty and touches a drawn one (alpha above 20 counts as drawn).
   g.fillStyle = line;
-  for (let y = 0; y < raw.height; y++)
-    for (let x = 0; x < raw.width; x++)
+  for (let y = 0; y < raw.height; y++) {
+    for (let x = 0; x < raw.width; x++) {
       if (!solid(x, y) && (solid(x - 1, y) || solid(x + 1, y) || solid(x, y - 1) || solid(x, y + 1)))
         g.fillRect(x, y, 1, 1);
+    }
+  }
   return raw;
 }
-
-// MARK: Flowers
 
 const GREEN = "#4f9b3d";
 const GREEN_D = "#3a7b2f";
@@ -55,10 +57,8 @@ function vintergaek(p: Pen, x: number, y: number): void {
   p.px(x, y + 1, GREEN);
   p.px(x + 1, y, GREEN);
   p.rect(x + 1, y + 1, 3, 3, "#fbf7ef");
-  p.px(x + 2, y + 4, "#fbf7ef");
   p.px(x + 2, y + 3, "#cfe3f0");
   p.px(x + 2, y + 4, "#8cc87a");
-  p.px(x + 1, y + 1, "#fbf7ef");
 }
 
 /** One tulip: a pink cup on a stem with a leaf. */
@@ -115,8 +115,6 @@ export const flowerSprite = cached(
     }),
 );
 
-// MARK: Eggs
-
 /** A painted egg lying in the grass, 7 x 8: a base colour with a stripe and a dark outline. */
 export const eggSprite = cached(
   (colour: number) => String(colour),
@@ -146,8 +144,6 @@ export const eggIcon = cached(
     });
   },
 );
-
-// MARK: Lambs, bunnies and chicks
 
 const PALS: Record<CritterKind, Record<string, string>> = {
   chick: { y: "#ffe36a", Y: "#f2c230", O: "#f08a2a", o: "#f08a2a", K: INK },
@@ -180,8 +176,6 @@ export const critterSprite = cached(
     return outlined(rows[0]!.length, rows.length, (p) => p.grid(rows, PALS[kind], 0, 0, !right));
   },
 );
-
-// MARK: The påskeris
 
 /** The branches of birch twigs from the vase at (11, 26): each a run of points. */
 const TWIGS: [number, number][][] = [
@@ -256,22 +250,27 @@ const EGGS: [number, number, number][] = [
 /** The påskeris: bare birch twigs in a blue-and-white vase, 24 x 32, hung with feathers and painted eggs. */
 export const treeSprite = once(() =>
   bake(24, 32, (p) => {
-    for (const run of TWIGS)
+    // Each twig is a line of points, with a dot between two neighbours.
+    for (const run of TWIGS) {
       run.forEach(([x, y], i) => {
         p.px(x, y, i % 2 ? "#8a6a48" : "#a8845c");
         const next = run[i + 1];
         if (next) p.px((x + next[0]) >> 1, (y + next[1]) >> 1, "#6a4c32");
       });
+    }
+
     // Buds on the tips.
     for (const run of TWIGS) {
       const [x, y] = run.at(-1)!;
       p.px(x, y - 1, "#8cc87a");
     }
+
     for (const [x, y, c] of FEATHERS) {
       p.rect(x, y, 1, 4, c);
       p.rect(x - 1, y + 1, 3, 2, c);
       p.px(x, y + 4, "#ffffff");
     }
+
     for (const [x, y, c] of EGGS) {
       const [base, stripe] = EGG_COLOURS[c]!;
       p.px(x, y - 1, "#d9d3c6");
@@ -280,6 +279,7 @@ export const treeSprite = once(() =>
       p.rect(x - 1, y + 2, 4, 1, stripe);
       p.px(x - 1, y, "#ffffff");
     }
+
     // The vase.
     p.rect(7, 26, 9, 1, "#d6e4f5");
     p.rect(8, 27, 7, 4, "#eaf1fb");
@@ -291,8 +291,6 @@ export const treeSprite = once(() =>
   }),
 );
 export const TREE_PX = { w: 24, h: 32 } as const;
-
-// MARK: The stall and the påskefrokost table
 
 /** Gudrun's trestle: paint pots, a brush and a few eggs drying on a plank, 16 x 16. */
 export const stallSprite = once(() =>
@@ -369,8 +367,6 @@ export const frokostSprite = once(() =>
   }),
 );
 
-// MARK: Bunting
-
 const PENNANTS = ["#f4a6c8", "#f7e27a", "#9ccff2", "#a6dc92", "#c8aaf0"];
 
 /**
@@ -383,14 +379,18 @@ export const buntingSprite = cached(
     const w = vertical ? sag + 6 : len;
     const h = vertical ? len : sag + 6;
     return bake(w, h, (p) => {
+      // A parabola: `sag` pixels off the straight line at the middle, none at the two ends.
       const at = (s: number): [number, number] => {
         const drop = Math.round(4 * sag * (s / len) * (1 - s / len));
         return vertical ? [drop, s] : [s, drop];
       };
+
       for (let s = 0; s <= len; s++) {
         const [x, y] = at(s);
         p.px(x, y, "#7a5a40");
       }
+
+      // A flag every six pixels, starting three in from the end.
       for (let s = 3, i = 0; s < len - 1; s += 6, i++) {
         const [x, y] = at(s);
         const c = PENNANTS[i % PENNANTS.length]!;
@@ -407,8 +407,6 @@ export const buntingSprite = cached(
     });
   },
 );
-
-// MARK: Gudrun
 
 /** What she is under the hat: a grey bun, a green cardigan. Looks index the palettes (`art/palette.ts`). */
 const GUDRUN_LOOK = {
@@ -440,11 +438,13 @@ const STRAW_PAL = { s: "#e8c970", S: "#d4aa4a", o: "#9a7a2e" };
 export const gudrunSprite = cached(
   (facing: Facing, breath: 0 | 1) => `${facing}:${breath}`,
   (facing: Facing, breath: 0 | 1) => {
-    const view = facing === "down" ? "down" : facing === "up" ? "up" : "side";
+    // Left and right share the side view; the flip draws the left one.
+    const view = facing === "down" || facing === "up" ? facing : "side";
     const flip = facing === "left";
     return bake(16, 16, (p) => {
       p.g.drawImage(characterFrame(GUDRUN_LOOK, facing, breath ? "walkA" : "stand"), 0, 0);
-      // The scarf at her neck, and a basket of eggs held in front.
+
+      // The scarf at her neck, and a basket of eggs held in front. Only the front view shows them.
       if (view === "down") {
         p.rect(5, 8, 6, 2, "#e8584f");
         p.px(10, 10, "#e8584f");
@@ -453,8 +453,10 @@ export const gudrunSprite = cached(
         p.px(4, 11, "#f4a6c8");
         p.px(5, 11, "#f7e27a");
         p.px(6, 11, "#9ccff2");
-      } else if (view === "side")
+      } else if (view === "side") {
         p.grid(["....rrrr........", "................"], { r: "#e8584f" }, 0, 8, flip);
+      }
+
       p.grid(STRAW[view], STRAW_PAL, 0, 0, flip);
     });
   },

@@ -73,7 +73,8 @@ export function drawMarket(f: Frame): void {
     const part = casePart(map.at(x - 1, y) === map.at(x, y), map.at(x + 1, y) === map.at(x, y));
     const tag = priceTag(l.price, l.sellerId === world.selfId);
     // Whole fractions of the picture only (1, 1/2, 1/3), so no pixel is drawn twice as wide as its neighbour.
-    const k = sprite ? 1 / Math.ceil(Math.max(sprite.width / (TILE - 2), sprite.height / look.fit)) : 1;
+    const fitBy = sprite ? Math.ceil(Math.max(sprite.width / (TILE - 2), sprite.height / look.fit)) : 1;
+    const k = 1 / fitBy;
     items.push({
       // Just after the case or shelf itself, and before whoever stands in front of it.
       y: py + TILE - 0.9,

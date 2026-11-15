@@ -1,5 +1,4 @@
 import type { GameMap } from "@tokenmaxxing/core/maps.ts";
-import { PASSAGE_W } from "@tokenmaxxing/core/office.ts";
 
 /**
  * Where the company house's picture sits on its map, and what its hallways are made of. The house's 3D room is
@@ -14,8 +13,6 @@ export const houseTile = (x: number, y: number): [number, number] => [x - 1, y -
 /** Where room tile (0, 0) is on the map's grid, in tiles from its top-left (the skin's `offset`). */
 export const houseOffset = (map: GameMap): [number, number] => [1 - map.x0, 2 - map.y0];
 
-export { PASSAGE_W };
-
 export type HallTile = { kind: "wall" | "floor" | "door"; x: number; y: number; rx: number; rz: number };
 
 /**
@@ -24,7 +21,7 @@ export type HallTile = { kind: "wall" | "floor" | "door"; x: number; y: number; 
  */
 export function hallwayTiles(map: GameMap): HallTile[] {
   const out: HallTile[] = [];
-  for (let y = map.y0; y < 2; y++)
+  for (let y = map.y0; y < 2; y++) {
     for (let x = map.x0; x < map.x0 + map.width; x++) {
       const ch = map.at(x, y);
       const [rx, rz] = houseTile(x, y);
@@ -32,10 +29,14 @@ export function hallwayTiles(map: GameMap): HallTile[] {
       else if (ch === "R") out.push({ kind: "door", x, y, rx, rz });
       else if (map.walkable(x, y)) out.push({ kind: "floor", x, y, rx, rz });
     }
+  }
   return out;
 }
 
-/** The passage's lower left tile (in the floor's top wall rows), where its doorway stands, `PASSAGE_W` wide; null without hallways. */
+/**
+ * The passage's lower left tile (in the floor's top wall rows), where its doorway stands, `PASSAGE_W` wide; null
+ * without hallways.
+ */
 export function housePassage(map: GameMap): [number, number] | null {
   const t = hallwayTiles(map).find((h) => h.kind === "floor" && h.y === 1);
   return t ? [t.rx, t.rz] : null;

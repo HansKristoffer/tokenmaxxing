@@ -84,17 +84,21 @@ export function PlayerCard({ userId }: { userId: number }) {
 
   if (error) return <Modal title="Player">{error}</Modal>;
   if (!p) return <Modal title="Player">Loading…</Modal>;
+
   const t = p.totals;
   const status = doing(userId);
   const today = p.daily.at(-1)?.tokens ?? 0;
+  const company = p.company;
+  const mine = userId === world.selfId;
+
   const next = nextMilestone(p.level);
   const title = milestoneTitle(p.level);
   // The item packs' rewards come between milestones: show the next one if it's sooner.
-  const reward = sortBy(
-    ITEMS.filter((i) => i.level !== undefined && i.level > p.level && i.level < (next?.level ?? Infinity)),
-    "level",
-  )[0];
-  const mine = userId === world.selfId;
+  const rewardsAhead = ITEMS.filter(
+    (i) => i.level !== undefined && i.level > p.level && i.level < (next?.level ?? Infinity),
+  );
+  const reward = sortBy(rewardsAhead, "level")[0];
+
   // Once prestiged, the card's level is the run's: the first journey's 50 is long behind them.
   const pres = prestigeOf(p);
   const run = pres.rank > 0;
@@ -102,9 +106,11 @@ export function PlayerCard({ userId }: { userId: number }) {
   const atMax = run ? pres.runLevel >= RUN_LEVELS : p.level >= MAX_LEVEL;
   const barStart = run ? p.lifetimeTokens - (pres.runInto ?? 0) : levelAt(p.level);
   const barSpan = run ? TOKENS_PER_LEVEL : levelAt(p.level + 1) - levelAt(p.level);
+
   // What the next levels bring, on hover of the "Lv7 in …" line.
   const rewardText = reward ? `Reward at Lv${reward.level}: ${reward.name}` : "";
   const milestoneLine = next ? `Lv${next.level} milestone: ${milestoneText(next)}` : "";
+
   const visit = () => {
     hud.set({ panel: null });
     world.portalPending = true;
@@ -156,13 +162,13 @@ export function PlayerCard({ userId }: { userId: number }) {
                 {today > 0 && <span className="xp-today">+{compact(today)} today</span>}
               </p>
               <p className="muted small">
-                {p.company ? (
+                {company ? (
                   <button
                     type="button"
                     className="link"
-                    onClick={() => hud.set({ panel: { kind: "companyCard", companyId: p.company!.id } })}
+                    onClick={() => hud.set({ panel: { kind: "companyCard", companyId: company.id } })}
                   >
-                    {p.company.name}
+                    {company.name}
                   </button>
                 ) : (
                   "Freelancer"

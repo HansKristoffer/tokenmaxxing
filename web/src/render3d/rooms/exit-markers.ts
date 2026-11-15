@@ -43,9 +43,16 @@ export function thresholdOf(map: GameMap, x: number, y: number): [number, number
   return [x, y];
 }
 
+interface Exit {
+  ch: string;
+  x: number;
+  y: number;
+  at: [number, number];
+}
+
 /** Every portal tile of a map, with its threshold. */
-export function exitsOf(map: GameMap): { ch: string; x: number; y: number; at: [number, number] }[] {
-  const out: { ch: string; x: number; y: number; at: [number, number] }[] = [];
+export function exitsOf(map: GameMap): Exit[] {
+  const out: Exit[] = [];
   map.rows.forEach((row, ry) => {
     for (let rx = 0; rx < row.length; rx++) {
       const x = rx + map.x0;

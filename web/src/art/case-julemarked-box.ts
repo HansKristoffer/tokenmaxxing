@@ -1,3 +1,4 @@
+import type { CaseBoxKind } from "./case-box.ts";
 import { C } from "./palette.ts";
 import { bake, once, type Pen } from "./pixels.ts";
 
@@ -95,7 +96,6 @@ function candle(p: Pen, x: number, y: number, flick: boolean): void {
   p.rect(x, y - 2, 1, 3, J.cream);
   p.px(x, y - 1, J.red);
   p.px(x, y - 4, J.goldLight);
-  p.px(x - 1, y - 5, "rgba(255, 224, 140, 0.0)");
   p.px(x, y - 5, flick ? J.goldLight : J.gold);
   p.px(x, y - 6, J.gold);
 }
@@ -207,25 +207,27 @@ function drawOpen(p: Pen, frame: number): void {
   p.rect(8, 8, 8, 1, "rgba(255, 240, 190, 0.55)");
   p.rect(10, 8, 4, 3, "rgba(255, 250, 225, 0.85)");
   // Paper hearts floating up out of the light, and snow drifting down past them.
-  [
+  const hearts: [x: number, phase: number][] = [
     [5, 0],
     [11, 3],
     [17, 6],
     [8, 8],
-  ].forEach(([bx, ph], k) => {
-    const rise = (t * 2 + ph!) % 9;
+  ];
+  hearts.forEach(([bx, ph], k) => {
+    const rise = (t * 2 + ph) % 9;
     const y = 8 - rise;
-    miniHeart(p, bx! + (t % 2 === k % 2 ? 1 : 0), y, rise > 6 ? 0.45 : 1, k % 2 === 0);
+    miniHeart(p, bx + (t % 2 === k % 2 ? 1 : 0), y, rise > 6 ? 0.45 : 1, k % 2 === 0);
   });
-  [
+  const flakes: [x: number, phase: number][] = [
     [2, 0],
     [20, 2],
     [14, 5],
     [8, 1],
     [22, 4],
-  ].forEach(([bx, ph], k) => {
-    const y = (t * 2 + ph! + k) % 8;
-    p.px(bx! + (t % 2), y, k % 2 ? J.frost : J.snow);
+  ];
+  flakes.forEach(([bx, ph], k) => {
+    const y = (t * 2 + ph + k) % 8;
+    p.px(bx + (t % 2), y, k % 2 ? J.frost : J.snow);
   });
   // Gold sparks that twinkle at the mouth.
   const sp: [number, number][] = [
@@ -251,7 +253,9 @@ function drawKey(p: Pen): void {
   p.rect(6, 0, 4, 1, C.ink);
   p.rect(5, 1, 1, 3, C.ink);
   p.rect(10, 1, 1, 3, C.ink);
-  for (const x of [6, 9]) for (let y = 1; y < 4; y++) p.px(x, y, (y + x) % 2 ? J.red : J.cream);
+  for (const x of [6, 9]) {
+    for (let y = 1; y < 4; y++) p.px(x, y, (y + x) % 2 ? J.red : J.cream);
+  }
   // The coin: ink ring, gold face, a darker inner ring, a highlight and a shaded edge.
   p.disc(8, 9, 7, C.ink);
   p.disc(8, 9, 6, J.gold);
@@ -288,7 +292,7 @@ function drawKey(p: Pen): void {
 }
 
 /** Draws the Julemarked case's `kind` into `p` (the same canvas sizes as the other cases'). */
-export function drawJulemarkedBox(p: Pen, kind: "closed" | "open" | "key", frame: number): void {
+export function drawJulemarkedBox(p: Pen, kind: CaseBoxKind, frame: number): void {
   if (kind === "closed") drawClosed(p);
   else if (kind === "open") drawOpen(p, frame);
   else drawKey(p);

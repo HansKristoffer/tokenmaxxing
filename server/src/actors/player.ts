@@ -29,7 +29,6 @@ import type { registry } from "./registry.ts";
 import {
   background,
   type Caller,
-  type Callers,
   type ConnParams,
   callerOf,
   fromInside,
@@ -175,13 +174,9 @@ function seen(s: PlayerState, deviceId: number | undefined, now: number): void {
 
 /** A computer's name, as it'll be listed: printable, trimmed, at most 40 characters. */
 function deviceName(raw: unknown): string {
-  const name =
-    typeof raw === "string"
-      ? raw
-          .replace(/[\p{C}]/gu, "")
-          .trim()
-          .slice(0, 40)
-      : "";
+  // `\p{C}` is every control, format and unassigned character: a pasted newline or a zero-width space.
+  const printable = typeof raw === "string" ? raw.replace(/[\p{C}]/gu, "") : "";
+  const name = printable.trim().slice(0, 40);
   if (!name) throw new UserError("Give the computer a name.", { code: "invalid_name" });
   return name;
 }
@@ -254,7 +249,7 @@ export const player = actor({
       /** Who the player is and how they sign in: saved after every action (`saveAfterActions`). */
       state: upgraded(kept.value),
       kept,
-      callers: new Map() as Callers,
+      callers: new Map<string, Caller>(),
       loop: null as Promise<void> | null,
       serial: serial(),
       ingests: new RateLimiter(INGESTS_PER_MIN, 60_000),
@@ -331,6 +326,7 @@ export const player = actor({
     /** Single use. Returns a 30-day browser session token. */
     redeemLoginCode: (c, code: string): string => {
       const now = Date.now();
+      // A desktop code is a token. Anything else may be a phone code, which has its own rate limit.
       const phone = splitToken(code) ? null : parsePhoneCode(code);
       if (phone && !c.vars.phoneRedeems.take("redeem", now))
         throw new UserError("Too many tries. Wait a minute, then make a new code.", { code: "rate_limited" });
@@ -486,7 +482,7 @@ export const player = actor({
         const days = [...new Set(valid.map((e) => dayKey(e.timestamp)))];
         const inserted = await c.db.transaction(
           async (tx) => {
-            let inserted = 0;
+            let written = 0;
             const { events: reconciled, deletedAt } = await reconcileCursorUsage(tx, valid);
             for (const chunk of chunkArray(reconciled, INSERT_CHUNK)) {
               const row = `(${COLUMNS.map(() => "?").join(",")})`;
@@ -494,7 +490,7 @@ export const player = actor({
                 `INSERT OR IGNORE INTO events (${COLUMNS.join(",")}) VALUES ${chunk.map(() => row).join(",")} RETURNING id`,
                 ...chunk.flatMap(eventRow),
               );
-              inserted += rows.length;
+              written += rows.length;
               // Replay old Cursor IDs to enrich their cost without inserting tokens again.
               // A missing cost from an older client must not erase an already reported value.
               const costs = chunk.filter(
@@ -534,7 +530,7 @@ export const player = actor({
             for (const day of days)
               await tx.execute("INSERT OR IGNORE INTO pending_usage_days VALUES (?)", day);
             await trophyHoursChanged(tx, [...valid.map((e) => e.timestamp), ...deletedAt]);
-            return inserted;
+            return written;
           },
           { name: "ingest-events" },
         );
@@ -549,15 +545,18 @@ export const player = actor({
       return ingested.then((result) => {
         if (valid.length > 0) {
           const signal = c.abortSignal;
+          // A failed drain leaves its days in `pending_usage_days`, so the next wake or sync picks them up.
           c.waitUntil(
             drainUsageReports(c.db, c.vars.serial, signal, (days) =>
               report(c.db, c.client<typeof registry>(), c.vars.state.userId, days, Date.now()),
             ).catch(() => {}),
           );
+
           const arcade = main(c.client()).arcade;
           const userId = c.vars.state.userId;
           // The raw events and totals are already acknowledged. A slow match must not keep the
           // ingest lock or delay this response, and backfills must not queue a call for every batch.
+          // A failed battle update is sent again by the next sync.
           c.waitUntil(
             c.vars
               .battleUpdate(async () => {
@@ -623,6 +622,18 @@ export async function migrateEvents(d: Sql): Promise<void> {
 /** Events per batch of `cleanExcludedEvents`: each is a short scan, so the actor stays responsive. */
 const CLEANUP_BATCH = 2_000;
 
+/** The highest event id, 0 for none: the passes below walk the events table up to it. */
+async function maxEventId(d: Sql): Promise<number> {
+  const [row] = (await d.execute("SELECT COALESCE(MAX(id), 0) AS max FROM events")) as { max: number }[];
+  return row?.max ?? 0;
+}
+
+/** Where a background pass has got to, by event id: a one-row table's `last_id`, 0 before it starts. */
+async function cursorOf(d: Sql, table: "excluded_cleanup" | "requeue_cursor"): Promise<number> {
+  const [row] = (await d.execute(`SELECT last_id AS last FROM ${table}`)) as { last: number }[];
+  return row?.last ?? 0;
+}
+
 /**
  * Removes Cursor-tagged Grok Bot rows and re-reports their days, once. A later sync can store the
  * same dashboard rows as `grok_bot`; leaving the Cursor copies would count them twice. It runs in
@@ -641,12 +652,8 @@ export async function cleanExcludedEvents(d: Sql, signal?: AbortSignal): Promise
   // The unary `+` keeps SQLite on the id range: through the `source` index, every batch would scan
   // all of a player's Cursor events. The model test matches `isGrokBotModel`.
   const match = `+source = 'cursor_local' AND (+model = 'grok-bot' OR +model GLOB 'grok-bot-*') AND id > ? AND id <= ?`;
-  const [{ last } = { last: 0 }] = (await d.execute("SELECT last_id AS last FROM excluded_cleanup")) as {
-    last: number;
-  }[];
-  const [{ max } = { max: 0 }] = (await d.execute("SELECT COALESCE(MAX(id), 0) AS max FROM events")) as {
-    max: number;
-  }[];
+  const last = await cursorOf(d, "excluded_cleanup");
+  const max = await maxEventId(d);
   for (let from = last; from < max; from += CLEANUP_BATCH) {
     signal?.throwIfAborted();
     const to = from + CLEANUP_BATCH;
@@ -676,12 +683,8 @@ export async function cleanExcludedEvents(d: Sql, signal?: AbortSignal): Promise
  */
 export async function requeueEveryDay(d: Sql, signal?: AbortSignal): Promise<void> {
   if ((await d.execute("SELECT 1 FROM usage_report_migrations WHERE version = 5")).length) return;
-  const [{ last } = { last: 0 }] = (await d.execute("SELECT last_id AS last FROM requeue_cursor")) as {
-    last: number;
-  }[];
-  const [{ max } = { max: 0 }] = (await d.execute("SELECT COALESCE(MAX(id), 0) AS max FROM events")) as {
-    max: number;
-  }[];
+  const last = await cursorOf(d, "requeue_cursor");
+  const max = await maxEventId(d);
   for (let from = last; from < max; from += CLEANUP_BATCH) {
     signal?.throwIfAborted();
     const to = from + CLEANUP_BATCH;
@@ -751,6 +754,7 @@ export async function report(
      FROM capped
      GROUP BY day, model`,
     ...days,
+    // Two cap parameters for each of the four `scaled` columns.
     ...Array(4).fill([USAGE_MINUTE_CAP, USAGE_MINUTE_CAP]).flat(),
   )) as UsageDay[];
   const capped = (await sql.execute(
@@ -804,11 +808,20 @@ export async function report(
     const n = counts.find((r) => r.day === day);
     const rows = bucketRows.filter((r) => r.day === day);
     const hours = Array<number>(24).fill(0);
-    for (const r of rows) hours[worldClock(r.bucket * AGENT_BUCKET_MS).hour]!++;
+    for (const r of rows) {
+      hours[worldClock(r.bucket * AGENT_BUCKET_MS).hour]!++;
+    }
+
     const hourTokens = Array<number>(24).fill(0);
-    for (const r of hourRows) if (r.day === day) hourTokens[worldClock(r.hour * HOUR_MS).hour]! += r.tokens;
+    for (const r of hourRows) {
+      if (r.day === day) hourTokens[worldClock(r.hour * HOUR_MS).hour]! += r.tokens;
+    }
+
     const sources: Record<string, number> = {};
-    for (const r of sourceTokens) if (r.day === day && r.tokens > 0) sources[r.source] = r.tokens;
+    for (const r of sourceTokens) {
+      if (r.day === day && r.tokens > 0) sources[r.source] = r.tokens;
+    }
+
     return {
       day,
       prompts: n?.prompts ?? 0,

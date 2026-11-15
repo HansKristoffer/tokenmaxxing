@@ -21,7 +21,7 @@ import { FISHING_ITEMS, LUCKY_CASTS, TREASURE_ODDS } from "@tokenmaxxing/core/fi
 import { RARITY_COLOR } from "@tokenmaxxing/core/rarity.ts";
 import { itemById } from "@tokenmaxxing/core/shop.ts";
 import { defaultLook } from "@tokenmaxxing/core/world.ts";
-import { type CSSProperties, useEffect, useRef, useState } from "react";
+import { type CSSProperties, type ReactNode, useEffect, useRef, useState } from "react";
 import { fishCanvas } from "../art/fish.ts";
 import { setFishingLine, setLanded } from "../game/fishing-line.ts";
 import { self, world } from "../game/world.ts";
@@ -70,6 +70,7 @@ export function Fishing() {
   const [tab, setTab] = useState<Tab>("journal");
   const { error, busy, run } = useRun();
   const live = useRef(true);
+  // This clock minus the server's, read when a cast starts, so the bite window runs on the server's time.
   const [skew, setSkew] = useState(0);
   useTicker(80, cast !== null);
   useEffect(() => {
@@ -82,7 +83,7 @@ export function Fishing() {
   }, []);
   const now = Date.now() - skew;
   const phase = cast ? fishingPhase(cast, now) : null;
-  const s = state ?? data;
+  const pond = state ?? data;
   const castLine = run(async () => {
     const me = self();
     if (!me) return;
@@ -128,6 +129,26 @@ export function Fishing() {
     });
   });
   const fish = caught && fishById(caught.fish.fish);
+
+  // The line under the scene, by what the cast is doing.
+  let status: ReactNode = message;
+  if (phase === "waiting") {
+    status = <code>{waiting}</code>;
+  } else if (phase === "bite") {
+    status = <strong>A bite! Reel it in!</strong>;
+  } else if (phase === "missed") {
+    status = missed;
+  } else if (fish) {
+    status = (
+      <>
+        <strong style={{ color: RARITY_COLOR[fish.rarity] }}>
+          {fish.emoji} {fish.name} · {lengthOf(caught.fish)}!
+        </strong>{" "}
+        {caught.line}
+      </>
+    );
+  }
+
   return (
     <Modal title="🎣 Pond fishing" wide>
       <p className="muted">
@@ -145,22 +166,7 @@ export function Fishing() {
         )}
       </div>
       <p role="status" aria-live="polite" className="fishing-status">
-        {phase === "waiting" ? (
-          <code>{waiting}</code>
-        ) : phase === "bite" ? (
-          <strong>A bite! Reel it in!</strong>
-        ) : phase === "missed" ? (
-          missed
-        ) : fish ? (
-          <>
-            <strong style={{ color: RARITY_COLOR[fish.rarity] }}>
-              {fish.emoji} {fish.name} · {lengthOf(caught.fish)}!
-            </strong>{" "}
-            {caught.line}
-          </>
-        ) : (
-          message
-        )}
+        {status}
       </p>
       {caught?.record && <p className="fishing-record">🏆 A new pond record for the {fish?.name}!</p>}
       {caught?.treasure && <TreasureFound id={caught.treasure} />}
@@ -184,16 +190,16 @@ export function Fishing() {
         )}
       </div>
       {(error || loadError) && <p className="error">{error || loadError}</p>}
-      {s && <LuckLine luck={s.luck} />}
+      {pond && <LuckLine luck={pond.luck} />}
       <Pills value={tab} options={TABS} onChange={setTab} />
-      {!s ? (
+      {!pond ? (
         <p className="muted">Loading…</p>
       ) : tab === "journal" ? (
-        <Journal journal={s.journal} records={s.records} />
+        <Journal journal={pond.journal} records={pond.records} />
       ) : tab === "records" ? (
-        <Records records={s.records} />
+        <Records records={pond.records} />
       ) : (
-        <Treasures found={s.treasures} />
+        <Treasures found={pond.treasures} />
       )}
     </Modal>
   );
@@ -261,12 +267,14 @@ function Journal({ journal, records }: { journal: readonly FishingEntry[]; recor
                 <span className="muted small">
                   {entry
                     ? `${entry.count} caught · best ${lengthOf(entry)}`
-                    : (f.hint ?? `${f.rarity[0]!.toUpperCase()}${f.rarity.slice(1)} · not caught yet`)}
+                    : (f.hint ?? `${f.rarity.charAt(0).toUpperCase()}${f.rarity.slice(1)} · not caught yet`)}
                 </span>
                 {entry && <span className="small fishing-blurb">{f.blurb}</span>}
               </span>
               <span className="fishing-medals">
-                {medal && <span title={`${medal} medal: ${entry!.count} caught`}>{MEDAL_EMOJI[medal]}</span>}
+                {entry && medal && (
+                  <span title={`${medal} medal: ${entry.count} caught`}>{MEDAL_EMOJI[medal]}</span>
+                )}
                 {entry && isSpecimen(entry) && (
                   <span title="Perfect specimen: caught at its longest">⭐</span>
                 )}

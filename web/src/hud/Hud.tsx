@@ -108,18 +108,12 @@ export function Hud() {
           {tray === "info" && <Corner />}
           {tray === "chat" && <Chat />}
           {tray === "map" && <Minimap />}
-          <Banner />
-          <PicnicBanner />
-          <KeynoteBanner />
-          <GreenBanner />
+          <Banners />
         </>
       ) : (
         <>
           <Corner />
-          <Banner />
-          <PicnicBanner />
-          <KeynoteBanner />
-          <GreenBanner />
+          <Banners />
           {!beside && <Chat />}
           <Minimap />
         </>
@@ -171,6 +165,18 @@ const TRAY = [
   ["map", "🗺", "Map"],
   ["info", "🏅", "Scores and games"],
 ] as const;
+
+/** The banners over the town, the same on a wide screen and a narrow one. */
+function Banners() {
+  return (
+    <>
+      <Banner />
+      <PicnicBanner />
+      <KeynoteBanner />
+      <GreenBanner />
+    </>
+  );
+}
 
 function Corner() {
   return (
@@ -256,6 +262,7 @@ function Stats() {
   const wallet = useHud((s) => s.wallet);
   const waiting = useHud((s) => s.me?.company?.applicants.length ?? 0);
   const [photoOpen, setPhotoOpen] = useState(false);
+  const companyLabel = waiting ? `Company: ${waiting} asking to join` : "Company";
   return (
     <div className="stats-chip">
       <AppUpdate />
@@ -379,8 +386,8 @@ function Stats() {
         <button
           type="button"
           className="icon"
-          title={waiting ? `Company: ${waiting} asking to join` : "Company"}
-          aria-label={waiting ? `Company: ${waiting} asking to join` : "Company"}
+          title={companyLabel}
+          aria-label={companyLabel}
           onClick={() => hud.set({ panel: { kind: "company" } })}
         >
           🏢{waiting > 0 && <span className="count">{waiting}</span>}
@@ -400,11 +407,13 @@ function Stats() {
 }
 
 const BANNER_MS = 2500;
-const MENTION_MS = 8000;
+/** How long a toast stays up. */
+const TOAST_MS = 8000;
 
 function Banner() {
   const banner = useHud((s) => s.banner);
-  if (!useFresh(banner?.at, BANNER_MS) || !banner) return null;
+  const isFresh = useFresh(banner?.at, BANNER_MS);
+  if (!isFresh || !banner) return null;
   // A new room while the last one's name is still up starts over, not mid-fade.
   return (
     <div key={banner.at} className="banner">
@@ -494,7 +503,8 @@ function panelOf(panel: PanelState | null, inMyOffice: boolean) {
     caseOpening: () => <CaseOpening />,
     caseShop: (p) => <CaseShop shelf={p.shelf} shop={p.shop} />,
     caseLeaderboard: () => <CaseLeaderboard />,
-    market: (p) => <Market tab={p.tab} />,
+    // A tab asked for is a new mount, so the counter opens on it.
+    market: (p) => <Market key={p.tab} tab={p.tab} />,
     marketSlot: (p) => <MarketSlot slot={p.slot} />,
     rouletteWatch: () => <RouletteWatch />,
     pokerWatch: () => <PokerWatch />,
@@ -534,7 +544,9 @@ function SignedOut({ expired }: { expired: boolean }) {
   const { busy, error, run } = useRun();
   const submit = run(async () => {
     const value = code.trim();
-    if (!parsePhoneCode(value) && !/^\d{1,12}\.[A-Za-z0-9_-]{16,128}$/.test(value))
+    // A phone code from the computer, or a device token shaped `<userId>.<secret>`.
+    const isDeviceToken = /^\d{1,12}\.[A-Za-z0-9_-]{16,128}$/.test(value);
+    if (!parsePhoneCode(value) && !isDeviceToken)
       throw new Error("Type the code from your computer, like 42-K7QF-M2XP.");
     await redeem(value);
     location.reload();
@@ -602,7 +614,8 @@ const NOTICE_ICONS = {
 /** A line for me from the server (a company application, a trade); a click opens what it's about. */
 function NoticeToast() {
   const notice = useHud((s) => s.notice);
-  if (!useFresh(notice?.at, MENTION_MS) || !notice) return null;
+  const isFresh = useFresh(notice?.at, TOAST_MS);
+  if (!isFresh || !notice) return null;
   const { open } = notice;
   return (
     <ToastButton
@@ -618,7 +631,8 @@ function NoticeToast() {
 /** Things of mine that sold in Torvehallen while I was away: one line, which opens my shelf. */
 function MarketToast() {
   const sold = useHud((s) => s.marketSold);
-  if (!useFresh(sold?.at, MENTION_MS) || !sold) return null;
+  const isFresh = useFresh(sold?.at, TOAST_MS);
+  if (!isFresh || !sold) return null;
   const total = sold.sales.reduce((sum, s) => sum + s.price, 0);
   return (
     <ToastButton open={{ kind: "market", tab: "shelf" }} dismiss={() => hud.set({ marketSold: null })}>
@@ -640,7 +654,8 @@ function LevelToast() {
       setUp({ from: seen.current, to: level, at: Date.now() });
     seen.current = level;
   }, [level]);
-  if (!useFresh(up?.at, MENTION_MS) || !up) return null;
+  const isFresh = useFresh(up?.at, TOAST_MS);
+  if (!isFresh || !up) return null;
   const open = () => {
     setUp(null);
     hud.set({ panel: { kind: "bag" } });
@@ -648,12 +663,11 @@ function LevelToast() {
   // Every level reward is a milestone's. A big sync can pass two: the toast shows the last.
   const passed = milestonesBetween(up.from, up.to);
   if (passed.length > 0) {
-    const office =
-      passed[0]!.level === OFFICE_LEVEL
-        ? company
-          ? "Your own office is open"
-          : "Join a company for your own office"
-        : null;
+    // The level that opens offices also says where the office comes from: a company, or joining one.
+    let office: string | null = null;
+    if (passed[0]!.level === OFFICE_LEVEL) {
+      office = company ? "Your own office is open" : "Join a company for your own office";
+    }
     return <MilestoneToast milestone={passed.at(-1)!} level={up.to} office={office} onClick={open} />;
   }
   return (
@@ -666,7 +680,8 @@ function LevelToast() {
 /** Someone @-mentioned me from another room. */
 function MentionToast() {
   const mention = useHud((s) => s.mention);
-  if (!useFresh(mention?.at, MENTION_MS) || !mention) return null;
+  const isFresh = useFresh(mention?.at, TOAST_MS);
+  if (!isFresh || !mention) return null;
   const { line } = mention;
   return (
     <ToastButton open={{ kind: "card", userId: line.userId }} dismiss={() => hud.set({ mention: null })}>
@@ -691,7 +706,8 @@ function QuestToast() {
     const now = before ? done.filter((q) => !before.has(q.id)) : [];
     if (now.length > 0) setFresh({ quests: now, at: Date.now() });
   }, [quests]);
-  if (!useFresh(fresh?.at, MENTION_MS) || !fresh) return null;
+  const isFresh = useFresh(fresh?.at, TOAST_MS);
+  if (!isFresh || !fresh) return null;
   return (
     <ToastButton open={{ kind: "quests" }} dismiss={() => setFresh(null)}>
       {fresh.quests.map((q) => `✓ ${q.text} · 🪙 ${q.coins}`).join("  ")}

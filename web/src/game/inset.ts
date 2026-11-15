@@ -1,8 +1,9 @@
 /**
  * How much of the screen the HUD's panels cover on each side, measured from the real elements, so the
  * 3D camera can centre the player and frame the room in the free area between them (`render3d/engine/rig.ts`).
- * A side counts in proportion (softened, a stack that fills a third of an edge still counts most) to how much of its edge the panels fill: a lone corner chip does not move
- * the picture, a chat and a map along the bottom do.
+ * A side counts in proportion to how much of its edge the panels fill, softened so a stack that fills a
+ * third of an edge still counts most. A lone corner chip does not move the picture; a chat and a map along
+ * the bottom do.
  */
 export const hudInset = { left: 0, top: 0, right: 0, bottom: 0, version: 0 };
 
@@ -44,8 +45,7 @@ export function computeInsets(
         side = s;
       }
     }
-    const depth =
-      side === "left" ? r.right : side === "right" ? w - r.left : side === "top" ? r.bottom : h - r.top;
+    const depth = { left: r.right, right: w - r.left, top: r.bottom, bottom: h - r.top }[side];
     thick[side] = Math.max(thick[side], Math.min(depth, (side === "left" || side === "right" ? w : h) * 0.5));
     span[side] += side === "left" || side === "right" ? rh / h : rw / w;
   }

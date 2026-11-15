@@ -9,11 +9,11 @@ import { world } from "./world.ts";
  */
 
 /** Frames past shut: 0 is the door as the building sprite draws it, `SWING_FRAMES` wide open. */
-export const SWING_FRAMES = 3;
+const SWING_FRAMES = 3;
 /** Per frame, so a full swing is about a fifth of a second. */
-export const FRAME_MS = 60;
+const FRAME_MS = 60;
 /** How long a door stays open after the last person by it has gone. */
-export const LINGER_MS = 600;
+const LINGER_MS = 600;
 
 interface Swing {
   frame: number;
@@ -23,10 +23,10 @@ interface Swing {
   at: number;
 }
 
-export const shut = (): Swing => ({ frame: 0, seen: -Infinity, at: -Infinity });
+const shut = (): Swing => ({ frame: 0, seen: -Infinity, at: -Infinity });
 
 /** One step of a door's swing: toward open while someone is by it (or just was), else toward shut. */
-export function swingStep(s: Swing, near: boolean, now: number): number {
+function swingStep(s: Swing, near: boolean, now: number): number {
   if (near) s.seen = now;
   const target = now - s.seen < LINGER_MS ? SWING_FRAMES : 0;
   if (s.frame !== target && now - s.at >= FRAME_MS) {
@@ -37,7 +37,7 @@ export function swingStep(s: Swing, near: boolean, now: number): number {
 }
 
 /** By the door at (`dx`, `dy`), in tiles: on it, or on the step in front of it (diagonals too). */
-export const byDoor = (x: number, y: number, dx: number, dy: number): boolean =>
+const byDoor = (x: number, y: number, dx: number, dy: number): boolean =>
   Math.abs(x - dx) <= 1.2 && y >= dy - 0.5 && y <= dy + 1.6;
 
 /** Each map's doors, by tile (`dx * 1e6 + dy`). */
@@ -53,23 +53,12 @@ export function doorSwing(
   now: number,
   spots: readonly { x: number; y: number }[],
 ): number {
-  let doors = swings.get(world.map.id);
-  if (!doors) {
-    doors = new Map();
-    swings.set(world.map.id, doors);
-  }
+  const doors = swings.get(world.map.id) ?? new Map<number, Swing>();
+  swings.set(world.map.id, doors);
   const key = dx * 1e6 + dy;
-  let s = doors.get(key);
-  if (!s) {
-    s = shut();
-    doors.set(key, s);
-  }
-  let near = false;
-  for (const p of spots)
-    if (byDoor(p.x, p.y, dx, dy)) {
-      near = true;
-      break;
-    }
+  const s = doors.get(key) ?? shut();
+  doors.set(key, s);
+  const near = spots.some((p) => byDoor(p.x, p.y, dx, dy));
   return swingStep(s, near, now);
 }
 

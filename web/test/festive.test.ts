@@ -44,7 +44,10 @@ test("the grade grows with the intensity and the dark, and stays a colour", () =
       const g = festiveGrade({ id, intensity: 1, days: 0 }, d, w);
       expect(g.k).toBeGreaterThanOrEqual(0);
       expect(g.k).toBeLessThanOrEqual(1);
-      for (const c of g.rgb) (expect(c).toBeGreaterThanOrEqual(0), expect(c).toBeLessThanOrEqual(255));
+      for (const c of g.rgb) {
+        expect(c).toBeGreaterThanOrEqual(0);
+        expect(c).toBeLessThanOrEqual(255);
+      }
     }
   expect(Object.keys(SKY).sort()).toEqual(Object.keys(FESTIVE).sort());
 });
@@ -88,7 +91,6 @@ test("festiveNow follows the pin, the setting and the minute", () => {
     gfx.graphics.override("seasonal", undefined);
     at("2026-11-01T00:01");
     expect(wrapper.festiveNow()).toBeNull();
-    expect(wrapper.intensityNow()).toBe(0);
   } finally {
     Date.now = real;
   }

@@ -16,7 +16,6 @@ import {
   STALLS,
 } from "./julemarked.ts";
 import { POSTERS } from "./posters.ts";
-
 import {
   CASE_BOARD_TILE,
   SHOP_BODY_CHAR,
@@ -396,8 +395,6 @@ export function layoutOf(map: GameMap): RoomLayout {
   return layout;
 }
 
-// MARK: The town
-
 /**
  * The town is a grid of blocks. The square, the Inn and the pond are the core (2×2 blocks around
  * block (0, 0)); every company is one block, its plot, which it picks when it starts (any empty block
@@ -464,21 +461,23 @@ export const CORE_BLOCKS: [number, number][] = [
  * (the client draws it); these are what grows outside the fence, a little different on every block. The grass
  * either side of the path below the door stays clear: the morning paper and the pumpkins land there.
  */
-const LOTS = [
+// The two rows that differ from lot to lot: the row above the house and the row at the lot's bottom.
+const LOT_EDGES: [back: string, front: string][] = [
   [",.........", ',T...,."".'],
   [",.........", ',."..,...^'],
   [",........T", ',""..,....'],
   [",.........", ",....,...."],
-].map(([back, front]) => [
+];
+const LOTS = LOT_EDGES.map(([back, front]) => [
   ",,,,,,,,,,",
-  back!,
+  back,
   ",.HHHHHHH.",
   ",.HHHHHHH.",
   ",.HHHHHHH.",
   ",.HHHHHHH.",
   ",.HHHDHHH.",
   ",....,....",
-  front!,
+  front,
 ]);
 /** Which of `LOTS` block (bx, by) gets: the same one every time the town is built. */
 const lotOf = (bx: number, by: number): string[] => LOTS[Math.abs(bx * 5 + by * 3) % LOTS.length]!;
@@ -553,9 +552,11 @@ export function* blocksOutward(): Generator<[number, number]> {
   const done = new Set<number>();
   for (let m = 0.5; ; m++) {
     const found: [number, number][] = [];
-    for (let by = Math.ceil(0.5 - m); by <= Math.floor(0.5 + m); by++)
-      for (let bx = Math.ceil(0.5 - m); bx <= Math.floor(0.5 + m); bx++)
+    for (let by = Math.ceil(0.5 - m); by <= Math.floor(0.5 + m); by++) {
+      for (let bx = Math.ceil(0.5 - m); bx <= Math.floor(0.5 + m); bx++) {
         if (!done.has(plotId(bx, by)) && fromSquare(bx, by) < m + 1) found.push([bx, by]);
+      }
+    }
     for (const block of sortBy(
       found,
       ([bx, by]) => fromSquare(bx, by),
@@ -644,6 +645,18 @@ const PARKS = [
   ],
 ];
 
+/** The rectangle the tiles cover, or null when there are none. */
+export function tileBounds(
+  tiles: readonly [number, number][],
+): { x: number; y: number; w: number; h: number } | null {
+  if (tiles.length === 0) return null;
+  const xs = tiles.map(([x]) => x);
+  const ys = tiles.map(([, y]) => y);
+  const x = Math.min(...xs);
+  const y = Math.min(...ys);
+  return { x, y, w: Math.max(...xs) - x + 1, h: Math.max(...ys) - y + 1 };
+}
+
 /** A plot's number stands for its block: (by + 500) · 1000 + (bx + 500). */
 export const plotId = (bx: number, by: number): number => (by + 500) * 1000 + (bx + 500);
 export const plotBlock = (plot: number): [number, number] => [
@@ -711,23 +724,29 @@ export function townMap(plots: readonly number[]): GameMap {
     grid[y - y0]![x - x0] = ch;
   };
   const taken = new Set(plots);
-  for (let by = minBy; by <= maxBy; by++)
+
+  // What a block holds: the core, a company's lot, a shop, the Julemarked gate, or else a park.
+  const blockRows = (bx: number, by: number): readonly string[] => {
+    const id = plotId(bx, by);
+    if (isCore(bx, by)) {
+      return CORE.slice(by * BLOCK_H, (by + 1) * BLOCK_H).map((r) =>
+        r.slice(bx * BLOCK_W, (bx + 1) * BLOCK_W),
+      );
+    }
+    if (taken.has(id)) return lotOf(bx, by);
+    const shop = shopAt.get(id);
+    if (shop) return shopLot(shop);
+    if (id === plotId(...gate)) return julemarktLot();
+    return PARKS[Math.abs(bx * 7 + by * 13) % PARKS.length]!;
+  };
+
+  for (let by = minBy; by <= maxBy; by++) {
     for (let bx = minBx; bx <= maxBx; bx++) {
-      const rows = isCore(bx, by)
-        ? CORE.slice((by - 0) * BLOCK_H, (by + 1) * BLOCK_H).map((r) =>
-            r.slice(bx * BLOCK_W, (bx + 1) * BLOCK_W),
-          )
-        : taken.has(plotId(bx, by))
-          ? lotOf(bx, by)
-          : shopAt.has(plotId(bx, by))
-            ? shopLot(shopAt.get(plotId(bx, by))!)
-            : plotId(bx, by) === plotId(...gate)
-              ? julemarktLot()
-              : PARKS[Math.abs(bx * 7 + by * 13) % PARKS.length]!;
-      rows.forEach((row, dy) => {
+      blockRows(bx, by).forEach((row, dy) => {
         for (let dx = 0; dx < BLOCK_W; dx++) put(bx * BLOCK_W + dx, by * BLOCK_H + dy, row[dx]!);
       });
     }
+  }
   const right = (maxBx + 1) * BLOCK_W;
   const bottom = (maxBy + 1) * BLOCK_H;
   for (let y = minBy * BLOCK_H; y <= bottom; y++) put(right, y, ",");

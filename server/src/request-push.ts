@@ -6,10 +6,25 @@ const TIMEOUT_MS = 10_000;
 
 export type PushedRequest = Pick<RequestEntry, "id" | "userId" | "name" | "text" | "createdAt">;
 
+/** One POST to the receiver: true when it accepted the request, otherwise why it did not. */
+async function postOnce(url: string, request: PushedRequest): Promise<true | string> {
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(request),
+      signal: AbortSignal.timeout(TIMEOUT_MS),
+    });
+    return res.ok ? true : `HTTP ${res.status}`;
+  } catch (err) {
+    return String(err);
+  }
+}
+
 /**
- * POSTs a new request on the Tavern's pile as JSON to `NEW_REQUEST_PUSH_URL`, so an agent can start on it
- * right away. Production only, and unset sends nothing. The URL carries the receiver's token, so it is
- * never logged. Retried in the background: posting a request never waits on it.
+ * POSTs a new request on the Tavern's pile as JSON to `NEW_REQUEST_PUSH_URL`, so an agent can start on
+ * it right away. Production only, and unset sends nothing. The URL carries the receiver's token, so it
+ * is never logged. Retried in the background: posting a request never waits on it.
  */
 export async function pushNewRequest(
   request: PushedRequest,
@@ -18,17 +33,11 @@ export async function pushNewRequest(
 ): Promise<boolean> {
   const url = env.NEW_REQUEST_PUSH_URL;
   if (!url || env.NODE_ENV !== "production") return false;
+
   for (let attempt = 0; ; attempt++) {
-    const sent = await fetch(url, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(request),
-      signal: AbortSignal.timeout(TIMEOUT_MS),
-    }).then(
-      (res) => res.ok || `HTTP ${res.status}`,
-      (err: unknown) => String(err),
-    );
+    const sent = await postOnce(url, request);
     if (sent === true) return true;
+
     const delay = RETRY_MS[attempt];
     if (delay === undefined) {
       console.warn(`[request push] #${request.id} gave up: ${sent}`);

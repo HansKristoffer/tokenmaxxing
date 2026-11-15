@@ -34,6 +34,7 @@ async function read<T>(
     const res = await fetcher(url, { signal: AbortSignal.timeout(TIMEOUT_MS) });
     return res.ok ? parse(await res.json()) : null;
   } catch {
+    // A feed that is down or slow leaves the caller with what it had.
     return null;
   }
 }
@@ -70,9 +71,11 @@ export async function checkGrid(
     wantPrices ? fetchPrices(fetcher) : Promise.resolve(null),
   ]);
   const since = now - 26 * HOUR_MS;
-  const green = [...new Set([...prev.grid.green, ...(readings ? greenHours(readings) : [])])]
+  const newGreen = readings ? greenHours(readings) : [];
+  const green = [...new Set([...prev.grid.green, ...newGreen])]
     .filter((h) => h >= since && h <= now)
     .sort((a, b) => a - b);
+
   return {
     grid: {
       // A day's prices are out by the afternoon before, so yesterday's are the only ones to drop.

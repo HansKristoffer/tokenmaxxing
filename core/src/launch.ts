@@ -69,13 +69,12 @@ const dollars = (n: number): string => `$${Number(n.toPrecision(3))}`;
 
 /** "In $1 · Out $5 · Cache $0.05 per 1M tokens", or null when there's no price at all. */
 export function priceLine(p: Price): string | null {
-  const parts = (
-    [
-      ["In", p.input],
-      ["Out", p.output],
-      ["Cache", p.cache],
-    ] as const
-  ).flatMap(([label, n]) => (n === null ? [] : [`${label} ${dollars(n)}`]));
+  const labelled: [string, number | null][] = [
+    ["In", p.input],
+    ["Out", p.output],
+    ["Cache", p.cache],
+  ];
+  const parts = labelled.flatMap(([label, n]) => (n === null ? [] : [`${label} ${dollars(n)}`]));
   return parts.length ? `${parts.join(" · ")} per 1M tokens` : null;
 }
 
@@ -92,11 +91,9 @@ const TAGLINE_MAX = 160;
 
 /** The first sentence of a description, cut down to fit a pamphlet. */
 function firstSentence(text: string): string {
-  const one =
-    text
-      .replace(/\s+/g, " ")
-      .trim()
-      .match(/^.+?[.!?](?=\s|$)/)?.[0] ?? text.trim();
+  const flat = text.replace(/\s+/g, " ").trim();
+  // A sentence ends at . ! or ? before a space or the end. Without one, the text as written is the line.
+  const one = flat.match(/^.+?[.!?](?=\s|$)/)?.[0] ?? text.trim();
   return one.length <= TAGLINE_MAX ? one : `${one.slice(0, TAGLINE_MAX - 1).trimEnd()}…`;
 }
 
@@ -105,6 +102,7 @@ function priceOf(pricing: unknown): Price {
   const p = (pricing ?? {}) as Record<string, unknown>;
   const per = (v: unknown): number | null => {
     const n = typeof v === "string" || typeof v === "number" ? Number(v) : Number.NaN;
+    // OpenRouter quotes dollars per token. Scale to per million and keep six decimals.
     return Number.isFinite(n) && n >= 0 ? Math.round(n * 1e6 * 1e6) / 1e6 : null;
   };
   return { input: per(p.prompt), output: per(p.completion), cache: per(p.input_cache_read) };
@@ -220,10 +218,13 @@ export const facesStand = (x: number, y: number, facing: Facing): boolean =>
  * days a year the clocks change the day is 23 or 25 hours long, so it checks where it landed and corrects.
  */
 function nextClock(at: number, minutes: number): number {
+  // Zero minutes ahead means the same time tomorrow, since `at` itself is not after `at`.
   const ahead = (minutes - clockMinutes(at) + 1440) % 1440 || 1440;
   const end = Math.round((at + ahead * 60_000) / 1000) * 1000;
-  const off = ((((clockMinutes(end) - minutes) % 1440) + 1440 + 720) % 1440) - 720;
-  return end - off * 60_000;
+
+  // On a clock change the guess can land an hour off. The gap, wrapped to half a day either way, is the fix.
+  const gap = ((((clockMinutes(end) - minutes) % 1440) + 1440 + 720) % 1440) - 720;
+  return end - gap * 60_000;
 }
 
 /**
@@ -233,9 +234,9 @@ function nextClock(at: number, minutes: number): number {
  */
 export function standCloses(at: number): number {
   const first = nextClock(at, STAND_CLOSES);
-  return clockMinutes(at) < SOFT_CUT || clockMinutes(at) >= STAND_CLOSES
-    ? first
-    : nextClock(first, STAND_CLOSES);
+  const minutes = clockMinutes(at);
+  const isAfterCutoff = minutes >= SOFT_CUT && minutes < STAND_CLOSES;
+  return isAfterCutoff ? nextClock(first, STAND_CLOSES) : first;
 }
 
 /**
@@ -309,13 +310,14 @@ export function pamphletOf(ls: readonly Launch[]): {
   const providers = providersIn(ls);
   const rainbow = providers.length > 1;
   const models = modelsIn(ls);
+
+  let kicker = "🚀 Just shipped";
+  if (rainbow) kicker = `🌈 ${models} new models from ${providers.length} providers`;
+  else if (models > 1) kicker = `🚀 ${models} new from ${providerOf(providers[0]!).name}`;
+
   return {
     title: rainbow ? "📰 The launch-day newsletter" : "📣 Pamphlet",
-    kicker: rainbow
-      ? `🌈 ${models} new models from ${providers.length} providers`
-      : models > 1
-        ? `🚀 ${models} new from ${providerOf(providers[0]!).name}`
-        : "🚀 Just shipped",
+    kicker,
     rainbow,
     entries: ls.map((l) => ({
       provider: l.provider,

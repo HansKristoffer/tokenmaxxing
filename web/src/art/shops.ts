@@ -75,7 +75,7 @@ const W = 5 * TILE;
 const H = 4 * TILE;
 
 /** A shop window: dark frame, glass with a glint, and a small thing displayed behind it. */
-function window_(p: Pen, x: number, y: number, w: number, h: number, shop: ShopId): void {
+function shopWindow(p: Pen, x: number, y: number, w: number, h: number, shop: ShopId): void {
   p.rect(x - 1, y - 1, w + 2, h + 2, C.ink);
   p.rect(x, y, w, h, "#9fd3ef");
   p.rect(x, y, w, 2, C.white);
@@ -133,6 +133,7 @@ export const storefront = cached(
       // The sign board, with the shop's name in the 3x5 font.
       p.rect(8, 9, W - 16, 11, C.ink);
       p.rect(9, 10, W - 18, 9, s.sign);
+      // The 3×5 font advances 4 pixels a letter; the last letter has no gap after it.
       const textW = s.text.length * 4 - 1;
       p.text(s.text, Math.round((W - textW) / 2), 12, C.white);
       // The awning: stripes with a scalloped edge.
@@ -143,8 +144,8 @@ export const storefront = cached(
       }
       p.rect(2, 20, W - 4, 1, C.ink);
       // Two windows, and the door in the middle.
-      window_(p, 6, 29, 22, 20, shop);
-      window_(p, W - 28, 29, 22, 20, shop);
+      shopWindow(p, 6, 29, 22, 20, shop);
+      shopWindow(p, W - 28, 29, 22, 20, shop);
       const mid = W / 2;
       p.rect(mid - 8, H - 21, 16, 21, C.ink);
       p.rect(mid - 7, H - 20, 14, 20, C.woodDark);
@@ -189,24 +190,27 @@ export const shopCounter = cached(
     }),
 );
 
+/** The four colours each shop's sample board draws from. The barber's and pets' colours also dress their displays. */
+const SAMPLE_COLORS: Record<ShopId, string[]> = {
+  furniture: ["#d9b36a", "#7f9a8e", "#c97b6b", "#8c5c36"],
+  clothes: ["#4f8fe0", "#e25d5d", "#58b36a", "#f0b53c"],
+  barber: ["#3b2a22", "#c9853a", "#e8cf7a", "#b2463d"],
+  pets: ["#c9853a", "#f4efe4", "#6b4226", "#8d5a3c"],
+  natmarked: ["#d8402f", "#e9b73d", "#243a73", "#f4efe4"],
+  market: ["#2f6b4f", "#e9b73d", "#9c5a45", "#f4efe4"],
+};
+
 /** On a wall (the top wall's face, or the west wall): a framed sample board in the shop's colours. */
 function sample(p: Pen, shop: ShopId, x: number, y: number): void {
   p.rect(0, 0, TILE, TILE, C.wall);
   p.rect(0, 0, TILE, 2, C.wallTopLight);
   p.rect(2, 3, 12, 10, C.ink);
-  const colors: Record<ShopId, string[]> = {
-    furniture: ["#d9b36a", "#7f9a8e", "#c97b6b", "#8c5c36"],
-    clothes: ["#4f8fe0", "#e25d5d", "#58b36a", "#f0b53c"],
-    barber: ["#3b2a22", "#c9853a", "#e8cf7a", "#b2463d"],
-    pets: ["#c9853a", "#f4efe4", "#6b4226", "#8d5a3c"],
-    natmarked: ["#d8402f", "#e9b73d", "#243a73", "#f4efe4"],
-    market: ["#2f6b4f", "#e9b73d", "#9c5a45", "#f4efe4"],
-  };
-  const c = colors[shop];
-  p.rect(3, 4, 5, 4, c[Math.floor(hash(x, y, 3) * 4)]!);
-  p.rect(8, 4, 5, 4, c[Math.floor(hash(x, y, 4) * 4)]!);
-  p.rect(3, 8, 5, 4, c[Math.floor(hash(x, y, 5) * 4)]!);
-  p.rect(8, 8, 5, 4, c[Math.floor(hash(x, y, 6) * 4)]!);
+
+  const colors = SAMPLE_COLORS[shop];
+  p.rect(3, 4, 5, 4, colors[Math.floor(hash(x, y, 3) * 4)]!);
+  p.rect(8, 4, 5, 4, colors[Math.floor(hash(x, y, 4) * 4)]!);
+  p.rect(3, 8, 5, 4, colors[Math.floor(hash(x, y, 5) * 4)]!);
+  p.rect(8, 8, 5, 4, colors[Math.floor(hash(x, y, 6) * 4)]!);
   p.rect(0, 14, TILE, 2, C.woodDark);
 }
 
@@ -217,7 +221,8 @@ const SHIRTS = ["#e25d5d", "#4f8fe0", "#58b36a", "#f0b53c", "#9b6fd6", "#f28bb2"
  * (furniture), a clothes rail, a styling mirror (barber) or a pen with a pet in it (pets).
  */
 export const shopDisplay = cached(
-  (shop: ShopId, wall: boolean, x: number, y: number) => `${shop}${wall}${wall ? "" : (x * 7 + y * 3) % 4}`,
+  // Every tile draws its own art from its position, so the key is the position too.
+  (shop: ShopId, wall: boolean, x: number, y: number) => `${shop}${wall}${x},${y}`,
   (shop: ShopId, wall: boolean, x: number, y: number) => {
     if (wall) return bake(TILE, TILE, (p) => sample(p, shop, x, y));
     return bake(TILE, 20, (p) => {
@@ -244,11 +249,13 @@ export const shopDisplay = cached(
         p.rect(3, 8, 3, 2, C.leaf);
         p.px(4, 8, C.flowerRed);
         for (const [i, bx] of [7, 9, 11].entries()) {
+          // The middle book stands a pixel lower than the other two.
+          const dip = i === 1 ? 1 : 0;
           p.rect(
             bx,
-            8 + (i === 1 ? 1 : 0),
+            8 + dip,
             2,
-            4 - (i === 1 ? 1 : 0),
+            4 - dip,
             [C.fabric, C.flowerRed, C.flowerYellow][(i + Math.floor(k * 3)) % 3]!,
           );
         }
@@ -299,7 +306,7 @@ export const shopDisplay = cached(
         p.rect(4, 2, 8, 2, C.white);
         p.rect(5, 4, 1, 3, C.white);
         p.disc(8, 7, 2, "#f0c8a0");
-        p.rect(6, 5, 5, 2, pick(["#3b2a22", "#c9853a", "#e8cf7a", "#b2463d"], 15));
+        p.rect(6, 5, 5, 2, pick(SAMPLE_COLORS.barber, 15));
         p.rect(6, 10, 5, 1, C.fabric);
         p.rect(1, 13, 14, 6, C.ink);
         p.rect(2, 14, 12, 4, C.woodDark);
@@ -318,7 +325,7 @@ export const shopDisplay = cached(
         // A pen on straw: a cat, a dog or a rabbit, with a food bowl and a ball.
         p.rect(1, 10, 14, 9, C.ink);
         p.rect(2, 11, 12, 7, "#e6cc98");
-        const fur = pick(["#c9853a", "#f4efe4", "#6b4226", "#8d5a3c"], 16);
+        const fur = pick(SAMPLE_COLORS.pets, 16);
         const kind = Math.floor(k * 3);
         if (kind === 0) {
           // Cat: pointed ears, whiskers.

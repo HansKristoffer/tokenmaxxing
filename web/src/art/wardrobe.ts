@@ -21,8 +21,6 @@ import { PRESTIGE_BACKS, PRESTIGE_OUTFITS } from "./prestige.ts";
 /** When a layer goes on: before the body, right after it (outfit details), or over everything. */
 type Layer = "behind" | "body" | "front";
 
-// MARK: Outfits
-
 export interface Outfit {
   /** Outfit, its shade, trousers. */
   c: string;
@@ -39,7 +37,6 @@ export interface Outfit {
   pal: Palette;
 }
 
-// Pixel art reads as a grid.
 // prettier-ignore
 const OUTFITS: Record<number, Outfit> = {
   // Hoodie of infinite context: a glowing ∞ on the chest, the hood down the back.
@@ -67,7 +64,7 @@ const OUTFITS: Record<number, Outfit> = {
     c: "#f4f4f0", C: "#cfd3d6", p: "#3d4a6b",
     marks: {
       down: [".......bb.......", ".....r.bb.......", ".....k.b........"],
-      side: ".........b......|........rb......|................".split("|"),
+      side: [".........b......", "........rb......", "................"],
       up: ["................", "......cccc......", "................"],
     },
     pal: { b: "#6fa8dc", r: "#e0584f", k: "#3a3f4b", c: "#e2e4e2" },
@@ -189,8 +186,6 @@ export function outfitMarks(p: Pen, outfit: number, view: View, oy: number, flip
   if (w) p.grid(w, o.pal, 0, oy, flip);
 }
 
-// MARK: In the hand
-
 export interface Held {
   /** Facing right, `h` the hand holding it: it lands on the character's hand. */
   rows: string[];
@@ -199,7 +194,6 @@ export interface Held {
   pal: Palette;
 }
 
-// Pixel art reads as a grid.
 // prettier-ignore
 const HELD: (Held | null)[] = [
   null,
@@ -266,11 +260,10 @@ function drawHeld(p: Pen, i: number, view: View, skin: string, flip: boolean, po
   const hx = h.rows[hy]!.indexOf("h");
   const [x, y] = HAND[view];
   // Padded to 16 wide so the side view mirrors like the rest of the character.
-  const rows = src.map((r) => ".".repeat(x - hx) + r + ".".repeat(Math.max(0, 16 - (x - hx) - r.length)));
+  const shift = x - hx;
+  const rows = src.map((r) => ".".repeat(shift) + r + ".".repeat(Math.max(0, 16 - shift - r.length)));
   p.grid(rows, { ...h.pal, h: skin }, 0, y - hy, flip);
 }
-
-// MARK: On the back
 
 /** One view of a back item: drawn behind the body, and over it. */
 export interface BackView {
@@ -285,7 +278,6 @@ export interface Back {
 }
 
 // Rows are full 16×16 frames, top row first; `.` is nothing.
-// Pixel art reads as a grid.
 // prettier-ignore
 const BACKS: (Back | null)[] = [
   null,
@@ -710,8 +702,6 @@ function drawBack(p: Pen, i: number, view: View, pose: Pose, layer: "behind" | "
   if (rows) p.grid(rows, b.pal, 0, 0, flip);
 }
 
-// MARK: On a character
-
 /** Draws the look's wardrobe for one layer of a character frame (see `characterFrame`). */
 export function drawWardrobe(
   p: Pen,
@@ -755,8 +745,6 @@ function outfitFace(p: Pen, look: Look, view: View, flip: boolean): void {
   if (o.beard) p.grid(o.beard[view], o.pal, 0, 7, flip);
 }
 
-// MARK: On a pet
-
 interface PetWear {
   /** At the neck (bandana, collar) or on top of the head (bow, hat). */
   at: "neck" | "top";
@@ -764,7 +752,6 @@ interface PetWear {
   pal: Palette;
 }
 
-// Pixel art reads as a grid.
 // prettier-ignore
 const PETWEAR: (PetWear | null)[] = [
   null,
@@ -796,6 +783,7 @@ const PET_ANCHORS: { neck: [number, number]; top: [number, number]; hop: number 
 
 /** The middle of the neck of pet `pet` (the row gear at the neck starts on), in an unwearing frame; null if it has none (the orb) or is unknown. */
 export function petNeck(pet: number, hop: boolean): { x: number; y: number } | null {
+  // Pet 0 is the plain look and pet 6 is the orb, which has no neck to wear gear on.
   const a = PET_ANCHORS[pet];
   return a && pet > 0 && pet !== 6 ? { x: a.neck[0], y: a.neck[1] + (hop ? a.hop : 0) } : null;
 }
@@ -816,25 +804,22 @@ export function drawPetwear(p: Pen, pet: number, wear: number, hop: boolean): vo
   p.grid(w.rows, w.pal, cx - Math.floor(w.rows[0]!.length / 2), PET_HEADROOM + top + (hop ? a.hop : 0));
 }
 
-// MARK: On its own
-
 /** A held thing, back item or pet gear on its own, for the bag and the floor; null for anything else. */
 export function wardrobeIcon(item: Item): HTMLCanvasElement | null {
   const { slot, index: i } = item;
-  if (slot === "held" && HELD[i]) {
-    const h = HELD[i]!;
-    return bake(Math.max(...h.rows.map((r) => r.length)), h.rows.length, (p) => p.grid(h.rows, h.pal));
-  }
-  if (slot === "petwear" && PETWEAR[i]) {
-    const w = PETWEAR[i]!;
-    return bake(w.rows[0]!.length, w.rows.length, (p) => p.grid(w.rows, w.pal));
-  }
-  if (slot === "back" && BACKS[i]) {
+  const h = slot === "held" ? HELD[i] : undefined;
+  if (h) return bake(Math.max(...h.rows.map((r) => r.length)), h.rows.length, (p) => p.grid(h.rows, h.pal));
+
+  const w = slot === "petwear" ? PETWEAR[i] : undefined;
+  if (w) return bake(w.rows[0]!.length, w.rows.length, (p) => p.grid(w.rows, w.pal));
+
+  const back = slot === "back" ? BACKS[i] : undefined;
+  if (back) {
     // The item as you'd see it from behind, cropped to what's drawn.
-    const art = BACKS[i]!.views.up.front ?? [];
+    const art = back.views.up.front ?? [];
     const first = art.findIndex((r) => r.replaceAll(".", "") !== "");
     const rows = art.slice(first);
-    return bake(16, rows.length, (p) => p.grid(rows, BACKS[i]!.pal));
+    return bake(16, rows.length, (p) => p.grid(rows, back.pal));
   }
   return null;
 }

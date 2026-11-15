@@ -159,6 +159,7 @@ function nisseCap(
 ): { cap: Model; tip: Model } {
   const cap = joint(parent, at);
   const g = new Grid();
+  // A cream rim at the base, then red wool in rings that shrink toward the bent tip.
   g.ell(0, 0, 0, r + 0.6, 1.1, r + 0.6, CREAM, 2.1);
   g.paint((c) => (c.c === CREAM ? speckle(c, CREAM, "#e2d8bd", seed, 0.3) : c.c));
   for (let i = 0; i < rows; i++) {
@@ -175,7 +176,6 @@ function nisseCap(
       2.4,
     );
   }
-  // A cream stripe of knit round the middle.
   put(cap, g, [0, 0, 0], seed);
   const kk = (rows - 1) / rows;
   const tipJ = joint(cap, [0, rows, Math.round(kk * kk * bend)]);
@@ -430,9 +430,10 @@ export function marcipangris(): Built {
           e.rotation.z = SIDES[i]! * (-0.2 - flick * 0.7 - (moving ? 0.1 + Math.sin(t * 13 + i) * 0.1 : 0));
         });
         bow.rotation.z = Math.sin(t * 2 + 1) * 0.06;
-        // A wink every few seconds: the right eye shuts, the left stays open.
+        // A wink every 5.3 seconds, shut for 0.4 of one: the right eye shuts, the left stays open.
+        // Set from the clock, not from the last frame's scale, so the eye opens again after the wink.
         const wink = t % 5.3 > 3.4 && t % 5.3 < 3.8 ? 1 : 0;
-        eyeMeshes[1]!.scale.y = (1 - 0.9 * wink) * (eyeMeshes[1]!.scale.y > 0.5 ? 1 : 0.12);
+        eyeMeshes[1]!.scale.y = 1 - 0.9 * wink;
         for (const s of spark) {
           const f = Math.max(0, Math.sin(t * 2.4 + s.p * 9)) ** 4;
           s.o.position.set(
@@ -463,7 +464,7 @@ export function nissekat(): Built {
   bg.ell(0, 7, 0, 3.8, 3.6, 7, GREY, 2.3);
   bg.paint((c) => {
     if (c.t < 0.28) return LIGHT;
-    if (c.t > 0.45 && Math.floor((c.z + 20) / 2) % 2 === 0) return speckle(c, STRIPE, "#4a4e58", 3, 0.2);
+    if (c.t > 0.45 && Math.floor(c.z / 2) % 2 === 0) return speckle(c, STRIPE, "#4a4e58", 3, 0.2);
     return speckle(c, GREY, "#7d828a", 4, 0.2);
   });
   // A white chest bib.
@@ -481,7 +482,7 @@ export function nissekat(): Built {
   hg.ell(0, 0, 0, 3.4, 3, 3, GREY, 2.2);
   hg.paint((c) => {
     if (c.u > 0.6 && c.t < 0.5 && Math.abs(c.s) < 0.55) return LIGHT;
-    if (c.t > 0.7 && Math.abs(c.x) < 2 && Math.floor((c.x + 10) / 1) % 2 === 0) return STRIPE;
+    if (c.t > 0.7 && Math.abs(c.x) < 2 && Math.floor(c.x) % 2 === 0) return STRIPE;
     return speckle(c, GREY, "#7d828a", 6, 0.2);
   });
   hg.set(0, -0.8, 3, "#e59aa0");
@@ -543,9 +544,10 @@ export function nissekat(): Built {
     seed: number,
   ) => {
     const g = new Grid();
-    g.tube(pts, r0, r1, (c) =>
-      tipDark && c.u > 0.8 ? "#3f434c" : Math.floor((c.y + c.z + 30) / 2) % 2 ? STRIPE : GREY,
-    );
+    g.tube(pts, r0, r1, (c) => {
+      if (tipDark && c.u > 0.8) return "#3f434c";
+      return Math.floor((c.y + c.z + 30) / 2) % 2 ? STRIPE : GREY;
+    });
     put(j, g, [0, 0, 0], seed);
   };
   seg(
@@ -670,20 +672,16 @@ export function julebuk(): Built {
   const fore = new Model();
   // Everything hangs off one inner model so the whole goat can be the biggest of the case (the others are 14 cells tall, it is 28) without touching the posing of `body`.
   const big = new Model();
-  big.scale.setScalar(1);
   body.add(big);
   const STRAW = "#e2b855";
   const STRAW_L = "#f2d88a";
   const STRAW_D = "#b98a32";
-  const straw = (c: Cell, seed: number) =>
-    // Vertical stalks: bands across x/z, with a few darker and lighter ones, and the odd stalk that catches the light.
-    hash(c.x, 0, c.z, seed) < 0.3
-      ? STRAW_D
-      : hash(c.x, 0, c.z, seed + 1) < 0.4
-        ? hash(c.x, c.y, c.z, seed + 2) < 0.03
-          ? "*#fff0b0"
-          : STRAW_L
-        : STRAW;
+  // Vertical stalks: bands across x/z, with a few darker and lighter ones, and the odd stalk that catches the light.
+  const straw = (c: Cell, seed: number) => {
+    if (hash(c.x, 0, c.z, seed) < 0.3) return STRAW_D;
+    if (hash(c.x, 0, c.z, seed + 1) >= 0.4) return STRAW;
+    return hash(c.x, c.y, c.z, seed + 2) < 0.03 ? "*#fff0b0" : STRAW_L;
+  };
   const bg = new Grid();
   bg.ell(0, 11, 0, 4.6, 4.4, 7.2, (c) => straw(c, 1), 3.2);
   bg.tube(
@@ -837,7 +835,7 @@ export function julebuk(): Built {
       span: U(16),
       fx: (t, moving) => {
         stride(legs, t, moving, 0.55);
-        // Opinionated: it tilts its head at the decorations and gives the odd stern nod.
+        // It tilts its head at the decorations and gives the odd stern nod.
         head.rotation.z = Math.sin(t * 0.8) * 0.12;
         head.rotation.x = Math.max(0, Math.sin(t * 1.9)) ** 8 * 0.3 + (moving ? Math.sin(t * 13) * 0.04 : 0);
         beard.rotation.x = Math.sin(t * 2.3) * 0.12 + head.rotation.x * 0.8;

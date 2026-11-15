@@ -93,6 +93,7 @@ if (cast) {
   cast.on("Page.screencastFrame", async (f) => {
     const name = `${String(frames++).padStart(4, "0")}-${Date.now() - c0}.jpg`;
     writeFileSync(`${process.env.CAST}/${name}`, Buffer.from(f.data, "base64"));
+    // The session can be gone before its ack is sent. Then the frame is still saved, and nothing else is lost.
     await cast.send("Page.screencastFrameAck", { sessionId: f.sessionId }).catch(() => {});
   });
   await cast.send("Page.startScreencast", { format: "jpeg", quality: 85, maxWidth: 640, maxHeight: 400 });

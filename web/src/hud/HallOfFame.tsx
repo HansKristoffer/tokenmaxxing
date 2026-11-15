@@ -87,15 +87,18 @@ export function HallOfFame() {
           <h3>Winners of the week</h3>
           {hall.winners.length === 0 && <p className="muted">Nobody has won anything yet.</p>}
           <ul className="hall-lines">
-            {hall.winners.map((w) => (
-              <li key={`${w.kind} ${w.game ?? ""}`}>
-                {w.kind === "raid"
-                  ? "⚔️ Raid, most damage"
-                  : `🎮 ${w.game === POKER_GAME ? "Poker" : (GAMES[w.game as GameId]?.name ?? w.game)}, most coins won`}
-                : <Who userId={w.userId} name={w.name} />{" "}
-                <span className="muted small">{w.kind === "raid" ? compact(w.value) : `+🪙 ${w.value}`}</span>
-              </li>
-            ))}
+            {hall.winners.map((w) => {
+              const gameName = w.game === POKER_GAME ? "Poker" : (GAMES[w.game as GameId]?.name ?? w.game);
+              const what = w.kind === "raid" ? "⚔️ Raid, most damage" : `🎮 ${gameName}, most coins won`;
+              return (
+                <li key={`${w.kind} ${w.game ?? ""}`}>
+                  {what}: <Who userId={w.userId} name={w.name} />{" "}
+                  <span className="muted small">
+                    {w.kind === "raid" ? compact(w.value) : `+🪙 ${w.value}`}
+                  </span>
+                </li>
+              );
+            })}
           </ul>
         </>
       )}

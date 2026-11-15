@@ -24,6 +24,7 @@ final class PairingLink {
                     && expected.getHost().equalsIgnoreCase(uri.getHost())
                     && port(expected) == port(uri);
         } catch (URISyntaxException | NullPointerException e) {
+            // A WebView with no page loaded reports a null URL, which URI rejects with a NullPointerException.
             return false;
         }
     }

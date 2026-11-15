@@ -46,6 +46,7 @@ while [ "$stopping" = 0 ]; do
   sleeper=$!
   wait "$sleeper" 2>/dev/null
   kill "$sleeper" 2>/dev/null
-  delay=$((delay * 2 > 30 ? 30 : delay * 2))
+  delay=$((delay * 2))
+  if [ "$delay" -gt 30 ]; then delay=30; fi
 done
 log "stopped"

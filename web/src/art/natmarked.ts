@@ -71,14 +71,15 @@ export const natmarkedFront = once(() =>
     // The neon sign across the roof's lower edge: pink text on a dark board, a cyan rule under it.
     p.rect(16, 4, 48, 10, C.ink);
     p.rect(17, 5, 46, 8, "#14101c");
-    p.text("NATMARKED", 22, 6, "#ff2f8f");
     p.text("NATMARKED", 22, 6, PINK);
     for (let x = 18; x < 62; x += 2) p.px(x, 12, CYAN);
     p.px(15, 8, "#ff2f8f");
     p.px(64, 8, "#ff2f8f");
     // The lantern string along the eave: a sagging wire with lanterns.
-    for (let x = 2; x < W - 2; x++)
-      p.px(x, 18 + Math.round(Math.sin(((x - 2) / (W - 4)) * Math.PI * 4) * 0.8 + 0.8), C.ink);
+    for (let x = 2; x < W - 2; x++) {
+      const sag = Math.sin(((x - 2) / (W - 4)) * Math.PI * 4) * 0.8 + 0.8;
+      p.px(x, 18 + Math.round(sag), C.ink);
+    }
     for (let i = 0; i < 9; i++) lantern(p, 5 + i * 8, 19 + (i % 2));
     // Two windows, warm paper behind slats; a dark silhouette of crates.
     for (const x of [6, W - 28]) {
@@ -183,7 +184,7 @@ export const natShelf = cached(
       p.px(8, 14, GOLD);
       if (shelf === 0) {
         if (x !== 2) {
-          // The other half of the first shelf: a gold plaque, the niche left bare.
+          // The other half of the first shelf: a paper plaque with a red top edge, and no case.
           p.rect(4, 5, 8, 3, PAPER);
           p.rect(4, 5, 8, 1, RED_D);
           return;
@@ -251,7 +252,6 @@ export const natFixture = cached(
     });
   },
 );
-export type { Fixture };
 
 /** Two-tile timber leaderboard: gold lettering and ranked rows on a lacquer board. */
 export const natCaseBoard = once(() =>

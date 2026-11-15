@@ -28,8 +28,6 @@ import { Balance, Modal, Pills, useRun, useTicker } from "./ui.tsx";
 /** How often an open market panel reads the hall again: others are buying and listing too. */
 const POLL_MS = 5_000;
 
-// MARK: Where things are
-
 /** Where a slot is in the hall: a shelf on the back wall, or one spot of a glass case (a run of tiles). */
 interface Place {
   kind: "shelf" | "case";
@@ -47,14 +45,18 @@ const PLACES: readonly Place[] = (() => {
   return Array.from({ length: MARKET_SLOTS }, (_, slot): Place => {
     const [x, y] = slotTile(slot)!;
     const here = rows[y]![x]!;
+    // A tile with a wall right above it is a shelf on the back wall.
     if (rows[y - 1]?.[x] === "W") return { kind: "shelf", n: ++shelves, spot: 1, of: 1 };
+
+    // A case is a run of same-glyph tiles along the row; its spots count from the left end.
     let start = x;
     while (rows[y]![start - 1] === here) start--;
     let end = x;
     while (rows[y]![end + 1] === here) end++;
-    const key = `${y}:${start}`;
-    if (!cases.has(key)) cases.set(key, cases.size + 1);
-    return { kind: "case", n: cases.get(key)!, spot: x - start + 1, of: end - start + 1 };
+
+    const caseKey = `${y}:${start}`;
+    if (!cases.has(caseKey)) cases.set(caseKey, cases.size + 1);
+    return { kind: "case", n: cases.get(caseKey)!, spot: x - start + 1, of: end - start + 1 };
   });
 })();
 
@@ -65,8 +67,6 @@ const placeText = (slot: number): string => {
   return p.kind === "shelf" ? `Back wall, shelf ${p.n}` : `Case ${p.n}, spot ${p.spot} of ${p.of}`;
 };
 
-// MARK: Time
-
 /** "6d 4h", "3h 20m", "12m". */
 function span(ms: number): string {
   const m = Math.max(1, Math.floor(ms / 60_000));
@@ -76,8 +76,6 @@ function span(ms: number): string {
 }
 
 const DAYS = MARKET_TTL / 86_400_000;
-
-// MARK: Data
 
 /** A numbered copy as the server lists it; `id` is its row, which is what `marketList`'s `copy` takes. */
 type NumberedCopy = Copy & { id?: number };
@@ -104,8 +102,6 @@ function useHall() {
 
 const rarityStyle = (r: Rarity): CSSProperties => ({ "--r": RARITY_COLOR[r] }) as CSSProperties;
 
-// MARK: One listing
-
 /**
  * One thing on display: what it is, its price, who sells it and for how long, and where it is in the hall. Mine
  * can be taken back; anyone else's can be bought (in the hall, with the coins). `done` is told what happened.
@@ -120,11 +116,9 @@ function ListingDetail({ listing, done }: { listing: Listing; done?: (said: stri
   if (!item || !me || !wallet) return null;
   const mine = listing.sellerId === world.selfId;
   const short = listing.price - wallet.balance;
-  const why = !inHall
-    ? "You buy in the hall: walk into Torvehallen."
-    : short > 0
-      ? `You need ${coins(short)} more.`
-      : null;
+  let why: string | null = null;
+  if (!inHall) why = "You buy in the hall: walk into Torvehallen.";
+  else if (short > 0) why = `You need ${coins(short)} more.`;
   const rarity = rarityOf(item);
   const buy = run(async () => {
     await marketBuy(listing);
@@ -188,17 +182,14 @@ function ListingDetail({ listing, done }: { listing: Listing; done?: (said: stri
   );
 }
 
-// MARK: Putting something up
-
 /** What stops me putting more up, in plain words, or null. */
 function refusal(level: number, mine: MyMarket): string | null {
   if (level < MARKET_LEVEL)
     return `You can put things on display from level ${MARKET_LEVEL}. You are level ${level}. Until then you can still buy here.`;
   if (mine.room > 0) return null;
   const next = MARKET_ALLOWANCE.find((a) => a.listings > mine.allowance);
-  return `All ${mine.allowance} of your spots are in use at level ${level}. Take something back, or wait for it to sell${
-    next ? `. Level ${next.level} gives you ${next.listings}` : ""
-  }.`;
+  const upgrade = next ? `. Level ${next.level} gives you ${next.listings}` : "";
+  return `All ${mine.allowance} of your spots are in use at level ${level}. Take something back, or wait for it to sell${upgrade}.`;
 }
 
 /** An empty spot: choose one of your things, name a price, and it is on display. Choosing is for good, so it says so. */
@@ -228,19 +219,19 @@ function PutUp({ slot, mine }: { slot: number; mine: MyMarket | null }) {
   const cap = item ? priceCap(item.id) : 0;
   const numbered = copies.filter((c) => c.item === picked);
   const amount = Number(price);
-  const ok =
+  const canPut =
     item !== undefined && price.trim() !== "" && Number.isInteger(amount) && amount >= 1 && amount <= cap;
   const choose = (it: Item) => {
     setPicked(it.id);
     setCopy(copies.find((c) => c.item === it.id && c.id !== undefined)?.id);
   };
   const submit = run(async () => {
-    if (!item || !ok) return;
+    if (!item || !canPut) return;
     await marketList({ item: item.id, slot, price: amount, ...(copy === undefined ? {} : { copy }) });
   });
   return (
     <form className="mk-put" onSubmit={submit}>
-      <p>Put something of yours here. {mine && `You have ${mine.room} of ${mine.allowance} spots free.`}</p>
+      <p>Put something of yours here. {`You have ${mine.room} of ${mine.allowance} spots free.`}</p>
       {things.length === 0 && (
         <p className="muted">
           Nothing in your bag can go on display. Hats, outfits, pets and furniture you bought can; rewards
@@ -298,8 +289,8 @@ function PutUp({ slot, mine }: { slot: number; mine: MyMarket | null }) {
             {isWorn(item, me.look) && " You're wearing it: it comes off."}
           </p>
           <div className="mk-actions">
-            <button type="submit" className="primary" disabled={busy || !ok}>
-              Put it on display{ok ? ` for ${coins(amount)}` : ""}
+            <button type="submit" className="primary" disabled={busy || !canPut}>
+              Put it on display{canPut ? ` for ${coins(amount)}` : ""}
             </button>
           </div>
         </>
@@ -337,8 +328,6 @@ export function MarketSlot({ slot }: { slot: number }) {
   );
 }
 
-// MARK: The counter
-
 type Tab = "display" | "shelf";
 const TABS = [
   ["display", "On display"],
@@ -355,6 +344,11 @@ const SORTS = [
   ["cheap", "Cheapest"],
   ["dear", "Dearest"],
 ] as const;
+const ORDER: Record<"new" | "cheap" | "dear", (a: Listing, b: Listing) => number> = {
+  new: (a, b) => b.expiresAt - a.expiresAt,
+  cheap: (a, b) => a.price - b.price,
+  dear: (a, b) => b.price - a.price,
+};
 const RARITY_PILLS: readonly (readonly [Rarity | "all", string])[] = [
   ["all", "Any rarity"],
   ...RARITIES.map((r) => [r, r] as const),
@@ -366,9 +360,6 @@ export function Market({ tab: wanted }: { tab?: Tab }) {
   const { market, failed } = useHall();
   const [hello] = useState(() => greeting("market", Math.floor(Math.random() * 8)));
   const [tab, setTab] = useState<Tab>(wanted ?? "display");
-  useEffect(() => {
-    if (wanted) setTab(wanted);
-  }, [wanted]);
   if (!market || !wallet) return <Modal title="🧺 Torvehallen">{failed ?? "Loading…"}</Modal>;
   return (
     <Modal title="🧺 Torvehallen" wide="xl" aside={<Balance balance={wallet.balance} />}>
@@ -390,16 +381,18 @@ function OnDisplay({ listings }: { listings: Listing[] }) {
   const [sort, setSort] = useState<"new" | "cheap" | "dear">("new");
   const [picked, setPicked] = useState<number | null>(null);
   const now = Date.now();
-  const live = listings.filter((l) => l.expiresAt > now && itemById(l.item));
+  // A listing is on display while it has not expired, and only if this client knows its item.
+  const live = listings.flatMap((listing) => {
+    const item = itemById(listing.item);
+    return item && listing.expiresAt > now ? [{ listing, item }] : [];
+  });
   const shown = live
     .filter(
-      (l) =>
-        (rarity === "all" || rarityOf(itemById(l.item)!) === rarity) &&
-        (kind === "all" || PLACES[l.slot]?.kind === kind),
+      ({ listing, item }) =>
+        (rarity === "all" || rarityOf(item) === rarity) &&
+        (kind === "all" || PLACES[listing.slot]?.kind === kind),
     )
-    .sort((a, b) =>
-      sort === "cheap" ? a.price - b.price : sort === "dear" ? b.price - a.price : b.expiresAt - a.expiresAt,
-    );
+    .sort((a, b) => ORDER[sort](a.listing, b.listing));
   if (!me) return null;
   return (
     <>
@@ -422,8 +415,7 @@ function OnDisplay({ listings }: { listings: Listing[] }) {
         </p>
       )}
       <ul className="mk-list">
-        {shown.map((l) => {
-          const item = itemById(l.item)!;
+        {shown.map(({ listing: l, item }) => {
           const open = picked === l.id;
           return (
             <li key={l.id} className={open ? "open" : undefined} style={rarityStyle(rarityOf(item))}>

@@ -23,9 +23,9 @@ export const trophySprite = cached(
 
 /** The shelf: 4 tiles wide, six glass-fronted shelves of 7 (`SHELF_SLOTS`). */
 const SHELF_W = 64;
-const ROWS = SHELF_SLOTS / 7;
-export const SHELF_H = 9 * ROWS + 5;
 const PER_SHELF = 7;
+const ROWS = SHELF_SLOTS / PER_SHELF;
+export const SHELF_H = 9 * ROWS + 5;
 /** Where trophy `i` stands, in the shelf's pixels. */
 const slotOf = (i: number) => ({
   x: 4 + (i % PER_SHELF) * (TROPHY_W + 1),
@@ -50,8 +50,9 @@ export const trophyShelf = cached(
       });
       // Glass: a couple of glints across the front.
       p.g.fillStyle = "rgba(255, 255, 255, 0.18)";
-      for (const gx of [9, 40])
+      for (const gx of [9, 40]) {
         for (let i = 0; i < 26; i++) p.g.fillRect(gx + Math.floor(i / 2), ROWS * 9 - i, 2, 1);
+      }
     }),
 );
 

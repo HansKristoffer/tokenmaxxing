@@ -8,6 +8,7 @@
 import type { CaseItem } from "./case.ts";
 import { levelAt, levelFor, MAX_LEVEL } from "./format.ts";
 import {
+  PRESTIGE_BASE,
   PRESTIGE_ITEMS,
   PRESTIGE_TRACKS,
   type PrestigeTrack,
@@ -81,15 +82,17 @@ export const rewardsUnlocked = (rank: number, runLevel: number): RunReward[] => 
   if (!track) return [];
   const out: RunReward[] = [{ kind: "tag", rank, label: prestigeTag(rank) }];
   const itemOf = (slot: "hat" | "outfit" | "back" | "aura"): CaseItem =>
-    PRESTIGE_ITEMS.find((i) => i.slot === slot && i.index === 700 + rank - 1)!;
+    PRESTIGE_ITEMS.find((i) => i.slot === slot && i.index === PRESTIGE_BASE + rank - 1)!;
   const at = (kind: keyof typeof REWARD_LEVEL): RunReward => {
     if (kind === "petwear") return { kind, rank, name: track.petwear.name };
     if (kind === "trophy") return { kind, rank, name: track.trophy.name };
     const it = itemOf(kind);
     return { kind, rank, itemId: it.id, name: it.name };
   };
-  for (const kind of ["hat", "outfit", "petwear", "back", "aura", "trophy"] as const)
+
+  for (const kind of ["hat", "outfit", "petwear", "back", "aura", "trophy"] as const) {
     if (runLevel >= REWARD_LEVEL[kind]) out.push(at(kind));
+  }
   return out;
 };
 

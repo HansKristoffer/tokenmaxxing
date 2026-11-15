@@ -42,6 +42,7 @@ const MAX_EVENTS_PER_REQUEST = 1000;
 export async function sync(state: SyncState, opts: SyncOptions): Promise<SyncResult> {
   let sent = 0;
   let inserted = 0;
+
   const {
     enabled = new Set(SOURCES),
     githubAccounts,
@@ -53,6 +54,7 @@ export async function sync(state: SyncState, opts: SyncOptions): Promise<SyncRes
     cursorCredentials,
     dirs,
   } = opts;
+
   for await (const batch of collect(state, {
     enabled,
     onError,
@@ -64,13 +66,16 @@ export async function sync(state: SyncState, opts: SyncOptions): Promise<SyncRes
     githubFetch,
     ...(githubAccounts !== undefined ? { githubAccounts } : {}),
   })) {
+    // A batch is acked piece by piece; the state moves on only once every piece is in.
     for (const events of chunkArray(batch.events, MAX_EVENTS_PER_REQUEST)) {
       const r = await opts.send(events);
       inserted += r.inserted;
     }
+
     sent += batch.events.length;
     state = batch.commit(state);
     await saveState(opts.statePath, state);
   }
+
   return { state, sent, inserted };
 }

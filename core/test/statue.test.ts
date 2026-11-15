@@ -109,6 +109,8 @@ test("LMArena's organisations are the pool's providers, in their colours", () =>
     "codex",
   ]);
   expect(providerFor("deepseek")).toBeNull();
+  // Inherited keys of plain objects are not organisations.
+  expect(["constructor", "toString", "__proto__"].map(providerFor)).toEqual([null, null, null]);
   expect(makerOf(leader("Gemini 4", "google"))).toEqual({
     name: "Google",
     accent: providerOf("google").accent,

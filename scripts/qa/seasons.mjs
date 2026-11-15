@@ -26,12 +26,17 @@ for (const season of (process.env.SEASONS ?? "summer,spring,autumn,11-15,winter"
   const spot = await page.evaluate(() => {
     const m = window.__tm.world.map;
     let best = null;
-    for (let y = m.y0; y < m.y0 + m.height; y++)
-      for (let x = m.x0; x < m.x0 + m.width; x++)
-        if (m.at(x, y) === "T" && m.at(x, y + 1) !== "T" && m.kind(x, y + 1).walk !== false) {
-          const d = Math.hypot(x - 14, y - 6);
-          if (!best || d < best.d) best = { x, y: y + 1, d };
-        }
+    for (let y = m.y0; y < m.y0 + m.height; y++) {
+      for (let x = m.x0; x < m.x0 + m.width; x++) {
+        const isTree = m.at(x, y) === "T";
+        const standsBelow = m.at(x, y + 1) !== "T" && m.kind(x, y + 1).walk !== false;
+        if (!isTree || !standsBelow) continue;
+
+        // (14, 6) is the middle of the square.
+        const d = Math.hypot(x - 14, y - 6);
+        if (!best || d < best.d) best = { x, y: y + 1, d };
+      }
+    }
     return best;
   });
   if (spot) await walkTile(page, spot.x, spot.y);

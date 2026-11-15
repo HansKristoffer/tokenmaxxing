@@ -19,9 +19,10 @@ import { grantOnce } from "./rewards.ts";
 import { among, type Ids, tokensIn } from "./users.ts";
 
 /**
- * The prestiges taken: a row per rank. Where a run starts is a function of its rank (`runStart`), so the stored
- * `started_at` is only a record. Older rows, written with the lifetime at the moment of choosing, still count
- * right. A run's level, its rewards and its coins are all derived from these (`core/prestige-run.ts`), never stored.
+ * The prestiges taken: a row per rank. Where a run starts is a function of its rank (`runStart`), so the
+ * stored `started_at` is only a record. Older rows, written with the lifetime at the moment of choosing,
+ * still count right. A run's level, its rewards and its coins are all derived from these
+ * (`core/prestige-run.ts`), never stored.
  */
 export async function migratePrestige(sql: Sql): Promise<void> {
   await sql.execute(`CREATE TABLE IF NOT EXISTS prestiges (
@@ -47,7 +48,10 @@ async function prestigesAmong(sql: Sql, userIds: Ids): Promise<Map<number, Prest
     ...args,
   );
   const out = new Map<number, PrestigeTaken[]>();
-  for (const r of rows) out.set(r.userId, [...(out.get(r.userId) ?? []), { startedAt: runStart(r.rank) }]);
+  for (const r of rows) {
+    const taken = [...(out.get(r.userId) ?? []), { startedAt: runStart(r.rank) }];
+    out.set(r.userId, taken);
+  }
   return out;
 }
 
@@ -56,7 +60,10 @@ const runBadge = (p: RunProgress): Pick<PrestigeBadge, "runLevel" | "runInto"> =
   runInto: p.into,
 });
 
-/** What others see of each of `userIds`, given their lifetime tokens. Only those who took one are in it: read `?? NO_PRESTIGE`. */
+/**
+ * What others see of each of `userIds`, given their lifetime tokens. Only those who took one are in it:
+ * read it with `?? NO_PRESTIGE`.
+ */
 export async function badgesOf(
   sql: Sql,
   userIds: Ids,
@@ -80,12 +87,17 @@ export async function myBadge(sql: Sql, userId: number): Promise<PrestigeBadge> 
   return badgeOf(await badgesOf(sql, [userId], lifetime), userId);
 }
 
+/**
+ * The level run `i` reached. Every run but the last is finished and went to the top. The last one went
+ * as far as the lifetime tokens took it.
+ */
+const levelOfRun = (taken: readonly PrestigeTaken[], i: number, lifetime: number): number =>
+  i < taken.length - 1 ? RUN_LEVELS : runProgress(lifetime, taken[i]!.startedAt).level;
+
 /** Coins the prestiges are worth: every finished run in full, the current one as far as it has got. */
 export function prestigeCoins(taken: readonly PrestigeTaken[], lifetime: number): number {
   let sum = 0;
-  taken.forEach((t, i) => {
-    sum += runCoinsPaid(i < taken.length - 1 ? RUN_LEVELS : runProgress(lifetime, t.startedAt).level);
-  });
+  for (const i of taken.keys()) sum += runCoinsPaid(levelOfRun(taken, i, lifetime));
   return sum;
 }
 
@@ -131,27 +143,25 @@ export async function grantPrestige(sql: Sql, userId: number, now: number): Prom
   const taken = await prestigesOf(sql, userId);
   if (taken.length === 0) return;
   const lifetime = (await tokensIn(sql, [userId])).get(userId) ?? 0;
-  const had = new Set(
-    (
-      await all<{ item: string }>(
-        sql,
-        "SELECT item FROM rewards WHERE user_id = ? AND item LIKE 'prestige:%'",
-        userId,
-      )
-    ).map((r) => r.item),
+  const rewardRows = await all<{ item: string }>(
+    sql,
+    "SELECT item FROM rewards WHERE user_id = ? AND item LIKE 'prestige:%'",
+    userId,
   );
-  for (const [i, t] of taken.entries()) {
-    const level = i < taken.length - 1 ? RUN_LEVELS : runProgress(lifetime, t.startedAt).level;
-    for (const w of rewardsUnlocked(i + 1, level)) {
-      if (!("itemId" in w) || had.has(`prestige:${w.itemId}`)) continue;
-      if (await grantOnce(sql, userId, `prestige:${w.itemId}`))
-        await sql.execute("INSERT INTO items (owner_id, item, at) VALUES (?, ?, ?)", userId, w.itemId, now);
-    }
-    // The trophy comes with the run's last level, as furniture for the office.
-    for (const id of trophyItems(i + 1, level)) {
-      if (had.has(`prestige:${id}`)) continue;
-      if (await grantOnce(sql, userId, `prestige:${id}`))
-        await sql.execute("INSERT INTO items (owner_id, item, at) VALUES (?, ?, ?)", userId, id, now);
+  const had = new Set(rewardRows.map((r) => r.item));
+
+  for (const i of taken.keys()) {
+    const level = levelOfRun(taken, i, lifetime);
+    const wearables = [
+      ...rewardsUnlocked(i + 1, level).flatMap((w) => ("itemId" in w ? [w.itemId] : [])),
+      // The trophy comes with the run's last level, as furniture for the office.
+      ...trophyItems(i + 1, level),
+    ];
+    for (const itemId of wearables) {
+      if (had.has(`prestige:${itemId}`)) continue;
+      if (await grantOnce(sql, userId, `prestige:${itemId}`)) {
+        await sql.execute("INSERT INTO items (owner_id, item, at) VALUES (?, ?, ?)", userId, itemId, now);
+      }
     }
   }
 }

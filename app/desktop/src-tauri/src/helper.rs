@@ -283,10 +283,8 @@ fn log_file() -> Stdio {
     };
     let path = dir.join("helper.log");
     let _ = std::fs::create_dir_all(&dir);
-    if std::fs::metadata(&path)
-        .map(|m| m.len() > 5_000_000)
-        .unwrap_or(false)
-    {
+    // A missing file is not too big, so there is nothing to truncate.
+    if std::fs::metadata(&path).is_ok_and(|m| m.len() > 5_000_000) {
         let _ = std::fs::remove_file(&path);
     }
     std::fs::OpenOptions::new()

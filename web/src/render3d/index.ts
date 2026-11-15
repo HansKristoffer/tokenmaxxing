@@ -74,11 +74,22 @@ function texturesOf(scene: THREE.Scene): THREE.Texture[] {
   const seen = new Set<THREE.Texture>();
   scene.traverse((o) => {
     const m = (o as THREE.Mesh).material as THREE.Material | THREE.Material[] | undefined;
-    for (const mat of Array.isArray(m) ? m : m ? [m] : [])
-      for (const v of Object.values(mat)) if (v instanceof THREE.Texture) seen.add(v);
+    for (const mat of Array.isArray(m) ? m : m ? [m] : []) {
+      for (const v of Object.values(mat)) {
+        if (v instanceof THREE.Texture) seen.add(v);
+      }
+    }
   });
   return [...seen];
 }
+
+/** A point after projection (-1 to 1 on each axis), as window pixels over the canvas rectangle `r`. */
+function projectedTo(p: THREE.Vector3, r: DOMRect): [number, number] {
+  return [((p.x + 1) / 2) * r.width + r.left, ((1 - p.y) / 2) * r.height + r.top];
+}
+
+/** The rooms the leak check builds and frees, and the ones it warms before it. */
+const LEAK_ROOMS = ["town", "hq", "inn", "upstairs", "basement", "dungeon", "office"];
 
 let mapIds = 0;
 const mapKeys = new WeakMap<object, number>();
@@ -259,9 +270,7 @@ class Renderer3D implements Renderer {
     const opened = performance.getEntriesByType("navigation")[0]?.name ?? location.href;
     if (opened.includes("r3dcheck"))
       setTimeout(async () => {
-        await Promise.all(
-          ["town", "hq", "inn", "upstairs", "basement", "dungeon", "office"].map(prepareRoom),
-        );
+        await Promise.all(LEAK_ROOMS.map(prepareRoom));
         const { before, after } = this.cycle(4);
         const leaked =
           before.geometries !== after.geometries ||
@@ -332,10 +341,10 @@ class Renderer3D implements Renderer {
     return `${this.townKey.key}:${seasonLookNow().key}`;
   }
 
-  /** Makes the stage match `world.room`, building it (and clearing the people) when the room changes. */
-  private ensureStage(now: number): boolean {
+  /** The stage for `world.room`, built (and the people cleared) when the room changes; null while it is not ready. */
+  private ensureStage(now: number): RoomStage | null {
     const key = this.roomKey();
-    if (this.stage && key === this.key) return true;
+    if (this.stage && key === this.key) return this.stage;
     if (!roomReady(world.room)) {
       // The room's code is not in yet: the old room stays under the veil until it is (the next door is preloaded, so this is rare).
       if (this.preparing !== world.room) {
@@ -347,7 +356,7 @@ class Renderer3D implements Renderer {
             if (this.preparing === id) this.preparing = null;
           });
       }
-      return false;
+      return null;
     }
     const roomChanged = world.room !== this.room;
     // Nothing next door was ready: close the veil first and build on the frame after, so the stall is under black
@@ -362,7 +371,7 @@ class Renderer3D implements Renderer {
     ) {
       this.veiled = true;
       this.overlay.snapFade(1);
-      return false;
+      return null;
     }
     this.veiled = false;
     const t0 = performance.now();
@@ -383,8 +392,7 @@ class Renderer3D implements Renderer {
     } else {
       next = new RoomStage(buildRoom(world.room, this.ctx()), this.hooks);
       if (world.room === "town") {
-        // A town for other plots replaces the one kept.
-        if (this.town && this.town.stage !== old) this.town.stage.dispose();
+        this.forgetTown();
         this.town = { stage: next, key };
       }
     }
@@ -409,8 +417,7 @@ class Renderer3D implements Renderer {
       this.shops?.panel.close();
       this.shops?.panel.tip(null);
       this.placer.cancel();
-    }
-    if (roomChanged) {
+
       const calm = this.settings?.reduceMotion ?? false;
       this.overlay.snapFade(calm ? 0 : 1);
       if (calm || this.drawn.has(next)) this.overlay.fadeTowards(0, calm ? 0 : FADE_IN_MS, now);
@@ -425,7 +432,21 @@ class Renderer3D implements Renderer {
       if (this.ahead && !near.includes(this.ahead.id)) this.dropAhead();
       for (const n of near) preloadRoom(n);
     }
-    return true;
+    return next;
+  }
+
+  /** Disposes the kept town, unless it is the stage on screen, and forgets it. */
+  private forgetTown(): void {
+    if (this.town && this.town.stage !== this.stage) this.town.stage.dispose();
+    this.town = null;
+  }
+
+  /** Builds the town for `key` in place of the one kept. */
+  private newTown(key: string): RoomStage {
+    const stage = new RoomStage(buildRoom("town", { ...this.ctx(), map: mapOf("town") }), this.hooks);
+    this.forgetTown();
+    this.town = { stage, key };
+    return stage;
   }
 
   /**
@@ -457,10 +478,8 @@ class Renderer3D implements Renderer {
     this.reveal.town = false;
     const key = this.townIdentity();
     if (this.town?.key === key) return;
-    const town = new RoomStage(buildRoom("town", { ...this.ctx(), map: mapOf("town") }), this.hooks);
+    const town = this.newTown(key);
     town.applySettings(this.settings);
-    if (this.town && this.town.stage !== this.stage) this.town.stage.dispose();
-    this.town = { stage: town, key };
     this.compiling(this.warmNow(town));
     // Its textures and the one draw ahead are left to `warmAhead`'s last steps.
     this.warming = { stage: town, textures: texturesOf(town.scene), compiled: true };
@@ -506,9 +525,7 @@ class Renderer3D implements Renderer {
     if (id === "town") {
       const key = this.townIdentity();
       if (this.town?.key === key) return;
-      stage = new RoomStage(buildRoom("town", { ...this.ctx(), map: mapOf("town") }), this.hooks);
-      if (this.town && this.town.stage !== this.stage) this.town.stage.dispose();
-      this.town = { stage, key };
+      stage = this.newTown(key);
     } else {
       const map = mapOf(id as never);
       if (this.ahead?.id === id && this.ahead.map === map) return;
@@ -581,7 +598,8 @@ class Renderer3D implements Renderer {
     this.pipe.renderer.info.reset();
     const dt = this.last ? Math.min(100, Math.max(0.1, now - this.last)) : 16;
     this.last = now;
-    if (!this.ensureStage(now)) {
+    const stage = this.ensureStage(now);
+    if (!stage) {
       this.waiting(now);
       return;
     }
@@ -591,7 +609,6 @@ class Renderer3D implements Renderer {
       this.overlay.stepFade(now);
       return;
     }
-    const stage = this.stage!;
     const view = stage.view;
     const t = now / 1000;
     const calm = this.settings?.reduceMotion ?? false;
@@ -676,7 +693,7 @@ class Renderer3D implements Renderer {
     easeWalls(this.reveal ? 10 : dt / 1000);
     view.tick(t, dt / 1000, this.rig.towardCamera());
     lightPipeline(this.pipe, stage, dark);
-    this.seeSelf(me, camera, dt / 1000, calm);
+    this.seeSelf(stage, me, camera, dt / 1000, calm);
     // The town built behind this veil: its textures and one draw now too, while nothing shows, so the first frame
     // outside links no shaders (the compile misses the shadow and blocky passes, and they are most of it).
     const w = this.warming;
@@ -713,6 +730,7 @@ class Renderer3D implements Renderer {
 
   /** Where the ring that cuts trees and roofs away round you is, in render pixels. */
   private seeSelf(
+    stage: RoomStage,
     me: [number, number] | null | undefined,
     camera: THREE.OrthographicCamera,
     dt: number,
@@ -723,7 +741,7 @@ class Renderer3D implements Renderer {
       return;
     }
     const at = new THREE.Vector3(me[0], 0.9, me[1]);
-    const reveal = this.stage!.occlusion.update(at, camera, dt, calm);
+    const reveal = stage.occlusion.update(at, camera, dt, calm);
     const depth = -at.clone().applyMatrix4(camera.matrixWorldInverse).z;
     at.project(camera);
     const ratio = this.pipe.renderer.getPixelRatio();
@@ -765,8 +783,7 @@ class Renderer3D implements Renderer {
       this.detail = detail;
       setGeometryDetail(detail);
       if (changed) {
-        if (this.town && this.town.stage !== this.stage) this.town.stage.dispose();
-        this.town = null;
+        this.forgetTown();
         this.key = "";
       }
     }
@@ -798,10 +815,8 @@ class Renderer3D implements Renderer {
     let bestD = 30;
     for (const d of room.displays) {
       p.set(d.pos.x + SHOP_INSET[0], d.pos.y, d.pos.z + SHOP_INSET[1]).project(this.rig.camera);
-      const dist = Math.hypot(
-        ((p.x + 1) / 2) * r.width + r.left - clientX,
-        ((1 - p.y) / 2) * r.height + r.top - clientY,
-      );
+      const [x, y] = projectedTo(p, r);
+      const dist = Math.hypot(x - clientX, y - clientY);
       if (dist < bestD) {
         bestD = dist;
         best = d;
@@ -921,7 +936,7 @@ class Renderer3D implements Renderer {
       id: d.item.id,
       name: d.item.name,
       price: d.item.price,
-      at: [((p.x + 1) / 2) * r.width + r.left, ((1 - p.y) / 2) * r.height + r.top],
+      at: projectedTo(p, r),
     };
   }
 
@@ -967,7 +982,7 @@ class Renderer3D implements Renderer {
    */
   cycle(
     n: number,
-    rooms: string[] = ["town", "hq", "inn", "upstairs", "basement", "dungeon", "office"],
+    rooms: string[] = LEAK_ROOMS,
   ): {
     before: ReturnType<typeof gpuNow>;
     after: ReturnType<typeof gpuNow>;

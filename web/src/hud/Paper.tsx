@@ -3,6 +3,18 @@ import { town } from "../net.ts";
 import { dayText } from "./format.ts";
 import { Modal, useLoad } from "./ui.tsx";
 
+/** A market move as its arrow and percentage; a null change has no arrow and no colour. */
+function marketChange(change: number | null) {
+  if (change === null) return { className: "", text: "" };
+
+  const isUp = change >= 0;
+  const arrow = isUp ? "▲" : "▼";
+  return {
+    className: isUp ? "up" : "down",
+    text: `${arrow} ${Math.round(Math.abs(change) * 100)}%`,
+  };
+}
+
 /** E on a paper by a door: today's front page, about yesterday in town. */
 export function PaperPanel() {
   const { data: paper, error } = useLoad(() => town.paper(), []);
@@ -45,17 +57,16 @@ export function PaperPanel() {
             <h6>Markets</h6>
             <table>
               <tbody>
-                {paper.markets.map((m) => (
-                  <tr key={m.label}>
-                    <th>{m.label}</th>
-                    <td>{m.value}</td>
-                    <td className={m.change === null ? "" : m.change >= 0 ? "up" : "down"}>
-                      {m.change === null
-                        ? ""
-                        : `${m.change >= 0 ? "▲" : "▼"} ${Math.round(Math.abs(m.change) * 100)}%`}
-                    </td>
-                  </tr>
-                ))}
+                {paper.markets.map((m) => {
+                  const change = marketChange(m.change);
+                  return (
+                    <tr key={m.label}>
+                      <th>{m.label}</th>
+                      <td>{m.value}</td>
+                      <td className={change.className}>{change.text}</td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
             <p>

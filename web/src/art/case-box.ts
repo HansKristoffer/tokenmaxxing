@@ -113,7 +113,6 @@ function drawClosed(p: Pen): void {
   p.rect(1, 9, 22, 5, P.wine);
   p.rect(1, 9, 22, 2, P.crimson);
   p.rect(1, 9, 22, 1, P.crimsonLight);
-  p.rect(1, 13, 22, 1, P.gold);
   p.rect(1, 13, 22, 1, P.goldDark);
   p.rect(1, 12, 22, 1, P.gold);
   for (const x of [3, 19]) {
@@ -125,9 +124,6 @@ function drawClosed(p: Pen): void {
   p.rect(11, 11, 2, 3, P.gold);
   p.px(11, 12, P.red);
   p.px(12, 12, P.goldDark);
-  // Top edge rim highlight.
-  p.rect(2, 8, 20, 1, C.ink);
-  p.px(0, 8, "rgba(0,0,0,0)");
 }
 
 function drawOpen(p: Pen, frame: number): void {
@@ -142,7 +138,6 @@ function drawOpen(p: Pen, frame: number): void {
   p.rect(2, 6, 20, 2, "#a85a4a");
   p.rect(2, 8, 20, 2, "#e08a4a");
   p.rect(2, 10, 20, 1, P.goldLight);
-  p.rect(2, 1, 20, 1, P.gold);
   p.rect(2, 1, 20, 1, P.goldDark);
   for (const x of [3, 19]) {
     p.rect(x, 2, 2, 9, P.gold);
@@ -155,8 +150,6 @@ function drawOpen(p: Pen, frame: number): void {
   p.rect(0, 11, 24, 3, C.ink);
   p.rect(1, 12, 22, 2, P.glow);
   p.rect(4, 12, 16, 1, P.paper);
-  p.rect(1, 11, 22, 1, P.gold);
-  p.rect(1, 11, 22, 1, P.goldDark);
   p.rect(1, 11, 22, 1, P.gold);
   // The beam rising out of the mouth and the motes in it.
   p.rect(5, 9, 14, 2, "rgba(255, 233, 160, 0.75)");
@@ -405,20 +398,26 @@ function drawNusKey(p: Pen): void {
     [3, 17],
     [3, 16],
   ] as const;
-  for (const side of [0, 1])
-    for (const ink of [true, false])
+  // Each arm is drawn on both sides, mirrored: its ink outline first, then the brass on top.
+  for (const side of [0, 1]) {
+    for (const ink of [true, false]) {
       for (const [x, y] of arm) {
         const px = side ? 17 - x : x;
-        if (ink)
+        if (ink) {
           for (const [dx, dy] of [
             [1, 0],
             [-1, 0],
             [0, 1],
             [0, -1],
-          ] as const)
+          ] as const) {
             p.px(px + dx, y + dy, C.ink);
-        else p.px(px, y, side ? T.brassDark : T.brass);
+          }
+        } else {
+          p.px(px, y, side ? T.brassDark : T.brass);
+        }
       }
+    }
+  }
   p.rect(10, 21, 4, 3, C.ink);
   p.rect(11, 22, 2, 1, T.brassDark);
 }
@@ -426,9 +425,23 @@ function drawNusKey(p: Pen): void {
 const cache = new Map<string, HTMLCanvasElement>();
 
 /** The cases whose art is not the Night Market's, by case id (`core/src/cases.ts`); every other id draws the Night Market's. */
-const OTHER_CASES: Record<string, (p: Pen, kind: CaseBoxKind, frame: number) => void> = {
-  nusantara: (p, kind, frame) =>
-    kind === "closed" ? drawNusClosed(p) : kind === "open" ? drawNusOpen(p, frame) : drawNusKey(p),
+type CaseDraw = (p: Pen, kind: CaseBoxKind, frame: number) => void;
+
+function drawNightMarket(p: Pen, kind: CaseBoxKind, frame: number): void {
+  if (kind === "closed") drawClosed(p);
+  else if (kind === "open") drawOpen(p, frame);
+  else drawKey(p);
+}
+
+function drawNusantara(p: Pen, kind: CaseBoxKind, frame: number): void {
+  if (kind === "closed") drawNusClosed(p);
+  else if (kind === "open") drawNusOpen(p, frame);
+  else drawNusKey(p);
+}
+
+/** The cases whose art is not the Night Market's, by case id (`core/src/cases.ts`); every other id draws the Night Market's. */
+const OTHER_CASES: Record<string, CaseDraw> = {
+  nusantara: drawNusantara,
   "ragnarok-eve": drawRagnarokBox,
   julemarked: drawJulemarkedBox,
 };
@@ -440,20 +453,13 @@ const OTHER_CASES: Record<string, (p: Pen, kind: CaseBoxKind, frame: number) => 
 export function caseBoxSprite(kind: CaseBoxKind, frame = 0, caseId = "night-market"): HTMLCanvasElement {
   // The Julemarked box has four open frames; every other case has two.
   const f = kind === "open" ? frame % (caseId === "julemarked" ? 4 : 2) : 0;
-  const draw = OTHER_CASES[caseId];
-  const k = `${draw ? caseId : ""}${kind}${f}`;
+  const other = OTHER_CASES[caseId];
+  const k = `${other ? caseId : ""}${kind}${f}`;
   let c = cache.get(k);
   if (!c) {
     const { w, h } = CASE_BOX_SIZE[kind];
-    c = bake(w, h, (p) =>
-      draw
-        ? draw(p, kind, f)
-        : kind === "closed"
-          ? drawClosed(p)
-          : kind === "open"
-            ? drawOpen(p, f)
-            : drawKey(p),
-    );
+    const draw = other ?? drawNightMarket;
+    c = bake(w, h, (p) => draw(p, kind, f));
     cache.set(k, c);
   }
   return c;

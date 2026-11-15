@@ -40,12 +40,18 @@ function sail(rotor: Model, turn: number): void {
 function oneBatch(rigid: THREE.Object3D): void {
   rigid.updateMatrixWorld(true);
   const into = rigid.matrixWorld.clone().invert();
+
+  // A mesh inside a rigid part of its own belongs to that part, so it is not moved here.
+  const insideOtherRigid = (o: THREE.Object3D) => {
+    for (let p = o.parent; p && p !== rigid; p = p.parent) if (p.userData.rigid) return true;
+    return false;
+  };
   const meshes: THREE.Mesh[] = [];
   rigid.traverse((o) => {
-    let own = true;
-    for (let p = o.parent; p && p !== rigid; p = p.parent) own &&= !p.userData.rigid;
-    if ((o as THREE.Mesh).isMesh && own && !o.userData.rigid) meshes.push(o as THREE.Mesh);
+    const isOwnMesh = (o as THREE.Mesh).isMesh && !insideOtherRigid(o) && !o.userData.rigid;
+    if (isOwnMesh) meshes.push(o as THREE.Mesh);
   });
+
   for (const mesh of meshes) {
     const local = into.clone().multiply(mesh.matrixWorld);
     // A plain copy: the Voxel style would rebuild a primitive from its parameters, in the wrong place.
@@ -76,8 +82,8 @@ export function windmill(): Windmill {
   }
   // The tower, tapering, and a window over the gallery.
   m.cyl(0.85, TOP - 1.44, C.wall, [0, 1.44, 0], 0.56, 8).rotation.y = OCTAGON;
-  const window = m.box([0.2, 0.3, 0.05], C.ink, [0, 2.45, 0.68], 0.01);
-  window.rotation.x = -0.12;
+  const windowPane = m.box([0.2, 0.3, 0.05], C.ink, [0, 2.45, 0.68], 0.01);
+  windowPane.rotation.x = -0.12;
   m.cyl(0.6, 0.08, C.woodDark, [0, TOP - 0.06, 0], 0.6, 8).rotation.y = OCTAGON;
 
   // The cap: a hood that turns on the tower's top, the windshaft out of its front, the fantail on its back.
@@ -89,7 +95,8 @@ export function windmill(): Windmill {
   );
   hood.scale.set(1, 0.95, 1.3);
   hood.position.y = 0.04;
-  hood.castShadow = hood.receiveShadow = true;
+  hood.castShadow = true;
+  hood.receiveShadow = true;
   cap.add(hood);
   cap.cyl(0.64, 0.08, C.woodDark, [0, 0, 0], 0.64, 14);
   cap.cyl(0.07, 0.7, C.woodDark, [0, 0.36, 0.42], 0.07, 8).rotation.x = Math.PI / 2;

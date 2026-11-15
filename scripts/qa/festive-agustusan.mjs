@@ -8,11 +8,10 @@ import { mkdirSync } from "node:fs";
 import { openGame, playwright, portals, ready, room, signUp, through, walkTile } from "./lib.mjs";
 
 const args = process.argv.slice(2);
-const tiers = ["low", "high"].includes(args[0])
-  ? [args.shift()]
-  : args[0] === "both"
-    ? (args.shift(), ["low", "high"])
-    : ["low", "high"];
+// A tier name picks one tier; `both` or nothing runs both. Whatever is left names the scenes.
+let tiers = ["low", "high"];
+if (["low", "high"].includes(args[0])) tiers = [args.shift()];
+else if (args[0] === "both") args.shift();
 const out = process.env.OUT ?? "/tmp/seasonal-shots/agustusan";
 mkdirSync(out, { recursive: true });
 

@@ -55,7 +55,16 @@ function fontsAt(dpr: number) {
 }
 
 /** A house's row of chips: texts and widths, measured once per list (`world.houses` is replaced, never edited). */
-const chipRows = new WeakMap<Peek[], { dpr: number; texts: string[]; widths: number[]; w: number }>();
+const chipRows = new WeakMap<Peek[], ChipRow>();
+interface ChipRow {
+  dpr: number;
+  texts: string[];
+  widths: number[];
+  /** Total width, the chips and the gaps between them. */
+  w: number;
+  pad: number;
+  gap: number;
+}
 function chipRow(g: CanvasRenderingContext2D, people: Peek[], dpr: number) {
   const hit = chipRows.get(people);
   if (hit?.dpr === dpr) return hit;
@@ -67,7 +76,7 @@ function chipRow(g: CanvasRenderingContext2D, people: Peek[], dpr: number) {
   const pad = 5 * dpr;
   const gap = 3 * dpr;
   const widths = texts.map((t) => g.measureText(t).width + pad * 2);
-  const row = { dpr, texts, widths, w: sumBy(widths, (w) => w) + gap * (widths.length - 1) };
+  const row = { dpr, texts, widths, w: sumBy(widths, (w) => w) + gap * (widths.length - 1), pad, gap };
   chipRows.set(people, row);
   return row;
 }
@@ -81,10 +90,8 @@ export function chips(g: CanvasRenderingContext2D, cx: number, y: number, people
   const alpha = alphaAt(cx, y);
   if (alpha <= 0) return;
   g.globalAlpha = alpha;
-  const { texts, widths, w: total } = chipRow(g, people, dpr);
+  const { texts, widths, w: total, pad, gap } = chipRow(g, people, dpr);
   g.font = fontsAt(dpr).chip;
-  const pad = 5 * dpr;
-  const gap = 3 * dpr;
   const h = 14 * dpr;
   let x = cx - total / 2;
   g.textAlign = "left";
@@ -207,6 +214,19 @@ export function sign(
   );
 }
 
+/** Draws a pill with its foot at `y` and returns the height for the next one stacked above it. */
+function stacked(
+  g: CanvasRenderingContext2D,
+  cx: number,
+  y: number,
+  text: string,
+  dpr: number,
+  bg: string,
+  fg: string,
+): number {
+  return y - pill(g, cx, y, text, dpr, bg, fg).h - 2 * dpr;
+}
+
 export function avatarLabels(
   g: CanvasRenderingContext2D,
   a: Avatar,
@@ -225,12 +245,18 @@ export function avatarLabels(
   if (a.info.id !== world.selfId) {
     const tag = `${a.info.name} · Lv${a.info.level}`;
     const bg = a.info.online ? "rgba(27, 31, 42, 0.78)" : "rgba(27, 31, 42, 0.45)";
-    y -= pill(g, cx, y, tag, dpr, bg, C.white).h + 2 * dpr;
+    y = stacked(g, cx, y, tag, dpr, bg, C.white);
     const track = PRESTIGE_TRACKS[prestigeOf(a.info).rank - 1];
     if (track)
-      y -=
-        pill(g, cx, y, `✦ ${track.name} ${track.roman}`, dpr, "rgba(18, 20, 28, 0.9)", track.colors.glow).h +
-        2 * dpr;
+      y = stacked(
+        g,
+        cx,
+        y,
+        `✦ ${track.name} ${track.roman}`,
+        dpr,
+        "rgba(18, 20, 28, 0.9)",
+        track.colors.glow,
+      );
   }
   if (a.state === "away" || a.info.dozing) {
     const t = (now / 900) % 1;
@@ -239,13 +265,11 @@ export function avatarLabels(
     g.textAlign = "center";
     g.fillText("z", cx + (8 + t * 8) * dpr, y - t * 12 * dpr);
   } else if (a.state === "working") {
-    y -=
-      pill(g, cx, y, `💻 ×${Math.max(1, a.info.liveAgents)}`, dpr, "rgba(143, 227, 255, 0.95)", C.ink).h +
-      2 * dpr;
+    y = stacked(g, cx, y, `💻 ×${Math.max(1, a.info.liveAgents)}`, dpr, "rgba(143, 227, 255, 0.95)", C.ink);
   }
-  if (battle) y -= pill(g, cx, y, "⚔️ Aura battle", dpr, "rgba(179, 107, 255, 0.95)", C.white).h + 2 * dpr;
+  if (battle) y = stacked(g, cx, y, "⚔️ Aura battle", dpr, "rgba(179, 107, 255, 0.95)", C.white);
   const inGame = gameTag(a.info.id);
-  if (inGame) y -= pill(g, cx, y, inGame, dpr, "rgba(233, 183, 61, 0.95)", C.ink).h + 2 * dpr;
+  if (inGame) y = stacked(g, cx, y, inGame, dpr, "rgba(233, 183, 61, 0.95)", C.ink);
   if (!resting) y = polseTag(g, a.info, cx, y, now);
   const sneeze = sneezeOf(a);
   if (a.bubble && now < a.bubble.until && !resting)
@@ -319,14 +343,15 @@ export function bubble(
   bottom: number,
   text: string,
   dpr: number,
-  left: number,
+  msLeft: number,
 ) {
   g.font = fontsAt(dpr).bubble;
   const { shown, w } = wrapped(g, text, dpr);
   const lh = 15 * dpr;
   const h = shown.length * lh + 8 * dpr;
   const y = bottom - h - 6 * dpr;
-  g.globalAlpha = Math.min(1, left / 400);
+  // Fades out over its last 400 ms.
+  g.globalAlpha = Math.min(1, msLeft / 400);
   g.fillStyle = C.white;
   g.strokeStyle = C.ink;
   g.lineWidth = 2 * dpr;

@@ -220,7 +220,10 @@ ITEMS.forEach((item, at) => {
   if (!values.has(item.index)) values.set(item.index, { item: item as Item & { slot: Slot }, at });
 });
 
-export const itemById = (id: unknown): Item | undefined => BY_ID.get(id as string) ?? merchItem(id);
+export const itemById = (id: unknown): Item | undefined => {
+  const known = typeof id === "string" ? BY_ID.get(id) : undefined;
+  return known ?? merchItem(id);
+};
 
 /** The shop items a look wears, in `ITEMS` order; everything else in it is free (merch is `merchIn`). */
 export function itemsIn(look: Look): (Item & { slot: Slot })[] {
@@ -231,8 +234,6 @@ export function itemsIn(look: Look): (Item & { slot: Slot })[] {
   }
   return worn.sort((a, b) => a.at - b.at).map((w) => w.item);
 }
-
-// MARK: Merch
 
 /**
  * Every company's merch, in its colours with its initials: sold to anyone, and what outsiders pay goes
@@ -275,10 +276,10 @@ function merchItem(id: unknown): Item | undefined {
 }
 
 /** The merch item ids a look wears. */
-export const merchIn = (look: Look): string[] =>
-  look.merch === 0 ? [] : MERCH.filter((m) => look.merchWorn & m.bit).map((m) => merchId(look.merch, m.kind));
-
-// MARK: Trading
+export const merchIn = (look: Look): string[] => {
+  if (look.merch === 0) return [];
+  return MERCH.filter((m) => look.merchWorn & m.bit).map((m) => merchId(look.merch, m.kind));
+};
 
 /** Items that can change hands: everything but level rewards and earned pieces. */
 export const isTradeable = (id: unknown): boolean => itemById(id)?.tradeable ?? false;
@@ -288,10 +289,11 @@ export const isTradeable = (id: unknown): boolean => itemById(id)?.tradeable ?? 
  * of furniture (Touched grass) and personal-office furniture (`home.ts`) only in their own office,
  * where nobody else can pick it up (and never in the company building).
  */
-export const canDropIn = (item: unknown, room: string, by: number): boolean =>
-  itemById(item)?.home
-    ? room === `office:${by}`
-    : isTradeable(item) || (isKeepsake(item) && room === `office:${by}`);
+export const canDropIn = (item: unknown, room: string, by: number): boolean => {
+  const inOwnOffice = room === `office:${by}`;
+  if (itemById(item)?.home) return inOwnOffice;
+  return isTradeable(item) || (isKeepsake(item) && inOwnOffice);
+};
 
 /** An earned piece of furniture: it leaves your bag only for your own office's floor (`canDropIn`). */
 export function isKeepsake(id: unknown): boolean {
@@ -312,11 +314,17 @@ export const TRADE_ITEMS_CAP = 4;
 export function parseSide(raw: unknown): Side | null {
   if (!isRecord(raw)) return null;
   const { coins, items } = raw;
-  if (!Number.isInteger(coins) || (coins as number) < 0 || (coins as number) > TRADE_COINS_CAP) return null;
-  if (!Array.isArray(items) || items.length > TRADE_ITEMS_CAP || new Set(items).size < items.length)
-    return null;
+
+  const coinsInRange = typeof coins === "number" && Number.isInteger(coins) && coins >= 0;
+  if (!coinsInRange || coins > TRADE_COINS_CAP) return null;
+
+  if (!Array.isArray(items)) return null;
+  const tooManyItems = items.length > TRADE_ITEMS_CAP;
+  const hasRepeats = new Set(items).size < items.length;
+  if (tooManyItems || hasRepeats) return null;
   if (!items.every(isTradeable)) return null;
-  return { coins: coins as number, items: items as string[] };
+
+  return { coins, items };
 }
 
 export const emptySide = (s: Side): boolean => s.coins === 0 && s.items.length === 0;

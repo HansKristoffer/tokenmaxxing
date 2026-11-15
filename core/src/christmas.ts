@@ -82,6 +82,7 @@ const SETS: readonly { set: OrnamentSet; n: number; lo: number; hi: number; spre
   { set: "tinsel", n: 12, lo: 0.08, hi: 0.9, spread: 2.5 },
 ];
 
+// The golden angle in radians (pi times 3 minus root 5): successive ornaments spread evenly round the trunk.
 const GOLDEN = 2.399963;
 
 /** All the ornaments, set by set (so showing the first `n` is "the days so far"): fixed, the same in both renderers. */
@@ -137,9 +138,21 @@ export function wreathSpots(map: GameMap): DoorSpot[] {
       x,
       y,
       inn: ch === "I",
-      kind: ch === "I" ? "inn" : ch === "D" ? "company" : "shop",
+      kind: kindOfDoor(ch),
     })),
   );
+}
+
+/** The Tavern's door is `I`, a company's is `D`, and every other door on the map is a shop. */
+function kindOfDoor(ch: string): DoorSpot["kind"] {
+  switch (ch) {
+    case "I":
+      return "inn";
+    case "D":
+      return "company";
+    default:
+      return "shop";
+  }
 }
 
 export interface NisseSpot {
@@ -156,13 +169,14 @@ export interface NisseSpot {
  */
 export function nisseSpots(map: GameMap): NisseSpot[] {
   const out: NisseSpot[] = [];
-  for (const ch of DOORS)
+  for (const ch of DOORS) {
     for (const [x, y] of map.find(ch)) {
       const right = map.at(x + 1, y + 1) === ".";
       const left = map.at(x - 1, y + 1) === ".";
       if (right) out.push({ x: x + 1, y: y + 1, facing: "left" });
       else if (left) out.push({ x: x - 1, y: y + 1, facing: "right" });
     }
+  }
   return out;
 }
 
@@ -184,8 +198,11 @@ export const GIFT_LINES: readonly string[] = [
   "A card from the Julekalender: 'Door 24 was always going to be the nisse'.",
 ];
 
-export const giftLine = (day: number): string =>
-  GIFT_LINES[((day % GIFT_LINES.length) + GIFT_LINES.length) % GIFT_LINES.length]!;
+export function giftLine(day: number): string {
+  // A modulo that stays in range for a negative day too.
+  const index = ((day % GIFT_LINES.length) + GIFT_LINES.length) % GIFT_LINES.length;
+  return GIFT_LINES[index]!;
+}
 
 // MARK: Nisse Knud
 

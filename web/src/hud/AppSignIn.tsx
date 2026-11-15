@@ -19,15 +19,20 @@ export function AppSignIn() {
   const [error, setError] = useState<string | null>(null);
   const [name, setName] = useState("");
 
-  const enter = async (name?: string) => {
+  const enter = async (chosenName?: string) => {
     setBusy(true);
     setError(null);
     try {
-      await redeem(await tauri!.core.invoke<string>("enter_world", { name }));
+      await redeem(await tauri!.core.invoke<string>("enter_world", { name: chosenName }));
       location.reload();
     } catch (err) {
-      if (err === "signed_out" || err === "unauthorized") setNeedsName(true);
-      else setError((typeof err === "string" && MESSAGES[err]) || "Something went wrong.");
+      const needsSignUp = err === "signed_out" || err === "unauthorized";
+      if (needsSignUp) {
+        setNeedsName(true);
+      } else {
+        const known = typeof err === "string" ? MESSAGES[err] : undefined;
+        setError(known ?? "Something went wrong.");
+      }
       setBusy(false);
     }
   };

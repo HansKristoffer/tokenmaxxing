@@ -1,13 +1,20 @@
 import { C } from "../palette.ts";
 import { PETS } from "../pets.ts";
-import { type PetVariant, swap, up } from "./types.ts";
+import type { Palette } from "../pixels.ts";
+import { type Patch, type PetVariant, swap, up } from "./types.ts";
 
 const BASE = PETS[2]!;
 
+/**
+ * A swap whose hop frame is the standing one lifted a row: the patches are written once, for the
+ * standing frame, and the hop gets them moved up.
+ */
+const liftedSwap = (id: string, name: string, pal: Palette, patches: Patch[]) =>
+  swap(BASE, id, name, pal, patches, up(patches));
+
 /** Colour swaps of the cat. Shapes are in shapes.ts. */
 export const CAT_SWAPS: PetVariant[] = [
-  swap(
-    BASE,
+  liftedSwap(
     "black",
     "Black cat",
     {
@@ -21,14 +28,8 @@ export const CAT_SWAPS: PetVariant[] = [
       [4, 1, "h"],
       [2, 7, "h"],
     ],
-    up([
-      [3, 0, "h"],
-      [4, 1, "h"],
-      [2, 7, "h"],
-    ]),
   ),
-  swap(
-    BASE,
+  liftedSwap(
     "tuxedo",
     "Tuxedo",
     {
@@ -45,18 +46,8 @@ export const CAT_SWAPS: PetVariant[] = [
       [8, 2, "w"],
       [8, 8, "w"],
     ],
-    up([
-      [5, 9, "w"],
-      [5, 10, "w"],
-      [6, 8, "w"],
-      [6, 9, "w"],
-      [7, 8, "w"],
-      [8, 2, "w"],
-      [8, 8, "w"],
-    ]),
   ),
-  swap(
-    BASE,
+  liftedSwap(
     "siamese",
     "Siamese",
     {
@@ -77,21 +68,8 @@ export const CAT_SWAPS: PetVariant[] = [
       [8, 2, "d"],
       [8, 8, "d"],
     ],
-    up([
-      [2, 7, "d"],
-      [2, 10, "d"],
-      [3, 7, "d"],
-      [3, 8, "d"],
-      [3, 9, "d"],
-      [3, 10, "d"],
-      [4, 8, "d"],
-      [4, 10, "d"],
-      [8, 2, "d"],
-      [8, 8, "d"],
-    ]),
   ),
-  swap(
-    BASE,
+  liftedSwap(
     "calico",
     "Calico",
     {
@@ -112,21 +90,8 @@ export const CAT_SWAPS: PetVariant[] = [
       [7, 3, "K"],
       [7, 4, "K"],
     ],
-    up([
-      [2, 7, "K"],
-      [2, 10, "O"],
-      [2, 11, "O"],
-      [3, 8, "O"],
-      [3, 9, "O"],
-      [4, 8, "O"],
-      [6, 6, "K"],
-      [6, 7, "K"],
-      [7, 3, "K"],
-      [7, 4, "K"],
-    ]),
   ),
-  swap(
-    BASE,
+  liftedSwap(
     "greytabby",
     "Grey tabby",
     {
@@ -142,13 +107,5 @@ export const CAT_SWAPS: PetVariant[] = [
       [7, 4, "D"],
       [7, 6, "D"],
     ],
-    up([
-      [2, 11, "D"],
-      [3, 8, "D"],
-      [5, 6, "D"],
-      [6, 8, "D"],
-      [7, 4, "D"],
-      [7, 6, "D"],
-    ]),
   ),
 ];

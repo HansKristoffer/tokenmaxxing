@@ -200,7 +200,9 @@ export async function dayPicks(sql: Sql, userId: number, day: string): Promise<D
   return dailyQuests(day, await baselineFor(sql, userId, day), ids);
 }
 
-/** The day's picks, written once: the first to freeze a day wins, so targets never move. Run it under `serial`. */
+/**
+ * The day's picks, written once: the first to freeze a day wins, so targets never move. Run it under `serial`.
+ */
 export async function freezeDay(sql: Sql, userId: number, day: string): Promise<DayQuest[]> {
   const picks = await dayPicks(sql, userId, day);
   await sql.execute(
@@ -212,13 +214,17 @@ export async function freezeDay(sql: Sql, userId: number, day: string): Promise<
   return picks;
 }
 
-/** Freezes each of `days` that pays by these rules (from `max(paidFrom, signup)` to today), oldest first. */
+/**
+ * Freezes each of `days` that pays by these rules (from `max(paidFrom, signup)` to today), oldest first.
+ */
 export async function freezeDays(sql: Sql, userId: number, days: string[], now: number) {
   const me = await one<{ at: number }>(sql, "SELECT created_at AS at FROM users WHERE id = ?", userId);
   const signup = me ? dayKey(me.at) : dayKey(now);
   const first = paidFrom() > signup ? paidFrom() : signup;
   const today = dayKey(now);
-  for (const day of [...days].sort()) if (day >= first && day <= today) await freezeDay(sql, userId, day);
+  for (const day of [...days].sort()) {
+    if (day >= first && day <= today) await freezeDay(sql, userId, day);
+  }
 }
 
 /**
@@ -282,7 +288,9 @@ export async function questsCleared(sql: Sql, userId: number): Promise<number> {
   const data = (await loadQuestData(sql, { [userId]: paidFrom() })).get(userId);
   if (!data) return 0;
   let n = 0;
-  for (const [day, picks] of data.picks)
-    n += tallyOf(data.facts.get(day) ?? EMPTY_DAY, picks, data.counts.get(day) ?? EMPTY_COUNTS).cleared;
+  for (const [day, picks] of data.picks) {
+    const tally = tallyOf(data.facts.get(day) ?? EMPTY_DAY, picks, data.counts.get(day) ?? EMPTY_COUNTS);
+    n += tally.cleared;
+  }
   return n;
 }

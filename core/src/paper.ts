@@ -375,11 +375,16 @@ function shuffle<T>(list: readonly T[], rand: () => number): T[] {
 /** The change from `before` to `now` as a fraction, or null when `before` gives nothing to compare to. */
 const change = (now: number, before: number): number | null => (before > 0 ? now / before - 1 : null);
 
-/** A story for a rise or a fall, when the change is big enough to be news (at least 5%). */
+/** A change this big (5%) is news; a smaller one is not worth a story or a forecast. */
+const NEWS_CHANGE = 0.05;
+
+/** A story for a rise or a fall, when the change is big enough to be news. */
 function movement(c: number | null, up: Story, down: Story): Story | null {
-  if (c === null || Math.abs(c) < 0.05) return null;
+  if (c === null || Math.abs(c) < NEWS_CHANGE) return null;
   return c > 0 ? up : down;
 }
+
+const asHeadline = ([title, deck]: [string, string]): Headline => ({ title, deck });
 
 /**
  * Yesterday's front page, in this order of importance: the biggest burner leads; then what the day
@@ -399,15 +404,13 @@ export function headlines(f: PaperFacts, rand = random(seedOf(f.day))): Headline
     if (story) others.push(pick(story, vars));
   };
   const pct = (c: number | null) => Math.round(Math.abs(c ?? 0) * 100);
-  add(f.company && COMPANY, {
-    name: f.company?.name ?? "",
-    tokens: compact(f.company?.tokens ?? 0),
-    members: f.company?.members ?? 0,
-  });
+  if (f.company) {
+    add(COMPANY, { name: f.company.name, tokens: compact(f.company.tokens), members: f.company.members });
+  }
   if (f.prs > 0 && f.shipper) add(PRS, { prs: f.prs, name: f.shipper.name, n: f.shipper.prs });
-  add(f.pet && PET, { ...f.pet });
+  if (f.pet) add(PET, { ...f.pet });
   if (f.game && f.game.won > 0) add(GAME, { ...f.game });
-  add(f.model && MODEL, { name: f.model?.name ?? "", tokens: compact(f.model?.tokens ?? 0) });
+  if (f.model) add(MODEL, { name: f.model.name, tokens: compact(f.model.tokens) });
   if (f.people > 1) add(TOWN, { tokens: compact(f.tokens), people: f.people, prompts: f.prompts });
   // The days, weeks and months before: a record, or how this one moved against the last.
   if (t.best > 0 && f.tokens > t.best) add(RECORD, { tokens: compact(f.tokens), best: compact(t.best) });
@@ -433,16 +436,18 @@ export function headlines(f: PaperFacts, rand = random(seedOf(f.day))): Headline
   // changes from day to day, and so does how much of it is true.
   const wire = shuffle(WIRE, rand).slice(0, 2);
   const quiet = shuffle(QUIET, rand);
-  const rest = [
-    ...shuffle([...others, ...wire.map(([title, deck]) => ({ title, deck }))], rand),
-    ...quiet.map(([title, deck]) => ({ title, deck })),
-  ];
+  const rest = [...shuffle([...others, ...wire.map(asHeadline)], rand), ...quiet.map(asHeadline)];
   const front = [...(lead ? [lead] : []), ...rest];
+
   // Never the same title twice, and WIRE tops up what quiet days leave short.
+  const candidates = [...front, ...shuffle(WIRE, rand).map(asHeadline)];
   const seen = new Set<string>();
-  const unique = [...front, ...shuffle(WIRE, rand).map(([title, deck]) => ({ title, deck }))].filter(
-    (h) => !seen.has(h.title) && seen.add(h.title),
-  );
+  const unique: Headline[] = [];
+  for (const headline of candidates) {
+    if (seen.has(headline.title)) continue;
+    seen.add(headline.title);
+    unique.push(headline);
+  }
   return unique.slice(0, HEADLINES);
 }
 
@@ -461,6 +466,8 @@ export function markets(f: PaperFacts): Market[] {
 export function paper(f: PaperFacts): Paper {
   // Its own seed, so adding a brief never reshuffles the headlines.
   const rand = random(seedOf(`${f.day}:page`));
+
+  // The day's weekday is the paper's date: the edition is for the day after `f.day`.
   const weekday = new Date(`${addDays(f.day, 1)}T00:00:00Z`).getUTCDay();
   const factual = [
     f.turns > 0 && `${f.turns.toLocaleString("en")} turns taken. Turns not taken: all the good ones.`,
@@ -468,32 +475,32 @@ export function paper(f: PaperFacts): Paper {
     f.prompts > 0 && `${f.prompts.toLocaleString("en")} prompts sent. 'Continue' was the most common.`,
     f.people > 0 && `${f.people} ${f.people === 1 ? "dev was" : "devs were"} at their desks, in spirit.`,
   ].filter((b): b is string => !!b);
-  const briefs = [WEEKDAYS[weekday]!, ...shuffle([...factual.slice(0, 2), ...BRIEF_RANDOM], rand)].slice(
-    0,
-    BRIEFS,
-  );
+  const weekdayBrief = WEEKDAYS[weekday]!;
+  const randomBriefs = shuffle([...factual.slice(0, 2), ...BRIEF_RANDOM], rand);
+  const briefs = [weekdayBrief, ...randomBriefs].slice(0, BRIEFS);
+
   const dc = change(f.tokens, f.trend.prev);
-  const forecast = shuffle(
-    dc === null || Math.abs(dc) < 0.05 ? FORECAST_FLAT : dc > 0 ? FORECAST_UP : FORECAST_DOWN,
-    rand,
-  )[0]!;
+  let forecastPool = FORECAST_FLAT;
+  if (dc !== null && Math.abs(dc) >= NEWS_CHANGE) forecastPool = dc > 0 ? FORECAST_UP : FORECAST_DOWN;
+  const forecast = shuffle(forecastPool, rand)[0]!;
+
   const sign = SIGNS[Math.floor(rand() * SIGNS.length)]!;
+  const readings = [
+    "A refactor you postponed will return today. It has brought friends.",
+    "Beware of 'quick questions'. They are never quick, and rarely questions.",
+    "A merge conflict approaches. Remember: theirs is wrong, and yours is the one that is.",
+    "Today you will say 'it's probably a caching issue'. You will be right, and so unhappy.",
+  ];
   const horoscope = {
     kicker: `Horoscope: ${sign}`,
-    text: shuffle(
-      [
-        "A refactor you postponed will return today. It has brought friends.",
-        "Beware of 'quick questions'. They are never quick, and rarely questions.",
-        "A merge conflict approaches. Remember: theirs is wrong, and yours is the one that is.",
-        "Today you will say 'it's probably a caching issue'. You will be right, and so unhappy.",
-      ],
-      rand,
-    )[0]!,
+    text: shuffle(readings, rand)[0]!,
   };
+
   // Two corners of different kinds; the horoscope joins the pool as its own kind.
   const pool = shuffle([...CORNERS, horoscope], rand);
   const first = pool[0]!;
   const second = pool.find((c) => c.kicker !== first.kicker)!;
+
   return {
     day: f.day,
     headlines: headlines(f),

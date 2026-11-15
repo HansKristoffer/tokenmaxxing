@@ -33,7 +33,7 @@ import {
 } from "./office.ts";
 import { cleanPetName, MAX_PET_LOOKS, petLooks } from "./pets.ts";
 import type { PrestigeBadge } from "./prestige-run.ts";
-import { itemById } from "./shop.ts";
+import { FREE_OUTFITS, itemById } from "./shop.ts";
 import { SHOP_DOOR_CHAR, SHOP_IDS, SHOP_ROOM, type ShopId, shopOfRoom } from "./shoprooms.ts";
 import type { Weather } from "./sky.ts";
 import { TAVERN } from "./tavern.ts";
@@ -60,24 +60,7 @@ export const COMPANY_CAP = 50;
 export type Facing = "up" | "down" | "left" | "right";
 /** `playing`: at a game table in town, until the match ends (see core/src/games/gather.ts). */
 export type PlayerState = "idle" | "sit" | "away" | "working" | "playing";
-export type RoomId =
-  | "town"
-  | "inn"
-  | "upstairs"
-  | "basement"
-  | "dungeon"
-  | "shop-furniture"
-  | "shop-clothes"
-  | "shop-barber"
-  | "shop-pets"
-  | "shop-natmarked"
-  | "shop-market"
-  | "julemarked"
-  | `hq:${number}`
-  | `common:${number}`
-  | `office:${number}`;
-
-const FIXED_ROOMS: readonly string[] = [
+const FIXED_ROOMS = [
   "town",
   "inn",
   "upstairs",
@@ -90,12 +73,17 @@ const FIXED_ROOMS: readonly string[] = [
   "shop-natmarked",
   "shop-market",
   "julemarked",
-];
+] as const;
+
+export type RoomId = (typeof FIXED_ROOMS)[number] | `hq:${number}` | `common:${number}` | `office:${number}`;
 
 /** A room id from the wire, or null: one of the fixed rooms, or a company's house or common room, or an office. */
 export function parseRoom(raw: unknown): RoomId | null {
   if (typeof raw !== "string") return null;
-  return FIXED_ROOMS.includes(raw) || /^(hq|common|office):[1-9]\d{0,9}$/.test(raw) ? (raw as RoomId) : null;
+  const isFixed = FIXED_ROOMS.some((room) => room === raw);
+  // A company or office id is a positive number of at most ten digits, with no leading zero.
+  const isNumbered = /^(hq|common|office):[1-9]\d{0,9}$/.test(raw);
+  return isFixed || isNumbered ? (raw as RoomId) : null;
 }
 
 export const DIRS: Record<Facing, [number, number]> = {
@@ -140,7 +128,7 @@ export function mapOf(room: RoomId): GameMap {
 }
 
 /** The furniture among `drops`, as pieces of a map. */
-export const piecesIn = (drops: readonly Drop[]) =>
+const piecesIn = (drops: readonly Drop[]) =>
   drops.flatMap((d) => {
     const piece = pieceOfDrop(d);
     return piece ? [{ ch: piece.ch, x: d.x, y: d.y, ...(d.rot && { rot: d.rot }) }] : [];
@@ -191,6 +179,7 @@ export function ownPieceAt(
   companyId: number | null,
 ): Drop | undefined {
   const owner = ownerOfOffice(room);
+  // A piece bought for a company is its members' to move; any other piece is the office owner's.
   const mine = (d: Drop) =>
     pieceOfDrop(d) !== undefined && (d.co !== undefined ? d.co === companyId : owner === userId);
   const [dx, dy] = DIRS[at.facing];
@@ -282,16 +271,11 @@ export function parseLook(raw: unknown): Look | null {
   const out = {} as Look;
   for (const k of typedKeys(LOOK_OPTIONS)) {
     const v = r[k];
-    if (!Number.isInteger(v) || (v as number) < 0) return null;
-    if (
-      (v as number) >= LOOK_OPTIONS[k] &&
-      !editionAt(k, v as number) &&
-      !costumeAt(k, v as number) &&
-      !caseAt(k, v as number) &&
-      !stallAt(k, v as number)
-    )
-      return null;
-    out[k] = v as number;
+    if (typeof v !== "number" || !Number.isInteger(v) || v < 0) return null;
+    const isOutOfRange =
+      v >= LOOK_OPTIONS[k] && !editionAt(k, v) && !costumeAt(k, v) && !caseAt(k, v) && !stallAt(k, v);
+    if (isOutOfRange) return null;
+    out[k] = v;
   }
   if (out.petVariant >= petLooks(out.pet)) return null;
   // Old looks have no name; a bad one refuses the look, like a bad number.
@@ -301,27 +285,35 @@ export function parseLook(raw: unknown): Look | null {
     out.petName = name;
   }
   // Old looks have no aura, and a look without one is saved without the field. Nothing sells one: only the case's indices count.
-  if (r.aura !== undefined && r.aura !== 0) {
-    if (!Number.isInteger(r.aura) || !caseAt("aura", r.aura as number)) return null;
-    out.aura = r.aura as number;
+  const aura = r.aura;
+  if (aura !== undefined && aura !== 0) {
+    if (typeof aura !== "number" || !Number.isInteger(aura) || !caseAt("aura", aura)) return null;
+    out.aura = aura;
   }
-  if (!Number.isSafeInteger(r.merch) || (r.merch as number) < 0) return null;
-  out.merch = r.merch as number;
+  const merch = r.merch;
+  if (typeof merch !== "number" || !Number.isSafeInteger(merch) || merch < 0) return null;
+  out.merch = merch;
   // A hoodie goes over a tee, so wearing both is wearing the hoodie: one look, whichever way it was saved.
   if (out.merchWorn & 2) out.merchWorn &= ~1;
   // Nothing worn is no merch, so two looks that draw the same are the same.
-  if (out.merch === 0 || out.merchWorn === 0) Object.assign(out, { merch: 0, merchWorn: 0 });
+  if (out.merch === 0 || out.merchWorn === 0) {
+    out.merch = 0;
+    out.merchWorn = 0;
+  }
   return out;
 }
 
-/** A stable starting look, so a new player isn't a clone of everyone else. */
+/**
+ * A stable starting look, so a new player isn't a clone of everyone else. The hash is multiplicative, so
+ * nearby seeds get unlike looks. The outfit is one of the free ones, which nobody has to buy.
+ */
 export function defaultLook(seed: number): Look {
   const n = Math.abs(Math.imul(seed + 1, 2654435761));
   return lookWith({
     style: n % LOOK_OPTIONS.style,
     skin: (n >>> 3) % LOOK_OPTIONS.skin,
     hair: (n >>> 6) % LOOK_OPTIONS.hair,
-    outfit: (n >>> 9) % 8,
+    outfit: (n >>> 9) % FREE_OUTFITS,
   });
 }
 
@@ -518,7 +510,7 @@ export interface Snapshot {
   doors: Door[];
   /** What's on the floor: furniture (in the map too), wearables and pets. */
   drops: Drop[];
-  /** The weather over Copenhagen; later changes arrive as the `weather` event. */
+  /** The weather over Aarhus; later changes arrive as the `weather` event. */
   weather: Weather;
   /** Only with `SKY_SEASON` set (dev and screenshots): the day of the year the town's season is pinned to. */
   seasonDay?: number;
@@ -591,12 +583,10 @@ const STATE_OF = decoder(STATE_CODE);
 export function writeMoves(m: Moves): string {
   const head: unknown[] = [m.room, m.join, m.leave];
   if (m.asleep !== undefined) head.push(m.asleep);
-  let text = `${JSON.stringify(head)}\n`;
-  for (let i = 0; i < m.m.length; i++) {
-    const [id, x, y, facing, state] = m.m[i]!;
-    text += `${i ? ";" : ""}${id},${x},${y},${FACING_CODE[facing]}${STATE_CODE[state]}`;
-  }
-  return text;
+  const positions = m.m.map(
+    ([id, x, y, facing, state]) => `${id},${x},${y},${FACING_CODE[facing]}${STATE_CODE[state]}`,
+  );
+  return `${JSON.stringify(head)}\n${positions.join(";")}`;
 }
 
 export function readMoves(wire: MovesWire): Moves {
@@ -609,11 +599,13 @@ export function readMoves(wire: MovesWire): Moves {
     number?,
   ];
   const m: PlayerPos[] = [];
-  if (cut + 1 < wire.length)
+  // With nobody moving the text ends at the head line; splitting nothing would read one empty position.
+  if (cut + 1 < wire.length) {
     for (const part of wire.slice(cut + 1).split(";")) {
       const [id, x, y, codes] = part.split(",") as [string, string, string, string];
       m.push([Number(id), Number(x), Number(y), FACING_OF[codes[0]!]!, STATE_OF[codes[1]!]!]);
     }
+  }
   return asleep === undefined ? { room, join, m, leave } : { room, join, m, leave, asleep };
 }
 
@@ -706,19 +698,25 @@ export function roomEntry(room: RoomId, ch = "x"): Place {
   return { room, x, y: y - 1, facing: "up" };
 }
 
+/**
+ * The town tile of a door: a plot's, the Inn's, the dungeon's, the Julemarked gate's or a shop's. Undefined
+ * when the map has none.
+ */
+function townDoorOf(plot: Parameters<typeof outsideDoor>[0]): [number, number] | undefined {
+  if (plot === "inn") return MAPS.town.find("I")[0];
+  if (plot === "dungeon") return MAPS.town.find("G")[0];
+  if (plot === "julemarked") {
+    // The gate's opening is three tiles wide: out through the middle one.
+    const gate = MAPS.town.find(JULE_GATE_DOOR);
+    return gate[1] ?? gate[0];
+  }
+  if (typeof plot === "string") return MAPS.town.find(SHOP_DOOR_CHAR[plot])[0];
+  return doorOf(plot);
+}
+
 /** Just outside a town door (a company's plot, the Inn, or the dungeon's gate), facing away from it. */
 export function outsideDoor(plot: number | "inn" | "dungeon" | "julemarked" | ShopId): Place {
-  const door =
-    plot === "inn"
-      ? MAPS.town.find("I")[0]!
-      : plot === "dungeon"
-        ? MAPS.town.find("G")[0]!
-        : plot === "julemarked"
-          ? // The gate's opening is three tiles wide: out through the middle one.
-            (MAPS.town.find(JULE_GATE_DOOR)[1] ?? MAPS.town.find(JULE_GATE_DOOR)[0])
-          : typeof plot === "string"
-            ? MAPS.town.find(SHOP_DOOR_CHAR[plot])[0]
-            : doorOf(plot);
+  const door = townDoorOf(plot);
   // A shop whose block a company holds has no door: back to the square.
   if (!door) return townSpawn();
   return { room: "town", x: door[0], y: door[1] + 1, facing: "down" };
@@ -763,12 +761,11 @@ export function portal(
     if (holder.id !== companyId) return { notice: `🔒 ${holder.name}'s house. Members only.` };
     return roomEntry(`hq:${holder.id}`);
   }
-  if (room === "inn")
-    return door.ch === "S"
-      ? roomEntry("basement")
-      : door.ch === "u"
-        ? roomEntry("upstairs")
-        : outsideDoor("inn");
+  if (room === "inn") {
+    if (door.ch === "S") return roomEntry("basement");
+    if (door.ch === "u") return roomEntry("upstairs");
+    return outsideDoor("inn");
+  }
   if (room === "basement") return roomEntry("inn", "S");
   if (room === "upstairs") return roomEntry("inn", "u");
   if (room === "dungeon") return outsideDoor("dungeon");
@@ -837,6 +834,7 @@ export function route(
   // Per tile: the step that first reached it (-1 not yet), and the tile it came from.
   const step = new Int8Array(size).fill(-1);
   const prev = new Int32Array(size);
+  // The start counts as reached, so the walk never comes back to it. A start off the map has no tile to mark.
   if (start >= 0 && start < size) step[start] = FACINGS.length;
   const queueX = new Int32Array(size + 1);
   const queueY = new Int32Array(size + 1);
@@ -846,22 +844,25 @@ export function route(
     const x = queueX[head]!;
     const y = queueY[head]!;
     const k = map.index(x, y);
-    for (let d = 0; d < STEPS.length; d++) {
-      const nx = x + STEPS[d]![0];
-      const ny = y + STEPS[d]![1];
+    for (const [d, [dx, dy]] of STEPS.entries()) {
+      const nx = x + dx;
+      const ny = y + dy;
       if (!map.contains(nx, ny)) continue;
       const nk = map.index(nx, ny);
       if (step[nk] !== -1) continue;
-      if (nk !== goal && (!map.walkable(nx, ny) || avoid?.(nx, ny))) continue;
+      const isGoal = nk === goal;
+      if (!isGoal && (!map.walkable(nx, ny) || avoid?.(nx, ny))) continue;
       step[nk] = d;
       prev[nk] = k;
-      if (nk === goal) {
+      if (isGoal) {
+        // Walk back from the goal to the start, then reverse the steps into walking order.
         const out: Facing[] = [];
-        for (let at = goal; at !== start && prev[at] !== -1; at = prev[at]!) out.push(FACINGS[step[at]!]!);
+        for (let at = goal; at !== start; at = prev[at]!) out.push(FACINGS[step[at]!]!);
         return out.reverse();
       }
       queueX[tail] = nx;
-      queueY[tail++] = ny;
+      queueY[tail] = ny;
+      tail++;
     }
   }
   return null;
@@ -876,16 +877,21 @@ export function cutsOff(map: GameMap, piece: { ch: string; x: number; y: number;
   const door = map.find("x")[0];
   if (!door) return false;
   const next = withPieces([piece], map);
-  for (let y = map.y0; y < map.y0 + map.height; y++)
+  for (let y = map.y0; y < map.y0 + map.height; y++) {
     for (let x = map.x0; x < map.x0 + map.width; x++) {
+      // Walls and the door are not reached. Every other blocking tile (a desk, a seat, a shelf)
+      // is reached as a walk's goal, so it must stay reachable.
       const ch = map.at(x, y);
-      if (ch === "W" || ch === "x" || map.walkable(x, y)) continue;
-      if (route(next, door, [x, y]) === null && route(map, door, [x, y]) !== null) return true;
+      const isWallOrDoor = ch === "W" || ch === "x";
+      if (isWallOrDoor || map.walkable(x, y)) continue;
+      if (route(next, door, [x, y]) !== null) continue;
+      // Reachable before the piece went down and not now: the piece cut it off.
+      if (route(map, door, [x, y]) !== null) return true;
     }
+  }
   // The new piece must be reachable too, or nobody could read it or pick it up.
-  for (const tile of tilesOf(piece.x, piece.y, pieceOf(piece.ch)?.w ?? 1, piece.rot))
-    if (route(next, door, tile) === null) return true;
-  return false;
+  const tiles = tilesOf(piece.x, piece.y, pieceOf(piece.ch)?.w ?? 1, piece.rot);
+  return tiles.some((tile) => route(next, door, tile) === null);
 }
 
 // MARK: Where furniture can stand
@@ -903,19 +909,21 @@ export function noFurniture(room: RoomId, map: GameMap): Set<string> {
   }
   if (companyOfRoom(room) === null) return out;
   for (let i = 0; i < PASSAGE_W; i++) out.add(`${PASSAGE_X + i},2`);
-  for (let y = map.y0; y < 2; y++) for (let x = map.x0; x < map.x0 + map.width; x++) out.add(`${x},${y}`);
+  for (let y = map.y0; y < 2; y++) {
+    for (let x = map.x0; x < map.x0 + map.width; x++) out.add(`${x},${y}`);
+  }
   return out;
 }
 
 /**
- * Whether drop `d` (a `piece`) could stand with its top-left tile on (x, y), turned `rot`, in `room` with the rest of the
- * floor as it is: bare floor or, for a wall piece, bare wall; one piece to a tile; nobody under it, nobody walled in,
- * and in an office every door, desk and seat still reachable. The same rules as `placeDrop`.
+ * Whether drop `d` (a `piece`) could stand with its top-left tile on (x, y), turned `rot`, in `room` with the
+ * rest of the floor as it is: bare floor or, for a wall piece, bare wall; one piece to a tile; nobody under it,
+ * nobody walled in, and in an office every door, desk and seat still reachable. The same rules as `placeDrop`.
  */
 export function furnitureFits(
   room: RoomId,
   d: Drop,
-  piece: NonNullable<ReturnType<typeof pieceOfDrop>>,
+  piece: Piece,
   x: number,
   y: number,
   people: readonly { x: number; y: number }[],
@@ -925,25 +933,38 @@ export function furnitureFits(
   const w = piece.w ?? 1;
   const others = (DROPS.get(room) ?? []).filter((o) => o.id !== d.id);
   const taken = new Set<string>();
-  for (const o of others) for (const [tx, ty] of dropTiles(o)) taken.add(`${tx},${ty}`);
+  for (const o of others) {
+    for (const [tx, ty] of dropTiles(o)) taken.add(`${tx},${ty}`);
+  }
+
   // A wall piece hangs along its wall whatever it is told.
   const turn = piece.wall ? 0 : rotOf(rot);
   const tiles = tilesOf(x, y, w, turn);
   for (const [tx, ty] of tiles) if (taken.has(`${tx},${ty}`)) return false;
+
   if (piece.wall) {
     if (!canHang(base, x, y, w, piece.home)) return false;
     for (const [tx, ty] of tiles) if (taken.has(`${tx},${ty + 1}`)) return false;
     return true;
   }
+
   const map = withPieces(piecesIn(others), base);
   const reserved = noFurniture(room, base);
   for (const [tx, ty] of tiles) {
-    if (!map.walkable(tx, ty) || map.kind(tx, ty).portal || reserved.has(`${tx},${ty}`)) return false;
+    const isBlocked = !map.walkable(tx, ty) || map.kind(tx, ty).portal || reserved.has(`${tx},${ty}`);
+    if (isBlocked) return false;
     if (people.some((o) => o.x === tx && o.y === ty)) return false;
-    for (const o of others) if (pieceOfDrop(o)?.wall && dropCovers(o, tx, ty - 1)) return false;
+    for (const o of others) {
+      if (pieceOfDrop(o)?.wall && dropCovers(o, tx, ty - 1)) return false;
+    }
   }
+
+  // Everyone in the room must still get to the door once the piece is down.
   const next = withPieces([{ ch: piece.ch, x, y, rot: turn }], map);
   const exit = map.find("x")[0];
   if (exit && people.some((o) => !route(next, [o.x, o.y], exit))) return false;
-  return !(ownerOfOffice(room) !== null && cutsOff(map, { ch: piece.ch, x, y, rot: turn }));
+
+  // Only an office promises its door, desk and seats stay reachable (`cutsOff`).
+  const isOffice = ownerOfOffice(room) !== null;
+  return !(isOffice && cutsOff(map, { ch: piece.ch, x, y, rot: turn }));
 }

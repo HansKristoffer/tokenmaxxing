@@ -7,7 +7,7 @@
  *   bun app/desktop/scripts/icon.ts
  */
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { deflateSync } from "node:zlib";
@@ -69,24 +69,32 @@ type Grid = (string | null)[][];
 function draw(): Grid {
   const grid: Grid = Array.from({ length: N }, () => Array<string | null>(N).fill(null));
   const put = (x: number, y: number, ch: string) => {
-    if (x >= 0 && y >= 0 && x < N && y < N && ch !== ".") grid[y]![x] = COLORS[ch]!;
+    if (x < 0 || y < 0 || x >= N || y >= N || ch === ".") return;
+    // A sprite character missing from the palette fails here, not as a blank cell.
+    const color = COLORS[ch];
+    if (!color) throw new Error(`no colour for "${ch}"`);
+    grid[y]![x] = color;
   };
   const sprite = (rows: string[], x0: number, y0: number) =>
     rows.forEach((row, dy) => {
       for (let dx = 0; dx < row.length; dx++) put(x0 + dx, y0 + dy, row[dx]!);
     });
 
-  // The rounded square, cells 3..28 (26 cells: 832 of 1024), corners of radius 6.
+  // The rounded square, cells 3..28 (26 cells: 832 of 1024), corners of radius 5.
   const [lo, hi, r] = [3, 29, 5];
   for (let y = 0; y < N; y++)
     for (let x = 0; x < N; x++) {
       const [px, py] = [x + 0.5, y + 0.5];
       const cx = Math.min(Math.max(px, lo + r), hi - r);
       const cy = Math.min(Math.max(py, lo + r), hi - r);
-      if (px < lo || px > hi || py < lo || py > hi || Math.hypot(px - cx, py - cy) > r) continue;
+      const outsideSquare = px < lo || px > hi || py < lo || py > hi;
+      const outsideCorner = Math.hypot(px - cx, py - cy) > r;
+      if (outsideSquare || outsideCorner) continue;
+
       // Night sky in bands, dithered where they meet.
       const t = ((y - lo) / (hi - lo)) * (SKY.length - 1);
-      const band = Math.floor(t) + ((x + y) % 2 === 0 && t % 1 > 0.6 ? 1 : 0);
+      const isDither = (x + y) % 2 === 0 && t % 1 > 0.6;
+      const band = Math.floor(t) + (isDither ? 1 : 0);
       grid[y]![x] = SKY[Math.min(band, SKY.length - 1)]!;
     }
   for (const [x, y, ch] of [
@@ -106,21 +114,30 @@ function draw(): Grid {
     for (let x = 0; x < N; x++) {
       const [dx, dy] = [(x + 0.5 - wx) / wr, (y + 0.5 - wy) / wr];
       const d = Math.hypot(dx, dy);
+      // The atmosphere ring is 1.2 cells thick and only shows over the sky.
       if (d > 1 + 1.2 / wr) continue;
       if (d > 1) {
         if (grid[y]![x] && SKY.includes(grid[y]![x]!)) put(x, y, "a");
         continue;
       }
+      // The ink outline is one cell thick.
       if (d > 1 - 1 / wr) {
         put(x, y, "k");
         continue;
       }
+      // Light comes from the top left, so the grass is lightest on that side.
       const light = -dx * 0.6 - dy * 0.8;
-      put(x, y, light > 0.45 ? "L" : light > -0.15 ? "g" : light > -0.55 ? "G" : "D");
+      if (light > 0.45) put(x, y, "L");
+      else if (light > -0.15) put(x, y, "g");
+      else if (light > -0.55) put(x, y, "G");
+      else put(x, y, "D");
     }
+  // The pond is an ellipse centred at (10, 22); its top half catches the light.
   for (let y = 0; y < N; y++)
-    for (let x = 0; x < N; x++)
-      if (Math.hypot((x + 0.5 - 10) / 2.4, (y + 0.5 - 22) / 1.4) <= 1) put(x, y, y <= 21 ? "W" : "w");
+    for (let x = 0; x < N; x++) {
+      const inPond = Math.hypot((x + 0.5 - 10) / 2.4, (y + 0.5 - 22) / 1.4) <= 1;
+      if (inPond) put(x, y, y <= 21 ? "W" : "w");
+    }
   for (const [x, y] of [
     [13, 14],
     [14, 15],
@@ -140,30 +157,31 @@ function draw(): Grid {
   return grid;
 }
 
-// MARK: Output
-
 /** RGBA pixels at `size` (a multiple of 32: whole pixels per cell; 16 averages 2×2 cells). */
 function pixels(grid: Grid, size: number): Uint8Array {
   const out = new Uint8Array(size * size * 4);
   const scale = size / N;
-  for (let y = 0; y < size; y++)
+  // Below 32 px a pixel averages a block of cells; at 32 px and up each pixel reads one cell.
+  const span = Math.max(1, Math.round(1 / scale));
+
+  for (let y = 0; y < size; y++) {
     for (let x = 0; x < size; x++) {
-      const cells: (string | null)[] = [];
       const [x0, y0] = [Math.floor(x / scale), Math.floor(y / scale)];
-      const span = Math.max(1, Math.round(1 / scale));
-      for (let j = 0; j < span; j++) for (let i = 0; i < span; i++) cells.push(grid[y0 + j]![x0 + i]!);
-      let [r, g, b, a] = [0, 0, 0, 0];
-      for (const c of cells)
-        if (c) {
-          r += Number.parseInt(c.slice(1, 3), 16);
-          g += Number.parseInt(c.slice(3, 5), 16);
-          b += Number.parseInt(c.slice(5, 7), 16);
-          a += 255;
-        }
-      const solid = cells.filter(Boolean).length;
-      const at = (y * size + x) * 4;
-      out.set(solid ? [r / solid, g / solid, b / solid, a / cells.length] : [0, 0, 0, 0], at);
+      const cells: (string | null)[] = [];
+      for (let j = 0; j < span; j++) {
+        for (let i = 0; i < span; i++) cells.push(grid[y0 + j]![x0 + i]!);
+      }
+
+      // Average the coloured cells. Alpha is the share of the block that has colour.
+      const coloured = cells.filter((c): c is string => c !== null);
+      if (coloured.length === 0) continue;
+      const average = (start: number) =>
+        coloured.reduce((sum, c) => sum + Number.parseInt(c.slice(start, start + 2), 16), 0) /
+        coloured.length;
+      const alpha = (255 * coloured.length) / cells.length;
+      out.set([average(1), average(3), average(5), alpha], (y * size + x) * 4);
     }
+  }
   return out;
 }
 
@@ -214,14 +232,15 @@ write(`${icons}/32x32.png`, 32);
 write(`${icons}/128x128.png`, 128);
 write(`${icons}/128x128@2x.png`, 256);
 write(`${icons}/icon.png`, 1024);
-const iconset = join(mkdtempSync(join(tmpdir(), "icon-")), "icon.iconset");
-execFileSync("mkdir", [iconset]);
+const workDir = mkdtempSync(join(tmpdir(), "icon-"));
+const iconset = join(workDir, "icon.iconset");
+mkdirSync(iconset);
 for (const size of [16, 32, 128, 256, 512]) {
   writeFileSync(join(iconset, `icon_${size}x${size}.png`), png(pixels(grid, size), size));
   writeFileSync(join(iconset, `icon_${size}x${size}@2x.png`), png(pixels(grid, size * 2), size * 2));
 }
 execFileSync("iconutil", ["-c", "icns", iconset, "-o", join(ROOT, `${icons}/icon.icns`)]);
-rmSync(join(iconset, ".."), { recursive: true });
+rmSync(workDir, { recursive: true });
 
 writeFileSync(join(ROOT, "site/public/icon.svg"), svg(grid));
 write("site/public/icon.png", 512);

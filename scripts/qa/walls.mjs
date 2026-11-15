@@ -39,10 +39,15 @@ await page.evaluate((target) => {
         scene = s;
         t0 = t;
       }
+      // Actors and their children are skipped: only the room's own geometry lowers.
       const actors = new Set();
       const row = new Map();
       s.traverse((o) => {
-        if (o.userData.actor || (o.parent && actors.has(o.parent))) return void actors.add(o);
+        const isActor = o.userData.actor || (o.parent && actors.has(o.parent));
+        if (isActor) {
+          actors.add(o);
+          return;
+        }
         if (o.scale.y < 0.999) row.set(o, o.scale.y);
       });
       log.frames.push([t - t0, row, r.overlay.faded]);
@@ -61,7 +66,9 @@ const result = await page.evaluate(() => {
   const times = frames.map(([t]) => Math.round(t));
   const fade = frames.map(([, , f]) => +f.toFixed(2));
   let moving = 0;
-  for (let i = 1; i < frames.length; i++) if (series.some((s) => Math.abs(s[i] - s[i - 1]) > 0.002)) moving++;
+  for (let i = 1; i < frames.length; i++) {
+    if (series.some((s) => Math.abs(s[i] - s[i - 1]) > 0.002)) moving++;
+  }
   return { times, fade, series, moving, frames: frames.length };
 });
 if (process.env.OUT) writeFileSync(process.env.OUT, JSON.stringify(result));

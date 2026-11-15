@@ -9,13 +9,19 @@ import { buildMinion } from "./bossvox.ts";
  * is an instance of one of them. Forty minions cost four draw calls instead of five hundred.
  */
 
+/** One merged draw: its geometry and the material it is drawn with. */
+interface Part {
+  geometry: THREE.BufferGeometry;
+  material: THREE.Material;
+}
+
 interface Pose {
-  solid: THREE.BufferGeometry | null;
-  glow: THREE.BufferGeometry | null;
+  solid: Part | null;
+  glow: Part | null;
 }
 
 /** The robot at clock `t` of its own cycle, merged into the toon-shaded body and the unlit glints. */
-function pose(t: number): { pose: Pose; solid: THREE.Material | null; glow: THREE.Material | null } {
+function pose(t: number): Pose {
   const bot = buildMinion();
   bot.update(t);
   bot.root.updateMatrixWorld(true);
@@ -34,32 +40,27 @@ function pose(t: number): { pose: Pose; solid: THREE.Material | null; glow: THRE
     list.push(g);
     parts.set(mat, list);
   });
-  let solid: THREE.BufferGeometry | null = null;
-  let glow: THREE.BufferGeometry | null = null;
-  let solidMat: THREE.Material | null = null;
-  let glowMat: THREE.Material | null = null;
-  for (const [mat, list] of parts) {
-    const merged = mergeGeometries(list, false);
+  let solid: Part | null = null;
+  let glow: Part | null = null;
+  for (const [material, list] of parts) {
+    const geometry = mergeGeometries(list, false);
     for (const g of list) g.dispose();
-    if (!merged) continue;
-    if ((mat as THREE.MeshBasicMaterial).type === "MeshBasicMaterial") {
-      glow = merged;
-      glowMat = mat;
-    } else {
-      solid = merged;
-      solidMat = mat;
-    }
+    if (!geometry) continue;
+    if (material.type === "MeshBasicMaterial") glow = { geometry, material };
+    else solid = { geometry, material };
   }
-  return { pose: { solid, glow }, solid: solidMat, glow: glowMat };
+  return { solid, glow };
 }
 
+// The clocks the two poses are taken at: the robot at rest, and with its blaster arm up.
 const IDLE_T = 0.63;
 const FIRE_T = 0.2;
 
 /** Where no shadow map runs (Medium, or shadows off) each minion gets a soft disc on the floor, in one instanced draw. */
 function blobDiscs(max: number): THREE.InstancedMesh {
   const c = document.createElement("canvas");
-  c.width = c.height = 32;
+  c.width = 32;
+  c.height = 32;
   const g = c.getContext("2d")!;
   const grad = g.createRadialGradient(16, 16, 2, 16, 16, 16);
   grad.addColorStop(0, "rgba(0,0,0,0.55)");
@@ -110,15 +111,12 @@ export class Minions {
     const idle = pose(IDLE_T);
     const fire = pose(FIRE_T);
     [idle, fire].forEach((v, i) => {
-      for (const [geometry, material] of [
-        [v.pose.solid, v.solid],
-        [v.pose.glow, v.glow],
-      ] as const) {
-        if (!geometry || !material) continue;
-        const mesh = new THREE.InstancedMesh(geometry, material, Math.max(1, max));
+      for (const part of [v.solid, v.glow]) {
+        if (!part) continue;
+        const mesh = new THREE.InstancedMesh(part.geometry, part.material, Math.max(1, max));
         mesh.count = 0;
         mesh.frustumCulled = false;
-        mesh.castShadow = material.type !== "MeshBasicMaterial";
+        mesh.castShadow = part.material.type !== "MeshBasicMaterial";
         mesh.userData.live = true;
         mesh.userData.nopick = true;
         mesh.userData.nobatch = true;
@@ -147,10 +145,9 @@ export class Minions {
     for (const mesh of this.meshes[k]!) mesh.setMatrixAt(i, this.m);
     if (this.blobs < this.max) {
       const d = BLOB_RADIUS * 2 * scale;
-      this.blob.setMatrixAt(
-        this.blobs++,
-        this.m.compose(this.p.set(x, 0.03, z), this.q.identity(), this.s.set(d, d, d)),
-      );
+      this.m.compose(this.p.set(x, 0.03, z), this.q.identity(), this.s.set(d, d, d));
+      this.blob.setMatrixAt(this.blobs, this.m);
+      this.blobs += 1;
     }
   }
 

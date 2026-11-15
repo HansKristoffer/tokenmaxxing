@@ -50,6 +50,7 @@ export async function caseLeaderboard(sql: Sql): Promise<CaseLeader[]> {
 /** A uniform number in [0, 1) with 53 random bits, from the system's secure source. */
 export function secureRandom(): number {
   const [hi, lo] = crypto.getRandomValues(new Uint32Array(2)) as Uint32Array;
+  // 21 bits from one word and 32 from the other: 53 bits, the most a double holds exactly.
   return (hi! * 2 ** 21 + (lo! >>> 11)) / 2 ** 53;
 }
 
@@ -76,17 +77,20 @@ export async function openCase(
         userId,
         def.id,
       );
+      // The insert above makes the row when it is missing, so the select always finds it.
       const dry = (await one<{ dry: number }>(
         tx,
         "SELECT dry FROM case_dry WHERE user_id = ? AND case_id = ?",
         userId,
         def.id,
       ))!.dry;
-      const owned = new Set(
-        (await all<{ item: string }>(tx, "SELECT DISTINCT item FROM items WHERE owner_id = ?", userId)).map(
-          (r) => r.item,
-        ),
+
+      const ownedRows = await all<{ item: string }>(
+        tx,
+        "SELECT DISTINCT item FROM items WHERE owner_id = ?",
+        userId,
       );
+      const owned = new Set(ownedRows.map((r) => r.item));
       const { item, tier } = rollCase(def, rand, owned, dry);
       await ledgerAdd(tx, userId, -def.keyPrice, "case", `case:${def.id}`, now);
       await giveItem(tx, userId, item.id, now);

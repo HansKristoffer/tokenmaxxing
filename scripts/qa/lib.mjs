@@ -14,19 +14,22 @@ let n = 0;
 const from = (ip) => createClient({ endpoint: `${ORIGIN}/api/rivet`, headers: { "x-real-ip": ip } });
 const client = from("10.9.9.9");
 
-/** A new player with a few turns of usage, so there is something to spend. */
 /**
+ * A new player with a few turns of usage, so there is something to spend.
+ *
  * `company`: also starts a company (a house, a common room) and, with `perTurn` around 8M, enough usage for the
  * level the Office needs. `agoMin`: the usage stopped that many minutes ago (past 10 it does not count as working).
  */
 export async function signUp(prefix = "qa", perTurn = 40_000, company = false, agoMin = 0) {
   const name = `${prefix}${Date.now().toString(36).slice(-4)}${n++}`;
-  const u = await from(`10.7.${Math.floor(Math.random() * 250)}.${Math.floor(Math.random() * 250)}`)
-    .town.getOrCreate(["main"])
-    .signUp(name);
+  const ip = `10.7.${Math.floor(Math.random() * 250)}.${Math.floor(Math.random() * 250)}`;
+  const u = await from(ip).town.getOrCreate(["main"]).signUp(name);
+
   const now = Date.now();
+  const usageEnds = now - agoMin * 60_000;
+  const usageStarts = usageEnds - 60 * 60_000;
   const events = [];
-  for (let t = now - (60 + agoMin) * 60_000; t < now - agoMin * 60_000; t += 60_000)
+  for (let t = usageStarts; t < usageEnds; t += 60_000) {
     events.push({
       source: "claude_code",
       sessionId: `${name}-s`,
@@ -42,6 +45,7 @@ export async function signUp(prefix = "qa", perTurn = 40_000, company = false, a
       cacheReadTokens: perTurn * 20,
       reasoningTokens: null,
     });
+  }
   await client.player.get([String(u.userId)], { params: { token: u.token } }).ingest(events);
   if (company)
     await client.town.getOrCreate(["main"], { params: { token: u.token } }).createCompany(`Co ${name}`);
@@ -93,6 +97,7 @@ export async function ready(page) {
     timeout: 30_000,
   });
   // The company picker opens by itself once the player's own page is in: let it, then shut it.
+  // A picker that never opens is fine: the reset below does nothing then.
   await page
     .waitForFunction(() => window.__tm.hud.get().panel !== null, null, { timeout: 4000 })
     .catch(() => {});
@@ -117,7 +122,10 @@ export async function holdStill(page, on = true, settleMs = 4000) {
 
 export const room = (page) => page.evaluate(() => window.__tm.world.room);
 
-/** Clicks the canvas at tile (x, y)'s centre on screen is renderer specific; this walks there as a click would. */
+/**
+ * Walks to tile (x, y) and waits until the player stands there. Clicking the canvas depends on the renderer,
+ * so this asks the game to walk, as a click would.
+ */
 export async function walkTile(page, x, y, ms = 20_000) {
   await page.evaluate(([x, y]) => window.__tm.walkTo(x, y), [x, y]);
   await page
@@ -137,8 +145,11 @@ export const portals = (page) =>
   page.evaluate(() => {
     const m = window.__tm.world.map;
     const out = [];
-    for (let y = m.y0; y < m.y0 + m.height; y++)
-      for (let x = m.x0; x < m.x0 + m.width; x++) if (m.kind(x, y).portal) out.push({ ch: m.at(x, y), x, y });
+    for (let y = m.y0; y < m.y0 + m.height; y++) {
+      for (let x = m.x0; x < m.x0 + m.width; x++) {
+        if (m.kind(x, y).portal) out.push({ ch: m.at(x, y), x, y });
+      }
+    }
     return out;
   });
 
@@ -172,9 +183,11 @@ export async function canvasInk(page, path) {
     const g = t.getContext("2d");
     g.drawImage(img, 0, 0, 96, 64);
     const d = g.getImageData(0, 0, 96, 64).data;
+    // Five bits per channel: 32 levels each, so two colours that look alike share a bucket.
     const set = new Set();
-    for (let i = 0; i < d.length; i += 4)
+    for (let i = 0; i < d.length; i += 4) {
       set.add((d[i] >> 3) * 1024 + (d[i + 1] >> 3) * 32 + (d[i + 2] >> 3));
+    }
     return set.size;
   }, b64);
 }

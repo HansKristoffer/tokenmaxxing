@@ -45,6 +45,45 @@ export function resultLine(poker: PokerState): string | null {
 
 export const STREETS = { preflop: "Pre-flop", flop: "Flop", turn: "Turn", river: "River" } as const;
 
+/** The five board cards, a dashed slot for each one the deal has not reached yet. */
+export function BoardCards({ board }: { board: Card[] }) {
+  return (
+    <div className="pk-cards">
+      {[0, 1, 2, 3, 4].map((i) =>
+        board[i] === undefined ? (
+          <span key={i} className="pk-card empty" />
+        ) : (
+          <PokerCard key={i} card={board[i]} />
+        ),
+      )}
+    </div>
+  );
+}
+
+/** Your line above the table: whose move it is, or what the table waits for. */
+function statusText(
+  poker: PokerState,
+  seat: SeatView,
+  isMyTurn: boolean,
+  turnS: number,
+  nextS: number,
+): string {
+  if (isMyTurn) return `Your move · ${turnS}s`;
+
+  if (poker.street === null) {
+    const seated = poker.seats.filter((s) => s !== null).length;
+    if (seated < 2) return "Waiting for players";
+    if (poker.nextMs > 0) return `Next hand in ${nextS}s`;
+    return "Dealing…";
+  }
+
+  if (!seat.inHand) return "Watching: you're in on the next hand";
+  if (seat.folded) return "You folded";
+  if (seat.allIn) return "You're all in";
+  if (poker.toAct < 0) return "…";
+  return `${poker.names[poker.seats[poker.toAct]?.userId ?? 0] ?? "…"} to act`;
+}
+
 /**
  * One chair round the felt, at place `pos` (0 is the bottom, where you sit, then on round the way the deal
  * goes): name, stack, last move or what they won, their cards, the bet in front of them, the dealer's button and
@@ -85,7 +124,8 @@ function SeatSpot({
   ]
     .filter(Boolean)
     .join(" ");
-  const line = won > 0 ? `+${won}${shown ? ` · ${shown.name}` : ""}` : seat.allIn ? "all in" : seat.last;
+  const winnings = won > 0 ? `+${won}${shown ? ` · ${shown.name}` : ""}` : null;
+  const line = winnings ?? (seat.allIn ? "all in" : seat.last);
   return (
     <div className={cls}>
       <div className="pk-plate">
@@ -202,9 +242,9 @@ export function Poker() {
   const hole = useHud((s) => s.pokerHole);
   const [problem, setProblem] = useState<string | null>(null);
   const mine = poker?.seats.findIndex((s) => s?.userId === world.selfId) ?? -1;
-  const seat = poker && mine >= 0 ? poker.seats[mine]! : null;
+  const seat = poker && mine >= 0 ? (poker.seats[mine] ?? null) : null;
   const turn = !!poker && poker.toAct === mine && !seat?.leaving;
-  const legal = turn ? poker!.legal : null;
+  const legal = poker && turn ? poker.legal : null;
   useTicker(250, !!poker && mine >= 0);
   if (!poker || !seat || seat.leaving) return null;
 
@@ -214,24 +254,7 @@ export function Poker() {
   const nextS = Math.max(0, Math.ceil((poker.nextMs - since) / 1000));
   const act = async (type: string, to = 0) => setProblem(await conn.pokerAct(type, to));
   const pot = poker.pot;
-  const seated = poker.seats.filter((s) => s !== null).length;
-  const status = turn
-    ? `Your move · ${turnS}s`
-    : poker.street === null
-      ? seated < 2
-        ? "Waiting for players"
-        : poker.nextMs > 0
-          ? `Next hand in ${nextS}s`
-          : "Dealing…"
-      : !seat.inHand
-        ? "Watching: you're in on the next hand"
-        : seat.folded
-          ? "You folded"
-          : seat.allIn
-            ? "You're all in"
-            : poker.toAct >= 0
-              ? `${poker.names[poker.seats[poker.toAct]?.userId ?? 0] ?? "…"} to act`
-              : "…";
+  const status = statusText(poker, seat, turn, turnS, nextS);
   const result = poker.street === null ? resultLine(poker) : null;
   const made =
     hole.length === 2 && poker.board.length >= 3 ? describe(evaluate([...hole, ...poker.board])) : null;
@@ -251,15 +274,7 @@ export function Poker() {
       </header>
       <div className="pk-table">
         <div className="pk-felt">
-          <div className="pk-cards">
-            {[0, 1, 2, 3, 4].map((i) =>
-              poker.board[i] === undefined ? (
-                <span key={i} className="pk-card empty" />
-              ) : (
-                <PokerCard key={i} card={poker.board[i]} />
-              ),
-            )}
-          </div>
+          <BoardCards board={poker.board} />
           {result ? (
             <p className="pk-result">{result}</p>
           ) : (

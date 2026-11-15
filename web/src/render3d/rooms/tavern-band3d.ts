@@ -32,23 +32,27 @@ export class TavernBand {
       a.root.rotation.y = Math.PI / 2;
       a.root.scale.setScalar(0.85);
       a.pose = "dj";
+
       const instrument = new Model();
       if (m.instrument === "lute") {
         instrument.ball(0.23, "#d69e56", [0, 0, 0], [1, 1.2, 0.45]);
         instrument.ball(0.075, "#503726", [0, 0.025, 0.11], [1, 1, 0.25]);
         instrument.box([0.065, 0.55, 0.07], "#815b37", [0.06, 0.15, 0]);
-        for (const x of [-0.035, 0, 0.035])
+        for (const x of [-0.035, 0, 0.035]) {
           instrument.box([0.007, 0.52, 0.01], "#fff0ca", [x + 0.04, -0.04, 0.12], 0);
+        }
         instrument.rotation.z = -0.5;
         instrument.scale.setScalar(0.65);
         instrument.position.set(0.02, 0.48, 0.2);
       } else {
         instrument.box([0.5, 0.045, 0.045], "#e9cb83", [0.1, 0.84, 0.2]);
-        for (const x of [0, 0.1, 0.2, 0.3])
+        for (const x of [0, 0.1, 0.2, 0.3]) {
           instrument.box([0.018, 0.012, 0.018], "#6c4d32", [x, 0.885, 0.2], 0);
+        }
       }
       mergeStill(instrument);
       a.body.add(instrument);
+
       this.players.push(a);
       this.group.add(a.root);
     }

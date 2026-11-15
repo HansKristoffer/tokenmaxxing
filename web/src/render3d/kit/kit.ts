@@ -28,11 +28,13 @@ export type V3 = [number, number, number];
     return stock.call(this, style, colorSpace as THREE.ColorSpace | undefined);
   };
 }
+
 export type Paint = string | THREE.Material;
 
 /** Three flat light bands: shadow, mid, lit. */
+const FLAT_BANDS = [105, 175, 255];
 const BANDS = (() => {
-  const t = new THREE.DataTexture(new Uint8Array([105, 175, 255]), 3, 1, THREE.RedFormat);
+  const t = new THREE.DataTexture(new Uint8Array(FLAT_BANDS), 3, 1, THREE.RedFormat);
   t.userData.shared = true;
   t.minFilter = t.magFilter = THREE.NearestFilter;
   t.needsUpdate = true;
@@ -54,7 +56,7 @@ export function setSmoothBands(on: boolean): void {
       const dotNL = (i / (n - 1)) * 2 - 1;
       data[i] = Math.round(255 * Math.min(1, Math.max(0, dotNL * 0.9 + 0.1)));
     }
-  } else data.set([105, 175, 255]);
+  } else data.set(FLAT_BANDS);
   BANDS.dispose();
   BANDS.image = { data, width: n, height: 1 };
   BANDS.minFilter = BANDS.magFilter = on ? THREE.LinearFilter : THREE.NearestFilter;
@@ -183,7 +185,6 @@ export function chamferBox(w: number, h: number, d: number, r: number): THREE.Bu
     tri(a, b, c, na, na, nb, face);
     tri(a, c, d2, na, nb, nb, face);
   };
-  const pt = (vals: [number, number, number]) => vals;
   for (const ax of AXES)
     for (const sg of [-1, 1]) {
       const n = dirs(ax, sg);
@@ -228,9 +229,9 @@ export function chamferBox(w: number, h: number, d: number, r: number): THREE.Bu
   for (const sx of [-1, 1])
     for (const sy of [-1, 1])
       for (const sz of [-1, 1]) {
-        const px = pt([sx * half[0]!, sy * inner[1]!, sz * inner[2]!]);
-        const py = pt([sx * inner[0]!, sy * half[1]!, sz * inner[2]!]);
-        const pz = pt([sx * inner[0]!, sy * inner[1]!, sz * half[2]!]);
+        const px = [sx * half[0]!, sy * inner[1]!, sz * inner[2]!];
+        const py = [sx * inner[0]!, sy * half[1]!, sz * inner[2]!];
+        const pz = [sx * inner[0]!, sy * inner[1]!, sz * half[2]!];
         tri(px, py, pz, dirs(0, sx), dirs(1, sy), dirs(2, sz), dirs(2, sz));
       }
   const g = new THREE.BufferGeometry();
@@ -241,6 +242,16 @@ export function chamferBox(w: number, h: number, d: number, r: number): THREE.Bu
 }
 
 const asMaterial = (p: Paint) => (typeof p === "string" ? toon(p) : p);
+
+/** The geometry of a `box()`: a chamfer for small bevels, the rounded box for big ones, a plain box for none. */
+function boxShape(w: number, h: number, d: number, radius: number): THREE.BufferGeometry {
+  if (radius <= 0.004) return new THREE.BoxGeometry(w, h, d);
+  // Medium takes the plain box for every small bevel.
+  if (detail === 0 && radius < 0.06) return new THREE.BoxGeometry(w, h, d);
+  // A small bevel (nearly all of them) is a chamfer: a third of the triangles of the rounded box, same look at game scale.
+  if (radius < 0.06) return chamferBox(w, h, d, radius);
+  return new RoundedBoxGeometry(w, h, d, 2, radius);
+}
 
 const geometries = new Map<string, THREE.BufferGeometry>();
 function geometry(key: string, make: () => THREE.BufferGeometry): THREE.BufferGeometry {
@@ -274,7 +285,6 @@ export function setGeometryDetail(level: 0 | 1): void {
 /** The detail rooms are being built with (0 on Medium): the busy rooms thin their crowds by it. */
 export const geometryDetail = (): 0 | 1 => detail;
 
-/** A group with shortcuts for the shapes assets are made of. Positions are bottom-centres unless noted. */
 /** Where in the code a piece was made (`userData.src`), for `web/scripts/zfight.ts` to say what to look at: off unless asked for. */
 function callSite(): string {
   const lines = new Error().stack?.split("\n") ?? [];
@@ -287,6 +297,7 @@ function callSite(): string {
   return "";
 }
 
+/** A group with shortcuts for the shapes assets are made of. Positions are bottom-centres unless noted. */
 export class Model extends THREE.Group {
   protected put(mesh: THREE.Mesh, at: V3): THREE.Mesh {
     mesh.position.set(...at);
@@ -301,15 +312,7 @@ export class Model extends THREE.Group {
     const [w, h, d] = size;
     const radius = Math.min(r, w / 2 - 0.001, h / 2 - 0.001, d / 2 - 0.001);
     const g = geometry(`box${w},${h},${d},${radius},${detail}`, () => {
-      // Small bevels (nearly all of them) are a chamfer: a third of the triangles of the rounded box, same look at game scale.
-      const b =
-        detail === 0 && radius < 0.06
-          ? new THREE.BoxGeometry(w, h, d)
-          : radius > 0.004 && radius < 0.06
-            ? chamferBox(w, h, d, radius)
-            : radius > 0.004
-              ? new RoundedBoxGeometry(w, h, d, 2, radius)
-              : new THREE.BoxGeometry(w, h, d);
+      const b = boxShape(w, h, d, radius);
       b.translate(0, h / 2, 0);
       return b;
     });
@@ -476,11 +479,12 @@ export function wallpaper(base: string, stripe: string): THREE.CanvasTexture {
 /** A checker of two colours, `n`×`n` squares over the texture. */
 export function checker(a: string, b: string, n = 4): THREE.CanvasTexture {
   const t = canvasTexture(n * 4, n * 4, (g) => {
-    for (let y = 0; y < n; y++)
+    for (let y = 0; y < n; y++) {
       for (let x = 0; x < n; x++) {
         g.fillStyle = (x + y) % 2 ? a : b;
         g.fillRect(x * 4, y * 4, 4, 4);
       }
+    }
   });
   t.wrapS = t.wrapT = THREE.RepeatWrapping;
   return pixelSurface(t);

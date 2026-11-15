@@ -290,8 +290,7 @@ const plantWall = (): Model => {
     m.ball(0.035, C.flowerRed, [x, y, 0.17], [1, 1, 0.5], 6);
   // Trailing vines over the planter, and the planter itself.
   for (const x of [-0.7, -0.1, 0.5]) {
-    const vine = m.cyl(0.012, 0.34, C.leaf, [x, 0.0, 0.2], 0.012, 5);
-    vine.position.y = 0.18;
+    m.cyl(0.012, 0.34, C.leaf, [x, 0.18, 0.2], 0.012, 5);
     m.ball(0.04, C.leafLight, [x, 0.18, 0.2], [1, 1, 0.6], 6);
   }
   m.box([w, 0.2, 0.34], C.wood, [0, 0, 0.1], 0.02);
@@ -746,7 +745,7 @@ const asset = (
 export const FURNITURE_EXTRA_ASSETS: readonly Asset[] = [
   // The map's own desk, sofa and bed are one tile each (`FURNITURE` has no width for them), as in 2D.
   asset("office-desk", "Desk", 75, 1, 1, desk(1, 1)),
-  asset("office-sofa", "Sofa", 150, 1, 1, sofa(undefined, 1), { seat: { at: [0, 0.38, 0.05], turn: 0 } }),
+  asset("office-sofa", "Sofa", 150, 1, 1, sofa(C.fabric, 1), { seat: { at: [0, 0.38, 0.05], turn: 0 } }),
   asset("office-bed", "Bed", 120, 1, 1, bed(1), { bed: [0, 0.3, -0.05] }),
   asset("touched-grass", "Touched grass", 0, 2, 1, touchedGrass),
   asset("golden-hourglass", "Golden Hourglass", 0, 1, 1, goldenHourglass),

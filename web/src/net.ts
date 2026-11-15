@@ -92,7 +92,10 @@ export let arcade: ArcadeConn;
 export let matchConn: MatchConn | null = null;
 let session = "";
 
-/** Trades a single-use login code (`<userId>.<code>`, or a phone's `42-K7QF-M2XP`) for a session, kept for the next load. */
+/**
+ * Trades a single-use login code (`<userId>.<code>`, or a phone's `42-K7QF-M2XP`) for a session, kept for the
+ * next load.
+ */
 export async function redeem(code: string): Promise<void> {
   const userId = parsePhoneCode(code)?.userId ?? code.split(".")[0]!;
   const player = client.player.get([String(userId)]).connect();
@@ -141,10 +144,11 @@ export function connect(token: string): void {
   arcade = client.arcade.getOrCreate(["main"], { params: { token } }).connect();
   arcade.on("lobby", (lobby: Lobby) => applyLobby(lobby));
   arcade.onOpen(async () => applyLobby(await arcade.lobby()));
-  for (const c of [town, arcade])
+  for (const c of [town, arcade]) {
     c.onError((err) => {
       if (isUnauthorized(err)) signedOut();
     });
+  }
   conn = client.world.getOrCreate(["main"], { params: { token } }).connect();
 
   // The jukebox plays for the Tavern only: a snapshot of any other room, or a dropped line, ends it.
@@ -302,7 +306,9 @@ function rememberedSales(): Sale[] {
   try {
     const raw: unknown = JSON.parse(storage.getItem(salesKey()) ?? "[]");
     log = Array.isArray(raw) ? raw.filter((s) => Number.isInteger(s?.id) && Number.isInteger(s?.price)) : [];
-  } catch {}
+  } catch {
+    // A stored log that does not parse starts empty.
+  }
   hud.set({ marketLog: log });
   return log;
 }
@@ -404,6 +410,7 @@ function gateTimer(raid: Raid): void {
   const at = raid.prelaunch ? raid.launchAt : raid.closed ? raid.endsAt : 0;
   if (!at || at === gateAt || at <= Date.now()) return;
   gateAt = at;
+  // A moment after the gate's time, so the server has opened it by the time it is asked.
   setTimeout(() => void refreshStats(true), at - Date.now() + 1500);
 }
 

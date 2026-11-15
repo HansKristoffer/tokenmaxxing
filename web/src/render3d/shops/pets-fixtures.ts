@@ -45,7 +45,6 @@ export interface Entry {
   wear?: number;
   crown?: boolean;
 }
-/** Tells the store where an item stands (fixture-local x, z). */
 /** Files item `id` at (`x`, `z`) on the fixture, and the model that shows it, for the pointer to find. */
 export type Reg = (id: string, x: number, z: number, shows?: THREE.Object3D) => void;
 
@@ -202,8 +201,8 @@ export function petPen(o: PenOptions): Model {
   const sign = postSign(o.title, o.sub, o.accent, 1.5);
   sign.position.set(-w / 2 + 0.95, 0, -d / 2 - 0.02);
   m.add(sign);
-  // A hanging bowl pair in a corner.
-  const b1 = bowl(o.bamboo ? "kibble" : "kibble");
+  // Food and water bowls in a corner.
+  const b1 = bowl("kibble");
   b1.position.set(w / 2 - 0.4, 0.07, -d / 2 + 0.35);
   m.add(b1);
   const b2 = bowl("water");
@@ -223,10 +222,10 @@ export function catCondo(entries: Entry[], reg: Reg): Model {
   const H = 2.55;
   m.box([W - 0.02, H - 0.01, 0.06], WOOD, [0, 0.004, -0.466], 0.01);
   for (const s of [-1, 1]) m.box([0.1, H, 1], WOOD_D, [s * (W / 2 - 0.05), 0, 0], 0.02);
-  m.box([W + 0.1, 0.12, 1.08], WOOD_D, [0, H - 0.02, 0.0], 0.02);
+  m.box([W + 0.1, 0.12, 1.08], WOOD_D, [0, H - 0.02, 0], 0.02);
   const tiers = [0, 0.86, 1.72];
   tiers.forEach((y, ti) => {
-    m.box([W - 0.2, 0.08, 1], WOOD_L, [0, y, 0.0], 0.015);
+    m.box([W - 0.2, 0.08, 1], WOOD_L, [0, y, 0], 0.015);
     for (const x of [-1, 1]) m.box([0.06, 0.74, 0.9], WOOD_D, [x, y + 0.08, 0.04], 0.01);
     // Perch rail on the front of each cubby.
     m.box([W - 0.3, 0.035, 0.035], "#c9a96a", [0, y + 0.2, 0.5], 0.01);
@@ -244,7 +243,7 @@ export function catCondo(entries: Entry[], reg: Reg): Model {
       const e = entries[n];
       if (!e) {
         // The last cubby holds the toys: a plush fish, a mouse and a ball of wool.
-        const fish = m.part([cx, y + 0.15, 0.0], 0.3);
+        const fish = m.part([cx, y + 0.15, 0], 0.3);
         fish.ball(0.12, "#f0a05a", [0, 0.1, 0], [1.8, 0.8, 0.8], 8);
         fish.box([0.012, 0.1, 0.1], "#f0a05a", [-0.28, 0.06, 0], 0.01);
         toyMouse(m, cx + 0.5, y + 0.15, 0.2, 0.5);
@@ -252,7 +251,7 @@ export function catCondo(entries: Entry[], reg: Reg): Model {
         return;
       }
       const pet = stand(m, e, cx, y + 0.15, -0.03, 31 + n, Math.sin(n * 1.9) * 0.35, 1);
-      const t = tag(e.title, e.line, e.kind, { w: 0.58, accent: "#e0788f", lean: -0.3, lift: 0.0 });
+      const t = tag(e.title, e.line, e.kind, { w: 0.58, accent: "#e0788f", lean: -0.3, lift: 0 });
       t.position.set(cx + 0.62, y + 0.1, 0.46);
       m.add(t);
       reg(e.id, cx, 0, pet);
@@ -310,12 +309,17 @@ const THEMES: Record<string, Theme> = {
     floor: "#e8c46a",
     glow: "#ffd96a",
     deco: (t) => {
+      // Coins in three stacks of three: the taller the stack, the higher its coins sit.
+      const stackLift = (i: number) => {
+        if (i > 5) return 0.05;
+        return i > 2 ? 0.025 : 0;
+      };
       for (let i = 0; i < 9; i++)
         t.cyl(
           0.07,
           0.03,
           "#f5c842",
-          [-0.3 + (i % 3) * 0.1, i > 5 ? 0.05 : i > 2 ? 0.025 : 0, 0.25 - Math.floor(i / 3) * 0.02],
+          [-0.3 + (i % 3) * 0.1, stackLift(i), 0.25 - Math.floor(i / 3) * 0.02],
           0.07,
           8,
         );
@@ -327,7 +331,7 @@ const THEMES: Record<string, Theme> = {
     glow: "#9b6fd6",
     deco: (t) => {
       crystals(t, "#9b6fd6");
-      t.ball(0.18, glass("#6d4fc4", 0.25), [0.0, 0.25, 0.1], [1.6, 0.6, 1.2], 8);
+      t.ball(0.18, glass("#6d4fc4", 0.25), [0, 0.25, 0.1], [1.6, 0.6, 1.2], 8);
     },
   },
   skeleton: {
@@ -343,7 +347,7 @@ const THEMES: Record<string, Theme> = {
     floor: "#a5d977",
     glow: "#ffe28a",
     deco: (t) => {
-      t.cyl(0.3, 0.06, "#c9a95a", [0, 0, 0.0], 0.34, 12);
+      t.cyl(0.3, 0.06, "#c9a95a", [0, 0, 0], 0.34, 12);
       for (const [x, z] of [
         [-0.32, -0.3],
         [0.3, -0.28],
@@ -374,8 +378,8 @@ export function terrariums(entries: Entry[], reg: Reg): Model {
     g.cyl(0.12, 0.1, "#5d6470", [0, 0.72, -0.3], 0.05, 10);
     nightGlow(g.ball(0.05, "#f4e6c0", [0, 0.7, -0.3], [1, 1, 1], 8), th.glow);
     // The glow of the lamp on the floor, lit at night.
-    const pool = g.cyl(0.38, 0.01, glass(th.glow, 0.2), [0, 0.06, 0], 0.38, 14);
-    live(pool, () => {});
+    const glowPool = g.cyl(0.38, 0.01, glass(th.glow, 0.2), [0, 0.06, 0], 0.38, 14);
+    live(glowPool, () => {});
     if (i === 1 || i === 3 || i === 5) light(g, [0, 0.8, 0.2], th.glow, 1.6, 3.4);
     const pet = stand(g, e, 0, 0.08, 0.05, 71 + i, Math.sin(i * 1.3) * 0.5, 1.1);
     const t = tag(e.title, e.line, e.kind, { w: 0.62, accent: "#d2573c", lean: 0, lift: 0.06 });
@@ -524,7 +528,7 @@ export function wearRack(entries: Entry[], reg: Reg): Model {
     const pet = stand(m, { ...e, mood: "sit" }, x, y, z, 91 + i, Math.sin(i * 2.2) * 0.4, 0.95);
     const back = i < 4;
     const t = tag(e.title, e.line, e.kind, { w: 0.52, accent: "#6d4fc4", lean: -0.5 });
-    t.position.set(x + 0.05, back ? 0.34 : 0.0, back ? 0.4 : 0.7);
+    t.position.set(x + 0.05, back ? 0.34 : 0, back ? 0.4 : 0.7);
     m.add(t);
     reg(e.id, x, 0, pet);
   });
@@ -544,7 +548,7 @@ export function dome(inner: (m: Model) => void, title: string, line: string, glo
   gl.renderOrder = 3;
   m.cyl(0.4, 0.04, "#e0a82e", [0, 0.68, 0], 0.4, 18);
   light(m, [0, 1.5, 0.3], glowColor, 1.8, 3.5);
-  const t = tag(title, line, "level", { w: 0.62, accent: glowColor, lean: -0.1, lift: 0.0 });
+  const t = tag(title, line, "level", { w: 0.62, accent: glowColor, lean: -0.1, lift: 0 });
   t.position.set(0, 0.11, 0.42);
   m.add(t);
   return m;
@@ -575,7 +579,7 @@ export function crownDome(): Model {
 export function counter(): Model {
   const m = new Model();
   const W = 5;
-  m.box([W, 0.7, 0.9], WOOD, [0, 0, 0.0], 0.03);
+  m.box([W, 0.7, 0.9], WOOD, [0, 0, 0], 0.03);
   m.box([W + 0.2, 0.08, 1.1], WOOD_L, [0, 0.7, 0], 0.02);
   m.box([W - 0.3, 0.04, 0.04], WOOD_D, [0, 0.12, 0.46], 0.01);
   // Painted front: a row of paw prints on teal.
@@ -673,11 +677,11 @@ export function toyShelf(): Model {
   const W = 3;
   m.box([W, 2.1, 0.06], WOOD, [0, 0, -0.47], 0.01);
   for (const s of [-1, 1]) m.box([0.08, 2.1, 0.9], WOOD_D, [s * (W / 2 - 0.04), 0, 0], 0.02);
-  const ys = [0.0, 0.62, 1.24, 1.84];
-  for (const y of ys) m.box([W - 0.1, 0.06, 0.9], WOOD_L, [0, y, 0.0], 0.012);
+  const ys = [0, 0.62, 1.24, 1.84];
+  for (const y of ys) m.box([W - 0.1, 0.06, 0.9], WOOD_L, [0, y, 0], 0.012);
   // Bottom: bags of food.
   ["#e0584f", "#4f8fe0", "#58b36a", "#f0b53c", "#9b6fd6", "#e0788f"].forEach((c, i) => {
-    foodBag(m, -1.25 + i * 0.5, 0.06, 0.0 + (i % 2) * 0.04, c);
+    foodBag(m, -1.25 + i * 0.5, 0.06, 0 + (i % 2) * 0.04, c);
   });
   // Treats and tins.
   ["#e0584f", "#4f8fe0", "#58b36a", "#f0b53c", "#9b6fd6", "#3fa7a0", "#f28bb2", "#e8e2d4", "#c4544b"].forEach(

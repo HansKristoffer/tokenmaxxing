@@ -76,10 +76,15 @@ export class PokerEvents {
     table.show(sceneOf(state));
     const seated = state?.seats.some((s) => s !== null) ?? false;
     if (!state || !seated) {
-      for (const el of [...this.seats, this.pot]) if (el) el.style.display = "none";
+      for (const el of [...this.seats, this.pot]) {
+        if (el) el.style.display = "none";
+      }
       return;
     }
-    const left = Math.max(0, Math.ceil((state.turnMs - (Date.now() - state.at)) / 1000));
+    // Whole seconds left on the turn clock, counted from the state's own timestamp.
+    const elapsedMs = Date.now() - state.at;
+    const left = Math.max(0, Math.ceil((state.turnMs - elapsedMs) / 1000));
+
     for (const [i, s] of state.seats.entries()) {
       const el = this.seats[i] ?? f.overlay.make("r3-sign");
       this.seats[i] = el;
@@ -87,14 +92,18 @@ export class PokerEvents {
         el.style.display = "none";
         continue;
       }
+
       const turn = state.toAct === i;
       this.say(el, seatText(state, i, left), turn ? "gold" : s.folded ? "dim" : "dark");
       table.seatWorld(i, v);
+      // The label floats 1.7 units above the seat.
       v.y += 1.7;
       f.overlay.place(el, v, f.camera, 0, -30, true);
     }
+
     this.pot = this.pot ?? f.overlay.make("r3-sign");
-    this.say(this.pot, tableText(state), state.street === null && state.result ? "gold" : "dark");
+    const showsResult = state.street === null && state.result;
+    this.say(this.pot, tableText(state), showsResult ? "gold" : "dark");
     table.centreWorld(v);
     f.overlay.place(this.pot, v, f.camera, 0, 22, true);
   }

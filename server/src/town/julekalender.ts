@@ -5,9 +5,9 @@ import { all, type Sql, type TxSql } from "../actors/shared.ts";
 import { giveItem, type Kept, ledgerAdd, type Wallet, wallet } from "./coins.ts";
 
 /**
- * The julekalender's one table: a row per door someone opened, keyed by who and the door's date, so each door
- * opens once per player per year, whatever restarts or double clicks. Its gift goes out in the same transaction
- * as the row: coins as a `ledger` line (kind `julekalender`, ref the date), an item as a bag row.
+ * The julekalender's one table: a row per door someone opened, keyed by who and the door's date, so each
+ * door opens once per player per year, whatever restarts or double clicks. Its gift goes out in the same
+ * transaction as the row: coins as a `ledger` line (kind `julekalender`, ref the date), an item as a bag row.
  */
 export async function migrateJulekalender(sql: Sql): Promise<void> {
   await sql.execute(`CREATE TABLE IF NOT EXISTS julekalender (
@@ -65,10 +65,11 @@ export async function openDoor(
   );
   if (!fresh)
     throw new UserError("Today's door is open already. The next one opens tomorrow.", { code: "opened" });
+  const bagNote = "item" in gift ? ", in your bag" : "";
   return {
     door,
     gift,
-    notice: `🎄 Door ${door}: ${giftLabel(gift)}${"item" in gift ? ", in your bag" : ""}.`,
+    notice: `🎄 Door ${door}: ${giftLabel(gift)}${bagNote}.`,
     wallet: await wallet(sql, userId, now, kept),
   };
 }

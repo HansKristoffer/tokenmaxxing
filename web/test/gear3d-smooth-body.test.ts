@@ -10,7 +10,7 @@ test("every prestige back item and outfit index is dressed on smooth bodies, not
   expect(isPrestigeOutfit(PRESTIGE_BASE - 1)).toBe(false);
 });
 
-test("a fit exists for the grown, chibi and bot bodies and scales stay positive", () => {
+test("a fit exists for the grown, chibi, animal and bot bodies and scales stay positive", () => {
   for (const [style, human] of [
     ["grown", true],
     ["chibi", true],

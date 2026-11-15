@@ -67,7 +67,8 @@ describe("prestige runs", () => {
       "trophy",
     ]);
     expect(claimableBetween(1, 9, 20).rewards.map((r) => r.kind)).toEqual(["hat", "outfit"]);
-    expect(claimableBetween(1, 9, 20).coins).toBe(runCoinsPaid(20) - runCoinsPaid(9));
+    // Levels 10 to 20 pay 390 coins: 480 for the first 20 less the 90 for the first 9.
+    expect(claimableBetween(1, 9, 20).coins).toBe(390);
     expect(runCoinsPaid(50)).toBe(2200);
   });
 

@@ -41,13 +41,17 @@ const ranked = (s: TokenmaxxingState) =>
     { by: (p) => s.tokens[p] ?? 0, order: "desc" },
     (p) => p,
   );
-const leader = (s: TokenmaxxingState) => {
+/** The player in the lead, if they are strictly ahead of the next one. */
+const leader = (s: TokenmaxxingState): number | null => {
   const [first, second] = ranked(s);
-  return first !== undefined && (s.tokens[first] ?? 0) > (second === undefined ? 0 : (s.tokens[second] ?? 0))
-    ? first
-    : null;
+  if (first === undefined) return null;
+  const firstTokens = s.tokens[first] ?? 0;
+  const secondTokens = second === undefined ? 0 : (s.tokens[second] ?? 0);
+  return firstTokens > secondTokens ? first : null;
 };
-const ordinal = (n: number) => `${n}${n === 1 ? "st" : n === 2 ? "nd" : n === 3 ? "rd" : "th"}`;
+
+const ORDINAL_SUFFIX: Record<number, string> = { 1: "st", 2: "nd", 3: "rd" };
+const ordinal = (n: number) => `${n}${ORDINAL_SUFFIX[n] ?? "th"}`;
 
 function phaseAt(s: TokenmaxxingState, now: number): Phase {
   if (now < s.startsAt) return "countdown";
@@ -151,7 +155,10 @@ export const tokenmaxxing: GameDef<TokenmaxxingState, TokenmaxxingView> = {
   headline: (s) =>
     typedSwitch(s.phase, {
       countdown: () => "starting…",
-      live: () => `${s.minutes >= 60 ? `${s.minutes / 60}h` : `${s.minutes} min`} battle`,
+      live: () => {
+        const length = s.minutes >= 60 ? `${s.minutes / 60}h` : `${s.minutes} min`;
+        return `${length} battle`;
+      },
       grace: () => "⏳ counting the last tokens…",
       over: () => "final",
     }),
@@ -161,6 +168,7 @@ export const tokenmaxxing: GameDef<TokenmaxxingState, TokenmaxxingView> = {
   status(s, player) {
     const place = ranked(s).indexOf(player);
     if (place < 0) return null;
-    return `🏁 ${ordinal(place + 1)} · ${compact(s.tokens[player] ?? 0)}${s.flagged.includes(player) ? " ⚠️" : ""}`;
+    const warning = s.flagged.includes(player) ? " ⚠️" : "";
+    return `🏁 ${ordinal(place + 1)} · ${compact(s.tokens[player] ?? 0)}${warning}`;
   },
 };

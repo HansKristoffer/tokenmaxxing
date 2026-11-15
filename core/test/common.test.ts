@@ -56,7 +56,7 @@ describe("the company common room", () => {
     const [ex, ey] = commonStairs()[0]!;
     const down = portal("common:7", { ch: "x", x: ex, y: ey }, 7, plots);
     expect(down).toEqual({ room: "hq:7", x: ux, y: uy - 1, facing: "up" });
-    expect(mapOf("hq:7").walkable(down && "x" in down ? down.x : -1, uy - 1)).toBe(true);
+    expect(mapOf("hq:7").walkable(ux, uy - 1)).toBe(true);
   });
 
   test("members only: another company's stairs and a freelancer's are locked", () => {

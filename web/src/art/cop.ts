@@ -10,6 +10,8 @@ import { bake, cached, gradient, type Palette } from "./pixels.ts";
  * his cap, and its glow, are drawn live (`drawSiren`, `drawSirenGlow`).
  */
 
+const ERASER = "#f19a8b";
+const PENCIL = "#f0b53c";
 const PAL: Palette = {
   o: C.ink,
   n: "#24336b", // navy cap
@@ -20,8 +22,8 @@ const PAL: Palette = {
   Y: "#c9971f",
   w: C.white, // collar, notepad
   l: "#8fb3d9", // the notepad's lines
-  p: "#f19a8b", // the pencil's eraser
-  g: "#f0b53c", // the pencil
+  p: ERASER,
+  g: PENCIL,
 };
 
 // Pixel art reads as a grid.
@@ -106,8 +108,8 @@ export const copFrame = cached(
       // The pencil: eraser up, tip on the page, a pixel along every other frame.
       const x = (view === "down" ? 10 : 11) + scribble;
       const at = (px: number) => (flip ? 15 - px : px);
-      p.px(at(x + 1), 9, PAL.p!);
-      p.px(at(x + 1), 10, PAL.g!);
+      p.px(at(x + 1), 9, ERASER);
+      p.px(at(x + 1), 10, PENCIL);
       p.px(at(x), 11, C.ink);
     });
   },
@@ -122,7 +124,7 @@ const sirenHot = (red: boolean) => (red ? "#ff4a4a" : "#4a9bff");
  */
 export function drawSirenGlow(g: CanvasRenderingContext2D, px: number, py: number, now: number): void {
   const red = sirenRed(now);
-  // Made once for each colour round (0, 0), and moved to him.
+  // The gradient is cached per colour and drawn at the origin; the translate moves it to him.
   g.save();
   g.translate(px, py);
   g.globalAlpha = 0.45;

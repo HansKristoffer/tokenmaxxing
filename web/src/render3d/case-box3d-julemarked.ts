@@ -260,7 +260,7 @@ export function buildJulemarkedBox(open: boolean, register: Register): Model {
     const CYCLE = 4.2;
     motion.push((t) => {
       const ph = t % CYCLE;
-      // The burst is a flash that decays over the first second and a half of each cycle, then a soft glow.
+      // The burst is a flash at the start of each cycle that falls to under a tenth within a second, then a soft glow.
       const burst = Math.exp(-ph * 2.4);
       const g = 0.5 + 0.5 * Math.sin(t * 2.4);
       mouth.color.copy(mouthA).lerp(mouthB, 0.15 + 0.2 * g + 0.65 * burst);
@@ -288,9 +288,11 @@ export function buildJulemarkedBox(open: boolean, register: Register): Model {
         const a = i * 2.4;
         const v = 0.35 + (i % 4) * 0.12;
         const u2 = Math.max(0, u);
+        // A parabola: the spark rises and falls over its life.
+        const arc = 1.6 * u2 * (1 - u2);
         s.position.set(
           Math.cos(a) * v * u2 * 1.1,
-          BODY_H + 0.02 + (1.6 * u2 - 1.6 * u2 * u2) * v * 1.6 * 0.5 + u2 * 0.1,
+          BODY_H + 0.02 + arc * v * 0.8 + u2 * 0.1,
           Math.sin(a) * v * u2 * 0.7,
         );
         s.scale.setScalar(Math.max(0.01, 1 - u2) * (1.1 + (i % 3) * 0.4));

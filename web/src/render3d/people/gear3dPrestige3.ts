@@ -32,7 +32,7 @@ function visorHat(m: Model, c: Ctx): void {
   const lensZ = vox ? 0.292 : 0.274;
   // The shell and the band round its foot.
   dome(m, OBSIDIAN, 0.29, 0.02 + up, 0.5);
-  band(m, OBSIDIAN_DARK, 0.292, 0.045, 0.0 + up);
+  band(m, OBSIDIAN_DARK, 0.292, 0.045, up);
   if (!vox) dome(m, OBSIDIAN_LIGHT, 0.284, 0.034 + up, 0.34);
   // The crest: a fin front to back along the crown, a line of pink light on its edge.
   m.box([0.036, 0.1, 0.3], OBSIDIAN_LIGHT, [0, 0.27 + up, -0.02], 0.01);
@@ -57,7 +57,7 @@ function visorHat(m: Model, c: Ctx): void {
       [0.19, -0.06, 0.04],
       [0.15, -0.1, 0.05],
     ] as const) {
-      const x = vox ? 0.288 : Math.sqrt(0.29 ** 2 - (y + 0.02 - 0.02) ** 2 - z * z);
+      const x = vox ? 0.288 : Math.sqrt(0.29 ** 2 - y ** 2 - z * z);
       m.box([0.012, h, 0.03], lit(MAGENTA), [s * x, y + up, z], 0.002);
     }
   c.tick((t) => {
@@ -68,7 +68,5 @@ function visorHat(m: Model, c: Ctx): void {
   });
 }
 
-Object.assign(HAT_BUILDERS, {
-  "Event-horizon visor": (m: Model, c: Ctx) => visorHat(m, c),
-});
+Object.assign(HAT_BUILDERS, { "Event-horizon visor": visorHat });
 COVERS_HAIR.add("Event-horizon visor");

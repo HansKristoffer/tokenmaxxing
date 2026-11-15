@@ -3,7 +3,7 @@ import { existsSync } from "node:fs";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { as, client, origin, signUp } from "../../../server/test/rivet.ts";
+import { as, origin, signUp } from "../../../server/test/rivet.ts";
 import { launchAgent, serviceEnv, systemdUnit } from "../src/service.ts";
 
 const CLI = join(import.meta.dir, "../src/cli.ts");
@@ -135,7 +135,6 @@ describe("tokenmaxxing CLI", () => {
     const r = await cli("link", "1.abc");
     expect(r.code).toBe(1);
     expect(r.err).toContain("--server");
-    expect(client).toBeDefined();
   });
 });
 
@@ -146,10 +145,11 @@ describe("install.sh", () => {
     await writeFile(path, await (await fetch(`${origin}/install.sh`)).text());
     return path;
   };
+  // The release asset name the install script downloads for this machine.
+  const file = `tokenmaxxing-${process.platform}-${process.arch === "arm64" ? "arm64" : "x64"}`;
 
   test("installs the checked binary and links with the server it came from", async () => {
     const releases = join(dir, "releases");
-    const file = `tokenmaxxing-${process.platform}-${process.arch === "arm64" ? "arm64" : "x64"}`;
     const build = Bun.spawnSync(["bun", "build", CLI, "--compile", "--outfile", join(releases, file)]);
     expect(build.exitCode).toBe(0);
     const sum = new Bun.CryptoHasher("sha256")
@@ -176,7 +176,6 @@ describe("install.sh", () => {
 
   test("a download that doesn't match its checksum isn't installed", async () => {
     const releases = join(dir, "releases");
-    const file = `tokenmaxxing-${process.platform}-${process.arch === "arm64" ? "arm64" : "x64"}`;
     await mkdir(releases, { recursive: true });
     await writeFile(join(releases, file), "#!/bin/sh\necho tampered\n");
     await writeFile(join(releases, "SHA256SUMS"), `${"0".repeat(64)}  ${file}\n`);
@@ -197,10 +196,10 @@ describe("install.sh", () => {
 
 describe("service files", () => {
   const program = ["/Users/a b/.local/bin/tokenmaxxing", "run"];
-  const env = { PATH: "/opt/homebrew/bin:/usr/bin", CODEX_HOME: "/x/&y" };
+  const serviceVars = { PATH: "/opt/homebrew/bin:/usr/bin", CODEX_HOME: "/x/&y" };
 
   test("the LaunchAgent runs `tokenmaxxing run` with the environment, restarting only on failure", () => {
-    const plist = launchAgent(program, env, "/tmp/cli.log");
+    const plist = launchAgent(program, serviceVars, "/tmp/cli.log");
     expect(plist).toContain("<string>/Users/a b/.local/bin/tokenmaxxing</string>\n    <string>run</string>");
     expect(plist).toContain("<key>CODEX_HOME</key>\n    <string>/x/&amp;y</string>");
     expect(plist).toContain("<key>SuccessfulExit</key>\n    <false/>");

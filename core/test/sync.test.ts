@@ -88,6 +88,7 @@ describe("sync", () => {
     });
     expect(got).toBe(0);
   });
+
   test("GitHub is searched at most every 15 minutes, per account, and says why it can't", async () => {
     const searched: string[] = [];
     const githubFetch = (async (url: string, init: RequestInit) => {

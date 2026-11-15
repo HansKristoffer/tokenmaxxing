@@ -1,10 +1,9 @@
 /**
- * Snapshot of the 2D raid/dungeon data for the 3D world. Sources (branch feat/tavern): web/src/art/{bosses,minions,loot,editions,trophies}.ts
+ * Snapshot of the 2D raid/dungeon data for the 3D world. Sources: web/src/art/{bosses,minions,loot,editions,trophies}.ts
  * and core/src/{raid,loot,editions,trophies,badges,rarity}.ts. Pixel grids are kept as they are, so the 3D models can extrude them.
  */
 // biome-ignore-all format: pixel art reads as a grid
 
-import { TIER_COLOR } from "@tokenmaxxing/core/rarity.ts";
 import { TROPHIES } from "@tokenmaxxing/core/trophies.ts";
 import { C } from "../../art/palette.ts";
 import { TROPHY_ART } from "../../art/trophy-art.ts";
@@ -72,7 +71,7 @@ export const LOOT_HATS: { rows: Record<View, string[]>; pal: Palette }[] = [
     },
     pal: { y: "#f5c842", Y: "#c9971f", c: "#5ff0ff" },
   },
-  // <<<<<<< HEAD band: a conflict-red headband, its knot hanging off the back.
+  // Merge-conflict band: a conflict-red headband, its knot hanging off the back.
   {
     rows: {
       down: [
@@ -265,159 +264,6 @@ export const LOOT_OUTFITS: {
   },
 ];
 
-/** Pets 7–10: 12×10, facing right, two frames to hop. */
-export const LOOT_PETS: { frames: [string[], string[]]; pal: Palette }[] = [
-  // Sand golem: a block of every second you waited, eyes glowing.
-  {
-    frames: [
-      [
-        "............",
-        ".....oooooo.",
-        "....osSsssso",
-        "....ossysyso",
-        "..ooosssssso",
-        ".osSosSssSo.",
-        ".osssssssso.",
-        ".oSsssssSso.",
-        "..oso..oso..",
-        "..oo....oo..",
-      ],
-      [
-        ".....oooooo.",
-        "....osSsssso",
-        "....ossysyso",
-        "..ooosssssso",
-        ".osSosSssSo.",
-        ".osssssssso.",
-        ".oSsssssSso.",
-        "..oso..oso..",
-        ".oo......oo.",
-        "............",
-      ],
-    ],
-    pal: { o: C.ink, s: "#e3c07a", S: "#b8934e", y: "#ff9a3c" },
-  },
-  // Goldfish: floating along, a bubble at a time. It forgot already.
-  {
-    frames: [
-      [
-        "..........w.",
-        "......ooo...",
-        ".o...ogggo..",
-        "ogo.ogggego.",
-        "oggoggggggGo",
-        "ogo.oggggGo.",
-        ".o...ooooo..",
-        "............",
-        "............",
-        "............",
-      ],
-      [
-        "......ooo..w",
-        ".o...ogggo..",
-        "ogo.ogggego.",
-        "oggoggggggGo",
-        "ogo.oggggGo.",
-        ".o...ooooo..",
-        "............",
-        "............",
-        "............",
-        "............",
-      ],
-    ],
-    pal: { o: C.ink, g: "#ff8a3c", G: "#d9622b", e: C.white, w: "#a8dcf7" },
-  },
-  // Forked cat: two tails, one history.
-  {
-    frames: [
-      [
-        "............",
-        "t..b...o..o.",
-        "t..b..obooba",
-        ".t.b..obbbbo",
-        "..tb..oebebo",
-        "...o.obbnbbo",
-        "..oooobbbbo.",
-        ".obbbbbbbo..",
-        ".obobbbobo..",
-        ".o.o..o.o...",
-      ],
-      [
-        "t..b...o..o.",
-        "t..b..obooba",
-        ".t.b..obbbbo",
-        "..tb..oebebo",
-        "...o.obbnbbo",
-        "..oooobbbbo.",
-        ".obbbbbbbo..",
-        ".obobbbobo..",
-        "o.o....o.o..",
-        "............",
-      ],
-    ],
-    pal: { o: C.ink, b: "#8a93a1", a: "#8a93a1", t: "#f0a04b", e: C.ink, n: "#e0584f" },
-  },
-  // Ghost: it says it exists.
-  {
-    frames: [
-      [
-        "............",
-        "....oooo....",
-        "...owwwwo...",
-        "..owwwwwwo..",
-        "..owkwwkwo..",
-        "..owwwwwwo..",
-        "..owwwwwwwo.",
-        "..owwwwwwwo.",
-        "..owowwowo..",
-        "..o.o..o.o..",
-      ],
-      [
-        "....oooo....",
-        "...owwwwo...",
-        "..owwwwwwo..",
-        "..owkwwkwo..",
-        "..owwwwwwo..",
-        "..owwwwwwwo.",
-        "..owwwwwwwo.",
-        "..oowwowwo..",
-        "...o.o..o.o.",
-        "............",
-      ],
-    ],
-    pal: { o: "#7a7f9a", w: "#f4f6ff", k: C.ink },
-  },
-  // Piggy bank: a coin dropping in the slot, every one you owe.
-  {
-    frames: [
-      [
-        "....yy......",
-        "..oooooo.oo.",
-        ".obbkkbboboo",
-        ".obbbbbbbbbo",
-        "obbbbbbbebss",
-        "obbbbbbbbbsn",
-        ".obbbbbbbbbo",
-        ".obbbbbbbbo.",
-        "..obo..obo..",
-        "..ooo..ooo..",
-      ],
-      [
-        "..oooooo.oo.",
-        ".obbkkbboboo",
-        ".obbbbbbbbbo",
-        "obbbbbbbebss",
-        "obbbbbbbbbsn",
-        ".obbbbbbbbbo",
-        ".obbbbbbbbo.",
-        "..obo..obo..",
-        "..ooo..ooo..",
-        "............",
-      ],
-    ],
-    pal: { o: C.ink, b: "#f0a0b8", k: "#7a2a3f", y: "#ffd35c", e: C.ink, s: "#f7c0d0", n: "#c05070" },
-  },
-];
 const o = C.ink;
 export const EDITION_HATS: Record<string, Art> = {
   // Prompt wizard hat: a starry cone, bent at the tip, on a wide brim.
@@ -1498,4 +1344,3 @@ export const BADGE_DEFS = [
     ],
   },
 ] as const;
-export const TIER_COLORS = TIER_COLOR;

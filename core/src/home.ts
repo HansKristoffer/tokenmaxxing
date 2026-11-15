@@ -41,9 +41,7 @@ export const SHOP_HOME_PIECES: readonly HomePiece[] = [
     70,
     1,
     "Certified Prompt Engineer, with honours. The exam was one question.",
-    {
-      wall: true,
-    },
+    { wall: true },
   ),
   home("é", "bean-bag", "Bean bag", 90, 1, "A bean bag. Getting up is a two-step process.", { seat: "sofa" }),
   home(
@@ -53,9 +51,7 @@ export const SHOP_HOME_PIECES: readonly HomePiece[] = [
     105,
     1,
     "A pothos on a macrame hanger. It trails further every week.",
-    {
-      wall: true,
-    },
+    { wall: true },
   ),
   home("ç", "wool-rug", "Wool rug", 105, 2, "", { flat: true }),
   home("ß", "floor-lamp", "Floor lamp", 120, 1, "A floor lamp with a warm bulb. Hygge, on a dimmer."),
@@ -82,9 +78,7 @@ export const SHOP_HOME_PIECES: readonly HomePiece[] = [
     165,
     2,
     "A diagram with seven boxes, eleven arrows and a cloud labelled 'the cloud'.",
-    {
-      wall: true,
-    },
+    { wall: true },
   ),
   home("ä", "home-fridge", "Mini fridge", 180, 1, "Oat milk, Club-Mate and a lone birthday cake slice."),
   home(
@@ -119,5 +113,7 @@ export const HOME_PIECES: readonly HomePiece[] = [...SHOP_HOME_PIECES, ...JULEPY
 
 const BY_CH = new Map(HOME_PIECES.map((p) => [p.ch, p]));
 
-export const isHomePiece = (ch: unknown): boolean => BY_CH.has(ch as string);
-export const homePieceOf = (ch: unknown): HomePiece | undefined => BY_CH.get(ch as string);
+// The keys are strings, so anything else is not a piece.
+export const isHomePiece = (ch: unknown): boolean => typeof ch === "string" && BY_CH.has(ch);
+export const homePieceOf = (ch: unknown): HomePiece | undefined =>
+  typeof ch === "string" ? BY_CH.get(ch) : undefined;

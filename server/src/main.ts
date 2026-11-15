@@ -28,14 +28,14 @@ if (!storage && !config.development) throw new Error("set RIVETKIT_STORAGE_PATH 
 // whose town was never moved, it would come up as an empty one. Release 1.20.0 moved it on its first start
 // and left the marker; this one no longer can, so it refuses instead.
 const engineDir = join(storage ?? "", ".rivetkit/var/engine");
-if (
-  storage &&
+const isUnmovedV2Town =
+  Boolean(storage) &&
   existsSync(join(engineDir, "db/CURRENT")) &&
-  !existsSync(join(engineDir, "migrated-from-v2.json"))
-)
-  throw new Error(
-    `${engineDir}/db is a town from RivetKit 2 that was never moved to RivetKit 3. Start release 1.20.0 on it first, which moves it; or, for a dev store nobody needs, delete it.`,
-  );
+  !existsSync(join(engineDir, "migrated-from-v2.json"));
+if (isUnmovedV2Town) {
+  const message = `${engineDir}/db is a town from RivetKit 2 that was never moved to RivetKit 3. Start release 1.20.0 on it first, which moves it; or, for a dev store nobody needs, delete it.`;
+  throw new Error(message);
+}
 
 // The game and the admin page are bundled here, before the registry starts: once RivetKit's native
 // runtime is up, Bun's HTML bundler fails in this process (and its dev server resolves rivetkit's Node build).
@@ -55,8 +55,9 @@ const assets = new Map(web.outputs.map((o) => [`/${basename(o.path)}`, o]));
 const SITE = join(import.meta.dir, "../../site/dist");
 if (!existsSync(SITE) && !config.development) throw new Error("build the site first: bun run site:build");
 const site = new Map<string, Bun.BunFile>();
-if (existsSync(SITE))
+if (existsSync(SITE)) {
   for (const path of new Bun.Glob("**/*").scanSync(SITE)) site.set(`/${path}`, Bun.file(join(SITE, path)));
+}
 
 const { ENGINE_PORT, ENGINE_TOKEN, registry } = await import("./actors/registry.ts");
 const { createClient } = await import("rivetkit/client");
@@ -103,6 +104,7 @@ const metrics = (req: Request) =>
 const landing = await site.get("/index.html")?.text();
 let players: number | null = null;
 const countPlayers = async () => {
+  // A failed count keeps the last one on the page.
   players = await main(localClient)
     .town.playerCount()
     .catch(() => players);
@@ -141,18 +143,21 @@ setInterval(async () => {
   probing = true;
   const lag = loopLag;
   loopLag = 0;
+
   const ok = (await watchdogProbe()).ok;
   probing = false;
+
   const exit = failing.record(ok, Date.now());
-  if (!ok)
+  if (!ok) {
     console.error(`[tokenmaxxing] health ${failing.streak}/${dog.failures}: ${diagnose(lastProbe, lag)}`);
-  else if (lastRecovered)
+  } else if (lastRecovered) {
     console.log(`[tokenmaxxing] health recovered after ${lastRecovered} failed probes (${lastProbe.ms} ms)`);
+  }
   lastRecovered = failing.streak;
   if (!exit) return;
-  console.error(
-    `[tokenmaxxing] unhealthy: ${dog.failures} probes failed over ${Math.round(dog.windowMs / 1000)}+ s, exiting`,
-  );
+
+  const windowSeconds = Math.round(dog.windowMs / 1000);
+  console.error(`[tokenmaxxing] unhealthy: ${dog.failures} probes failed over ${windowSeconds}+ s, exiting`);
   await shutdown(1);
 }, dog.intervalMs);
 
@@ -164,6 +169,7 @@ async function shutdown(code: number) {
   leaving = true;
   // A drain that hangs (the case this exit is for) can't keep the process alive.
   const force = setTimeout(() => process.exit(code), 8_000);
+  // Best effort: the process exits with `code` either way, so a failed drain or stop changes nothing.
   await registry.shutdown().catch(() => {});
   await stopEngine(ENGINE_PORT).catch(() => {});
   clearTimeout(force);
@@ -176,6 +182,16 @@ const headersFor = (page: Page, req: Request, extra: Record<string, string>) => 
   ...pageHeaders(page, new URL(req.url).host, !config.development),
   ...extra,
 });
+/**
+ * How long the browser keeps a site file: hashed Astro assets for a year, the 10 MB video for a day,
+ * and the rest is always revalidated.
+ */
+function siteCacheControl(path: string): string {
+  if (path.startsWith("/_astro/")) return "public, max-age=31536000, immutable";
+  if (path.endsWith(".mp4")) return "public, max-age=86400";
+  return "no-cache";
+}
+
 const html = (file: Bun.BuildArtifact | undefined, page: Page) => (req: Request) =>
   new Response(file, { headers: headersFor(page, req, { "cache-control": "no-cache" }) });
 
@@ -223,14 +239,7 @@ const server = Bun.serve({
     const page = site.get(file);
     if (page)
       return new Response(page, {
-        headers: headersFor("site", req, {
-          "cache-control": path.startsWith("/_astro/")
-            ? "public, max-age=31536000, immutable"
-            : // The header video is 10 MB: a day in the cache rather than a fresh copy on every visit.
-              path.endsWith(".mp4")
-              ? "public, max-age=86400"
-              : "no-cache",
-        }),
+        headers: headersFor("site", req, { "cache-control": siteCacheControl(path) }),
       });
     return proxy.fetch(req, server);
   },

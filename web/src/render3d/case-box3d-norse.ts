@@ -136,7 +136,7 @@ export function buildNorseBox(open: boolean, register: Register): Model {
   const hinge = m.part([0, BODY_H + 0.03, -D / 2]);
   const lid = hinge.part([0, 0, D / 2]);
   lid.box([W + 0.04, LID_H * 0.62, D + 0.04], OAK_LIGHT, [0, 0, 0], 0.03);
-  lid.box([W + 0.0, LID_H * 0.32, D - 0.04], tint(OAK_LIGHT, 0.05), [0, LID_H * 0.6, 0], 0.025);
+  lid.box([W, LID_H * 0.32, D - 0.04], tint(OAK_LIGHT, 0.05), [0, LID_H * 0.6, 0], 0.025);
   lid.box([W - 0.12, 0.035, D - 0.14], tint(OAK_LIGHT, 0.1), [0, LID_H * 0.88, 0], 0.015);
   frame(lid, W + 0.044, D + 0.044, 0.03, -0.015, 0.035);
   for (const x of [-0.3, 0.3]) {
@@ -163,7 +163,7 @@ export function buildNorseBox(open: boolean, register: Register): Model {
   const frost = lid.box([W + 0.05, 0.03, 0.018], FROST, [0, 0.003, D / 2 + 0.028], 0.006);
   frost.castShadow = false;
   lid.box([0.014, 0.03, D + 0.04], FROST, [side + 0.027, 0.003, 0], 0.005);
-  const icicles: number[][] = [
+  const icicles: [number, number][] = [
     [-0.4, 0.07],
     [-0.31, 0.045],
     [-0.17, 0.09],
@@ -173,8 +173,7 @@ export function buildNorseBox(open: boolean, register: Register): Model {
     [0.36, 0.085],
     [0.43, 0.05],
   ];
-  for (const [x, len] of icicles as [number, number][])
-    lid.cyl(0.003, len, ICE, [x, -len + 0.01, D / 2 + 0.03], 0.017, 5);
+  for (const [x, len] of icicles) lid.cyl(0.003, len, ICE, [x, -len + 0.01, D / 2 + 0.03], 0.017, 5);
   for (const [x, z, w, d] of [
     [-0.2, 0.05, 0.22, 0.12],
     [0.12, -0.04, 0.3, 0.1],
@@ -205,7 +204,6 @@ export function buildNorseBox(open: boolean, register: Register): Model {
     const iceBeam = beam(ICE, -0.2, 0.08);
     const emberBeam = beam(EMBER, 0.2, -0.08);
     // The frost puff: soft white blobs that swell as they rise and fade.
-    const puffMats: THREE.MeshBasicMaterial[] = [];
     const puffs = [0, 1, 2, 3].map(() => {
       const mat = new THREE.MeshBasicMaterial({
         color: "#eaf8ff",
@@ -213,8 +211,7 @@ export function buildNorseBox(open: boolean, register: Register): Model {
         opacity: 0.5,
         depthWrite: false,
       });
-      puffMats.push(mat);
-      return m.ball(0.075, mat, [-0.2, BODY_H + 0.1, 0.0], [1, 0.8, 1], 8);
+      return { mesh: m.ball(0.075, mat, [-0.2, BODY_H + 0.1, 0.0], [1, 0.8, 1], 8), mat };
     });
     // The sparks: bright ember cubes flicking up out of the right half.
     const sparks = Array.from({ length: 9 }, (_, i) =>
@@ -226,15 +223,15 @@ export function buildNorseBox(open: boolean, register: Register): Model {
       emberMat.color.set(tint(EMBER, -0.1 + 0.2 * (1 - g)));
       iceBeam.opacity = 0.22 + 0.07 * g;
       emberBeam.opacity = 0.22 + 0.07 * (1 - g);
-      puffs.forEach((p, i) => {
+      puffs.forEach(({ mesh, mat }, i) => {
         const u = (t * 0.3 + i / puffs.length) % 1;
-        p.position.set(
+        mesh.position.set(
           -0.25 + Math.sin(u * 4 + i * 2) * 0.12,
           BODY_H + 0.08 + u * 0.55,
           Math.cos(u * 3 + i) * 0.1,
         );
-        p.scale.setScalar(0.5 + u * 1.4);
-        puffMats[i]!.opacity = 0.5 * Math.sin(u * Math.PI) ** 1.3;
+        mesh.scale.setScalar(0.5 + u * 1.4);
+        mat.opacity = 0.5 * Math.sin(u * Math.PI) ** 1.3;
       });
       sparks.forEach((s, i) => {
         const u = (t * (0.55 + (i % 3) * 0.12) + i * 0.37) % 1;
@@ -269,7 +266,7 @@ export function buildNorseKey(register: Register): Model {
   const LIGHT = "#e4edff";
   const DARK = "#5f6b86";
   const STAMP = "#1f2538";
-  const extrude = (shape: THREE.Shape, depth: number, color: string, z = 0, bevel = 0.008) => {
+  const extrude = (shape: THREE.Shape, depth: number, color: string, z = 0, bevel = 0.008): void => {
     const g = new THREE.ExtrudeGeometry(shape, {
       depth,
       bevelEnabled: bevel > 0,
@@ -279,10 +276,10 @@ export function buildNorseKey(register: Register): Model {
       curveSegments: 28,
     });
     g.translate(0, 0, -depth / 2 + z);
-    const o = new THREE.Mesh(g, toon(color));
-    o.castShadow = o.receiveShadow = true;
-    spin.add(o);
-    return o;
+    const mesh = new THREE.Mesh(g, toon(color));
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    spin.add(mesh);
   };
   const circle = (r: number) => {
     const s = new THREE.Shape();

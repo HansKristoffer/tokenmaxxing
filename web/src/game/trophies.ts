@@ -28,11 +28,16 @@ export function drawTrophies({ g, items }: Frame) {
   if (shelf.owner !== owner || now - shelf.at > REFRESH_MS) {
     if (shelf.owner !== owner) shelf.earned = new Set();
     Object.assign(shelf, { owner, at: now });
-    void loadTrophies(owner).catch(() => {});
+    void loadTrophies(owner).catch(() => {
+      // A failed ask keeps the shelf as it was. `shelf.at` is already set, so the next ask is a minute on.
+    });
   }
   const [x, y] = at;
   const sprite = trophyShelf(shelf.earned);
-  items.push({ y: y * TILE + TILE - 1, draw: () => g.drawImage(sprite, x * TILE, (y + 1) * TILE - SHELF_H) });
+  items.push({
+    y: y * TILE + TILE - 1,
+    draw: () => g.drawImage(sprite, x * TILE, (y + 1) * TILE - SHELF_H),
+  });
 }
 
 /** E at the shelf: the list of what's on it and when each came. */

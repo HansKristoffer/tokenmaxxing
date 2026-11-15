@@ -25,9 +25,13 @@ export function swap(
   patches1: Patch[] = patches,
 ): PetVariant {
   const edit = (rows: string[], list: Patch[]) =>
-    rows.map((row, y) =>
-      list.reduce((r, [py, px, ch]) => (py === y ? r.slice(0, px) + ch + r.slice(px + 1) : r), row),
-    );
+    rows.map((row, y) => {
+      let edited = row;
+      for (const [py, px, ch] of list) {
+        if (py === y) edited = edited.slice(0, px) + ch + edited.slice(px + 1);
+      }
+      return edited;
+    });
   return {
     id,
     name,

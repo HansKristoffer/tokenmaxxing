@@ -63,11 +63,7 @@ export function isMoving(dx: number, dz: number, dtMs: number, minTilesPerSec = 
   return dtMs > 0 && Math.hypot(dx, dz) / (dtMs / 1000) > minTilesPerSec;
 }
 
-/**
- * The grid direction a key means when the camera looks from `quarter` quarter-turns round from the default
- * (`quarter` 0 keeps the 2D game's: Up walks up the map). Each key keeps the screen diagonal it has at 0, so
- * turning the view doesn't turn the keys against you.
- */
+/** Each grid direction as [x, z] on the map. */
 const VECTOR: Record<Facing, [number, number]> = { up: [0, -1], right: [1, 0], down: [0, 1], left: [-1, 0] };
 /** Each key's place on screen at quarter 0: [right, up]. */
 const SCREEN: Record<Facing, [number, number]> = {
@@ -77,7 +73,14 @@ const SCREEN: Record<Facing, [number, number]> = {
   left: [-1, 1],
 };
 
-export function keyDirection(key: Facing, quarter: number, base = Math.PI / 4): Facing {
+/**
+ * The grid direction a key means when the camera looks from `quarter` quarter-turns round from the default
+ * (`quarter` 0 keeps the 2D game's: Up walks up the map). Each key keeps the screen diagonal it has at 0, so
+ * turning the view doesn't turn the keys against you.
+ */
+export function keyDirection(key: Facing, quarter: number): Facing {
+  // The starting azimuth of the view, in radians: 45 degrees.
+  const base = Math.PI / 4;
   const az = base + (quarter * Math.PI) / 2;
   const right: [number, number] = [Math.cos(az), -Math.sin(az)];
   const away: [number, number] = [-Math.sin(az), -Math.cos(az)];
@@ -96,7 +99,7 @@ export function keyDirection(key: Facing, quarter: number, base = Math.PI / 4): 
   return best;
 }
 
-// ——— The walk cycle ———
+// MARK: The walk cycle
 
 /** World units one full cycle (two steps) covers: the legs turn with the ground, so feet don't slide. */
 export const STRIDE = 1.5;
@@ -137,13 +140,16 @@ export function stepGait(g: Gait, moved: number, dtS: number, walking: boolean):
     g.phase += moved / STRIDE;
     g.weight = approach(g.weight, 1, dtMs, BLEND_MS);
   } else {
+    // The next neutral is the next half-cycle. The 1e-6 keeps a phase already on one from skipping to the one after.
     const next = Math.max(g.phase, Math.ceil(g.phase * 2 - 1e-6) / 2);
     const rate = Math.max(MIN_SETTLE_RATE, g.speed / STRIDE);
     g.phase = Math.min(next, g.phase + rate * dtS);
     g.weight = g.phase >= next ? 0 : approach(g.weight, 0, dtMs, BLEND_MS);
   }
   // The lean follows the difference between this frame's pace and the smoothed one: nothing at a steady walk.
-  const want = on ? Math.max(-SWING.lean, Math.min(SWING.lean, (v - g.speed) * 0.05)) : 0;
+  // The 0.05 is lean per unit of pace change, so a change of 2.4 world units a second reaches the full lean.
+  const paceChange = v - g.speed;
+  const want = on ? Math.max(-SWING.lean, Math.min(SWING.lean, paceChange * 0.05)) : 0;
   g.lean = approach(g.lean, want, dtMs, 120);
   g.speed = approach(g.speed, on ? v : 0, dtMs, 80);
 }

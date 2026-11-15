@@ -1,9 +1,9 @@
 /**
  * The launch stand in town (`core/src/launch.ts`): up from the moment a model is listed on OpenRouter
- * until 18:00 on its edition's day (`standCloses`). `world` reads the list and sends it (the `launches` event). One provider's news is that
- * provider's stand; several providers' make it a rainbow one. Walk onto the row in front of it and the
- * presenter flicks you a pamphlet with everything that's out (again whenever something new turns up,
- * remembered in this browser); E in front of it hands you another.
+ * until 18:00 on its edition's day (`standCloses`). `world` reads the list and sends it (the `launches`
+ * event). One provider's news is that provider's stand; several providers' make it a rainbow one. Walk onto
+ * the row in front of it and the presenter flicks you a pamphlet with everything that's out (again whenever
+ * something new turns up, remembered in this browser); E in front of it hands you another.
  * `?launch=grok` (or `?launch=Z AI:GLM 5,claude` for several) puts it up for screenshots,
  * `?launch=off` takes it down; `?clock=` moves the clock like it does for the street.
  */
@@ -17,7 +17,7 @@ import {
   STAND,
   standOf,
 } from "@tokenmaxxing/core/launch.ts";
-import { TILE } from "@tokenmaxxing/core/world.ts";
+import { type Facing, TILE } from "@tokenmaxxing/core/world.ts";
 import { STAND_H, STAND_W, standSprite } from "../art/launch.ts";
 import { paperSprite } from "../art/street.ts";
 import { hud } from "../store.ts";
@@ -30,7 +30,7 @@ const forced = forcedLaunches(new URLSearchParams(location.search).get("launch")
 let fromServer: Launch[] = [];
 
 /** What's up, newest first, asked once a minute (or when the server says the list changed). */
-let seen = { minute: Number.NaN, up: [] as Launch[] };
+let seen: { minute: number; up: Launch[] } = { minute: Number.NaN, up: [] };
 function launchesAt(at: number): Launch[] {
   if (forced !== undefined) return forced;
   const minute = Math.floor(at / 60_000);
@@ -48,15 +48,16 @@ export const currentLaunches = (): Launch[] => launchesAt(serverNow());
 
 /** Pamphlets this browser has been handed (`standOf(...).key`: which launches were on it). */
 const HANDED = "tokenmaxxing.pamphlets";
-const handed = new Set<string>(
-  (() => {
-    try {
-      return JSON.parse(localStorage.getItem(HANDED) ?? "[]") as string[];
-    } catch {
-      return [];
-    }
-  })(),
-);
+const handed = new Set<string>(readHanded());
+
+/** The keys saved from earlier visits. A corrupt entry reads as none, so the pamphlets come again. */
+function readHanded(): string[] {
+  try {
+    return JSON.parse(localStorage.getItem(HANDED) ?? "[]") as string[];
+  } catch {
+    return [];
+  }
+}
 function markHanded(key: string): void {
   handed.add(key);
   try {
@@ -100,11 +101,7 @@ export const blocksLaunch = (x: number, y: number): boolean =>
   world.room === "town" && isStand(x, y) && currentLaunches().length > 0;
 
 /** E in front of the stand: another pamphlet. False when it isn't up or you're not facing it. */
-export function launchInteract(me: {
-  x: number;
-  y: number;
-  facing: Parameters<typeof facesStand>[2];
-}): boolean {
+export function launchInteract(me: { x: number; y: number; facing: Facing }): boolean {
   if (world.room !== "town" || !facesStand(me.x, me.y, me.facing)) return false;
   if (currentLaunches().length === 0) return false;
   hud.set({ panel: { kind: "pamphlet" } });

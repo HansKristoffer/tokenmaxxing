@@ -1,9 +1,13 @@
 // bun scripts/qa/tour.mjs [--tiers low,medium,high] [--out /tmp/v2-qa-shots] [--viewport 1280x800]
 // Walks a fresh player through every room it can reach from the Tavern (taking each door and stairs once), on each
-// graphics tier (`--company`: as a member of a company, so its house, common room and Office count too), and checks every room: no console errors, the canvas isn't blank, the renderer matches the tier.
+// graphics tier (`--company`: as a member of a company, so its house, common room and Office count too). It checks
+// every room: no console errors, the canvas isn't blank, and the renderer matches the tier.
 // Exits 1 on any failure. Needs a local server (see lib.mjs).
 import { mkdirSync } from "node:fs";
 import { canvasInk, openGame, playwright, portals, ready, room, signUp, through } from "./lib.mjs";
+
+// A door's key in the edge and shut maps: its tile as "x,y".
+const keyOf = (p) => `${p.x},${p.y}`;
 
 const arg = (k, d) => {
   const i = process.argv.indexOf(`--${k}`);
@@ -38,7 +42,7 @@ for (const tier of tiers) {
   const check = async (r) => {
     if (seen.has(r)) return;
     seen.add(r);
-    if (want === "3d")
+    if (want === "3d") {
       await page.waitForFunction(
         () => {
           const renderer = window.__r3d;
@@ -52,6 +56,7 @@ for (const tier of tiers) {
         null,
         { timeout: 60_000 },
       );
+    }
     const ink = await canvasInk(page, `${out}/tour-${tier}-${r.replace(/[^\w]/g, "_")}.png`);
     const kind = await page.evaluate(() => window.__tm.perf.renderer);
     const errs = page.errors.splice(0);
@@ -67,7 +72,8 @@ for (const tier of tiers) {
     const done = new Set([from]);
     while (queue.length) {
       const [r, first] = queue.shift();
-      if (r !== from && (known[r] ?? []).some((p) => !(`${p.x},${p.y}` in (edges[r] ?? {})))) return first;
+      const hasUntakenDoor = (known[r] ?? []).some((p) => !(keyOf(p) in (edges[r] ?? {})));
+      if (r !== from && hasUntakenDoor) return first;
       for (const [k, d] of Object.entries(edges[r] ?? {})) {
         if (!d || done.has(d)) continue;
         done.add(d);
@@ -83,19 +89,17 @@ for (const tier of tiers) {
     edges[here] ??= {};
     known[here] ??= await portals(page);
     // Other companies' house doors stay shut: two that fail are enough to skip the rest of their kind.
-    const todo = known[here].filter(
-      (p) => !(`${p.x},${p.y}` in edges[here]) && (shut[`${here}:${p.ch}`] ?? 0) < 2,
-    );
-    let key = null;
-    if (todo.length) key = `${todo[0].x},${todo[0].y}`;
-    else key = hop(here);
+    const todo = known[here].filter((p) => !(keyOf(p) in edges[here]) && (shut[`${here}:${p.ch}`] ?? 0) < 2);
+    const key = todo.length ? keyOf(todo[0]) : hop(here);
     if (!key) break;
+
     const [x, y] = key.split(",").map(Number);
     const dest = await through(page, x, y, doorTimeout);
     edges[here][key] = dest;
-    if (!dest)
-      shut[`${here}:${known[here].find((p) => `${p.x},${p.y}` === key)?.ch}`] =
-        (shut[`${here}:${known[here].find((p) => `${p.x},${p.y}` === key)?.ch}`] ?? 0) + 1;
+    if (!dest) {
+      const ch = known[here].find((p) => keyOf(p) === key)?.ch;
+      shut[`${here}:${ch}`] = (shut[`${here}:${ch}`] ?? 0) + 1;
+    }
     if (dest) await check(dest);
   }
   await page.context().close();

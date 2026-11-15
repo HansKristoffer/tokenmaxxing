@@ -113,7 +113,9 @@ test("a tick asks RivetKit a fixed number of things, and writes a room's moves o
         vars.dirty.add(id);
       }
       await eventually(() => expect(heard.get(1)!.length).toBe(step));
-      if (step === 1) for (const k of Object.keys(asked) as (keyof typeof asked)[]) asked[k] = 0;
+      if (step === 1) {
+        for (const k of Object.keys(asked) as (keyof typeof asked)[]) asked[k] = 0;
+      }
     }
   } finally {
     controller.abort();
@@ -149,17 +151,19 @@ test("many joins at once read the room's chat from SQLite once, and a line said 
     ids.map((id) => [
       id,
       {
-        ...{
-          id,
-          name: `p${id}`,
-          look: {},
-          level: 1,
-          companyId: null,
-          todayTokens: 0,
-          liveAgents: 0,
-          lastAgentAt: 0,
-        },
-        ...{ room: "town", x: 10 + id, y: 20, facing: "down", state: "idle" },
+        id,
+        name: `p${id}`,
+        look: {},
+        level: 1,
+        companyId: null,
+        todayTokens: 0,
+        liveAgents: 0,
+        lastAgentAt: 0,
+        room: "town",
+        x: 10 + id,
+        y: 20,
+        facing: "down",
+        state: "idle",
       },
     ]),
   );

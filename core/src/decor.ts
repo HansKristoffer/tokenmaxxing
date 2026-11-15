@@ -71,9 +71,9 @@ export const decorItem = (kind: DecorKind, id: string): string => `decor.${kind}
 export const isDecorKind = (v: unknown): v is DecorKind => v === "wall" || v === "floor";
 
 /** Whether someone at `level` with these purchases (`decorItem` names) may use `d`. */
-export const ownsDecor = (kind: DecorKind, d: Decor, level: number, bought: ReadonlySet<string>): boolean =>
-  d.price === 0 && d.level === undefined
-    ? true
-    : d.level !== undefined
-      ? level >= d.level
-      : bought.has(decorItem(kind, d.id));
+export function ownsDecor(kind: DecorKind, d: Decor, level: number, bought: ReadonlySet<string>): boolean {
+  // A level-earned one is yours from its level, whatever it costs; the plain ones cost nothing.
+  if (d.level !== undefined) return level >= d.level;
+  if (d.price === 0) return true;
+  return bought.has(decorItem(kind, d.id));
+}

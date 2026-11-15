@@ -11,6 +11,7 @@ const RED_DARK = "#8c1d24";
 const CREAM = "#fbf7ef";
 const GREEN = "#2f6b3a";
 const INK = "#2b2433";
+const GLASS = "#a8d8f0";
 const BULBS = ["#ff5a5a", "#f5d14a", "#5fd38a", "#6fb4ff"];
 
 /** Its name down a side, cream on red. */
@@ -44,8 +45,8 @@ function truckModel(): Model {
     p.rotation.y = side > 0 ? 0 : Math.PI;
   }
   m.box([1.1, 1.05, 1.05], GREEN, [1.35, 0.3, 0]);
-  m.box([0.04, 0.38, 0.82], "#a8d8f0", [1.9, 0.85, 0], 0.005);
-  m.box([0.62, 0.34, 1.07], "#a8d8f0", [1.38, 0.88, 0], 0.005);
+  m.box([0.04, 0.38, 0.82], GLASS, [1.9, 0.85, 0], 0.005);
+  m.box([0.62, 0.34, 1.07], GLASS, [1.38, 0.88, 0], 0.005);
   m.box([0.1, 0.16, 1.1], "#9aa3ad", [1.94, 0.3, 0], 0.01);
   const headlight = glow("#ffe08a");
   for (const z of [-0.35, 0.35]) m.box([0.04, 0.12, 0.18], headlight, [1.97, 0.5, z], 0.005);
@@ -60,9 +61,9 @@ function truckModel(): Model {
 }
 
 /**
- * J-dag's truck in the 3D town (`core/src/jdag.ts`; the 2D one is `game/jdag.ts`): built once per town, merged into
- * a few meshes, and moved along the road that runs into the square as `truckAt` says, on `skyNow()` like the 2D one. Hidden the rest of
- * the year. Its sign is a live one while it's parked.
+ * J-dag's truck in the 3D town (`core/src/jdag.ts`; the 2D one is `game/jdag.ts`): built once per town, merged
+ * into a few meshes, and moved along the road that runs into the square as `truckAt` says, on `skyNow()` like the
+ * 2D one. Hidden the rest of the year. Its sign is a live one while it's parked.
  */
 export class Truck3d {
   readonly group = new THREE.Group();
@@ -93,6 +94,7 @@ export class Truck3d {
     this.group.visible = t !== null;
     this.parked = t?.parked ?? false;
     if (!t) return;
+
     // `t.x` is its back tile; the model's middle is half its length on.
     const [x, z] = this.toWorld(t.x, t.y);
     this.group.position.set(x + (TRUCK.w - 1) / 2, 0, z);

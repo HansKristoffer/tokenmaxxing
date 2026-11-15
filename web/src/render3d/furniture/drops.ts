@@ -1,4 +1,4 @@
-import { lootById, RARITIES } from "@tokenmaxxing/core/loot.ts";
+import { lootById, RARITIES, type Rarity } from "@tokenmaxxing/core/loot.ts";
 import { itemById } from "@tokenmaxxing/core/shop.ts";
 import type { Drop } from "@tokenmaxxing/core/world.ts";
 import * as THREE from "three";
@@ -7,6 +7,9 @@ import { disposeObject } from "../engine/dispose.ts";
 import { Model } from "../kit/kit.ts";
 import { type Pet3D, petFrom2D } from "../pets/pets3d.ts";
 import type { RoomView } from "../rooms/rooms.ts";
+
+/** A rarity's step up from common, which sets how wide its beam is. */
+const RARITY_RANK: Record<Rarity, number> = { common: 0, rare: 1, epic: 2, legendary: 3 };
 
 interface Shown {
   drop: Drop;
@@ -57,7 +60,7 @@ export class Drops {
         let beam: THREE.Mesh | null = null;
         const loot = lootById(d.item);
         if (loot) {
-          const w = 0.07 + 0.03 * ["common", "rare", "epic", "legendary"].indexOf(loot.rarity);
+          const w = 0.07 + 0.03 * RARITY_RANK[loot.rarity];
           beam = new THREE.Mesh(
             new THREE.BoxGeometry(w * 2, 3, w * 2),
             new THREE.MeshBasicMaterial({
@@ -75,6 +78,8 @@ export class Drops {
         this.shown.set(d.id, { drop: d, root, pet, beam });
         this.dirty = true;
       }
+
+      // A drop that is gone from the world leaves the floor.
       for (const [id, s] of this.shown)
         if (!ids.has(id)) {
           s.root.removeFromParent();
@@ -82,6 +87,8 @@ export class Drops {
           this.shown.delete(id);
         }
     }
+
+    // Pets stand on the floor; other parcels bob a little, each out of step with the next.
     for (const s of this.shown.values()) {
       s.root.position.y = s.pet ? 0 : 0.04 + Math.abs(Math.sin(t * 2 + s.drop.id)) * 0.05;
       s.pet?.update(t);

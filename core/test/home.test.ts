@@ -83,7 +83,7 @@ describe("personal office furniture catalog", () => {
     expect(canDropIn(fig, "office:8", 7)).toBe(false);
     expect(canDropIn(fig, "town", 7)).toBe(false);
     expect(canDropIn(fig, "hq:3", 7)).toBe(false);
-    // The old furniture is unchanged.
+    // Furniture from before the personal pieces still drops in town.
     expect(canDropIn("furn.s", "town", 7)).toBe(true);
   });
 });

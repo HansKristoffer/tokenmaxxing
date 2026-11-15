@@ -65,8 +65,14 @@ const lanternString = (): Model => {
     );
     seg.rotation.z = Math.atan2(y1 - y0, x1 - x0);
   }
-  const colours = [RED, "#f08a3c", PINK, "#f5d14a", RED];
-  for (const [i, x] of [-0.8, -0.4, 0, 0.4, 0.8].entries()) lantern(m, x, y + sag(x), colours[i]!, 1, i);
+  const lanterns: [number, string][] = [
+    [-0.8, RED],
+    [-0.4, "#f08a3c"],
+    [0, PINK],
+    [0.4, "#f5d14a"],
+    [0.8, RED],
+  ];
+  for (const [i, [x, colour]] of lanterns.entries()) lantern(m, x, y + sag(x), colour, 1, i);
   light(m, [0, y - 0.3, 0.4], "#ffb347", 1.2, 3);
   return m;
 };
@@ -239,7 +245,7 @@ const clawMachine = (): Model => {
   ] as const)
     m.box([0.07, 0.05, 0.012], c, [x, 1.765, D / 2 + 0.032], 0.003);
   // The prizes: a pile of plush balls and bears at the bottom.
-  const rnd = [
+  const prizes = [
     [-0.25, 0.8, -0.05, "#ff5fa2"],
     [-0.1, 0.8, 0.1, "#f5d14a"],
     [0.1, 0.8, -0.1, "#3ddc84"],
@@ -248,7 +254,7 @@ const clawMachine = (): Model => {
     [-0.18, 0.95, 0.04, "#f6f1e8"],
     [0.18, 0.95, -0.02, "#ff5fa2"],
   ] as const;
-  for (const [x, y, z, c] of rnd) {
+  for (const [x, y, z, c] of prizes) {
     m.ball(0.1, c, [x, y + 0.06, z], [1, 0.95, 1], 10);
     m.ball(0.04, c, [x - 0.06, y + 0.15, z], [1, 1, 1], 6);
     m.ball(0.04, c, [x + 0.06, y + 0.15, z], [1, 1, 1], 6);
@@ -303,11 +309,12 @@ const torii = (): Model => {
   lantern(m, 0.6, 1.65, RED, 1.4, 2);
   lantern(m, -1.56, 2.08, PINK, 0.9, 1);
   lantern(m, 1.56, 2.08, PINK, 0.9, 3);
-  // A pool of light on the ground between the pillars, and two stone lanterns' worth of glow.
-  const pool = m.cyl(1.0, 0.004, glow("#ffd36a"), [0, 0.003, 0.2], 1.0, 24);
+  // A flat pool of light on the ground between the pillars, squashed toward the front.
+  const poolMaterial = glow("#ffd36a");
+  poolMaterial.transparent = true;
+  poolMaterial.opacity = 0.28;
+  const pool = m.cyl(1.0, 0.004, poolMaterial, [0, 0.003, 0.2], 1.0, 24);
   pool.scale.z = 0.35;
-  (pool.material as { transparent: boolean; opacity: number }).transparent = true;
-  (pool.material as { opacity: number }).opacity = 0.28;
   light(m, [0, 1.4, 0.8], "#ffb347", 1.6, 4.5);
   return m;
 };

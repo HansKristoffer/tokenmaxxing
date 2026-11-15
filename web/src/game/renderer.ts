@@ -27,7 +27,7 @@ export interface Renderer {
   dispose(): void;
 }
 
-/** The classic canvas renderer (`render.ts`), unchanged. It sizes itself to the window. */
+/** The canvas renderer (`render.ts`). It sizes itself to the window. */
 export class Renderer2D implements Renderer {
   readonly kind = "2d";
   private canvas = document.createElement("canvas");
@@ -75,14 +75,16 @@ export async function loadRenderer(
 ): Promise<{ renderer: Renderer; reason: string | null; fellBack: boolean }> {
   if (kind === "3d") {
     let reason: string | null = null;
-    if (!hasWebGL2()) reason = "WebGL2 isn't available";
-    else
+    if (!hasWebGL2()) {
+      reason = "WebGL2 isn't available";
+    } else {
       try {
         const r = (await import("../render3d/index.ts")).create3D();
         if (r) return { renderer: r, reason: null, fellBack: false };
       } catch (e) {
         reason = e instanceof Error ? e.message : String(e);
       }
+    }
     return { renderer: new Renderer2D(), reason, fellBack: true };
   }
   return { renderer: new Renderer2D(), reason: null, fellBack: false };

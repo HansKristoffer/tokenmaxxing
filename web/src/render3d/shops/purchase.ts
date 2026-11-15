@@ -107,7 +107,7 @@ export function equipOf(id: string): Equip {
   const r = /^(style|skin|hair)\.(\d+)$/.exec(id);
   if (r) return { kind: "restyle", slot: r[1] as "style", index: Number(r[2]) };
   const v = petVariantOf(id);
-  if (v) return { kind: "pet", ...v, variant: v.variant };
+  if (v) return { kind: "pet", ...v };
   if (id.startsWith("merch.")) {
     const real = realMerchId(id);
     return real ? { kind: "wear", id: real } : { kind: "none" };

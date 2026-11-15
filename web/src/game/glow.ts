@@ -23,7 +23,7 @@ export function bakeGlow(size: number, rgb: string): HTMLCanvasElement {
 const baked = new Map<string, HTMLCanvasElement>();
 
 /** The glow sprite for a colour, baked once. */
-export function glowSprite(rgb: string): HTMLCanvasElement {
+function glowSprite(rgb: string): HTMLCanvasElement {
   const hit = baked.get(rgb);
   if (hit) return hit;
   const c = bakeGlow(64, rgb);

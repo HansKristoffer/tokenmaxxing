@@ -44,7 +44,7 @@ export const merchantAt = (x: number, y: number): boolean =>
   world.room === "town" && (underCart(x, y) || (x === MERCHANT.x && y === MERCHANT.y));
 
 /** The cart as it is this minute (it comes and goes, and changes its goods, on the hour): null while away. */
-let shown = { minute: Number.NaN, cart: null as HTMLCanvasElement | null };
+let shown: { minute: number; cart: HTMLCanvasElement | null } = { minute: Number.NaN, cart: null };
 function cartNow(at: number): HTMLCanvasElement | null {
   const minute = Math.floor(at / 60_000);
   if (minute !== shown.minute) shown = { minute, cart: cartOpen(at) ? cartSprite(lineup(weekOf(at))) : null };

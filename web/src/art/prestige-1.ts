@@ -1,8 +1,8 @@
 import type { Art } from "./editions.ts";
 import { C } from "./palette.ts";
 import type { Pen } from "./pixels.ts";
-import type { TrackArt } from "./prestige-types.ts";
-import type { Back, BackView, Outfit } from "./wardrobe.ts";
+import { frameAt, frontView, type TrackArt } from "./prestige-types.ts";
+import type { Back, Outfit } from "./wardrobe.ts";
 
 /**
  * Prestige track 1, Ascendant, in 2D (`core/src/prestige.ts`): violet and silver, runes and rising light. The visor,
@@ -14,11 +14,8 @@ const VIOLET = "#8b5cf6";
 const SILVER = "#d6dbe6";
 const GLOW = "#c4a8ff";
 
-// MARK: Hat
-
 // Ascendant visor: a violet crown with a silver band round the brow and a dark violet lens set in under it, a bright
 // rune stone at the top, and two swept-back wings of light rising off the temples. It stops above the eyes.
-// Pixel art reads as a grid.
 // prettier-ignore
 const HAT: Art = {
   down: [
@@ -48,11 +45,8 @@ const HAT: Art = {
   pal: { o, S: SILVER, w: "#ffffff", g: GLOW, V: VIOLET, v: "#5b34c4", L: "#e4d6ff" },
 };
 
-// MARK: Outfit
-
 // Ascendant robes: long violet robes with a silver collar, a silver sash and hem, and runes picked out in light.
 // Marks sit over the body from row 9; the fourth row lands on the trousers' row, so the robe hangs to the knee.
-// Pixel art reads as a grid.
 // prettier-ignore
 const OUTFIT: Outfit = {
   c: "#6d3fd0", C: "#4c2a9c", p: "#3b2478",
@@ -63,12 +57,6 @@ const OUTFIT: Outfit = {
   },
   pal: { S: SILVER, g: GLOW, v: "#6d3fd0", D: "#34206b" },
 };
-
-// MARK: Back
-
-/** An empty 16×16 frame, then `rows` dropped in at row `y`. */
-const frameAt = (rows: string[], y: number): string[] => [...Array<string>(y).fill(""), ...rows];
-const view = (front: string[]): BackView => ({ front });
 
 // Runic cape: a violet cape with a silver lining at the edge and a rune on each hem that lights as they walk (`r`
 // dim, `g` lit). The walking frame also lifts the hem.
@@ -126,19 +114,16 @@ const capeUp = (rune: string): string[] =>
     8,
   );
 
-// Pixel art reads as a grid.
 // prettier-ignore
 const BACK: Back = {
   views: {
     down: { behind: CAPE_DOWN, front: frameAt(["....S......S...."], 9) },
     side: { behind: CAPE_SIDE, front: frameAt(["......S........."], 9) },
-    up: view(capeUp("r")),
+    up: frontView(capeUp("r")),
   },
-  walk: { side: { behind: CAPE_SIDE_B }, up: view(capeUp("g")) },
+  walk: { side: { behind: CAPE_SIDE_B }, up: frontView(capeUp("g")) },
   pal: { o, S: SILVER, V: VIOLET, v: "#6d3fd0", r: "#7f66c9", g: "#f0e6ff" },
 };
-
-// MARK: Aura
 
 const TAU = Math.PI * 2;
 const SPARKS = 16;
@@ -187,10 +172,9 @@ const sparks = (p: Pen, f: number): void => {
     const x = Math.round(14 + side * (9 - i) + Math.sin(k * TAU + i * 2.3) * 1.5);
     const y = Math.round(23 - k * 21);
     const a = Math.min(1, k * 4, (1 - k) * 3);
-    const lean = side;
     p.px(x, y, `rgba(255, 255, 255, ${a})`);
-    p.px(x + lean, y - 1, `rgba(228, 232, 242, ${a})`);
-    p.px(x - lean, y + 1, `rgba(196, 168, 255, ${a})`);
+    p.px(x + side, y - 1, `rgba(228, 232, 242, ${a})`);
+    p.px(x - side, y + 1, `rgba(196, 168, 255, ${a})`);
     p.px(x, y + 1, `rgba(139, 92, 246, ${a * 0.8})`);
   }
 };

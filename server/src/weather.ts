@@ -14,6 +14,7 @@ import {
 export const WEATHER_EVERY_MS = 15 * 60_000;
 /** Pollen is counted by the hour, so it's asked for once an hour: with the weather, 5 requests an hour. */
 export const POLLEN_EVERY_MS = 60 * 60_000;
+// A slower answer counts as none: the caller keeps the weather it had.
 const TIMEOUT_MS = 5_000;
 
 const WEATHER_URL =
@@ -30,13 +31,19 @@ async function current(url: string, fetcher: typeof fetch): Promise<unknown> {
   try {
     const res = await fetcher(url, { signal: AbortSignal.timeout(TIMEOUT_MS) });
     if (!res.ok) return null;
-    return ((await res.json()) as { current?: unknown }).current ?? null;
+
+    const body = (await res.json()) as { current?: unknown };
+    return body.current ?? null;
   } catch {
+    // A failed read is null, and the caller keeps the last weather it had.
     return null;
   }
 }
 
-/** Aarhus's weather right now from Open-Meteo (its pollen 0: see `fetchPollen`), or null if it can't be had. */
+/**
+ * Aarhus's weather right now from Open-Meteo, or null if it can't be had. Its `pollen` is 0 until
+ * `fetchPollen` fills it in.
+ */
 export const fetchWeather = async (fetcher: typeof fetch = fetch): Promise<Weather | null> =>
   weatherFrom(await current(WEATHER_URL, fetcher));
 

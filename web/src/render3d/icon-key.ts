@@ -17,8 +17,12 @@ export function wornFocus(item: Item): AvatarFocus {
     case "held":
     case "back":
       return item.slot;
-    case "merch":
-      return item.index & 4 ? "head" : item.index & 8 ? "held" : "torso";
+    case "merch": {
+      const isCap = (item.index & 4) !== 0;
+      if (isCap) return "head";
+      const isMug = (item.index & 8) !== 0;
+      return isMug ? "held" : "torso";
+    }
     default:
       return "body";
   }
@@ -29,29 +33,38 @@ export function iconKey(s: IconSpec): string {
   switch (s.kind) {
     case "piece":
       return `piece:${s.ch}`;
-    case "pet":
-      return `pet:${s.pet}.${s.variant ?? 0}.${s.wear ?? 0}.${(s.name ?? "").trim().toLowerCase()}${s.focus ? `:${s.focus}` : ""}`;
+    case "pet": {
+      const name = (s.name ?? "").trim().toLowerCase();
+      const focus = s.focus ? `:${s.focus}` : "";
+      return `pet:${s.pet}.${s.variant ?? 0}.${s.wear ?? 0}.${name}${focus}`;
+    }
     case "avatar": {
-      const l = s.look;
-      const w = [
-        l.style,
-        l.skin,
-        l.hair,
-        l.outfit,
-        l.glasses ?? 0,
-        l.hat ?? 0,
-        l.held ?? 0,
-        l.back ?? 0,
-        l.aura ?? 0,
+      const look = s.look;
+      const dressing = [
+        look.style,
+        look.skin,
+        look.hair,
+        look.outfit,
+        look.glasses ?? 0,
+        look.hat ?? 0,
+        look.held ?? 0,
+        look.back ?? 0,
+        look.aura ?? 0,
       ];
       // Merch is dressed from the company's colours and print as they are now: a redraw is another picture.
-      const merch = l.merch && l.merchWorn ? `.${l.merchWorn}:${merchKey(l.merch)}` : "";
-      return `avatar:${w.join(".")}.${l.merch ?? 0}${merch}:${s.focus ?? "body"}:${s.facing ?? "front"}`;
+      const merch = look.merch && look.merchWorn ? `.${look.merchWorn}:${merchKey(look.merch)}` : "";
+      const focus = s.focus ?? "body";
+      const facing = s.facing ?? "front";
+      return `avatar:${dressing.join(".")}.${look.merch ?? 0}${merch}:${focus}:${facing}`;
     }
     case "merch": {
-      const c = s.company;
-      const d = c.merch ? `${c.merch.main}${c.merch.accent}${c.merch.rows.join("")}` : "";
-      return `merch:${c.id}.${s.merch}:${c.brand?.roof ?? ""}${c.brand?.plaque ?? ""}:${c.name}:${d}`;
+      const company = s.company;
+      const design = company.merch
+        ? `${company.merch.main}${company.merch.accent}${company.merch.rows.join("")}`
+        : "";
+      const roof = company.brand?.roof ?? "";
+      const plaque = company.brand?.plaque ?? "";
+      return `merch:${company.id}.${s.merch}:${roof}${plaque}:${company.name}:${design}`;
     }
     case "trophy":
       return `trophy:${s.id}.${s.earned === false ? 0 : 1}`;
@@ -60,7 +73,7 @@ export function iconKey(s: IconSpec): string {
     case "boss":
       return `boss:${s.id}`;
     case "case":
-      // The Night Market's (the first case) keeps its old key.
+      // The Night Market, the first case, keeps the shorter key it had before cases had ids.
       return s.caseId && s.caseId !== "night-market" ? `case:${s.caseId}:${s.what}` : `case:${s.what}`;
   }
 }

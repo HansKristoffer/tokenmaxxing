@@ -42,17 +42,21 @@ const STEPS = [1, 2.5, 5];
 /** The highest milestone `count` has reached, or 0 below the first. */
 export function milestoneOf(count: number): number {
   let reached = 0;
-  for (let decade = 100; ; decade *= 10)
+  for (let decade = 100; ; decade *= 10) {
     for (const step of STEPS) {
       if (step * decade > count) return reached;
       reached = step * decade;
     }
+  }
 }
 
 /** The next milestone above `count`. */
 export function nextMilestone(count: number): number {
-  for (let decade = 100; ; decade *= 10)
-    for (const step of STEPS) if (step * decade > count) return step * decade;
+  for (let decade = 100; ; decade *= 10) {
+    for (const step of STEPS) {
+      if (step * decade > count) return step * decade;
+    }
+  }
 }
 
 /** `stargazers_count` from GitHub's answer for a repo, or null when the answer isn't one. */

@@ -104,5 +104,6 @@ export const POSTERS: readonly Poster[] = [
 
 const BY_CH = new Map(POSTERS.map((p) => [p.ch, p]));
 
-export const isPoster = (ch: unknown): boolean => BY_CH.has(ch as string);
-export const posterOf = (ch: unknown): Poster | undefined => BY_CH.get(ch as string);
+export const isPoster = (ch: unknown): boolean => typeof ch === "string" && BY_CH.has(ch);
+export const posterOf = (ch: unknown): Poster | undefined =>
+  typeof ch === "string" ? BY_CH.get(ch) : undefined;

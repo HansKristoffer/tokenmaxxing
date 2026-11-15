@@ -94,25 +94,9 @@ describe("poker, from the wallet's side", () => {
     await pokerSit(sql, 1, tomorrow);
   });
 
-  test("winnings count against the cap: up is not down, and 100 down leaves exactly one more seat", async () => {
-    // 1 wins 50 off 2.
-    await pokerSit(sql, 1, NOON);
-    await pokerSit(sql, 2, NOON);
-    await pokerSettle(
-      sql,
-      {
-        stacks: [],
-        out: [
-          { userId: 1, stack: 2 * BUY_IN },
-          { userId: 2, stack: 0 },
-        ],
-      },
-      NOON,
-    );
-    expect(await pokerLoss(sql, 1, NOON)).toBe(0);
-    expect(await pokerLoss(sql, 2, NOON)).toBe(BUY_IN);
-    // 2 loses twice more: 150 down, which is the limit.
-    for (let n = 0; n < 2; n++) {
+  test("winnings count against the cap: up is not down, and the cap comes at three buy-ins lost", async () => {
+    /** Both sit, and 1 takes the whole table off 2. */
+    const oneTakesAll = async () => {
       await pokerSit(sql, 1, NOON);
       await pokerSit(sql, 2, NOON);
       await pokerSettle(
@@ -126,7 +110,13 @@ describe("poker, from the wallet's side", () => {
         },
         NOON,
       );
-    }
+    };
+    await oneTakesAll();
+    expect(await pokerLoss(sql, 1, NOON)).toBe(0);
+    expect(await pokerLoss(sql, 2, NOON)).toBe(BUY_IN);
+    // Two more buy-ins lost: 150 down, which is the limit.
+    await oneTakesAll();
+    await oneTakesAll();
     expect(await pokerLoss(sql, 2, NOON)).toBe(DAILY_LOSS_CAP);
     await expect(pokerSit(sql, 2, NOON)).rejects.toThrow("limit");
   });

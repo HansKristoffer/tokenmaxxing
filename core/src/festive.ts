@@ -144,7 +144,8 @@ export function parseFestivePin(text: string, nowMs: number): FestivePin {
   const year = worldWall(nowMs).y;
   if (when === undefined) {
     const [m, d] = HOLIDAYS[FESTIVE[name].holiday].date(year);
-    return { id: name, ms: copenhagenToMs(`${year}-${pad(m)}-${pad(d)}T12:00`)! };
+    const ms = copenhagenToMs(`${year}-${pad(m)}-${pad(d)}T12:00`);
+    return ms === null ? null : { id: name, ms };
   }
   const m = /^(\d\d)-(\d\d)(?:[tT](\d\d):(\d\d))?$/.exec(when);
   if (!m) return null;
@@ -152,9 +153,13 @@ export function parseFestivePin(text: string, nowMs: number): FestivePin {
     x === undefined ? undefined : Number(x),
   );
   if (mo === undefined || d === undefined) return null;
+
   // A real date that year (02-30 and, off a leap year, 02-29 are not), and a real time.
   const check = new Date(Date.UTC(year, mo - 1, d));
-  if (check.getUTCMonth() !== mo - 1 || check.getUTCDate() !== d || h > 23 || mi > 59) return null;
+  const isRealDate = check.getUTCMonth() === mo - 1 && check.getUTCDate() === d;
+  const isRealTime = h <= 23 && mi <= 59;
+  if (!isRealDate || !isRealTime) return null;
+
   const ms = copenhagenToMs(`${year}-${pad(mo)}-${pad(d)}T${pad(h)}:${pad(mi)}`);
   return ms === null ? null : { id: name, ms };
 }

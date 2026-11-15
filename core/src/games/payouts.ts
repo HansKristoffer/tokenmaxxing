@@ -48,9 +48,10 @@ function divide(amount: number, parts: { id: number; weight: number }[]): Map<nu
     out.set(p.id, share);
     given += share;
   }
+  // Rounding leaves a few coins over: one each, round the order from the best placed.
   const order = parts.filter((p) => p.weight > 0);
-  for (let i = 0; given < amount; i++, given++) {
-    const id = order[i % order.length]!.id;
+  for (let k = 0; k < amount - given; k++) {
+    const id = order[k % order.length]!.id;
     out.set(id, (out.get(id) ?? 0) + 1);
   }
   for (const [id, n] of out) if (n === 0) out.delete(id);
@@ -102,7 +103,9 @@ export function sideBetShares(
     { by: "amount", order: "desc" },
     "userId",
   );
-  if (backers.length === 0) return { refund: true, shares: new Map(bets.map((b) => [b.userId, b.amount])) };
+  if (backers.length === 0) {
+    return { refund: true, shares: new Map(bets.map((b) => [b.userId, b.amount])) };
+  }
   return {
     refund: false,
     shares: divide(

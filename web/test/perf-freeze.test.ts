@@ -30,7 +30,7 @@ test("an idle person is merged into a couple of meshes, and comes back when they
   scene.add(a.root);
   const before = drawn(a.root);
   expect(before).toBeGreaterThan(8);
-  // 24 frames at rest, then it is frozen.
+  // Thirty frames at rest, then it is frozen.
   for (let i = 0; i < 30; i++) a.update(1 / 60, i / 60);
   const frozen = drawn(a.root);
   expect(frozen).toBeLessThan(before / 2);

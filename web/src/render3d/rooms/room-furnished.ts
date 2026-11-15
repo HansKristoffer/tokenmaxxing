@@ -132,28 +132,37 @@ export function furnish(
       const asset = ASSET_OF.get(ch);
       if (!asset) {
         // Things the legend names but no one has drawn: a labelled block, so the tile is not empty.
+        const legend = LEGEND[ch];
         if (
-          LEGEND[ch]?.name &&
-          !LEGEND[ch]?.walk &&
-          !LEGEND[ch]?.portal &&
+          legend?.name &&
+          !legend.walk &&
+          !legend.portal &&
           !"WΨΘπ".includes(ch) &&
           ch !== "_" &&
           WIDTH.has(ch)
-        )
-          placed.push(
-            room.place(
-              { id: `ph:${ch}`, name: LEGEND[ch]!.name, price: 0, w: 1, d: 1, build: () => placeholder(ch) },
-              x,
-              z,
-            ),
-          );
+        ) {
+          const block = {
+            id: `ph:${ch}`,
+            name: legend.name,
+            price: 0,
+            w: 1,
+            d: 1,
+            build: () => placeholder(ch),
+          };
+          placed.push(room.place(block, x, z));
+        }
         continue;
       }
+
       // A piece several tiles wide writes its character on each.
       const w = Math.max(1, Math.round(WIDTH.get(ch) ?? asset.w));
       // Turned a quarter (F), it lies down its column instead, from this top tile.
       const turned = turnAt(map, rx + map.x0, ry + map.y0);
-      for (let i = 1; i < w; i++) done.add(sideways(turned?.rot) ? `${rx},${ry + i}` : `${rx + i},${ry}`);
+      for (let i = 1; i < w; i++) {
+        const covered = sideways(turned?.rot) ? `${rx},${ry + i}` : `${rx + i},${ry}`;
+        done.add(covered);
+      }
+
       placed.push(
         turned
           ? room.placeTurned(asset, x, z, TURN[ch] ?? 0, turned.rot, w, models[ch]?.())
@@ -172,7 +181,7 @@ function windowsOf(map: GameMap, row: number, inset: number): number[] {
   return out;
 }
 
-export interface Furnished {
+interface Furnished {
   room: Room;
   placed: Placed[];
 }

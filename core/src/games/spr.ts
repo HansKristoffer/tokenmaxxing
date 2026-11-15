@@ -54,11 +54,23 @@ const winsOf = (s: SprState) => {
   return w;
 };
 
+/** Who takes the round: the one who picked when the other did not, or the pick that beats the other. Null for a draw. */
+function winnerOf(s: SprState): number | null {
+  const [a, b] = s.players;
+  const pa = s.picks[a] ?? null;
+  const pb = s.picks[b] ?? null;
+  if (!pa && !pb) return null;
+  if (!pa) return b;
+  if (!pb) return a;
+  if (pa === pb) return null;
+  return PICKS[pa].beats === pb ? a : b;
+}
+
 function resolve(s: SprState, now: number): SprState {
   const [a, b] = s.players;
   const pa = s.picks[a] ?? null;
   const pb = s.picks[b] ?? null;
-  const winner = pa && pb ? (pa === pb ? null : PICKS[pa].beats === pb ? a : b) : pa ? a : pb ? b : null;
+  const winner = winnerOf(s);
   return {
     ...s,
     rounds: [...s.rounds, { picks: { [a]: pa, [b]: pb }, winner }],
@@ -127,12 +139,10 @@ export const spr: GameDef<SprState, SprView> = {
     const w = winsOf(s);
     if (w[a]! >= TO_WIN) return { places: [[a], [b]] };
     if (w[b]! >= TO_WIN) return { places: [[b], [a]] };
-    if (s.rounds.length >= MAX_ROUNDS)
-      return w[a] === w[b]
-        ? { places: [[a, b]] }
-        : w[a]! > w[b]!
-          ? { places: [[a], [b]] }
-          : { places: [[b], [a]] };
+    if (s.rounds.length >= MAX_ROUNDS) {
+      if (w[a] === w[b]) return { places: [[a, b]] };
+      return w[a]! > w[b]! ? { places: [[a], [b]] } : { places: [[b], [a]] };
+    }
     return null;
   },
 

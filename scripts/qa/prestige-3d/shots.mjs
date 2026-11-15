@@ -13,7 +13,7 @@ const arg = (k, d) => {
 const out = arg("out", "/tmp/prestige/shots/3d");
 mkdirSync(out, { recursive: true });
 
-// Pet wear and trophies are written by other hands: use them if they exist and export what we call.
+// The pet wear and trophy modules are optional: each is used when its file exists, and must export the name called below.
 const petFile = join(root, "web/src/render3d/pets/prestige-petwear3d.ts");
 const trophyFile = join(root, "web/src/render3d/furniture/prestige3d.ts");
 const optional = join(here, "optional.ts");

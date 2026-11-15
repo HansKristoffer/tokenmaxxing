@@ -14,20 +14,22 @@ const LOOKS = MUSICIANS.map((_, i) => ({
   hair: i ? 3 : 1,
   outfit: i ? 5 : 2,
 }));
+
 export function bandInteract(x: number, y: number): boolean {
   if (world.room !== "inn" || world.map.at(x, y) !== "e") return false;
   hud.set({ dialog: bandText() });
   return true;
 }
+
 export function drawTavernBand({ g, items, labels, now, toScreen, dpr }: Frame): void {
   if (world.room !== "inn") return;
   const present = currentBandSet() !== null;
   const playing = bandPlaying();
   const calm = graphics.effective().reduceMotion;
-  if (present)
+  if (present) {
     MUSICIANS.forEach((m, i) => {
-      const x = m.x * TILE,
-        y = (m.y + 1) * TILE;
+      const x = m.x * TILE;
+      const y = (m.y + 1) * TILE;
       items.push({
         y: y - 1,
         draw: () => {
@@ -50,6 +52,8 @@ export function drawTavernBand({ g, items, labels, now, toScreen, dpr }: Frame):
         },
       });
     });
+  }
+
   const [sx, sy] = toScreen(2 * TILE, 10 * TILE - 14);
   labels.push(() => nearPill(g, sx, sy, bandCaption(), dpr, "rgba(58,38,31,0.9)", "#ffe9a8"));
 }

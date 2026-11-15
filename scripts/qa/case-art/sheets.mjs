@@ -59,10 +59,12 @@ const browser = await pw.chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1600, height: 1000 } });
 const errors = [];
 page.on("pageerror", (e) => errors.push(e.message));
-page.on("console", (m) =>
-  m.type() === "error" ? errors.push(m.text()) : m.text().startsWith("GAPS") && console.log(m.text()),
-);
+page.on("console", (m) => {
+  if (m.type() === "error") errors.push(m.text());
+  else if (m.text().startsWith("GAPS")) console.log(m.text());
+});
 await page.goto(`file://${join(tmp, "index.html")}?case=${caseId}&scale=${scale}`);
+// The harness sets the title to "ready" once the sheets are drawn. Without it the sheets present are still shot.
 await page.waitForFunction(() => document.title === "ready", null, { timeout: 15000 }).catch(() => {});
 for (const id of await page.$$eval("canvas[id^=sheet-]", (cs) => cs.map((c) => c.id))) {
   const file = join(out, `${id.replace("sheet-", "")}.png`);

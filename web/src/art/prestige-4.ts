@@ -1,8 +1,8 @@
 import type { Art } from "./editions.ts";
 import { C } from "./palette.ts";
 import type { Pen } from "./pixels.ts";
-import type { TrackArt } from "./prestige-types.ts";
-import type { Back, BackView, Outfit } from "./wardrobe.ts";
+import { frameAt, frontView, type TrackArt } from "./prestige-types.ts";
+import type { Back, Outfit } from "./wardrobe.ts";
 
 /**
  * Prestige track 4, Architect, in 2D (`core/src/prestige.ts`): ivory and gold, blueprints, clockwork, drafting lines.
@@ -15,16 +15,10 @@ const TAU = Math.PI * 2;
 
 /** The right half of a symmetric sprite, mirrored out of its left half (8 columns each). */
 const sym = (half: string[]): string[] => half.map((r) => r + [...r].reverse().join(""));
-/** An empty 16×16 frame, then `rows` dropped in at row `y`. */
-const frameAt = (rows: string[], y: number): string[] => [...Array<string>(y).fill(""), ...rows];
-const view = (front: string[]): BackView => ({ front });
-
-// MARK: Hat
 
 // Architect's diadem: a slim ivory band across the brow with gold measuring ticks along it, and over the middle a
 // drafting compass standing on its point: a gold hinge on top, two legs spread down into the band, a glow stone at
 // the hinge. A pair of small gold finials stand either side.
-// Pixel art reads as a grid.
 // prettier-ignore
 const HAT: Art = {
   down: [
@@ -51,11 +45,8 @@ const HAT: Art = {
   pal: { o, i: "#f5e6b8", I: "#cdb98a", y: "#d4a017", Y: "#9c710e", g: "#fff3b0", G: "#ffe38a" },
 };
 
-// MARK: Outfit
-
 // Worldbuilder regalia: an ivory coat drawn on like a blueprint (pale blue plan lines and a gold gear over the
 // chest), gold shoulder trim and cuffs, a gold belt with a rolled plan tucked at the hip, deep umber trousers.
-// Pixel art reads as a grid.
 // prettier-ignore
 const OUTFIT: Outfit = {
   c: "#f5e6b8", C: "#cdb98a", p: "#4a3a1c",
@@ -67,11 +58,8 @@ const OUTFIT: Outfit = {
   pal: { g: "#d4a017", G: "#9c710e", k: "#6f98d0", y: "#ffe38a", w: "#fffaf0", b: "#5b86c9" },
 };
 
-// MARK: Back
-
 // Lattice wings: gold struts with ivory cross-bracing and dimension ticks, spread out behind the shoulders like an
 // engineer's drawing of wings. The tips lift on the walking frame.
-// Pixel art reads as a grid.
 // prettier-ignore
 const WING_UP = frameAt(sym([
   "Yy......",
@@ -127,13 +115,11 @@ const BACK: Back = {
   views: {
     down: { behind: WING_DOWN },
     side: { behind: WING_SIDE },
-    up: view(WING_UP),
+    up: frontView(WING_UP),
   },
-  walk: { up: view(WING_UP_B) },
+  walk: { up: frontView(WING_UP_B) },
   pal: { o, y: "#d4a017", Y: "#9c710e", i: "#f5e6b8", I: "#e9d596" },
 };
-
-// MARK: Aura
 
 const CX = 14;
 const CY = 14;
@@ -278,9 +264,9 @@ const wireframe = (p: Pen, f: number): void => {
   }
   const solids = [CUBE, OCTA, TETRA];
   const sizes = [2.3, 2.7, 2.4];
-  const order = solids
-    .map((_, i) => i)
-    .sort((a, b) => Math.sin((f / FRAMES + a / 3) * TAU) - Math.sin((f / FRAMES + b / 3) * TAU));
+  // Each solid's height on the ellipse. The higher ones are drawn first, so the lower ones lie over them.
+  const height = (i: number) => Math.sin((f / FRAMES + i / 3) * TAU);
+  const order = [0, 1, 2].sort((a, b) => height(a) - height(b));
   for (const i of order) {
     const k = f / FRAMES + i / 3;
     const a = k * TAU;

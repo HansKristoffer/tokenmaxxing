@@ -57,7 +57,7 @@ export function see(color: string, opacity = 0.5, lit = false): THREE.Material {
 /** An emissive material that ignores lights. */
 export const lit = (color: string): THREE.Material => glow(color);
 
-export function mesh(
+function mesh(
   m: THREE.Object3D,
   g: THREE.BufferGeometry,
   p: Paint,
@@ -138,7 +138,7 @@ const shapeGeo = (key: string, shape: THREE.Shape, depth: number) =>
     }).center(),
   );
 
-export function heart(s: number): THREE.Shape {
+function heart(s: number): THREE.Shape {
   const h = new THREE.Shape();
   h.moveTo(0, -0.5 * s);
   h.bezierCurveTo(-0.7 * s, 0, -0.5 * s, 0.6 * s, 0, 0.25 * s);
@@ -213,9 +213,9 @@ export function sign(
 }
 
 /** The point on the skull's front where an eye is, with the plane there tipped to follow the curve. */
-export const EYE_X = 0.092;
+const EYE_X = 0.092;
 export const EYE_Y = -0.062;
-export const EYE_Z = 0.222;
+const EYE_Z = 0.222;
 export function eyeAt(m: Model, side: -1 | 1): Model {
   const e = m.part([side * EYE_X, EYE_Y, EYE_Z]);
   if (!isVox(m)) e.rotation.y = side * 0.36;
@@ -289,7 +289,7 @@ function wizard(m: Model, c: { cone: string; dark: string; star: string; band: s
     );
   else {
     const tip = m.part([0, 0.43, 0]);
-    tip.cyl(0.1, 0.24, c.cone, [0, 0, 0], 0.012, 12).rotation.z = 0;
+    tip.cyl(0.1, 0.24, c.cone, [0, 0, 0], 0.012, 12);
     tip.rotation.z = -0.55;
     tip.rotation.x = 0.1;
   }
@@ -374,7 +374,6 @@ function horned(
     const up = h.part([0, 0.11, 0]);
     up.rotation.z = s * 0.7;
     up.cyl(0.045, 0.14, p.horn, [0, 0, 0], 0.012, 8);
-    void p.tip;
   }
 }
 
@@ -482,7 +481,7 @@ function whirly(
   m.cyl(0.012, 0.06, p.hub, [0, 0.28, 0], 0.012, 6);
   const rotor = m.part([0, 0.34, 0]);
   rotor.box([0.34, 0.012, 0.06], p.blade, [0, 0, 0], 0.005);
-  rotor.box([0.06, 0.012, 0.34], p.blade, [0, 0, 0], 0.005).rotation.y = 0;
+  rotor.box([0.06, 0.012, 0.34], p.blade, [0, 0, 0], 0.005);
   rotor.ball(0.025, p.hub);
   c.tick((t) => (rotor.rotation.y = t * 14));
 }
@@ -643,17 +642,15 @@ export const HAT_BUILDERS: Record<string, Build> = {
         [0.31, 0.26, 0.09],
       ]);
       m.ball(0.05, "#fbf7ef", [0.32, 0.18, 0]);
-      band(m, "#fbf7ef", 0.285, 0.075, -0.015, 0.285);
-      m.cyl(0.285, 0.012, "#fbf7ef", [0, 0.06, 0], 0.285, 18);
-      return;
+    } else {
+      const tip = m.part([0, 0.29, 0]);
+      tip.rotation.z = -0.85;
+      tip.cyl(0.13, 0.2, "#d8283a", [0, 0, 0], 0.07, 14);
+      const end = tip.part([0, 0.19, 0]);
+      end.rotation.z = -1.0;
+      end.cyl(0.07, 0.16, "#d8283a", [0, 0, 0], 0.012, 10);
+      end.ball(0.05, "#fbf7ef", [0, 0.17, 0]);
     }
-    const tip = m.part([0, 0.29, 0]);
-    tip.rotation.z = -0.85;
-    tip.cyl(0.13, 0.2, "#d8283a", [0, 0, 0], 0.07, 14);
-    const end = tip.part([0, 0.19, 0]);
-    end.rotation.z = -1.0;
-    end.cyl(0.07, 0.16, "#d8283a", [0, 0, 0], 0.012, 10);
-    end.ball(0.05, "#fbf7ef", [0, 0.17, 0]);
     band(m, "#fbf7ef", 0.285, 0.075, -0.015, 0.285);
     m.cyl(0.285, 0.012, "#fbf7ef", [0, 0.06, 0], 0.285, 18);
   },
@@ -861,10 +858,10 @@ export const HAT_BUILDERS: Record<string, Build> = {
   "Mirage Crown": (m, c) => {
     // Clear the voxel character's taller hair, as with the other raid crowns.
     const up = isVox(m) ? 0.1 : 0;
-    const violet = "#9b6fd6",
-      pale = "#d9c2f5",
-      dark = "#4a2a73",
-      gold = "#ffd35c";
+    const violet = "#9b6fd6";
+    const pale = "#d9c2f5";
+    const dark = "#4a2a73";
+    const gold = "#ffd35c";
     band(m, dark, 0.245, 0.065, 0.16 + up);
     band(m, gold, 0.25, 0.016, 0.16 + up);
     band(m, gold, 0.25, 0.012, 0.22 + up);
@@ -1304,7 +1301,7 @@ export const HAT_BUILDERS: Record<string, Build> = {
     const INDIGO = "#243a73";
     const CREAM = "#f1e3c2";
     dome(m, BROWN, 0.272, 0.03 + up, 0.47);
-    band(m, "#c9a265", 0.268, 0.055, 0.0 + up);
+    band(m, "#c9a265", 0.268, 0.055, up);
     band(m, "#8a5a2b", 0.272, 0.014, 0.055 + up);
     // Diamonds: two rings of studs, cream set between indigo, on the cloth.
     const stud = (a: number, y: number, c: string, r: number, k = 0.026) => {
@@ -1336,7 +1333,7 @@ export const HAT_BUILDERS: Record<string, Build> = {
     const up = isVox(m) ? 0.07 : 0;
     const SHELL = "#aee0a2";
     dome(m, SHELL, 0.29, 0.02 + up, 0.5);
-    band(m, "#86c07c", 0.29, 0.045, 0.0 + up);
+    band(m, "#86c07c", 0.29, 0.045, up);
     m.box([0.07, 0.014, 0.4], "#8fcb85", [0, 0.31 + up, -0.02], 0.004);
     // The visor, up: a tinted pane on two little hinges.
     const v = m.box([0.36, 0.13, 0.014], see("#2c4045", 0.72), [0, 0.2 + up, 0.27], 0.004);
@@ -1374,7 +1371,8 @@ export const HAT_BUILDERS: Record<string, Build> = {
         // Two frames of smoke, as in 2D: they step up in beats and thin out.
         const k = (t * 0.45 + i / 3) % 1;
         const step = Math.floor(k * 4) / 4;
-        p.position.set(Math.sin(i * 2.1 + step * 3) * 0.04, 0.44 + up + step * 0.3, Math.cos(i * 2.1) * 0.03);
+        const drift = Math.sin(i * 2.1 + step * 3) * 0.04;
+        p.position.set(drift, 0.44 + up + step * 0.3, Math.cos(i * 2.1) * 0.03);
         p.scale.setScalar(0.5 + step * 1.1);
         (p.material as THREE.Material).opacity = 0.75 * (1 - step * 0.9);
       });
@@ -1474,19 +1472,11 @@ function visor(
     if (typeof p.color !== "string") (o.material as THREE.Material).side = THREE.DoubleSide;
     return o;
   }
-  const geom = cached(`visor${p.w},${p.h}`, () => {
-    const g = new THREE.CylinderGeometry(
-      0.262,
-      0.262,
-      p.h,
-      16,
-      1,
-      true,
-      Math.PI - p.w / 0.262 / 2 + (Math.PI / 2) * 0,
-      p.w / 0.262,
-    );
-    return g;
-  });
+  // The slice is `p.w` wide, centred on the back of the cylinder and turned to the face below.
+  const geom = cached(
+    `visor${p.w},${p.h}`,
+    () => new THREE.CylinderGeometry(0.262, 0.262, p.h, 16, 1, true, Math.PI - p.w / 0.262 / 2, p.w / 0.262),
+  );
   const o = new THREE.Mesh(geom, typeof p.color === "string" ? toon(p.color) : p.color);
   (o.material as THREE.Material).side = THREE.DoubleSide;
   o.position.set(0, p.y ?? EYE_Y, 0);
@@ -1519,7 +1509,7 @@ function shades(m: Model, frame: string, lens: string, glint = true): void {
     e.box([0.115, 0.065, 0.02], lens, [0, -0.033, 0.012], 0.01);
     if (glint) e.box([0.03, 0.008, 0.01], "#ffffff", [-0.03 * s, 0.0, 0.025], 0.003).rotation.z = 0.5;
   }
-  m.box([0.05, 0.016, 0.02], frame, [0, EYE_Y + 0.0, 0.245], 0.006);
+  m.box([0.05, 0.016, 0.02], frame, [0, EYE_Y, 0.245], 0.006);
   bridge(m, frame);
 }
 
@@ -1625,9 +1615,9 @@ export const FACE_BUILDERS: Record<string, Build> = {
       strap(m, "#1c1a24", EYE_Y + 0.045, 0.024);
       return;
     }
-    const strap2 = band(m, "#1c1a24", 0.262, 0.022, 0.0);
-    strap2.rotation.z = 0.36;
-    strap2.scale.set(1, 1, 0.97);
+    const headband = band(m, "#1c1a24", 0.262, 0.022, 0.0);
+    headband.rotation.z = 0.36;
+    headband.scale.set(1, 1, 0.97);
   },
   "Harbour swim goggles": (m) => {
     for (const s of [-1, 1] as const) {
@@ -1755,8 +1745,7 @@ export const FACE_BUILDERS: Record<string, Build> = {
     strap(m, "#2e2e3a", EYE_Y + 0.02, 0.05);
   },
   "Bot mask": (m, c) => {
-    const plate = visor(m, { color: "#8a93a1", w: 0.44, h: 0.25, y: EYE_Y - 0.04, depth: 0.04 });
-    void plate;
+    visor(m, { color: "#8a93a1", w: 0.44, h: 0.25, y: EYE_Y - 0.04, depth: 0.04 });
     const eyes: THREE.Mesh[] = [];
     for (const s of [-1, 1] as const) {
       const e = eyeAt(m, s);
@@ -1822,7 +1811,7 @@ export const FACE_BUILDERS: Record<string, Build> = {
         [-0.027, -0.062],
         [0.027, -0.062],
       ] as const)
-        e.box([0.05, 0.035, 0.02], see("#8fd3ff", 0.7), [x, y - 0.0, 0.012], 0.003);
+        e.box([0.05, 0.035, 0.02], see("#8fd3ff", 0.7), [x, y, 0.012], 0.003);
     }
     bridge(m, "#f4efe4");
   },
@@ -1904,7 +1893,7 @@ export const FACE_BUILDERS: Record<string, Build> = {
     strap(m, "#1b1826", EYE_Y + 0.02, 0.06);
     // A 24 by 6 dot screen, a grin and a wink taking turns.
     const z = isVox(m) ? 0.256 : 0.277;
-    const dots = (eye: boolean) => (g: CanvasRenderingContext2D, w: number, h: number) => {
+    const dots = (eye: boolean) => (g: CanvasRenderingContext2D, w: number) => {
       const cell = w / 24;
       const dot = (x: number, y: number, col: string) => {
         g.fillStyle = col;
@@ -1915,7 +1904,6 @@ export const FACE_BUILDERS: Record<string, Build> = {
       for (const x of [8, 9, 10, 11, 12, 13, 14, 15]) dot(x, 4, "#ff4fd8");
       dot(7, 3, "#ff4fd8");
       dot(16, 3, "#ff4fd8");
-      void h;
     };
     const frames = [true, false].map((e) => {
       const s = sign(m, 0.3, 0.075, dots(e), [0, EYE_Y, z], 80, true);
@@ -1978,7 +1966,7 @@ export const FACE_BUILDERS: Record<string, Build> = {
         [0.08, 0, 0.04, 0.02],
         [-0.08, 0, 0.04, 0.02],
       ] as const)
-        e.box([w, h, 0.014], "#f1e3c2", [dx - (w / 2) * 0, dy - h / 2, 0.008], 0.004);
+        e.box([w, h, 0.014], "#f1e3c2", [dx, dy - h / 2, 0.008], 0.004);
     }
     m.box([0.05, 0.016, 0.02], "#4a2f1c", [0, EYE_Y, 0.246], 0.005);
     bridge(m, "#4a2f1c");
@@ -2017,7 +2005,7 @@ export const FACE_BUILDERS: Record<string, Build> = {
           const almond = (inset: number) => {
             g.beginPath();
             g.moveTo(X(0.02 + inset), h * (0.66 - inset * 0.2));
-            g.quadraticCurveTo(X(0.42), h * (0.0 + inset), X(0.99 - inset), h * (0.28 + inset * 0.3));
+            g.quadraticCurveTo(X(0.42), h * inset, X(0.99 - inset), h * (0.28 + inset * 0.3));
             g.quadraticCurveTo(X(0.55), h * (1.0 - inset), X(0.02 + inset), h * (0.66 - inset * 0.2));
             g.closePath();
           };

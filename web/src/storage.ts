@@ -17,19 +17,25 @@ export const storage: Pick<Storage, "getItem" | "setItem" | "removeItem"> = {
     try {
       const v = backing()?.getItem(key);
       if (v !== undefined) return v;
-    } catch {}
+    } catch {
+      // Blocked storage throws on read: the memory copy answers instead.
+    }
     return memory.get(key) ?? null;
   },
   setItem(key, value) {
     memory.set(key, value);
     try {
       backing()?.setItem(key, value);
-    } catch {}
+    } catch {
+      // Blocked or full storage keeps the value in memory for this session.
+    }
   },
   removeItem(key) {
     memory.delete(key);
     try {
       backing()?.removeItem(key);
-    } catch {}
+    } catch {
+      // Blocked storage has nothing to remove: the memory copy is already gone.
+    }
   },
 };

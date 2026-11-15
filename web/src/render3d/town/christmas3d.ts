@@ -39,8 +39,6 @@ const GREY = "#a9b1bb";
 const INK = "#2b2433";
 const BULB_HEX = ["#ff5a5a", "#f5d14a", "#5fd38a", "#6fb4ff"];
 
-// MARK: Shapes
-
 let heartGeo: THREE.BufferGeometry | null = null;
 /** A julehjerte: a heart, 0.1 across, a little thick, facing +z. */
 function heartGeometry(): THREE.BufferGeometry {
@@ -90,8 +88,6 @@ function cord(points: THREE.Vector3[], thick = 0.02): THREE.BufferGeometry {
   for (const g of out) g.dispose();
   return merged;
 }
-
-// MARK: Models
 
 /** The tree's foliage radius at fraction `h` (0 bottom .. 1 top) of its height, for hanging things on. */
 const treeRadius = (h: number): number => (0.7 * (1 - h) + 0.04) * 0.93;
@@ -247,11 +243,12 @@ function nisse(m: Model, h: number, bowl: boolean): void {
 export function knudModel(_npc: FestiveNpc): THREE.Object3D {
   const root = new THREE.Group();
   const still = new Model();
+  // Merged off the origin, so it lies in one patch of floor (the batching splits at multiples of 100).
   still.position.set(50, 0, 50);
   nisse(still, 1.1, true);
   mergeStill(still);
   still.position.set(0, 0, 0);
-  // A pompom and a sway: the whole nisse tilts about his boots.
+  // The whole nisse sways about his boots.
   const body = new THREE.Group();
   body.add(still);
   root.add(body);
@@ -262,13 +259,24 @@ export function knudModel(_npc: FestiveNpc): THREE.Object3D {
   return root;
 }
 
-// MARK: The scenery
-
-/** Where each kind of door's wreath hangs, from its tile's middle: [z, y, size]. Tuned against the buildings. */
+/** Where each kind of door's wreath hangs, from its tile's middle: `z` and `y` in units, `r` its radius. Tuned against the buildings. */
 const WREATH: Record<DoorSpot["kind"], { z: number; y: number; r: number }> = {
   inn: { z: 0.08, y: 1.02, r: 0.3 },
   company: { z: -0.12, y: 0.82, r: 0.17 },
   shop: { z: 0.58, y: 0.95, r: 0.2 },
+};
+
+/** The window candles at each kind of door: `dx` along the wall, `y` the height, `dz` in front of the wreath. */
+const CANDLES: Record<DoorSpot["kind"], { dx: number[]; y: number; dz: number }> = {
+  inn: { dx: [-1.5, 1.5, -2.7, 2.7], y: 0.62, dz: 0.14 },
+  company: { dx: [-0.7, 0.7], y: 0.55, dz: 0.14 },
+  shop: { dx: [-0.62, 0.62], y: 0.55, dz: 0.05 },
+};
+
+/** Off the picking and the block swap: decoration the player walks past. */
+const markScenery = (o: THREE.Object3D): void => {
+  o.userData.nopick = true;
+  o.userData.noBlock = true;
 };
 
 type Keys = { orn: string; gifts: number; snow: number; lights: string };
@@ -321,7 +329,7 @@ export class Christmas3d {
       this.p = progress(f);
       this.sync();
     }
-    // The bulbs twinkle (a material a colour: four writes), the star pulses.
+    // Each bulb colour twinkles at its own phase; the star and the candle flames pulse on top.
     for (const [i, b] of this.bulbs.entries()) {
       const k = 0.62 + 0.38 * (0.5 + 0.5 * Math.sin(t * 2.6 + i * 1.7));
       b.mat.color.copy(b.base).multiplyScalar(k);
@@ -330,11 +338,7 @@ export class Christmas3d {
     const pulse = 0.88 + 0.12 * Math.sin(t * 2.4);
     this.starMat.color.set("#ffd45a").multiplyScalar(eve ? 1.1 * pulse : pulse);
     this.flameMat.color.set("#ffd45a").multiplyScalar(0.8 + 0.2 * Math.sin(t * 9) * Math.sin(t * 5.3));
-    if (this.star) this.star.scale.setScalar(ownHearts() >= 3 || eve ? 1.25 + 0.1 * Math.sin(t * 3) : 1);
-  }
-
-  private at(x: number, y: number): [number, number] {
-    return this.toWorld(x, y);
+    if (this.star) this.star.scale.setScalar(own >= 3 || eve ? 1.25 + 0.1 * Math.sin(t * 3) : 1);
   }
 
   private build(): void {
@@ -342,12 +346,12 @@ export class Christmas3d {
     this.spots = { doors: wreathSpots(this.map), nisser: nisseSpots(this.map) };
     const s = new Model();
     // The tree.
-    const [tx, tz] = this.at(TREE.x, TREE.y);
+    const [tx, tz] = this.toWorld(TREE.x, TREE.y);
     const tree = s.part([tx, 0, tz]);
     treeBody(tree);
     // The lamp posts, striped red and white like candy canes, with a bow.
     for (const [lx, ly] of SQUARE_LAMPS) {
-      const [x, z] = this.at(lx, ly);
+      const [x, z] = this.toWorld(lx, ly);
       const post = s.part([x, 0, z]);
       for (let i = 0; i < 6; i++)
         post.box([0.425, 0.152, 0.425], i % 2 ? CREAM : RED, [0, 0.13 + i * 0.155, 0], 0.005);
@@ -360,21 +364,18 @@ export class Christmas3d {
     }
     // Wreaths, window candles and a nisse at each door.
     for (const d of this.spots.doors) {
-      const [x, z] = this.at(d.x, d.y);
+      const [x, z] = this.toWorld(d.x, d.y);
       const c = WREATH[d.kind];
       const w = s.part([x, c.y, z + c.z]);
       wreath(w, c.r);
-      const sill =
-        d.kind === "inn" ? [-1.5, 1.5, -2.7, 2.7] : d.kind === "company" ? [-0.7, 0.7] : [-0.62, 0.62];
-      for (const dx of sill)
-        candle(s, this.flameMat, [
-          x + dx,
-          d.kind === "inn" ? 0.62 : 0.55,
-          z + c.z + (d.kind === "shop" ? 0.05 : 0.14),
-        ]);
+
+      const candles = CANDLES[d.kind];
+      for (const dx of candles.dx) {
+        candle(s, this.flameMat, [x + dx, candles.y, z + c.z + candles.dz]);
+      }
     }
     for (const n of this.spots.nisser) {
-      const [x, z] = this.at(n.x, n.y);
+      const [x, z] = this.toWorld(n.x, n.y);
       const p = s.part([x, 0, z + 0.05], n.facing === "left" ? -0.5 : 0.5);
       nisse(p, 0.55, true);
     }
@@ -384,10 +385,7 @@ export class Christmas3d {
     this.star = starModel(this.starMat);
     this.star.position.set(tx, 2.4, tz);
     this.group.add(this.star);
-    this.group.traverse((o) => {
-      o.userData.nopick = true;
-      o.userData.noBlock = true;
-    });
+    this.group.traverse(markScenery);
   }
 
   /** Replaces the part called `name` with a freshly built one (merged), or removes it when `make` returns null. */
@@ -401,10 +399,7 @@ export class Christmas3d {
     make(m);
     this.group.add(m);
     mergeStill(m);
-    m.traverse((o) => {
-      o.userData.nopick = true;
-      o.userData.noBlock = true;
-    });
+    m.traverse(markScenery);
     this.parts.set(name, m);
   }
 
@@ -415,7 +410,7 @@ export class Christmas3d {
     const orn = `${n}:${own}`;
     if (orn !== this.keys.orn) {
       this.keys.orn = orn;
-      const [tx, tz] = this.at(TREE.x, TREE.y);
+      const [tx, tz] = this.toWorld(TREE.x, TREE.y);
       this.swap("ornaments", (m) => {
         const tree = m.part([tx, 0, tz]);
         for (const [i, o] of ORNAMENTS.slice(0, n).entries()) {
@@ -470,11 +465,12 @@ export class Christmas3d {
           const side = k % 2;
           const slot = k >> 1;
           const tile = GIFT_TILES[side]!;
-          const [x, z] = this.at(tile.x, tile.y);
+          const [x, z] = this.toWorld(tile.x, tile.y);
           const [cb, rb] = GIFT_COLOURS[k % GIFT_COLOURS.length]!;
-          const dx = (side ? 0.05 : -0.05) + [0, 0.22, 0.04, -0.2][slot]! * (side ? 1 : -1);
+          const spreadX = [0, 0.22, 0.04, -0.2][slot]! * (side ? 1 : -1);
+          const dx = (side ? 0.05 : -0.05) + spreadX;
           const dz = [0.25, 0.1, -0.1, 0.32][slot]!;
-          const lift = slot === 2 ? 0.2 : slot === 3 ? 0 : 0;
+          const lift = slot === 2 ? 0.2 : 0;
           gift(m, cb, rb, 1 + (k % 3) * 0.12, [x + dx, lift, z + dz], k * 0.6);
         }
       });
@@ -484,16 +480,17 @@ export class Christmas3d {
       this.keys.snow = snow;
       this.swap("snowmen", (m) => {
         for (const [i, s] of SNOWMEN.slice(0, snow).entries()) {
-          const [x, z] = this.at(s.x, s.y);
+          const [x, z] = this.toWorld(s.x, s.y);
           snowman(m, [x, z], i % 2 ? 0.5 : -0.5);
         }
       });
     }
     // The strings of lights between the lamps: which bulbs are lit is the day's.
     const lit = garlandLit(p);
-    const key = GARLANDS.map(
+    const litPerGarland = GARLANDS.map(
       (g, gi) => this.garlandBulbs(g, gi).filter((b) => bulbHash(b.i) < lit).length,
-    ).join(",");
+    );
+    const key = litPerGarland.join(",");
     if (key !== this.keys.lights) {
       this.keys.lights = key;
       this.swap("lights", (m) => {
@@ -522,8 +519,8 @@ export class Christmas3d {
   private garlandBulbs(g: { from: number; to: number }, gi: number): { at: THREE.Vector3; i: number }[] {
     const [ax, ay] = SQUARE_LAMPS[g.from]!;
     const [bx, by] = SQUARE_LAMPS[g.to]!;
-    const [x0, z0] = this.at(ax, ay);
-    const [x1, z1] = this.at(bx, by);
+    const [x0, z0] = this.toWorld(ax, ay);
+    const [x1, z1] = this.toWorld(bx, by);
     const n = Math.round(Math.hypot(x1 - x0, z1 - z0) / 0.55);
     return Array.from({ length: n + 1 }, (_, k) => {
       const t = k / n;

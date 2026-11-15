@@ -4,8 +4,8 @@ import * as THREE from "three";
  * Small painted textures (a sign, a price tag, a poster: 16 to 256 px, sampled without smoothing) folded into one
  * atlas per batch, so a room's textured props merge into one draw call per material setup instead of one per picture.
  * Close-ups keep nearest sampling; independently painted mip levels smooth distant pictures without bleeding. Only
- * unrepeated, unrotated canvases whose UVs stay inside 0..1 are folded; a
- * texture that repaints often (a screen) is left alone (`userData.animated`).
+ * unrepeated, unrotated canvases whose UVs stay inside 0..1 are folded. A texture that repaints often (a screen)
+ * is left alone (`userData.animated`).
  */
 export interface Rect {
   x: number;
@@ -39,8 +39,8 @@ interface Canvasish {
 }
 
 export function atlasable(t: THREE.Texture | null | undefined): t is THREE.Texture {
-  if (!t?.isTexture || t.userData.animated || (t as unknown as { isVideoTexture?: boolean }).isVideoTexture)
-    return false;
+  const isVideo = (t as unknown as { isVideoTexture?: boolean } | null | undefined)?.isVideoTexture;
+  if (!t?.isTexture || t.userData.animated || isVideo) return false;
   const img = t.image as Canvasish | null;
   if (!img || typeof img.getContext !== "function" || !(img.width > 0) || !(img.height > 0)) return false;
   if (img.width > MAX_EDGE || img.height > MAX_EDGE) return false;
@@ -65,12 +65,13 @@ export function uvInside(g: THREE.BufferGeometry): boolean {
   if (ok === undefined) {
     const uv = g.getAttribute("uv");
     ok = !!uv;
-    if (uv)
+    if (uv) {
       for (let i = 0; i < uv.count && ok; i++) {
         const u = uv.getX(i);
         const v = uv.getY(i);
         if (u < -0.001 || u > 1.001 || v < -0.001 || v > 1.001) ok = false;
       }
+    }
     uvBounds.set(g, ok);
   }
   return ok;
@@ -100,6 +101,7 @@ export function packAtlas(textures: THREE.Texture[]): Atlas | null {
       const { width: w, height: h } = t.image as Canvasish;
       const columns = aligned(w + PADDING * 2) / ALIGNMENT;
       const slotH = aligned(h + PADDING * 2);
+      // Skyline packing: the slot goes where the skyline is lowest, leftmost on a tie.
       let x = 0;
       let y = side;
       for (let start = 0; start + columns <= skyline.length; start++) {
@@ -160,8 +162,8 @@ function paintTile(levels: HTMLCanvasElement[], texture: THREE.Texture, r: Rect)
   const sy = [0, 0, r.h - 1];
   const sw = [1, r.w, 1];
   const sh = [1, r.h, 1];
-  for (let y = 0; y < 3; y++)
-    for (let x = 0; x < 3; x++)
+  for (let y = 0; y < 3; y++) {
+    for (let x = 0; x < 3; x++) {
       g.drawImage(
         image,
         sx[x]!,
@@ -173,6 +175,8 @@ function paintTile(levels: HTMLCanvasElement[], texture: THREE.Texture, r: Rect)
         xs[x + 1]! - xs[x]!,
         ys[y + 1]! - ys[y]!,
       );
+    }
+  }
 
   // Resample a complete tile, so fractional content edges cannot leave seams between drawImage calls.
   for (let level = 0; level < levels.length; level++) {
@@ -191,6 +195,7 @@ function paintTile(levels: HTMLCanvasElement[], texture: THREE.Texture, r: Rect)
 /** The atlas version of a picture's UVs, exact: nearest sampling lands on the same texel. */
 export function remapUv(g: THREE.BufferGeometry, r: Rect, atlas: Atlas): void {
   const uv = g.getAttribute("uv") as THREE.BufferAttribute;
+  // Sample a thousandth of a picture inside the slot's edge, so nearest sampling stays in its own slot.
   const e = 0.001;
   for (let i = 0; i < uv.count; i++) {
     const px = Math.min(r.w - e, Math.max(e, uv.getX(i) * r.w));

@@ -51,7 +51,7 @@ const rejects = async (p: Promise<unknown>, code: string) => {
   expect(e).toBeInstanceOf(UserError);
   expect((e as UserError).code).toBe(code);
 };
-/** mulberry32 */
+/** A seeded random number generator (mulberry32), so the long run below gives the same numbers every time. */
 const seeded = (seed: number) => () => {
   seed = (seed + 0x6d2b79f5) | 0;
   let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
@@ -164,6 +164,7 @@ describe("roulette rounds", () => {
       await rouletteResolve(sql, i, now, rand);
     }
     const rtp = ((await balance(sql)) - 1_000_000 + n * 100) / (n * 100);
+    // The house edge makes the expected return 36/37, about 0.973. The band leaves room for the noise in 1,500 rounds.
     expect(rtp).toBeGreaterThan(0.88);
     expect(rtp).toBeLessThan(1.06);
   });

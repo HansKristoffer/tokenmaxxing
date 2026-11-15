@@ -30,7 +30,10 @@ export function MatchPanel({ id }: { id: number }) {
   const def = gameOf(info.game)!;
   const Game = COMPONENTS[info.game];
   const now = Date.now() - skew;
-  const move = (m: unknown) => void run(() => matchConn!.move(m))();
+  const move = (m: unknown) => {
+    const send = run(() => matchConn!.move(m));
+    void send();
+  };
 
   return (
     <Modal title={`${def.emoji} ${def.name}`} wide beside={<Chat match />}>
@@ -68,7 +71,7 @@ export function MatchPanel({ id }: { id: number }) {
         <p>Unknown game.</p>
       )}
       {info.outcome ? (
-        <Result frame={frame} run={run} />
+        <Result frame={frame} outcome={info.outcome} run={run} />
       ) : you !== null ? (
         <button type="button" className="danger" onClick={run(() => matchConn!.forfeit())}>
           Forfeit (your stake stays in the pot)
@@ -86,6 +89,7 @@ const betList = (frame: Frame) =>
   Object.entries(frame.info.bets).map(([on, amount]) => ({ userId: 0, on: Number(on), amount }));
 
 type Run = ReturnType<typeof useRun>["run"];
+type Outcome = NonNullable<MatchInfo["outcome"]>;
 
 function SideBet({ frame, now, run }: { frame: Frame; now: number; run: Run }) {
   const lobby = useHud((s) => s.lobby);
@@ -130,9 +134,8 @@ function SideBet({ frame, now, run }: { frame: Frame; now: number; run: Run }) {
 }
 
 /** Who won what, then double or nothing (1v1) and the way back. */
-function Result({ frame, run }: { frame: Frame; run: Run }) {
+function Result({ frame, outcome, run }: { frame: Frame; outcome: Outcome; run: Run }) {
   const { info, you } = frame;
-  const outcome = info.outcome!;
   const name = nameIn(info);
   if ("void" in outcome)
     return (
@@ -153,7 +156,7 @@ function Result({ frame, run }: { frame: Frame; run: Run }) {
           // biome-ignore lint/suspicious/noArrayIndexKey: places are fixed once the game is over
           <li key={i}>
             {medals[i] ?? `${i + 1}.`} {group.map(name).join(" & ")}
-            {group.map((id) => shares.get(id) ?? 0).some((n) => n > 0) && (
+            {group.some((id) => (shares.get(id) ?? 0) > 0) && (
               <strong> +🪙 {sumBy(group, (id) => shares.get(id))}</strong>
             )}
           </li>

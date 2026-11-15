@@ -3,7 +3,6 @@
 
 // Optional prestige modules (petwear, trophies, emblems): sheets.mjs stubs them as null until the files exist.
 import { emblem, petwear, trophy } from "prestige-optional";
-import { caseAt } from "../../../core/src/case.ts";
 import { casePieceOf } from "../../../core/src/case-furniture.ts";
 import { caseById } from "../../../core/src/cases.ts";
 import { FISHING_ITEMS } from "../../../core/src/fishing-loot.ts";
@@ -11,7 +10,7 @@ import { JULEPYNT_PIECES, STALL_WEARABLES } from "../../../core/src/julemarked-s
 import { PRESTIGE_ITEMS, PRESTIGE_TRACKS } from "../../../core/src/prestige.ts";
 import { defaultLook, type Look, TILE } from "../../../core/src/world.ts";
 import { CA_H, CA_MS, CA_W, CA_X, CA_Y, caseAuraFrame } from "../../../web/src/art/case-aura.ts";
-import { CASE_BOX_FRAMES, CASE_BOX_SIZE, caseBoxSprite } from "../../../web/src/art/case-box.ts";
+import { caseBoxSprite } from "../../../web/src/art/case-box.ts";
 import { characterFrame, itemFrame } from "../../../web/src/art/characters.ts";
 import { type FancyPiece, fancyPiece, fancySprite } from "../../../web/src/art/furniture-fancy.ts";
 import { petFrame } from "../../../web/src/art/pets.ts";
@@ -23,19 +22,20 @@ const S = Number(q.get("scale") ?? 4);
 // `?case=pond`: the pond's treasures (`fishing-loot.ts`), which have no case and no box.
 // `?case=prestige`: the twenty prestige wearables (`core/src/prestige.ts`), plus the per-track extras below.
 // `?case=stall`: the Julemarked coin stalls' hat, outfits and held treats (2D only; pets and furniture are skipped).
-const def =
-  caseId === "stall"
-    ? {
-        name: "Julemarked stalls",
-        items: STALL_WEARABLES.filter((i) =>
-          ["hat", "glasses", "outfit", "back", "held", "pet"].includes(i.slot),
-        ),
-      }
-    : caseId === "pond"
-      ? { name: "Pond treasures", items: FISHING_ITEMS }
-      : caseId === "prestige"
-        ? { name: "Prestige", items: PRESTIGE_ITEMS }
-        : caseById(caseId)!;
+function defFor(id: string) {
+  if (id === "stall") {
+    return {
+      name: "Julemarked stalls",
+      items: STALL_WEARABLES.filter((i) =>
+        ["hat", "glasses", "outfit", "back", "held", "pet"].includes(i.slot),
+      ),
+    };
+  }
+  if (id === "pond") return { name: "Pond treasures", items: FISHING_ITEMS };
+  if (id === "prestige") return { name: "Prestige", items: PRESTIGE_ITEMS };
+  return caseById(id)!;
+}
+const def = defFor(caseId);
 
 type Sprite = HTMLCanvasElement;
 interface Cell {
@@ -51,7 +51,9 @@ const pad = 6;
 function sheet(id: string, title: string, cells: Cell[], cols: number, bg: string): void {
   const spriteMax = (c: Cell) => c.sprites.reduce((a, s) => a + (s ? s.width * S + pad : 0), 0);
   const cellW = Math.max(110, ...cells.map(spriteMax)) + pad;
-  const cellH = Math.max(16, ...cells.flatMap((c) => c.sprites.map((s) => (s ? s.height * S : 0)))) + 36;
+  const tallest = Math.max(16, ...cells.flatMap((c) => c.sprites.map((s) => (s ? s.height * S : 0))));
+  // 36px under the sprites for the label.
+  const cellH = tallest + 36;
   const rows = Math.ceil(cells.length / cols);
   const cv = document.createElement("canvas");
   cv.id = `sheet-${id}`;
@@ -92,10 +94,21 @@ const views = (l: Look): Sprite[] => [
   characterFrame(l, "up", "stand"),
 ];
 
+// One aura frame with the character on it. `f` counts aura frames, each `CA_MS` long.
+const auraFrame = (l: Look, view: "down" | "right" | "up", f: number): Sprite => {
+  const cv = document.createElement("canvas");
+  cv.width = CA_W;
+  cv.height = CA_H;
+  const g = cv.getContext("2d")!;
+  const fr = caseAuraFrame(l.aura, f * CA_MS);
+  if (fr) g.drawImage(fr, 0, 0);
+  g.drawImage(characterFrame(l, view, "stand"), CA_X, CA_Y);
+  return cv;
+};
+
 for (const slot of ["hat", "glasses", "outfit", "held", "back"] as const) {
   const cells = items(slot).map((it): Cell => {
-    const key = slot as "hat";
-    const l = look({ [key]: it.index } as Partial<Look>);
+    const l = look({ [slot]: it.index } as Partial<Look>);
     const sp = [...views(l)];
     if (slot === "back") sp.push(characterFrame(l, "right", "walkB"));
     sp.push(itemFrame(it));
@@ -128,16 +141,7 @@ for (const slot of ["hat", "glasses", "outfit", "held", "back"] as const) {
     const l = look({ aura: it.index });
     for (const half of [0, 4]) {
       const sp: Sprite[] = [];
-      for (let f = half; f < half + 4; f++) {
-        const fr = caseAuraFrame(it.index, f * CA_MS);
-        const cv = document.createElement("canvas");
-        cv.width = CA_W;
-        cv.height = CA_H;
-        const g = cv.getContext("2d")!;
-        if (fr) g.drawImage(fr, 0, 0);
-        g.drawImage(characterFrame(l, "down", "stand"), CA_X, CA_Y);
-        sp.push(cv);
-      }
+      for (let f = half; f < half + 4; f++) sp.push(auraFrame(l, "down", f));
       cells.push({ label: `${it.id} ${it.name} frames ${half}-${half + 3}`, sprites: sp });
     }
   }
@@ -184,13 +188,11 @@ if (caseId !== "pond" && caseId !== "prestige" && caseId !== "stall") {
   );
 }
 if (caseId === "prestige") prestigeExtras();
-void CASE_BOX_FRAMES;
-void CASE_BOX_SIZE;
-void caseAt;
 document.title = "ready";
 
 // Nothing below runs unless ?case=prestige.
 function prestigeExtras(): void {
+  // Blends a track colour at alpha `a` over the sheet's dark background (#1c2230 = 28, 34, 48).
   const mix = (hex: string, a: number) => {
     const n = parseInt(hex.slice(1), 16);
     const ch = [n >> 16, (n >> 8) & 255, n & 255].map((v, i) =>
@@ -198,18 +200,10 @@ function prestigeExtras(): void {
     );
     return `rgb(${ch.join(",")})`;
   };
-  const auraFrame = (l: Look, view: "down" | "right" | "up", f: number): Sprite => {
-    const cv = document.createElement("canvas");
-    cv.width = CA_W;
-    cv.height = CA_H;
-    const g = cv.getContext("2d")!;
-    const fr = caseAuraFrame(l.aura, f * CA_MS);
-    if (fr) g.drawImage(fr, 0, 0);
-    g.drawImage(characterFrame(l, view, "stand"), CA_X, CA_Y);
-    return cv;
-  };
+
   // One overview a track: the full set (hat + outfit + back + aura) from front, side and back.
   PRESTIGE_TRACKS.forEach((t) => {
+    // A track's wearables sit at look index 700 + rank - 1 (PRESTIGE_BASE).
     const n = 700 + t.rank - 1;
     const l = look({ hat: n, outfit: n, back: n, aura: n });
     const cells: Cell[] = [
@@ -232,6 +226,7 @@ function prestigeExtras(): void {
     ns && typeof ns[name] === "function" ? (ns[name] as (...a: unknown[]) => unknown) : null;
   const asSprite = (v: unknown): Sprite | null => (v instanceof HTMLCanvasElement ? v : null);
   const gaps: string[] = [];
+  // A module that throws leaves one labelled gap in the GAPS log, and the rest of the sheets still draw.
   const tryAll = <T>(label: string, fn: () => T): T | null => {
     try {
       return fn();
@@ -300,5 +295,5 @@ function prestigeExtras(): void {
     }));
     sheet("emblems", "Prestige: tag emblems (by rank, by name)", cells, 3, LAND);
   } else gaps.push("emblem: emblemSprite missing");
-  console.log("GAPS " + gaps.join(" | "));
+  console.log(`GAPS ${gaps.join(" | ")}`);
 }

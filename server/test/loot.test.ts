@@ -88,8 +88,9 @@ test("real odds hand out exactly the rolls under them; the next rung rolls the n
   const fresh = await grantLoot(sql, await raidHistory(sql, NOW), NOW, 1);
   for (const d of fresh) expect(lootRoll(d.week, d.rung, d.userId, d.item)).toBeLessThan(d.odds);
   const sure = await grantLoot(sql, await raidHistory(sql, NOW), NOW, SURE);
-  // With certain odds the rest come too, and only the rest.
+  // Two raiders, four drops each from rung 1 and four from rung 2: 16 in all, split between the two calls.
   expect(fresh.length + sure.length).toBe(2 * 4 + 2 * 4);
+  // With certain odds the rest come too, and only the rest.
   expect(sure.filter((d) => d.rung === 2).every((d) => CONTEXT.includes(d.item))).toBe(true);
 });
 

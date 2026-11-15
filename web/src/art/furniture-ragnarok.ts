@@ -66,8 +66,6 @@ const dots = (p: Pen, pts: readonly (readonly [number, number])[], color: string
   for (const [x, y] of pts) p.px(x, y, color);
 };
 
-// MARK: Raven banner
-
 // The raven on the cloth, in profile with its wings folded: 12×8.
 // prettier-ignore
 const BANNER_RAVEN = [
@@ -82,8 +80,19 @@ const BANNER_RAVEN = [
 ];
 
 /** How far the cloth has swung at row `y`: the hem moves most, the top not at all. */
-const sway = (frame: number, y: number): number =>
-  frame === 0 ? (y >= 12 ? 1 : 0) : y >= 13 ? -2 : y >= 9 ? -1 : 0;
+const sway = (frame: number, y: number): number => {
+  if (frame === 0) return y >= 12 ? 1 : 0;
+  if (y >= 13) return -2;
+  return y >= 9 ? -1 : 0;
+};
+
+/** The raven's colours by its letter in `BANNER_RAVEN`; a letter not listed is clear. */
+const RAVEN_COLOURS: Partial<Record<string, string>> = {
+  k: N.raven,
+  v: N.sheen,
+  w: C.white,
+  b: N.goldDark,
+};
 
 function ravenBanner(p: Pen, frame: number): void {
   // The pole across the top, a gold knob at each end.
@@ -91,14 +100,19 @@ function ravenBanner(p: Pen, frame: number): void {
   p.rect(3, 2, 26, 1, N.oakLight);
   p.rect(3, 3, 26, 1, N.oakDark);
   for (const x of [0, 29]) {
+    const inset = x === 0 ? 0 : 1;
     p.rect(x, 0, 3, 5, C.ink);
-    p.rect(x + (x === 0 ? 0 : 1), 1, 2, 3, N.gold);
-    p.px(x + (x === 0 ? 0 : 1), 1, N.goldLight);
+    p.rect(x + inset, 1, 2, 3, N.gold);
+    p.px(x + inset, 1, N.goldLight);
   }
+
   // The cloth: red, a swallowtail hem, flapping in the draught. Rows lower down swing further.
   for (let y = 4; y <= 15; y++) {
     const dx = sway(frame, y);
-    const notch = y === 14 ? 3 : y === 15 ? 7 : 0;
+    // The swallowtail: the last two rows are cut in from each side.
+    let notch = 0;
+    if (y === 14) notch = 3;
+    if (y === 15) notch = 7;
     const col = y >= 13 ? N.redDark : N.red;
     const segs: [number, number][] = notch
       ? [
@@ -118,17 +132,15 @@ function ravenBanner(p: Pen, frame: number): void {
     p.px(22 + dx, y, N.redLight);
   }
   for (let x = 6; x < 26; x++) p.px(x + sway(frame, 12), 12, N.gold);
+
   BANNER_RAVEN.forEach((row, dy) => {
     const dx = sway(frame, 5 + dy);
     [...row].forEach((c, dxx) => {
-      const col =
-        c === "k" ? N.raven : c === "v" ? N.sheen : c === "w" ? C.white : c === "b" ? N.goldDark : null;
+      const col = RAVEN_COLOURS[c];
       if (col) p.px(10 + dxx + dx, 5 + dy, col);
     });
   });
 }
-
-// MARK: Bearskin rug
 
 function bearskinRug(p: Pen): void {
   // The pelt, seen from above: head to the right, four paws splayed, a fringe of fur round the edge.
@@ -170,8 +182,9 @@ function bearskinRug(p: Pen): void {
     [23, 5],
     [23, 18],
     [23, 20],
-  ] as const)
+  ] as const) {
     p.px(x, y, N.bone);
+  }
   // The head: ears, a round skull, a pale snout, a black nose and a face that has seen things.
   blob(p, 24, 6, 2, 2, N.bear);
   blob(p, 24, 18, 2, 2, N.bear);
@@ -189,8 +202,6 @@ function bearskinRug(p: Pen): void {
   p.rect(27, 14, 3, 1, C.ink);
   p.px(28, 15, N.bone);
 }
-
-// MARK: Mead stump
 
 function meadStump(p: Pen): void {
   shadow(p, 2, 16, 12);
@@ -237,8 +248,6 @@ function meadStump(p: Pen): void {
   p.px(3, 3, "#fff3c4");
   p.px(2, 4, "#fff3c4");
 }
-
-// MARK: Feast table
 
 function feastTable(p: Pen, frame: number): void {
   shadow(p, 1, 26, 30);
@@ -332,8 +341,6 @@ function feastTable(p: Pen, frame: number): void {
   p.px(frame === 0 ? 16 : 13, 3, "rgba(255, 255, 255, 0.4)");
 }
 
-// MARK: Runestone
-
 // Three safe glyphs, one over the other (Gebo, Raidho, Mannaz): 3×5 each, painted red.
 // prettier-ignore
 const STONE_GLYPHS = [
@@ -366,9 +373,13 @@ function runestone(p: Pen): void {
     p.px(10, y, N.woad);
   }
   // The inscription, painted in loud colours: three glyphs, red with a woad dot between.
-  for (const [i, g] of STONE_GLYPHS.entries())
-    for (const [dy, row] of g.entries())
-      for (const [dx, c] of [...row].entries()) if (c === "X") p.px(6 + dx, 7 + i * 6 + dy, N.red);
+  for (const [i, glyph] of STONE_GLYPHS.entries()) {
+    for (const [dy, row] of glyph.entries()) {
+      for (const [dx, c] of [...row].entries()) {
+        if (c === "X") p.px(6 + dx, 7 + i * 6 + dy, N.red);
+      }
+    }
+  }
   p.px(8, 12, N.woad);
   p.px(8, 18, N.woad);
   // Moss and a rime of snow at the foot.
@@ -378,8 +389,6 @@ function runestone(p: Pen): void {
   p.rect(5, 1, 4, 1, N.frost);
   p.px(6, 0, "rgba(207, 232, 242, 0.8)");
 }
-
-// MARK: Yggdrasil
 
 const LEAVES = ["#ffd36a", "#f5b830", "#ffe9a0", "#e9a020"];
 
@@ -399,7 +408,6 @@ function yggdrasil(p: Pen, frame: number): void {
   }
   p.rect(12, 50, 3, 1, N.oakDark);
   // The nibbled root's end: bite marks and a few shavings.
-  p.px(11, 49, "rgba(0,0,0,0)");
   dots(
     p,
     [
@@ -419,16 +427,13 @@ function yggdrasil(p: Pen, frame: number): void {
   // Branches reaching out to the crown.
   const limb = (x0: number, y0: number, x1: number, y1: number) => {
     const n = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0));
-    for (let i = 0; i <= n; i++) {
-      const x = Math.round(x0 + ((x1 - x0) * i) / n);
-      const y = Math.round(y0 + ((y1 - y0) * i) / n);
-      p.rect(x - 1, y - 1, 3, 3, C.ink);
-    }
-    for (let i = 0; i <= n; i++) {
-      const x = Math.round(x0 + ((x1 - x0) * i) / n);
-      const y = Math.round(y0 + ((y1 - y0) * i) / n);
-      p.px(x, y, N.oak);
-    }
+    const along = Array.from({ length: n + 1 }, (_, i) => {
+      return [Math.round(x0 + ((x1 - x0) * i) / n), Math.round(y0 + ((y1 - y0) * i) / n)] as const;
+    });
+
+    // Every outline goes down before any fill, so a neighbour's outline never covers a fill.
+    for (const [x, y] of along) p.rect(x - 1, y - 1, 3, 3, C.ink);
+    for (const [x, y] of along) p.px(x, y, N.oak);
   };
   limb(24, 26, 10, 18);
   limb(24, 26, 38, 18);
@@ -482,8 +487,6 @@ function yggdrasil(p: Pen, frame: number): void {
   p.rect(32, sy - 3, 2, 4, C.ink);
   p.rect(32, sy - 2, 1, 3, "#c0592a");
 }
-
-// MARK: Catalog
 
 const piece = (
   id: string,

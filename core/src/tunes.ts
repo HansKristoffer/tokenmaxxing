@@ -94,13 +94,18 @@ export interface Note {
   hz: number;
 }
 
+/** Semitones above C, by note letter. The regex in `noteHz` only lets these letters through. */
 const SEMI: Record<string, number> = { c: 0, d: 2, e: 4, f: 5, g: 7, a: 9, b: 11 };
 
 /** A note name's frequency, or null if it isn't one. */
 export function noteHz(name: string): number | null {
   const m = /^([a-g])([#b]?)(\d)$/.exec(name);
   if (!m) return null;
-  const midi = 12 * (Number(m[3]) + 1) + SEMI[m[1]!]! + (m[2] === "#" ? 1 : m[2] === "b" ? -1 : 0);
+  let accidental = 0;
+  if (m[2] === "#") accidental = 1;
+  else if (m[2] === "b") accidental = -1;
+  // MIDI note number: C in octave 0 is 12, and A4 (440 Hz) is 69.
+  const midi = 12 * (Number(m[3]) + 1) + SEMI[m[1]!]! + accidental;
   return 440 * 2 ** ((midi - 69) / 12);
 }
 
@@ -128,13 +133,16 @@ const drumLine = (drums: string): string => drums.replace(/[\s|]/g, "");
 
 /** The drum hits by step. */
 export const drumHits = (drums: string): { step: number; hit: "k" | "s" | "h" }[] =>
-  [...drumLine(drums)].flatMap((ch, step) =>
-    ch === "k" || ch === "s" || ch === "h" ? [{ step, hit: ch }] : [],
-  );
+  [...drumLine(drums)].flatMap((ch, step) => {
+    const isHit = ch === "k" || ch === "s" || ch === "h";
+    return isHit ? [{ step, hit: ch }] : [];
+  });
 
 /** Steps in a note voice, and in a drum line: each must be a whole loop (`STEPS`). */
 export const voiceSteps = (voice: string): number => tokens(voice).length;
 export const drumSteps = (drums: string): number => drumLine(drums).length;
 
-/** One loop's length, ms. */
+/**
+ * One loop's length, ms. `bpm` counts quarter notes and a step is an eighth, so a step is 30_000 / bpm ms.
+ */
 export const loopMs = (t: Tune): number => STEPS * (30_000 / t.bpm);

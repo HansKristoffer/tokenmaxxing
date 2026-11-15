@@ -126,8 +126,10 @@ export function greenHours(readings: readonly Co2Reading[]): number[] {
     else byHour.set(h, [r.g]);
   }
   const out: number[] = [];
-  for (const [h, gs] of byHour)
-    if (gs.length >= MIN_READINGS && sumBy(gs, (g) => g) / gs.length <= GREEN_CO2) out.push(h + HOUR_MS);
+  for (const [h, gs] of byHour) {
+    const average = sumBy(gs, (g) => g) / gs.length;
+    if (gs.length >= MIN_READINGS && average <= GREEN_CO2) out.push(h + HOUR_MS);
+  }
   return out.sort((a, b) => a - b);
 }
 
@@ -147,7 +149,10 @@ export function isExpensive(prices: readonly Quarter[], at: number): boolean {
     .filter((q) => dayKey(q.at) === day)
     .map((q) => q.dkk)
     .sort((a, b) => a - b);
-  return now.dkk >= sorted[Math.floor(0.75 * (sorted.length - 1))]!;
+
+  // The day's 75th percentile, by the nearest quarter below it.
+  const percentile75 = sorted[Math.floor(0.75 * (sorted.length - 1))]!;
+  return now.dkk >= percentile75;
 }
 
 /** The grid as it is at `at`: what the banner, the price board and the lamps show. */

@@ -23,8 +23,9 @@ export class Swarm {
     const material = lit
       ? toon("#ffffff")
       : new THREE.MeshBasicMaterial({ color: "#ffffff", toneMapped: false });
-    this.mesh = new THREE.InstancedMesh(geometry, material, Math.max(1, max));
-    this.mesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(Math.max(1, max) * 3), 3);
+    const slots = Math.max(1, max);
+    this.mesh = new THREE.InstancedMesh(geometry, material, slots);
+    this.mesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(slots * 3), 3);
     this.mesh.frustumCulled = false;
     this.mesh.castShadow = false;
     this.mesh.receiveShadow = false;
@@ -34,6 +35,7 @@ export class Swarm {
     this.mesh.userData.nobatch = true;
   }
 
+  /** How many boxes were added since `begin`. */
   get size(): number {
     return this.n;
   }
@@ -72,7 +74,7 @@ export class Figures {
   constructor(max: number) {
     this.torso = new Swarm(max, 1, true);
     this.head = new Swarm(max, 1, true);
-    // Unit blocks, sized by the instance scale: the torso is wider than it is deep, the head a cube.
+    // The swarms start with unit boxes; each figure part gets its own shape here. The torso is wider than it is deep.
     this.torso.mesh.geometry.dispose();
     this.torso.mesh.geometry = new THREE.BoxGeometry(0.34, 0.42, 0.22);
     this.head.mesh.geometry.dispose();

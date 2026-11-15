@@ -1,35 +1,27 @@
 /**
  * The cases and their keys in 3D (voxel/low-poly, built with the furniture kit like `night3d.ts`): the Night Market's
- * lacquered crate and coin, and the Nusantara's teak sea chest and brass anchor key.
+ * lacquered crate and coin, and the Nusantara's teak sea chest and brass anchor key. The Ragnarok Eve and Julemarked
+ * cases live in their own modules and are picked here by case id.
  *
- *   (each takes an optional case id last: "night-market" by default, or "nusantara" / "ragnarok-eve" for those cases' own chest and key)
+ *   (each takes an optional case id last: "night-market" by default, or "nusantara" / "ragnarok-eve" / "julemarked" for those cases' own chest and key)
  *   buildCaseBox(false)  // Model: the case, lid down, bottom centre at the origin, front along +z (~0.9 x 0.8 x 0.6)
  *   buildCaseBox(true)   // the same case, lid up, warm light spilling out (the Nusantara's: daylight and jasmine petals)
  *   buildCaseKey()       // Model: the market token on its tassel, hanging with its lowest point at y = 0
  *   buildCaseBox(open, "nusantara") / buildCaseKey("nusantara")   // the same, for the other case (`CaseDef.id`)
  *
  * Each model animates itself: the lantern glow pulses (the case), the token spins slowly (the key), the tag
- * swings (the Nusantara's sail and sun pulse, the petals drift, the key turns on its ribbon). The animation is registered in the kit's `ticks` (so the world's loop and a scene that runs
- * `ticks` drive it), and is also exposed as `animateCaseModel(model, seconds)` for a UI that has its own loop.
- * Either is idempotent in absolute time; calling both is harmless.
- *
- * Icons: `caseBoxIcon("closed" | "open" | "key", 64 | 128, caseId?)` returns { promise, cancel } like `requestIcon`
- * (it asks `render3d/icons.ts` for `{ kind: "case", what, caseId }`; use it only on the 3D tiers, after
- * `iconsAvailable()`). Remember to dispose a model you build and keep (`disposeObject` from engine/dispose.ts).
+ * swings (the Nusantara's sail and sun pulse, the petals drift, the key turns on its ribbon). The animation is
+ * registered in the kit's `ticks`, so the world's loop drives it. Remember to dispose a model you build and keep
+ * (`disposeObject` from engine/dispose.ts).
  */
 import * as THREE from "three";
 import { C } from "../art/palette.ts";
 import { buildJulemarkedBox, buildJulemarkedKey } from "./case-box3d-julemarked.ts";
 import { buildNorseBox, buildNorseKey } from "./case-box3d-norse.ts";
-import type { IconSize } from "./icons.ts";
 import { canvasTexture, glow, Model, painted, ticks, tint, toon } from "./kit/kit.ts";
 
-export type CaseIcon = "closed" | "open" | "key";
-/** `CaseDef.id` of the cases that have their own 3D box and key; anything else draws the Night Market's. */
-export type CaseModelId = "night-market" | "nusantara" | "ragnarok-eve" | "julemarked";
-
 /** The case whose art is drawn when none is asked for (`CaseDef.id` in core/src/cases.ts). */
-export const DEFAULT_CASE_ID = "night-market";
+const DEFAULT_CASE_ID = "night-market";
 
 const PLUM = "#3d1a52";
 const PLUM_DARK = "#2a1139";
@@ -51,29 +43,28 @@ const BODY_H = 0.46;
 const LID_H = 0.2;
 
 type Animator = (t: number) => void;
-const animators = new WeakMap<THREE.Object3D, Animator>();
 
-/** Runs a case or key model's own animation at absolute time `t` (seconds). Safe to call every frame. */
-export function animateCaseModel(model: THREE.Object3D, t: number): void {
-  animators.get(model)?.(t);
-}
-
-const register = (m: Model, fn: Animator): void => {
-  animators.set(m, fn);
+/** Runs `fn` on every tick of the world's loop. The model is the caller's handle and is not needed for that. */
+const register = (_model: Model, fn: Animator): void => {
   ticks.push(fn);
 };
 
-/** A lit paper lantern emblem on the front, facing +z, centred at (0, y, z). Returns the pieces that pulse. */
+/** A flat disc lying along z on `parent`: `h` thick, from `z`. */
+function disc(parent: Model, r: number, h: number, z: number, color: string): void {
+  const d = parent.cyl(r, h, color, [0, 0, z], r, 28);
+  d.rotation.x = Math.PI / 2;
+}
+
+/** A paper lantern on the front, facing +z, centred at (0, y, z). `lit` is its glow, which the caller animates. */
 function lanternEmblem(m: Model, y: number, z: number, lit: THREE.MeshBasicMaterial): void {
   m.box([0.34, 0.34, 0.02], LACQUER, [0, y - 0.17, z], 0.01);
   m.box([0.34, 0.02, 0.026], GOLD, [0, y + 0.15, z], 0.004);
-  const cy = y;
-  m.cyl(0.05, 0.03, GOLD, [0, cy - 0.04, z + 0.03], 0.04, 8);
-  m.ball(0.1, lit, [0, cy - 0.15, z + 0.045], [1, 1.15, 0.45], 14);
+  m.cyl(0.05, 0.03, GOLD, [0, y - 0.04, z + 0.03], 0.04, 8);
+  m.ball(0.1, lit, [0, y - 0.15, z + 0.045], [1, 1.15, 0.45], 14);
   for (const dy of [-0.06, 0.06])
-    m.box([0.2, 0.012, 0.012], ORANGE, [0, cy - 0.15 + dy * 1.15, z + 0.082], 0.002);
-  m.cyl(0.05, 0.022, GOLD, [0, cy - 0.285, z + 0.03], 0.05, 8);
-  m.cyl(0.01, 0.045, RED, [0, cy - 0.33, z + 0.03], 0.01, 5);
+    m.box([0.2, 0.012, 0.012], ORANGE, [0, y - 0.15 + dy * 1.15, z + 0.082], 0.002);
+  m.cyl(0.05, 0.022, GOLD, [0, y - 0.285, z + 0.03], 0.05, 8);
+  m.cyl(0.01, 0.045, RED, [0, y - 0.33, z + 0.03], 0.01, 5);
 }
 
 /** Gold corner caps and two straps round a box of `w`x`h`x`d` whose bottom is at y0. */
@@ -149,13 +140,16 @@ function nightMarketBox(open: boolean): Model {
       });
     });
   }
-  register(m, (t) => {
+  const animate: Animator = (t) => {
     const g = 0.5 + 0.5 * Math.sin(t * 2.6);
     lit.color.set(tint("#ffcf5c", -0.08 + 0.2 * g));
     tag.rotation.z = 0.14 * Math.sin(t * 1.7);
     for (const fn of pulse) fn(t);
-  });
-  animators.get(m)?.(0);
+  };
+  register(m, animate);
+
+  // Pose the model at t = 0 now, so the first frame is not the unanimated rest pose.
+  animate(0);
   return m;
 }
 
@@ -164,22 +158,14 @@ function nightMarketKey(): Model {
   const R = 0.3;
   const CENTRE = 0.69;
   const spin = m.part([0, CENTRE, 0]);
-  /** A flat disc lying along z: `h` thick from `z`. */
-  const disc = (r: number, h: number, z: number, color: string) => {
-    const d = spin.cyl(r, h, color, [0, 0, z], r, 28);
-    d.rotation.x = Math.PI / 2;
-  };
-  disc(R, 0.1, -0.05, GOLD);
+  disc(spin, R, 0.1, -0.05, GOLD);
+
   // Each face: a raised rim, a darker ring and the field, the lantern stamped below the hole.
   for (const turn of [0, Math.PI]) {
     const f = spin.part([0, 0, 0], turn);
-    const fdisc = (r: number, h: number, z: number, color: string) => {
-      const d = f.cyl(r, h, color, [0, 0, z], r, 28);
-      d.rotation.x = Math.PI / 2;
-    };
-    fdisc(R, 0.02, 0.05, GOLD_LIGHT);
-    fdisc(R * 0.82, 0.024, 0.05, GOLD_DARK);
-    fdisc(R * 0.76, 0.028, 0.05, GOLD);
+    disc(f, R, 0.02, 0.05, GOLD_LIGHT);
+    disc(f, R * 0.82, 0.024, 0.05, GOLD_DARK);
+    disc(f, R * 0.76, 0.028, 0.05, GOLD);
     const z = 0.082;
     f.box([0.12, 0.012, 0.012], GOLD_DARK, [0, -0.215, z - 0.006], 0.002);
     f.box([0.07, 0.02, 0.012], GOLD_DARK, [0, -0.2, z - 0.006], 0.002);
@@ -269,27 +255,27 @@ function sailShape(
   depth: number,
   color: string,
   at: [number, number, number],
-) {
+): void {
   const shape = new THREE.Shape();
-  for (const [i, [x, y]] of pts.entries()) i ? shape.lineTo(x, y) : shape.moveTo(x, y);
+  pts.forEach(([x, y], i) => {
+    if (i === 0) shape.moveTo(x, y);
+    else shape.lineTo(x, y);
+  });
   shape.closePath();
-  const o = new THREE.Mesh(new THREE.ExtrudeGeometry(shape, { depth, bevelEnabled: false }), toon(color));
-  o.position.set(...at);
-  o.castShadow = true;
-  m.add(o);
-  return o;
+  const mesh = new THREE.Mesh(new THREE.ExtrudeGeometry(shape, { depth, bevelEnabled: false }), toon(color));
+  mesh.position.set(...at);
+  mesh.castShadow = true;
+  m.add(mesh);
 }
 
 /** A rope handle: two posts and a bar, in turquoise rope that alternates light and dark twists, on the end `side` of a chest. */
 function ropeHandle(m: Model, side: -1 | 1, y: number, x: number): void {
   const u = (c: number) => (c % 2 ? TURQUOISE : TURQUOISE_DARK);
   for (const z of [-0.12, 0.12]) {
-    for (let i = 0; i < 5; i++)
-      m.box([0.04, 0.04, 0.045], u(i), [side * (x + 0.02 + i * 0.0), y + i * 0.04, z], 0.008);
+    for (let i = 0; i < 5; i++) m.box([0.04, 0.04, 0.045], u(i), [side * (x + 0.02), y + i * 0.04, z], 0.008);
     m.box([0.07, 0.03, 0.05], TEAK_DARK, [side * (x - 0.01), y - 0.02, z], 0.005);
   }
-  const bar = m.box([0.04, 0.045, 0.31], TURQUOISE, [side * (x + 0.02), y + 0.19, 0], 0.01);
-  void bar;
+  m.box([0.04, 0.045, 0.31], TURQUOISE, [side * (x + 0.02), y + 0.19, 0], 0.01);
   for (let i = 0; i < 6; i++)
     m.box([0.046, 0.05, 0.02], u(i), [side * (x + 0.02), y + 0.19, -0.12 + i * 0.048], 0.004);
 }
@@ -330,10 +316,10 @@ function nusantaraBox(open: boolean): Model {
   ropeHandle(m, -1, 0.14, W / 2 + 0.005);
   ropeHandle(m, 1, 0.14, W / 2 + 0.005);
   // The white sail emblem on the front: a dark teak plaque, a big white sail and a cream jib on a mast over a turquoise hull.
-  const E = D / 2 + 0.01;
-  m.box([0.34, 0.3, 0.014], TEAK_DARK, [0, 0.08, E], 0.01);
-  m.box([0.3, 0.26, 0.016], "#e8d6a8", [0, 0.1, E + 0.002], 0.008);
-  m.box([0.01, 0.23, 0.02], TEAK_DARK, [-0.01, 0.12, E + 0.01], 0.002);
+  const frontZ = D / 2 + 0.01;
+  m.box([0.34, 0.3, 0.014], TEAK_DARK, [0, 0.08, frontZ], 0.01);
+  m.box([0.3, 0.26, 0.016], "#e8d6a8", [0, 0.1, frontZ + 0.002], 0.008);
+  m.box([0.01, 0.23, 0.02], TEAK_DARK, [-0.01, 0.12, frontZ + 0.01], 0.002);
   sailShape(
     m,
     [
@@ -343,7 +329,7 @@ function nusantaraBox(open: boolean): Model {
     ],
     0.012,
     "#ffffff",
-    [0.0, 0.14, E + 0.012],
+    [0.0, 0.14, frontZ + 0.012],
   );
   sailShape(
     m,
@@ -354,11 +340,11 @@ function nusantaraBox(open: boolean): Model {
     ],
     0.012,
     "#fbf0d4",
-    [-0.02, 0.14, E + 0.012],
+    [-0.02, 0.14, frontZ + 0.012],
   );
-  m.box([0.24, 0.04, 0.02], TURQUOISE, [0, 0.1, E + 0.012], 0.01);
-  m.box([0.26, 0.012, 0.02], TEAK_DARK, [0, 0.095, E + 0.012], 0.002);
-  const sail = m.part([0, 0.1, E + 0.02]);
+  m.box([0.24, 0.04, 0.02], TURQUOISE, [0, 0.1, frontZ + 0.012], 0.01);
+  m.box([0.26, 0.012, 0.02], TEAK_DARK, [0, 0.095, frontZ + 0.012], 0.002);
+  const sail = m.part([0, 0.1, frontZ + 0.02]);
 
   // The lid, hinged along the back top edge: planks with a rattan edge, and the batik band across it.
   const hinge = m.part([0, BODY_H + 0.03, -D / 2]);
@@ -443,13 +429,16 @@ function nusantaraBox(open: boolean): Model {
       });
     });
   }
-  register(m, (t) => {
+  const animate: Animator = (t) => {
     const g = 0.5 + 0.5 * Math.sin(t * 2.4);
     sun.color.set(tint("#fff0b8", -0.04 + 0.1 * g));
     sail.rotation.z = 0.05 * Math.sin(t * 1.6);
     for (const fn of pulse) fn(t);
-  });
-  animators.get(m)?.(0);
+  };
+  register(m, animate);
+
+  // Pose the model at t = 0 now, so the first frame is not the unanimated rest pose.
+  animate(0);
   return m;
 }
 
@@ -516,45 +505,28 @@ function nusantaraKey(): Model {
 
 /** The case's chest (closed or open), for the case `id` (`CaseDef.id`); the Night Market's unless it is "nusantara", "ragnarok-eve" or "julemarked". */
 export function buildCaseBox(open: boolean, id: string = DEFAULT_CASE_ID): Model {
-  return id === "nusantara"
-    ? nusantaraBox(open)
-    : id === "ragnarok-eve"
-      ? buildNorseBox(open, register)
-      : id === "julemarked"
-        ? buildJulemarkedBox(open, register)
-        : nightMarketBox(open);
+  switch (id) {
+    case "nusantara":
+      return nusantaraBox(open);
+    case "ragnarok-eve":
+      return buildNorseBox(open, register);
+    case "julemarked":
+      return buildJulemarkedBox(open, register);
+    default:
+      return nightMarketBox(open);
+  }
 }
 
 /** The case's key, for the case `id`: the Night Market's market token on its tassel, the Nusantara's anchor key, or the Ragnarok Eve's. */
 export function buildCaseKey(id: string = DEFAULT_CASE_ID): Model {
-  return id === "nusantara"
-    ? nusantaraKey()
-    : id === "ragnarok-eve"
-      ? buildNorseKey(register)
-      : id === "julemarked"
-        ? buildJulemarkedKey(register)
-        : nightMarketKey();
-}
-
-/** A picture of the case (closed or open) or the key, through the shared icon renderer (3D tiers only). */
-export function caseBoxIcon(
-  what: CaseIcon,
-  size: IconSize,
-  caseId: string = DEFAULT_CASE_ID,
-): { promise: Promise<HTMLCanvasElement>; cancel: () => void } {
-  let cancel = () => {};
-  let dead = false;
-  const promise = import("./icons.ts").then((m) => {
-    if (dead) throw new Error("cancelled");
-    const r = m.requestIcon({ kind: "case", what, caseId }, size);
-    cancel = r.cancel;
-    return r.promise;
-  });
-  return {
-    promise,
-    cancel: () => {
-      dead = true;
-      cancel();
-    },
-  };
+  switch (id) {
+    case "nusantara":
+      return nusantaraKey();
+    case "ragnarok-eve":
+      return buildNorseKey(register);
+    case "julemarked":
+      return buildJulemarkedKey(register);
+    default:
+      return nightMarketKey();
+  }
 }

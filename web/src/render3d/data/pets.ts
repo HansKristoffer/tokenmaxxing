@@ -18,14 +18,15 @@ export const PET_SPECIES = [
   "forkedcat", // Merge-conflict boss loot
   "ghost", // Loot ghost
   "piggy", // Invoice boss loot
-  // The Night Market case's pets are at `CASE_BASE` and up (`CASE_PET_BASE`), not in this list.
+  // The Night Market case pets (koi onwards) are drawn at `CASE_PET_BASE` and up; these entries
+  // only let the `Species` type cover them.
   "koi",
   "crane",
   "tanuki",
   "maneki",
   "kitsune",
   "tengu",
-  // The Nusantara case's pets are at `NUSANTARA_PET_BASE` and up, not in this list either.
+  // The Nusantara case pets (komodo onwards) are drawn at `NUSANTARA_PET_BASE` and up.
   "komodo",
   "tarsier",
   "enggang",
@@ -106,9 +107,9 @@ const CASE_PET_RANGES: readonly { base: number; species: readonly Species[] }[] 
 /** The species of `Look.pet` `n`: the shop's and the loot's by position below 300, each case's from its own base. */
 export const speciesAt = (n: number): Species | undefined => {
   if (n < CASE_PET_BASE) return PET_SPECIES[n];
+
   // The last range whose base is at or below `n` owns it (a case's indices run to the next hundred).
-  let range: (typeof CASE_PET_RANGES)[number] | undefined;
-  for (const r of CASE_PET_RANGES) if (n >= r.base) range = r;
+  const range = CASE_PET_RANGES.findLast((r) => n >= r.base);
   return range && n - range.base < 100 ? range.species[n - range.base] : undefined;
 };
 export type Species =

@@ -113,15 +113,13 @@ const OWN_HATS: Record<string, (h: Model) => void> = {
     for (const s of [-1, 1]) {
       const cup = h.cyl(0.095, 0.07, "#e0584f", [s * 0.27, -0.12, 0], 0.095, 14);
       cup.rotation.z = Math.PI / 2;
-      cup.position.x = s * 0.27;
-      cup.position.y = -0.12;
     }
   },
   Crown: (h) => {
     band(h, "#f5c842", 0.2, 0.1, 0.2);
     for (let i = 0; i < 5; i++) {
       const a = (i / 5) * Math.PI * 2;
-      h.cyl(0.04, 0.1, "#f5c842", [Math.cos(a) * 0.19, 0.3, Math.sin(a) * 0.19], 0.0, 4);
+      h.cyl(0.04, 0.1, "#f5c842", [Math.cos(a) * 0.19, 0.3, Math.sin(a) * 0.19], 0, 4);
       h.ball(0.022, i % 2 ? "#e0584f" : "#4fa8ff", [Math.cos(a) * 0.19, 0.4, Math.sin(a) * 0.19]);
     }
   },
@@ -142,12 +140,14 @@ export function hatPreview(name: string): Model {
   (OWN_HATS[name] ?? HAT_BUILDERS[name])?.(hat, CTX(m));
   return m;
 }
+
 function facePreview(name: string): Model {
   const m = new VoxModel();
   const head = bust(m);
   FACE_BUILDERS[name]?.(head.part(), CTX(m));
   return m;
 }
+
 function heldPreview(name: string): Model {
   const m = new VoxModel();
   m.cyl(0.14, 0.04, "#3a3040", [0, 0, 0], 0.14, 12);
@@ -156,6 +156,7 @@ function heldPreview(name: string): Model {
   HELD_BUILDERS[name]?.(h, (fn) => alive(m, fn));
   return m;
 }
+
 /** A torso seen from behind with the item on its back (the builders draw on the back face, `z = -0.1`). */
 function backPreview(name: string): Model {
   const m = new VoxModel();
@@ -178,7 +179,9 @@ export function mannequin(look: Look2D, opts?: LookOptions): Avatar {
   alive(a.root, (t) => a.look.gear?.update?.(a, 0, t));
   return a;
 }
+
 const BASE: Look2D = { style: 0, skin: 0, hair: 1, outfit: 1 };
+
 function outfitPreview(index: number, back?: number): Model {
   return mannequin({ ...BASE, outfit: index, ...(back ? { back } : {}) }).root;
 }
@@ -201,31 +204,38 @@ const GROUP: Record<string, string> = {
   merch: "Merch",
 };
 
+function previewOf(r: ClothesRow): () => Model {
+  switch (r.slot) {
+    case "outfit":
+      return () => outfitPreview(r.index);
+    case "hat":
+      return () => hatPreview(r.name);
+    case "glasses":
+      return () => facePreview(r.name);
+    case "held":
+      return () => heldPreview(r.name);
+    case "back":
+      return () => backPreview(r.name);
+  }
+}
+
 function fromRow(r: ClothesRow): ShopItem {
   metaOf.set(r.id, { slot: r.slot, index: r.index, rarity: r.rarity, level: r.level, boss: r.boss });
-  const preview = () =>
-    r.slot === "outfit"
-      ? outfitPreview(r.index)
-      : r.slot === "hat"
-        ? hatPreview(r.name)
-        : r.slot === "glasses"
-          ? facePreview(r.name)
-          : r.slot === "held"
-            ? heldPreview(r.name)
-            : backPreview(r.name);
   return {
     id: r.id,
     name: r.name,
     price: r.price,
     ...(r.level !== undefined && { level: r.level }),
     group: r.boss ? `${GROUP[r.slot]} · ${r.boss} drop` : GROUP[r.slot],
-    preview,
+    preview: previewOf(r),
   };
 }
 
 /** Cheapest, commonest first: a shelf reads as a climb through the rarities. */
-const bySale = (a: ClothesRow, b: ClothesRow) =>
-  RARITY_ORDER.indexOf(a.rarity) - RARITY_ORDER.indexOf(b.rarity) || a.price - b.price || a.index - b.index;
+const bySale = (a: ClothesRow, b: ClothesRow) => {
+  const rarity = RARITY_ORDER.indexOf(a.rarity) - RARITY_ORDER.indexOf(b.rarity);
+  return rarity || a.price - b.price || a.index - b.index;
+};
 
 /** A slot's rows, the holiday costumes only in their season (the shop is built once a page). */
 const rows = (slot: ClothesRow["slot"]) =>
@@ -288,11 +298,13 @@ export function tryOnLook2D(item: Pick<ShopItem, "id">, look: Look2D): Look2D {
   const piece = merch && MERCH_PIECES.find((p) => p.kind === merch[2]);
   if (merch && piece) {
     const same = look.merch === Number(merch[1]);
-    // A hoodie goes over a tee: wearing one clears the other.
     const bits = same ? (look.merchWorn ?? 0) : 0;
-    const next =
-      piece.kind === "hoodie" ? (bits & ~1) | 2 : piece.kind === "tee" ? (bits & ~2) | 1 : bits | piece.bit;
-    return { ...look, merch: Number(merch[1]), merchWorn: next };
+
+    // A hoodie goes over a tee: wearing one clears the other. The tee is bit 1 and the hoodie bit 2 (`MERCH_PIECES`).
+    let merchWorn = bits | piece.bit;
+    if (piece.kind === "hoodie") merchWorn = (bits & ~1) | 2;
+    else if (piece.kind === "tee") merchWorn = (bits & ~2) | 1;
+    return { ...look, merch: Number(merch[1]), merchWorn };
   }
   return { ...look };
 }

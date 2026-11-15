@@ -41,7 +41,7 @@ export function drawTavern(f: Frame): void {
   const frame = Math.floor(now / 160) % 2;
   for (const [x, y] of hearths()) {
     const sprite = hearthFlame(frame);
-    // Just after the hearth, so the fire is in its opening.
+    // Sorted just after the hearth, so the flame draws over it.
     items.push({
       y: y * TILE + TILE - 0.5,
       draw: () => g.drawImage(sprite, x * TILE + FLAME_AT.x, (y + 1) * TILE - HEARTH_H + FLAME_AT.y + 1),

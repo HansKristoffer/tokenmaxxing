@@ -4,6 +4,7 @@
 // takes a screenshot of it (HUD on, so the "▼ E" prompt shows). Prints each room's portals as it goes. Needs a
 // local server and Playwright (see lib.mjs).
 import { mkdirSync } from "node:fs";
+import { doorOf } from "../../core/src/maps.ts";
 import { openGame, playwright, portals, ready, room, signUp, through } from "./lib.mjs";
 
 const arg = (k, d) => {
@@ -113,8 +114,8 @@ const ownDoor = await page.evaluate(() => {
 });
 console.log("own plot", ownDoor);
 await shootHere(["I", "G", "ƒ", "Ç", "Ð", "ð"]);
-// Our house's door: the D nearest the plot.
-const houseDoor = [((ownDoor % 1000) - 500) * 10 + 5, (Math.floor(ownDoor / 1000) - 500) * 9 + 6];
+// Our house's door, from core's plot-to-door rule.
+const houseDoor = doorOf(ownDoor);
 {
   const b = await beside(houseDoor[0], houseDoor[1]);
   if (b) {

@@ -144,7 +144,6 @@ const orrery = (): Model => {
     star.scale.setScalar(1 + 0.06 * Math.sin(t * 3));
     halo.scale.setScalar(1 + 0.15 * Math.sin(t * 2 + 1));
   });
-  m.scale.setScalar(1.0);
   return m;
 };
 
@@ -167,11 +166,18 @@ const blackHole = (): Model => {
   const disc = hole.part([0, 0, 0]);
   disc.rotation.x = 0.28;
   const spin = disc.part([0, 0, 0]);
+  // Seven segments repeat: one pale, two bright pink, two magenta and two deep purple.
+  const ringColour = (k: number): string => {
+    if (k < 1) return "#ffe0fb";
+    if (k < 3) return "#ff7cf5";
+    if (k < 5) return "#d946ef";
+    return "#7a1f8f";
+  };
 
   for (let i = 0; i < 28; i++) {
     const a = (i / 28) * Math.PI * 2;
     const k = i % 7;
-    const c = k < 1 ? "#ffe0fb" : k < 3 ? "#ff7cf5" : k < 5 ? "#d946ef" : "#7a1f8f";
+    const c = ringColour(k);
     const s = spin.box([0.06, 0.012, 0.05], glow(c), [Math.cos(a) * 0.3, 0, Math.sin(a) * 0.3], 0.002);
     s.rotation.y = -a;
     if (k < 5) {
@@ -189,7 +195,7 @@ const blackHole = (): Model => {
     a: rnd() * 6.28,
     p: i / 5,
   }));
-  // The glass: four faces, a pane each.
+  // The glass cell round the hole: a see-through box.
   m.box([0.74, 1.2, 0.74], glass("#b9c4f2", 0.16), [0, 0.34, 0], 0.01);
   m.box([0.86, 0.1, 0.86], "#4a4660", [0, 1.54, 0], 0.02);
   m.box([0.86, 0.06, 0.86], "#4a4660", [0, 0.3, 0], 0.02);
@@ -276,7 +282,6 @@ const holoTown = (): Model => {
     });
     const k = (t * 0.4) % 1;
     scan.position.y = k * 0.9;
-    scan.scale.set(1, 1, 1);
     holo.rotation.y = Math.sin(t * 0.3) * 0.02;
     body.opacity = 0.34 + 0.06 * Math.sin(t * 7);
   });
@@ -303,6 +308,8 @@ const monument = (): Model => {
   face.rotation.x = Math.PI / 2;
   // The groove: rainbow segments that slide round it.
   const groove: THREE.Mesh[] = [];
+  // One material per colour, swapped into the groove each frame (a new one per frame would pile up on the GPU).
+  const rainbowGlow = RAINBOW.map((c) => glow(c));
   for (let i = 0; i < 36; i++) {
     const a = (i / 36) * Math.PI * 2;
     const s = coin.box(
@@ -327,8 +334,8 @@ const monument = (): Model => {
   });
   // Rays thrown out past the token on either side, shimmering.
   const rays = RAINBOW.map((c, i) => {
-    const r = m.box([0.25, 0.025, 0.02], beam(c, 0.8), [0, 0.7 + i * 0.1, 0.1], 0.003);
-    return r;
+    const mat = beam(c, 0.8);
+    return { o: m.box([0.25, 0.025, 0.02], mat, [0, 0.7 + i * 0.1, 0.1], 0.003), mat };
   });
   // Pearls of light that drift up.
   const rnd = seeded(21);
@@ -342,15 +349,15 @@ const monument = (): Model => {
   ticks.push((t) => {
     coin.rotation.y = Math.sin(t * 0.5) * 0.18;
     groove.forEach((g, i) => {
-      g.material = glow(RAINBOW[(Math.floor(i / 6) + Math.floor(t * 3)) % 6]!);
+      g.material = rainbowGlow[(Math.floor(i / 6) + Math.floor(t * 3)) % 6]!;
     });
     fan.forEach((b, i) => {
       b.scale.x = 0.85 + 0.15 * Math.sin(t * 3 + i);
     });
     rays.forEach((r, i) => {
       const side = i % 2 ? 1 : -1;
-      r.position.x = side * (0.92 + 0.04 * Math.sin(t * 2 + i));
-      (r.material as THREE.MeshBasicMaterial).opacity = 0.5 + 0.4 * Math.sin(t * 3 + i * 1.3);
+      r.o.position.x = side * (0.92 + 0.04 * Math.sin(t * 2 + i));
+      r.mat.opacity = 0.5 + 0.4 * Math.sin(t * 3 + i * 1.3);
     });
     for (const s of sparks) {
       const u = (t * 0.2 + s.p) % 1;
@@ -359,7 +366,6 @@ const monument = (): Model => {
       s.o.scale.setScalar(Math.sin(u * Math.PI));
     }
   });
-  m.position.y = 0;
   return m;
 };
 

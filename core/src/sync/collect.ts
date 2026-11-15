@@ -28,9 +28,13 @@ export interface CollectOptions extends Omit<ExtractOptions, "enabled"> {
  */
 const extracted = (enabled: ReadonlySet<Source>): Set<Extracted> =>
   new Set(
-    [...enabled].flatMap((s): Extracted[] =>
-      s === "cursor_local" ? ["cursor_api", "grok_bot"] : s === "github" ? [] : [s],
-    ),
+    [...enabled].flatMap((s): Extracted[] => {
+      // Cursor's dashboard covers both its own usage and Grok Bot's.
+      if (s === "cursor_local") return ["cursor_api", "grok_bot"];
+      // GitHub is not in llm-usage-extraction; `collect` reads it below.
+      if (s === "github") return [];
+      return [s];
+    }),
   );
 
 /**
@@ -53,17 +57,15 @@ export async function* collect(state: SyncState, opts: CollectOptions): AsyncGen
 
   // PRs change a few times a day, and search has a tight rate limit: ask at most every 15 minutes.
   const now = (opts.now ?? Date.now)();
-  if (
-    !enabled.has("github") ||
-    githubAccounts === null ||
-    now - (state.github?.checkedAt ?? 0) < GITHUB_EVERY_MS
-  )
-    return;
+  const githubIsDue = now - (state.github?.checkedAt ?? 0) >= GITHUB_EVERY_MS;
+  if (!enabled.has("github") || githubAccounts === null || !githubIsDue) return;
+
   try {
     const found = await (githubAccounts ?? localGithubAccounts)();
     const cursors = { ...state.github?.cursors };
     const events: TokenEvent[] = [];
     let problem: GithubProblem | undefined;
+
     if (typeof found === "string") {
       problem = found;
     } else {
@@ -77,8 +79,11 @@ export async function* collect(state: SyncState, opts: CollectOptions): AsyncGen
         if (r.since) cursors[key] = r.since;
         if (r.rejected) rejected++;
       }
+
+      // Every account refused us: the token is gone, not just one account's.
       if (rejected === found.length) problem = "signed_out";
     }
+
     yield {
       events,
       commit: (s) => ({ ...s, github: { cursors, checkedAt: now, ...(problem ? { problem } : {}) } }),

@@ -5,10 +5,14 @@ import { fileURLToPath } from "node:url";
 // Tauri supplies the target for cross/universal builds. Native builds use Rust's host triple.
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
 const out = resolve(root, "app/desktop/src-tauri/binaries");
-const triple =
-  process.env.TAURI_ENV_TARGET_TRIPLE || /host: (.+)/.exec(await run(["rustc", "-vV"], true))?.[1]?.trim();
+const triple = process.env.TAURI_ENV_TARGET_TRIPLE || (await hostTriple());
 if (!triple) throw new Error("Could not determine the Rust target triple");
 await mkdir(out, { recursive: true });
+
+async function hostTriple(): Promise<string | undefined> {
+  const rustc = await run(["rustc", "-vV"], true);
+  return /host: (.+)/.exec(rustc)?.[1]?.trim();
+}
 
 async function run(args: string[], capture = false): Promise<string> {
   const child = Bun.spawn(args, {

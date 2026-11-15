@@ -45,6 +45,8 @@ export interface Dance2D {
 }
 
 const SPIN: readonly Facing[] = ["down", "right", "up", "left"];
+/** The robot's head turns on each half beat: front, right, front, left. */
+const ROBOT_TURN: readonly Facing[] = ["down", "right", "down", "left"];
 /** The 16-pixel sprite's version of `move`, `t` seconds in, facing `facing` when it doesn't turn. */
 export function dance2D(move: DanceMove, t: number, facing: Facing): Dance2D {
   const b = t * tempoOf(move);
@@ -74,7 +76,7 @@ export function dance2D(move: DanceMove, t: number, facing: Facing): Dance2D {
       out.angle = (odd ? -1 : 1) * 0.18;
       break;
     case "robot":
-      out.facing = SPIN[Math.floor(b * 2) % 4 === 3 ? 3 : Math.floor(b * 2) % 4 === 1 ? 1 : 0]!;
+      out.facing = ROBOT_TURN[Math.floor(b * 2) % 4]!;
       break;
     case "sprinkler":
       out.facing = Math.floor(b * 2) % 8 < 4 ? "right" : "left";

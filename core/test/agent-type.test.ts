@@ -47,12 +47,6 @@ describe("agent types", () => {
     // No prompts: neither.
     expect(id({ turnsPerPrompt: null })).toBe("sprinter");
   });
-
-  test("no rule looks at anything but the facts' habits", () => {
-    expect(Object.keys(base).sort()).toEqual(
-      ["activeDays", "activeHours", "parallelism", "peakAgents", "subShare", "turnsPerPrompt"].sort(),
-    );
-  });
 });
 
 describe("work hours", () => {

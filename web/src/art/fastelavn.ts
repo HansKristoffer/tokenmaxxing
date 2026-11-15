@@ -58,8 +58,9 @@ export const barrelSprite = cached(
         [9, 2, 4],
         [8, 9, 4],
       ];
-      for (const [x, y, len] of lines.slice(0, cracks))
+      for (const [x, y, len] of lines.slice(0, cracks)) {
         for (let i = 0; i < len; i++) p.px(x + (i % 2), y + i, C.ink);
+      }
     }),
 );
 

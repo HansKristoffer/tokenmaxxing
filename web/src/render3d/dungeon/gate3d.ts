@@ -19,6 +19,21 @@ const WOOD = "#a8743e";
 
 const openRaid = () => hud.set({ panel: { kind: "raid" } });
 
+/** The yellow and black tape that crosses the boards. */
+export function tapeTexture(): THREE.CanvasTexture {
+  const tex = canvasTexture(32, 4, (g) => {
+    for (let x = 0; x < 32; x += 8) {
+      g.fillStyle = "#f5d14a";
+      g.fillRect(x, 0, 4, 4);
+      g.fillStyle = "#2b2433";
+      g.fillRect(x + 4, 0, 4, 4);
+    }
+  });
+  tex.wrapS = THREE.RepeatWrapping;
+  tex.repeat.set(4, 1);
+  return tex;
+}
+
 interface Plank {
   mesh: THREE.Mesh;
   home: THREE.Vector3;
@@ -62,16 +77,7 @@ export class GateLive {
       this.boards.add(mesh);
       this.planks.push({ mesh, home: mesh.position.clone(), roll, v: new THREE.Vector3(), spin: 0 });
     }
-    const tapeTex = canvasTexture(32, 4, (g) => {
-      for (let x = 0; x < 32; x += 8) {
-        g.fillStyle = "#f5d14a";
-        g.fillRect(x, 0, 4, 4);
-        g.fillStyle = "#2b2433";
-        g.fillRect(x + 4, 0, 4, 4);
-      }
-    });
-    tapeTex.wrapS = THREE.RepeatWrapping;
-    tapeTex.repeat.set(4, 1);
+    const tapeTex = tapeTexture();
     const tape = new THREE.Mesh(
       new THREE.PlaneGeometry(2.0, 0.14),
       new THREE.MeshBasicMaterial({ map: tapeTex }),
@@ -151,20 +157,25 @@ export class GateLive {
   update(t: number): void {
     const raid = hud.get().raid;
     const next = gateState(raid);
+
+    // The launch: the boards were up and the gate is open now.
     if (this.state === "boarded" && next === "open" && raid) this.burstAt = t;
     if (this.state !== next) {
       this.state = next;
       this.boards.visible = next === "boarded";
-      for (const t of this.tags) t.visible = true;
+      for (const tag of this.tags) tag.visible = true;
       this.bars.visible = next === "shut";
       if (next === "boarded") this.restore();
     }
+
     const bursting = t - this.burstAt < BURST_S;
     if (bursting) this.burst(t - this.burstAt);
     else if (this.sparks.size) {
+      // Clear the last burst's sparks, or they would stay in the air.
       this.sparks.begin();
       this.sparks.end();
     }
+
     if (next === "boarded") this.rumble(t);
     else if (this.dust.size) {
       this.dust.begin();
@@ -186,20 +197,21 @@ export class GateLive {
     const on = phase < RUMBLE_S;
     this.boards.position.x = on ? Math.sin(t * 40) * 0.02 : 0;
     this.dust.begin();
-    if (on)
+    if (on) {
       for (let i = 0; i < 10; i++) {
         const k = (phase / RUMBLE_S + i / 10) % 1;
         this.dust.add(-0.8 + (i / 9) * 1.6, 1.9 - k * 1.6, 0.35, 1 - k, "#aaa6b8");
       }
+    }
     this.dust.end();
   }
 
   /** The boards fly off in a burst of gold and violet, and the sparks come up out of the way down. */
   private burst(age: number): void {
-    const t = age / BURST_S;
+    const progress = age / BURST_S;
     this.boards.visible = age < BURST_S * 0.9;
     this.boards.position.x = 0;
-    for (const t of this.tags) t.visible = age < 0.2;
+    for (const tag of this.tags) tag.visible = age < 0.2;
     this.planks.forEach((p, i) => {
       const dir = i % 2 === 0 ? -1 : 1;
       p.mesh.position.set(
@@ -210,6 +222,8 @@ export class GateLive {
       p.mesh.rotation.set(0, 0, p.roll + dir * age * 7);
     });
     this.sparks.begin();
+    // Each spark's angle and speed come from a fixed hash of its index, so every burst scatters the same way.
+    // 628 / 100 is 2 pi, a full turn.
     for (let i = 0; i < 40; i++) {
       const a = (((i * 2654435761) >>> 0) % 628) / 100;
       const v = 0.7 + ((((i * 40503) >>> 0) % 100) / 100) * 1.8;
@@ -217,7 +231,7 @@ export class GateLive {
         Math.cos(a) * v * age,
         0.9 + Math.sin(a) * v * age * 0.7 - age * age * 0.6,
         0.4 + age * 0.5,
-        Math.max(0, 1 - t * 1.2),
+        Math.max(0, 1 - progress * 1.2),
         i % 3 === 0 ? "#ffd35c" : "#c9a2ff",
       );
     }

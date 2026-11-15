@@ -36,6 +36,7 @@ export function watchShelf(owner: number, now: number, ask: (owner: number) => P
       entry.ids = new Set(list.map((t) => t.id));
       entry.sig = sigOf(list);
     })
+    // A failed ask keeps the shelf as it was, and the next ask comes after `REFRESH_MS` like any other.
     .catch(() => {})
     .finally(() => {
       entry.asking = false;

@@ -61,6 +61,9 @@ const palette = (tier: string, mode: ScreenMode): Palette => {
   if (mode === "off") return { ...PAL_OFF, x: "#2f3a4a", m: C.metal };
   // The battlestation's screens are dark with neon text; the rest are the laptop's cyan.
   const neon = tier === "battlestation";
+  const lineEnd = neon ? "#5ff2ff" : C.white;
+  // The end of a line: there, or not, every other beat.
+  const lineEndBlink = mode === "typingB" ? (neon ? "#1b2140" : C.screen) : lineEnd;
   return {
     o: C.ink,
     m: C.metal,
@@ -69,8 +72,7 @@ const palette = (tier: string, mode: ScreenMode): Palette => {
     b: neon ? "#ff6ad5" : "#5fc6e8",
     g: neon ? "#7dff8a" : "#5fd08a",
     p: "#b58cf0",
-    // The end of a line: there, or not, every other beat.
-    x: mode === "typingB" ? (neon ? "#1b2140" : C.screen) : neon ? "#5ff2ff" : C.white,
+    x: lineEndBlink,
   };
 };
 
@@ -128,7 +130,8 @@ export const deskFrame = cached(
       base(p);
       if (tier === 0) return laptop(p, mode);
       const pal = palette(id, mode);
-      p.grid(tier === 1 ? DUAL : tier === 2 || tier === 4 ? TRIPLE : ULTRA, pal, 0, TOP);
+      const grid = tier === 1 ? DUAL : tier === 2 || tier === 4 ? TRIPLE : ULTRA;
+      p.grid(grid, pal, 0, TOP);
       keyboard(p, id === "battlestation" && mode !== "off" ? "#b58cf0" : C.metalLight);
       if (id === "battlestation") rig(p, mode);
     }),

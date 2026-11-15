@@ -7,11 +7,27 @@ import { PLAY_MS, type PlayPose, playPose } from "./petplay.ts";
 import { petSound } from "./petsound.ts";
 import { type Avatar, self, world } from "./world.ts";
 
+interface Pet {
+  x: number;
+  y: number;
+  left: boolean;
+  moving: boolean;
+  asleep: boolean;
+  room: string;
+}
+
 /** Each pet's spot in world pixels (top-left). It trails its owner rather than sticking to them. */
-const pets = new Map<
-  number,
-  { x: number; y: number; left: boolean; moving: boolean; asleep: boolean; room: string }
->();
+const pets = new Map<number, Pet>();
+
+/** A pet that has just appeared in the room, at `x`, `y`. */
+const appearedAt = (x: number, y: number, left: boolean): Pet => ({
+  x,
+  y,
+  left,
+  moving: false,
+  asleep: false,
+  room: world.room,
+});
 
 /** Where a pet lies in its bed, as its top-left in world pixels (the bed's tile, a little in from its edge). */
 export const bedSpot = ([bx, by]: readonly [number, number]): [number, number] => [
@@ -41,7 +57,7 @@ export function followPet(a: Avatar, px: number, py: number, dt: number, bed?: r
   let pet = pets.get(a.info.id);
   // New, or the owner jumped (a door, a warp): appear at the spot.
   if (!pet || pet.room !== world.room || Math.hypot(tx - pet.x, ty - pet.y) > 3 * TILE) {
-    pet = { x: tx, y: ty, left: a.facing === "left", moving: false, asleep: false, room: world.room };
+    pet = appearedAt(tx, ty, a.facing === "left");
     pets.set(a.info.id, pet);
   }
   pet.asleep = false;
@@ -61,7 +77,7 @@ function sleepPet(a: Avatar, px: number, py: number, dt: number, [bx, by]: reado
   let pet = pets.get(a.info.id);
   if (!pet || pet.room !== world.room) {
     // Came in with its owner: starts where it would trail them.
-    pet = { x: px - 9, y: py + 6, left: a.facing === "left", moving: false, asleep: false, room: world.room };
+    pet = appearedAt(px - 9, py + 6, a.facing === "left");
     pets.set(a.info.id, pet);
   }
   const dx = bx - pet.x;

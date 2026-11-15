@@ -126,11 +126,15 @@ export const dice: GameDef<DiceState, DiceView> = {
     }
     const count = Number(m?.count);
     const face = Number(m?.face);
-    if (!Number.isInteger(count) || !Number.isInteger(face) || face < 2 || face > 6 || count < 1)
+    // Faces 2 to 6 are the claimable ones: 1 is the unicorn, which is wild and never claimed.
+    const isClaimableFace = Number.isInteger(face) && face >= 2 && face <= 6;
+    if (!Number.isInteger(count) || !isClaimableFace || count < 1)
       return refused("Claim a number of 📉 📊 📈 🚀 or 💰 (🦄 are wild).");
     if (count > total(s)) return refused(`There are only ${total(s)} dice on the table.`);
-    if (last && !(count > last.count || (count === last.count && face > last.face)))
-      return refused("Raise: more dice, or the same number of a higher face.");
+
+    // The first claim of a round can be anything; after that, more dice or the same number of a higher face.
+    const isRaise = !last || count > last.count || (count === last.count && face > last.face);
+    if (!isRaise) return refused("Raise: more dice, or the same number of a higher face.");
     return {
       ...s,
       reveal: null,

@@ -77,6 +77,7 @@ export async function writeActivity(
   activity: readonly ActivityIn[],
 ): Promise<void> {
   const row = "(?,?,?,?,?,?,?,?,?,?,?,?)";
+  // 80 rows of 12 parameters is 960, under SQLite's old limit of 999 bound parameters.
   for (let i = 0; i < activity.length; i += 80) {
     const chunk = activity.slice(i, i + 80);
     await sql.execute(
@@ -134,14 +135,17 @@ export async function pinsOf(sql: Sql, userId: number): Promise<Pin[]> {
 /** Replaces the shelf with `ids`, in order (run it in one transaction). */
 export async function setPins(sql: Sql, userId: number, ids: readonly string[]): Promise<void> {
   await sql.execute("DELETE FROM showcase WHERE user_id = ?", userId);
-  for (const [slot, id] of ids.slice(0, PIN_MAX).entries())
+  for (const [slot, id] of ids.slice(0, PIN_MAX).entries()) {
+    // A pin's kind is the part of its id before the colon, as in `badge:shipper`.
+    const kind = id.slice(0, id.indexOf(":"));
     await sql.execute(
       "INSERT INTO showcase (user_id, slot, kind, ref) VALUES (?, ?, ?, ?)",
       userId,
       slot,
-      id.slice(0, id.indexOf(":")),
+      kind,
       id,
     );
+  }
 }
 
 // MARK: The Tavern's minutes
@@ -158,6 +162,7 @@ export async function addTavernMinutes(sql: Sql, day: string, rows: readonly Tav
   for (const [userId, rawMinutes, rawVisits] of rows) {
     const minutes = Math.floor(rawMinutes);
     if (!Number.isInteger(userId) || userId <= 0 || !(minutes > 0)) continue;
+    // A visit is at least one minute, so visits never outnumber minutes.
     const visits = Math.min(Math.max(Math.floor(rawVisits) || 0, 0), minutes);
     const row = await one(
       sql,
@@ -300,8 +305,10 @@ export async function habitsOf(
       if (i < 24) hours[i]! += Number(n) || 0;
     });
     try {
-      for (const [source, tokens] of Object.entries(JSON.parse(r.sources || "{}") as Record<string, number>))
+      const sources = JSON.parse(r.sources || "{}") as Record<string, number>;
+      for (const [source, tokens] of Object.entries(sources)) {
         if (Number.isFinite(tokens)) bySource.set(source, (bySource.get(source) ?? 0) + tokens);
+      }
     } catch {
       // A malformed day is skipped, not fatal.
     }
@@ -309,6 +316,7 @@ export async function habitsOf(
   const total = [...bySource.values()].reduce((n, v) => n + v, 0);
   const agentBuckets = a?.agentBuckets ?? 0;
   const activeBuckets = a?.activeBuckets ?? 0;
+  const prompts = a?.prompts ?? 0;
   const read = (u?.input ?? 0) + (u?.creation ?? 0) + (u?.read ?? 0);
   const habits: Habits = {
     hours,
@@ -317,7 +325,7 @@ export async function habitsOf(
     parallelism: activeBuckets > 0 ? agentBuckets / activeBuckets : null,
     peakAgents: a?.peak ?? 0,
     subShare: agentBuckets > 0 ? Math.min(1, (a?.subs ?? 0) / agentBuckets) : 0,
-    turnsPerPrompt: (a?.prompts ?? 0) > 0 ? (u?.turns ?? 0) / a!.prompts! : null,
+    turnsPerPrompt: prompts > 0 ? (u?.turns ?? 0) / prompts : null,
     cacheHit: read > 0 ? (u?.read ?? 0) / read : null,
     sources: [...bySource]
       .filter(([, tokens]) => tokens > 0)
@@ -338,13 +346,10 @@ export async function habitsOf(
 
 /** The latest world day with any usage, or null. */
 export async function lastActiveOf(sql: Sql, userId: number): Promise<string | null> {
-  return (
-    (
-      await one<{ day: string | null }>(
-        sql,
-        "SELECT MAX(day) AS day FROM usage_daily WHERE user_id = ?",
-        userId,
-      )
-    )?.day ?? null
+  const r = await one<{ day: string | null }>(
+    sql,
+    "SELECT MAX(day) AS day FROM usage_daily WHERE user_id = ?",
+    userId,
   );
+  return r?.day ?? null;
 }

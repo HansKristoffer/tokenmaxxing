@@ -181,16 +181,19 @@ const bordTree = (): Model => {
   blockHeart(m, 0.14, 0.44, 0.24, 0.045, "#ffffff", JUL_RED);
   blockHeart(m, -0.07, 0.56, 0.2, 0.04, JUL_RED, "#ffffff");
   blockHeart(m, 0.09, 0.21, 0.36, 0.045, "#ffffff", JUL_RED);
-  [
+
+  // The string of warm lights: one small gold bulb at each point, all on the front.
+  const bulbs: [number, number, number][] = [
     [-0.28, 0.27, 0.34],
     [0.24, 0.31, 0.3],
     [-0.2, 0.43, 0.24],
     [0.17, 0.55, 0.2],
     [-0.1, 0.65, 0.13],
     [0.08, 0.7, 0.1],
-  ].forEach(([x, y, z]) => {
-    m.box([0.034, 0.034, 0.034], glow(JUL_GOLD), [x! - 0.017, y!, z!], 0.003);
-  });
+  ];
+  for (const [x, y, z] of bulbs) {
+    m.box([0.034, 0.034, 0.034], glow(JUL_GOLD), [x - 0.017, y, z], 0.003);
+  }
   light(m, [0, 0.55, 0.35], "#ffcf7a", 0.7, 3);
   return m;
 };
@@ -219,7 +222,7 @@ function present(
   for (const s of [-1, 1]) {
     const loop = g.part([s * 0.04, h + 0.01, 0]);
     loop.rotation.z = -s * 0.5;
-    loop.box([0.07, 0.045, 0.04], ribbon, [-0.035 + (s > 0 ? 0.07 : 0) * 0, 0, 0], 0.003);
+    loop.box([0.07, 0.045, 0.04], ribbon, [-0.035, 0, 0], 0.003);
   }
   g.box([0.045, 0.05, 0.045], ribbon, [0, h + 0.005, 0], 0.003);
 }

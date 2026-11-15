@@ -5,10 +5,10 @@ import { all, type Sql, scalar, type TxSql } from "../actors/shared.ts";
 import { giveItem } from "./coins.ts";
 
 /**
- * Trick-or-treat (`core/src/spooky.ts`): every door a player knocks on, a row a day (`halloween_knocks`), and
- * who knocked on every door in town in one night (`sugar_kings`, one row a year each). The knock that finishes
- * the round writes the king's row and gives the bucket hat in the same transaction, and the row is the year's
- * key: a second round, a restart or a race never gives a second hat.
+ * Trick-or-treat (`core/src/spooky.ts`): every door a player knocks on, a row a day (`halloween_knocks`),
+ * and who knocked on every door in town in one night (`sugar_kings`, one row a year each). The knock that
+ * finishes the round writes the king's row and gives the bucket hat in the same transaction, and the row
+ * is the year's key: a second round, a restart or a race never gives a second hat.
  */
 export async function migrateHalloween(sql: Sql): Promise<void> {
   await sql.execute(`CREATE TABLE IF NOT EXISTS halloween_knocks (
@@ -23,8 +23,8 @@ export async function migrateHalloween(sql: Sql): Promise<void> {
 export const trickOrTreatOn = (now: number): boolean => festiveAt(now)?.id === "halloween";
 
 /**
- * `userId` knocks on `door`. `doors`: every doorstep's door in town now (`doorSteps`), so a house built or gone
- * since the evening began changes what "every door" is. Run it serialized, like the other bag writes.
+ * `userId` knocks on `door`. `doors`: every doorstep's door in town now (`doorSteps`), so a house built or
+ * gone since the evening began changes what "every door" is. Run it serialized, like the other bag writes.
  */
 export async function knock(
   sql: TxSql,
@@ -60,7 +60,9 @@ export async function knock(
       );
       const out: Knock = { door, treat: fresh ? treat : null, candy, knocked, of: doors.length };
       const done = new Set(knocked);
-      if (!fresh || doors.length === 0 || !doors.every((d) => done.has(d))) return out;
+      const completesRound = Boolean(fresh) && doors.length > 0 && doors.every((d) => done.has(d));
+      if (!completesRound) return out;
+
       const [king] = await all(
         tx,
         `INSERT INTO sugar_kings (year, user_id, day, at) VALUES (?, ?, ?, ?)

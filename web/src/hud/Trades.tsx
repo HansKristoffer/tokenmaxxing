@@ -7,9 +7,11 @@ import { hud, useHud } from "../store.ts";
 import { Balance, Modal, useRun } from "./ui.tsx";
 
 /** "🪙 50 + Shades", or "nothing". */
-const sideText = (s: Side): string =>
-  [...(s.coins ? [`🪙 ${s.coins}`] : []), ...s.items.map((id) => itemById(id)?.name ?? id)].join(" + ") ||
-  "nothing";
+const sideText = (s: Side): string => {
+  const coinPart = s.coins ? [`🪙 ${s.coins}`] : [];
+  const itemNames = s.items.map((id) => itemById(id)?.name ?? id);
+  return [...coinPart, ...itemNames].join(" + ") || "nothing";
+};
 
 /** Offering someone a trade, from their card: coins and items each way. */
 export function TradePanel({ userId }: { userId: number }) {
@@ -24,15 +26,15 @@ export function TradePanel({ userId }: { userId: number }) {
   const { error, busy, run } = useRun();
   useEffect(() => {
     void refreshWallet();
-    const load = (failed: (e: unknown) => void) => {
+    const load = (onError: (e: unknown) => void) => {
       void town
         .bag()
         .then(
           (b) =>
             setMine(Object.fromEntries(b.filter((r) => isTradeable(r.item)).map((r) => [r.item, r.count]))),
-          failed,
+          onError,
         );
-      void town.tradeables(userId).then(setThem, failed);
+      void town.tradeables(userId).then(setThem, onError);
     };
     load((e) => setFailed(errorText(e)));
     // ponytail: a poll, like `TradesPanel`'s, so a trade settled meanwhile shows here too.
@@ -122,7 +124,7 @@ function SideFields({
           {items.map((id) => (
             <button key={id} type="button" aria-pressed={side.items.includes(id)} onClick={() => toggle(id)}>
               {itemById(id)?.name ?? id}
-              {counts && counts[id]! > 1 && ` ×${counts[id]}`}
+              {counts && (counts[id] ?? 0) > 1 && ` ×${counts[id]}`}
             </button>
           ))}
         </div>

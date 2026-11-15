@@ -28,7 +28,10 @@ export interface PokerSettle {
   out: { userId: number; stack: number }[];
 }
 
-/** How much `userId` is down at poker since midnight UTC (their buy-ins less what they stood up with); 0 if they are up. */
+/**
+ * How much `userId` is down at poker since midnight UTC (their buy-ins less what they stood up with).
+ * 0 if they are up.
+ */
 export async function pokerLoss(sql: Sql, userId: number, now: number): Promise<number> {
   const since = Math.floor(now / DAY_MS) * DAY_MS;
   const net = await scalar(
@@ -42,8 +45,8 @@ export async function pokerLoss(sql: Sql, userId: number, now: number): Promise<
 }
 
 /**
- * Takes the buy-in from `userId`'s wallet for a seat. Throws a `UserError` if they are already at the table, have
- * hit the day's loss limit or can't cover it. Run it serialized with every other coin write.
+ * Takes the buy-in from `userId`'s wallet for a seat. Throws a `UserError` if they are already at the
+ * table, have hit the day's loss limit or can't cover it. Run it serialized with every other coin write.
  */
 export async function pokerSit(sql: TxSql, userId: number, now: number, kept?: Kept): Promise<void> {
   await sql.transaction(
@@ -84,8 +87,9 @@ export async function pokerSettle(sql: TxSql, s: PokerSettle, now: number): Prom
       );
       const has = new Set(rows.map((r) => r.userId));
       const out = s.out.filter((e) => has.has(e.userId));
-      for (const e of s.stacks)
+      for (const e of s.stacks) {
         if (!has.has(e.userId)) throw new Error(`poker: ${e.userId} is not seated, but has a stack`);
+      }
       if (sumOf(rows) !== sumOf(s.stacks) + sumOf(out))
         throw new Error(
           `poker: stacks add up to ${sumOf(s.stacks) + sumOf(out)}, the rows held ${sumOf(rows)}`,
@@ -106,7 +110,8 @@ export async function pokerSettle(sql: TxSql, s: PokerSettle, now: number): Prom
 /** One seat as a game in `match_players`: the buy-in is the stake, the stack stood up with is what was won. */
 async function recordSession(tx: Sql, userId: number, stack: number, now: number): Promise<void> {
   // Arcade matches count up from 1; a seat counts down from -1, so the two never share an id.
-  const id = Math.min(0, await scalar(tx, "SELECT MIN(match_id) AS n FROM match_players")) - 1;
+  const lowest = await scalar(tx, "SELECT MIN(match_id) AS n FROM match_players");
+  const id = Math.min(0, lowest) - 1;
   await tx.execute(
     `INSERT INTO match_players (match_id, user_id, game, place, stake, won, pot, day, at)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,

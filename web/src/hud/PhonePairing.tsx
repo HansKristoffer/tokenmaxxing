@@ -20,7 +20,8 @@ export function PhonePairing() {
     setPair({ ...next, qr });
   });
   const copy = run(async () => {
-    await navigator.clipboard.writeText(pair!.code);
+    if (!pair) return;
+    await navigator.clipboard.writeText(pair.code);
     setCopied(true);
   });
   return (

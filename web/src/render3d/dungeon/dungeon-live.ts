@@ -11,7 +11,6 @@ import { raidersNow, seatTile } from "../../game/raid.ts";
 import { mySeat, raidPet, seated, sit, standUp } from "../../game/raidseat.ts";
 import { world } from "../../game/world.ts";
 import { hud } from "../../store.ts";
-import { DUNGEON_BOSSES } from "../data/dungeon.ts";
 import { DESKS } from "../data/town.ts";
 import { disposeObject } from "../engine/dispose.ts";
 import { Figures, Swarm } from "../engine/swarm.ts";
@@ -21,7 +20,7 @@ import { lookFrom2D } from "../people/gear3d.ts";
 import { fleetDesk } from "../rooms/hq3d.ts";
 import type { Sign } from "../rooms/rooms.ts";
 import { withTicks } from "../rooms/rooms.ts";
-import { BossActor, DUNGEON_ASSETS, lootModel, plaque, type Terminal } from "./dungeon3d.ts";
+import { BossActor, bossIndexOf, DUNGEON_ASSETS, lootModel, plaque, type Terminal } from "./dungeon3d.ts";
 import { Minions } from "./minions.ts";
 import {
   arc,
@@ -64,6 +63,14 @@ const SEAT_Y = RAID_SEAT_Y;
 const PET_COLOUR = new THREE.Color("#ffc46b");
 const MINION_SCALE = 0.5;
 const MAX_NEW_PER_FRAME = 1;
+/** The back wall's face, where the kill plaques and the wall terminal hang. */
+const WALL_Z = 2.0;
+/** The colour of each kind of missile: a laptop's is lilac, a minion's green, your pet's amber. */
+const MISSILE_COLOUR: Record<Missile["by"], THREE.Color> = {
+  laptop: HIT_COLOUR,
+  minion: MINION_COLOUR,
+  pet: PET_COLOUR,
+};
 
 type Raider = Raiders["top"][number];
 
@@ -162,6 +169,9 @@ export class DungeonLive {
   private readonly plaques = new THREE.Group();
   private plaqueKey = "";
   private plaqueSigns: Sign[] = [];
+  /** Your pet's missiles owed (a fraction of a shot), and the laptops lit bright right now. */
+  private petOwed = 0;
+  private readonly litNow = new Set<number>();
 
   constructor(
     private readonly map: GameMap,
@@ -219,11 +229,10 @@ export class DungeonLive {
     this.lair.visible = r?.prelaunch === true;
     this.group.add(this.lair);
 
-    const wall = this.map.find("j").length ? 2.0 : 2.0;
     const term = DUNGEON_ASSETS.find((a) => a.id === "tile:M")?.build() as Terminal | undefined;
     this.terminal = term ?? null;
     if (term) {
-      term.position.set(1.5 - map.x0, 0, wall);
+      term.position.set(1.5 - map.x0, 0, WALL_Z);
       this.group.add(term);
     }
     this.group.add(this.plaques);
@@ -277,11 +286,10 @@ export class DungeonLive {
   private wall(): void {
     const r = this.raid;
     const share = r && !r.prelaunch && !r.closed && r.hp > 0 && !this.boss.fallen ? hpLeft(r) / r.hp : null;
-    if (
-      this.terminal &&
-      share !== this.terminalShare &&
-      (share === null || this.terminalShare == null || Math.abs(share - this.terminalShare) > 0.004)
-    ) {
+    // The bar is repainted only for a change of more than 0.4% of the boss's HP.
+    const moved =
+      share === null || this.terminalShare == null || Math.abs(share - this.terminalShare) > 0.004;
+    if (this.terminal && share !== this.terminalShare && moved) {
       this.terminalShare = share;
       this.terminal.set(share);
     }
@@ -295,14 +303,9 @@ export class DungeonLive {
     }
     this.plaqueSigns = [];
     kills.forEach((k, i) => {
-      const m = plaque(
-        Math.max(
-          0,
-          DUNGEON_BOSSES.findIndex((b) => b.id === k.boss.id),
-        ),
-      );
+      const m = plaque(bossIndexOf(k.boss.id));
       const x = PLAQUE_X[i]! + 0.5 - this.map.x0;
-      m.position.set(x, 0, 2.0);
+      m.position.set(x, 0, WALL_Z);
       this.plaques.add(m);
       this.plaqueSigns.push({
         key: `plaque:${i}`,
@@ -321,16 +324,15 @@ export class DungeonLive {
     if (!r) return;
     const boss = this.boss;
     if (this.pending) {
-      if (this.t >= this.pending.at) {
-        boss.spawn(this.pending.boss.id, this.pending.boss.rung, this.pending.hp);
-        this.bannerText = `⚔️ Rung ${this.pending.boss.rung}: ${this.pending.boss.emoji} ${this.pending.boss.name}`;
-        this.bannerUntil = this.t + BANNER_S;
-        this.pending = null;
-      } else return;
+      if (this.t < this.pending.at) return;
+      boss.spawn(this.pending.boss.id, this.pending.boss.rung, this.pending.hp);
+      this.bannerText = `⚔️ Rung ${this.pending.boss.rung}: ${this.pending.boss.emoji} ${this.pending.boss.name}`;
+      this.bannerUntil = this.t + BANNER_S;
+      this.pending = null;
     }
     if (boss.fallen) return;
     const banner = r.prelaunch
-      ? `⚠️ ??? · wakes in ${countdownOf(r.launchAt)}`
+      ? `⚠️ ??? · wakes in ${countdown(r.launchAt)}`
       : (weekOverText(r) ?? (this.t < this.bannerUntil ? this.bannerText : null));
     boss.setInfo({
       name: r.boss.name,
@@ -377,11 +379,11 @@ export class DungeonLive {
         });
       }
     }
-    for (const [id, s] of this.seated)
-      if (!ids.has(id)) {
-        this.removeSeated(s);
-        this.seated.delete(id);
-      }
+    for (const [id, s] of this.seated) {
+      if (ids.has(id)) continue;
+      this.removeSeated(s);
+      this.seated.delete(id);
+    }
     this.layout();
   }
 
@@ -535,6 +537,7 @@ export class DungeonLive {
     for (let i = 0; i < n && this.burst.length < this.caps.sparks; i++) {
       const a = Math.random() * Math.PI * 2;
       const up = Math.random() * 0.8 + 0.1;
+      // A shorter burst flies faster: the speed grows with the square root of 0.32 / life.
       const v = (0.7 + Math.random() * 1.4) * (0.32 / life) ** 0.5;
       this.burst.push({
         p: new THREE.Vector3(x, y, z),
@@ -597,8 +600,6 @@ export class DungeonLive {
     ];
     for (let i = 0; i < got.shots; i++) this.fire(this.tmp.set(px, 0.55, pz), "pet");
   }
-  private petOwed = 0;
-  private readonly litNow = new Set<number>();
 
   /** Moves the missiles along their arcs and the sparks along theirs, and draws them. */
   private flyShots(): void {
@@ -606,13 +607,14 @@ export class DungeonLive {
     this.missiles.begin();
     for (let i = this.flying.length - 1; i >= 0; i--) {
       const m = this.flying[i]!;
-      const k = (t - m.at) / (m.s || 0.75);
+      const k = (t - m.at) / m.s;
       if (k >= 1) {
-        this.burstAt(m.to.x, m.to.y, m.to.z, colourOf(m.by), m.by === "laptop" ? 4 : 2);
+        this.burstAt(m.to.x, m.to.y, m.to.z, MISSILE_COLOUR[m.by], m.by === "laptop" ? 4 : 2);
         this.flying.splice(i, 1);
         continue;
       }
-      const colour = colourOf(m.by);
+      const colour = MISSILE_COLOUR[m.by];
+      const headSize = m.by === "laptop" ? 1.2 : 0.8;
       // A short trail behind the bolt.
       for (let j = 2; j >= 0; j--) {
         const kk = Math.max(0, k - j * 0.04);
@@ -620,13 +622,14 @@ export class DungeonLive {
           arc(m.from.x, m.control.x, m.to.x, kk),
           arc(m.from.y, m.control.y, m.to.y, kk),
           arc(m.from.z, m.control.z, m.to.z, kk),
-          j === 0 ? (m.by === "laptop" ? 1.2 : 0.8) : 0.7 - j * 0.15,
+          j === 0 ? headSize : 0.7 - j * 0.15,
           j === 0 ? "#ffffff" : colour,
         );
       }
     }
     this.missiles.end();
     this.sparks.begin();
+    // Sparks move one fixed 1/60 s step each frame, whatever the frame rate.
     const dtS = 1 / 60;
     for (let i = this.burst.length - 1; i >= 0; i--) {
       const s = this.burst[i]!;
@@ -646,6 +649,7 @@ export class DungeonLive {
 
   private noteLoot(news: readonly LootNews[]): void {
     const sorted = [...news].sort((a, b) => RANK[rarityOf(b.item)] - RANK[rarityOf(a.item)]);
+    // The queue holds 16 items: a drop beyond that is not shown.
     const room = 16 - this.lootQueue.length;
     sorted.slice(0, Math.max(0, room)).forEach((n, i) => {
       const rarity = rarityOf(n.item);
@@ -667,7 +671,8 @@ export class DungeonLive {
       );
       ring.userData.nopick = true;
       this.group.add(root, beam, ring);
-      beam.visible = ring.visible = false;
+      beam.visible = false;
+      ring.visible = false;
       const name = lootById(n.item)?.name ?? n.item;
       this.lootQueue.push({
         news: n,
@@ -743,7 +748,9 @@ export class DungeonLive {
         bm.scale.set(1, 5, 1);
         bm.position.set(top.x, BOSS_Y + 2.4, start.z);
         (bm.material as THREE.MeshBasicMaterial).opacity = 0.4 * a;
-      } else bm.visible = false;
+      } else {
+        bm.visible = false;
+      }
       // The landing: a ring spreading out from the desk.
       const ring = f.ring;
       if (landed) {
@@ -778,11 +785,11 @@ export class DungeonLive {
     this.wall();
     const r = this.raid;
     const closed = r ? resting(r) : false;
-    for (let i = this.later.length - 1; i >= 0; i--)
-      if (t >= this.later[i]!.at) {
-        const l = this.later.splice(i, 1)[0]!;
-        this.boss.flinch(l.text, l.gold);
-      }
+    for (let i = this.later.length - 1; i >= 0; i--) {
+      if (t < this.later[i]!.at) continue;
+      const l = this.later.splice(i, 1)[0]!;
+      this.boss.flinch(l.text, l.gold);
+    }
     this.build();
     // A week with kills ends in gold sparkles instead of missiles.
     if ((r?.closed || r?.cleared) && !r.prelaunch && r.kills.length > 0 && Math.random() < dt * 4)
@@ -803,26 +810,25 @@ export class DungeonLive {
       [...world.avatars.values()].some(
         (a) => a.state === "sit" && (a.info.id === s.raider.id || (a.x === s.seat[0] && a.y === s.seat[1])),
       );
+    // A crowd under 30 is the lean caps: it steps each person every other frame, at double the step.
+    const smallCrowd = this.caps.people < 30;
     for (const s of this.seated.values()) {
       const gone = occupied(s);
       if (s.avatar) s.avatar.root.visible = !gone;
-      if (gone || (this.caps.people < 30 && (this.frame + s.idx) % 2)) continue;
-      s.avatar?.update(dt * (this.caps.people < 30 ? 2 : 1), t);
+      if (gone || (smallCrowd && (this.frame + s.idx) % 2)) continue;
+      s.avatar?.update(dt * (smallCrowd ? 2 : 1), t);
     }
+
     this.figures.begin();
-    for (const s of this.seated.values())
-      if (!s.avatar && !occupied(s))
-        this.figures.add(
-          s.seat[0] - this.map.x0 + 0.5,
-          SEAT_Y,
-          s.seat[1] - this.map.y0 + 0.5,
-          s.shirt,
-          s.skin,
-        );
+    for (const s of this.seated.values()) {
+      if (s.avatar || occupied(s)) continue;
+      this.figures.add(s.seat[0] - this.map.x0 + 0.5, SEAT_Y, s.seat[1] - this.map.y0 + 0.5, s.shirt, s.skin);
+    }
     this.figures.end();
+
     this.minions.begin();
-    for (const s of this.seated.values())
-      for (const [i, b] of s.bots.entries())
+    for (const s of this.seated.values()) {
+      for (const [i, b] of s.bots.entries()) {
         this.minions.add(
           b.at.x,
           b.at.z,
@@ -831,6 +837,8 @@ export class DungeonLive {
           t < b.lit,
           Math.abs(Math.sin(t * 3 + s.idx + i)) * 0.03,
         );
+      }
+    }
     this.minions.end();
   }
 
@@ -838,7 +846,15 @@ export class DungeonLive {
   signs(): Sign[] {
     const landed = this.lootQueue.filter((f) => f.to && this.t - f.start > LOOT_POP_S + LOOT_FLY_S).length;
     const prompt = this.prompt();
-    const key = `${this.crowd?.top.length ?? -1}:${this.crowd?.more ?? 0}:${this.lootQueue.length}:${landed}:${this.seated.size}:${this.raid?.prelaunch}:${prompt}`;
+    const key = [
+      this.crowd?.top.length ?? -1,
+      this.crowd?.more ?? 0,
+      this.lootQueue.length,
+      landed,
+      this.seated.size,
+      this.raid?.prelaunch,
+      prompt,
+    ].join(":");
     if (key === this.signKey) return this.signList;
     this.signKey = key;
     const list: Sign[] = [];
@@ -866,7 +882,7 @@ export class DungeonLive {
         });
       }
       const extra = s.raider.agents - 1 - s.bots.length;
-      if (extra > 0)
+      if (extra > 0) {
         list.push({
           key: `extra:${s.raider.id}`,
           at: [x + 0.55, 0.9, z + 0.5],
@@ -874,29 +890,33 @@ export class DungeonLive {
           text: `+${extra}`,
           cls: "green",
         });
+      }
     }
     const more = this.crowd?.more ?? 0;
-    if (more > 0)
+    if (more > 0) {
       list.push({
         key: "more",
         at: [this.map.width / 2, 0.8, this.map.height - 1.5],
         kind: "label",
         text: `⚔️ +${more} more raiding`,
       });
-    if (!this.crowd?.top.length && !this.raid?.prelaunch)
+    }
+    if (!this.crowd?.top.length && !this.raid?.prelaunch) {
       list.push({
         key: "empty",
         at: [this.bossAt.x, 0.4, this.bossAt.z + 2.6],
         kind: "label",
         text: "No agents running right now. Start one and take a desk.",
       });
-    if (this.raid?.prelaunch)
+    }
+    if (this.raid?.prelaunch) {
       list.push({
         key: "desks",
         at: [this.bossAt.x, 0.4, this.bossAt.z + 2.6],
         kind: "label",
         text: "The desks are empty. For now. Monday 08:00, every agent fights.",
       });
+    }
     list.push({
       key: "raidlink",
       at: [this.bossAt.x, 0.2, this.bossAt.z + 1.4],
@@ -905,19 +925,17 @@ export class DungeonLive {
       cls: "gold",
       onClick: () => hud.set({ panel: { kind: "raid" } }),
     });
-    for (const f of this.lootQueue)
-      if (
-        f.to &&
-        this.t - f.start > LOOT_POP_S + LOOT_FLY_S &&
-        this.t - f.start < LOOT_POP_S + LOOT_FLY_S + LOOT_LAND_S
-      )
-        list.push({
-          key: `loot:${f.news.userId}:${f.news.item}`,
-          at: [f.to.x, 1.4, f.to.z],
-          kind: "label",
-          text: f.label,
-          cls: f.rarity,
-        });
+    for (const f of this.lootQueue) {
+      const age = this.t - f.start;
+      if (!f.to || age <= LOOT_POP_S + LOOT_FLY_S || age >= LOOT_POP_S + LOOT_FLY_S + LOOT_LAND_S) continue;
+      list.push({
+        key: `loot:${f.news.userId}:${f.news.item}`,
+        at: [f.to.x, 1.4, f.to.z],
+        kind: "label",
+        text: f.label,
+        cls: f.rarity,
+      });
+    }
     list.push(...this.plaqueSigns);
     this.signList = list;
     return list;
@@ -936,16 +954,13 @@ export class DungeonLive {
     this.unsub();
     for (const s of this.seated.values()) this.removeSeated(s);
     this.seated.clear();
-    for (const f of this.lootQueue) for (const o of [f.root, f.beam, f.ring]) disposeObject(o);
+    for (const f of this.lootQueue) {
+      for (const o of [f.root, f.beam, f.ring]) disposeObject(o);
+    }
     this.lootQueue.length = 0;
     this.group.removeFromParent();
     disposeObject(this.group);
   }
 }
 
-const colourOf = (by: Missile["by"]): THREE.Color =>
-  by === "pet" ? PET_COLOUR : by === "minion" ? MINION_COLOUR : HIT_COLOUR;
-
 const rarityOf = (item: string): Rarity => lootById(item)?.rarity ?? "common";
-
-const countdownOf = (at: number): string => countdown(at);

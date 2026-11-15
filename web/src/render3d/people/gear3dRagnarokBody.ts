@@ -151,14 +151,13 @@ const OUTFITS: Record<number, (c: BodyCtx) => void> = {
   2: (c) => {
     marks(
       c,
-      (g, w, h) => {
+      (g, w) => {
         px(g, NAVY, 0, 0, w, 24);
         px(g, "#e8dfc8", 0, 8, w, 3);
         px(g, "#e8dfc8", 0, 18, w, 3);
         px(g, "#e8dfc8", 0, 24, w, 3);
         for (const x of [9, 28, 47]) flake(g, "#e8dfc8", x, 13);
         px(g, NAVY, 0, 24, w, 3);
-        void h;
       },
       (g, w) => {
         px(g, NAVY, 0, 0, w, 24);
@@ -262,6 +261,7 @@ const OUTFITS: Record<number, (c: BodyCtx) => void> = {
     jv.b(-0.9, -0.1, 0.5, 0.5, 0.5, 0.4, BONE);
     jv.b(0.4, -0.1, 0.5, 0.5, 0.5, 0.4, BONE);
     jv.b(-0.7, -0.8, 1.2, 1.4, 0.5, 0.9, "#8a3a3a");
+    // The growl: the jaw opens on a slow beat, and the head drops and shakes a little as it does.
     c.tick((t) => {
       const g = Math.max(0, Math.sin(t * 0.7)) ** 8;
       jaw.rotation.x = g * 0.55;
@@ -284,12 +284,11 @@ const OUTFITS: Record<number, (c: BodyCtx) => void> = {
     const BLUE = "#3b6fb8";
     marks(
       c,
-      (g, w, h) => {
+      (g, _w, h) => {
         px(g, SILVER, 6, 0, 45, h);
         px(g, SILVER_L, 6, 0, 45, 3);
         px(g, STEEL, 27, 3, 3, h - 3);
         px(g, "#8a96a8", 6, h - 3, 45, 3);
-        void w;
       },
       (g, w, h) => {
         px(g, SILVER, 6, 0, w - 12, h);
@@ -349,16 +348,6 @@ for (const [n, build] of Object.entries(OUTFITS)) OUTFIT_BUILDERS[RAGNAROK_BASE 
 
 // MARK: Held
 
-/** A mesh from a canvas, standing in front of the hand: a shield face, a board. */
-const face = (
-  h: Model,
-  w: number,
-  hh: number,
-  draw: Parameters<typeof sign>[3],
-  at: [number, number, number],
-  pxs = 160,
-) => sign(h, w, hh, draw, at, pxs);
-
 // biome-ignore format: a catalogue reads best one to a line
 const HELD: Record<string, HeldBuilder> = {
   // Drinking horn: a curved bone horn with an iron tip cap and a gold rim, foam heaped over amber liquid (deliberately not
@@ -397,7 +386,7 @@ const HELD: Record<string, HeldBuilder> = {
   "Round shield": (h) => {
     const s = h.part([0, 0.02, 0.1]);
     s.rotation.y = 0.2;
-    face(
+    sign(
       s,
       0.3,
       0.3,
@@ -439,11 +428,11 @@ const HELD: Record<string, HeldBuilder> = {
     const b = h.part([0, 0.07, 0.1]);
     b.rotation.x = -0.45;
     b.box([0.215, 0.215, 0.018], OAK_DARK, [0, -0.1075, -0.012], 0.004);
-    face(
+    sign(
       b,
       0.175,
       0.175,
-      (g, w, hh) => {
+      (g, w) => {
         const n = 7;
         const cw = w / n;
         for (let j = 0; j < n; j++)
@@ -488,9 +477,8 @@ const HELD: Record<string, HeldBuilder> = {
         g.fillStyle = "#b8860b";
         g.fillRect(3 * cw, 3 * cw, cw, cw);
         dot(3, 3, GOLD, 0.4);
-        void hh;
       },
-      [0, 0.0, 0.0],
+      [0, 0, 0],
       130,
     );
   },
@@ -514,7 +502,7 @@ const HELD: Record<string, HeldBuilder> = {
     a.box([0.03, 0.02, 0.04], "#ffffff", [0, 0.29, 0.11], 0.002);
   },
   // Squeaky Mjölnir: a stubby foam toy hammer, grey head, leather-wrapped handle with a loop, a pale squeak star that
-  // pops on every squeak. A toy, never a pendant (see the brief).
+  // pops on every squeak. A toy, never a pendant (docs/cases/ragnarok-eve.md).
   "Squeaky Mjölnir": (h, tick) => {
     const m = h.part([0, 0, 0.07]);
     m.box([0.03, 0.2, 0.03], LEATHER, [0, -0.08, 0], 0.006);
@@ -578,9 +566,12 @@ function furCape(b: VoxModel, tick: BodyCtx["tick"]): void {
   }
   tick((t, walking) => {
     steps.forEach((s, i) => {
-      s.rotation.x = walking
-        ? 0.1 + Math.abs(Math.sin(t * 11)) * 0.09 * (i ? 0.7 : 1.3) + Math.sin(t * 11 - i * 0.8) * 0.05 * i
-        : 0.03 + (Math.sin(t * 1.6 - i * 0.6) + 1) * 0.016 * (i + 1);
+      // The top row swings wider than the rows under it, and each row lags the one above.
+      const swing = i ? 0.7 : 1.3;
+      const walkSwing =
+        0.1 + Math.abs(Math.sin(t * 11)) * 0.09 * swing + Math.sin(t * 11 - i * 0.8) * 0.05 * i;
+      const idleSway = 0.03 + (Math.sin(t * 1.6 - i * 0.6) + 1) * 0.016 * (i + 1);
+      s.rotation.x = walking ? walkSwing : idleSway;
     });
   });
 }
@@ -640,13 +631,15 @@ const BACKS: Record<string, BackBuilder> = {
     const sail = vpart(b, [0, 4.7 * U, -3.6 * U]);
     const sv = new Vx(sail);
     const pleats = 9;
-    const flaps: { m: THREE.Mesh; k: number }[] = [];
+    // The hanging flaps swing in and out from the z they were built at.
+    const flaps: { m: THREE.Mesh; k: number; z0: number }[] = [];
     for (let i = 0; i < pleats; i++) {
       const x = -4.5 + i * 0.93;
       const col = i % 2 ? BONE : RED;
       const d = i % 2 ? -0.3 : 0.3;
       sv.b(x, -3.2, d - 0.15, 1.15, 3.2, 0.3, col);
-      flaps.push({ m: sv.b(x, -7.8, d * 1.5 - 0.15, 1.15, 4.6, 0.3, col), k: i });
+      const flap = sv.b(x, -7.8, d * 1.5 - 0.15, 1.15, 4.6, 0.3, col);
+      flaps.push({ m: flap, k: i, z0: flap.position.z });
       // The folds: a darker crease across each pleat, where the cloth is folded up.
       for (const y of [-3.3, -5.6]) sv.b(x, y, d - 0.2, 1.15, 0.3, 0.4, i % 2 ? BONE_DARK : "#7a2a28");
     }
@@ -655,10 +648,8 @@ const BACKS: Record<string, BackBuilder> = {
       sail.rotation.z = Math.sin(t * (walking ? 5.5 : 1.2) + 1) * (walking ? 0.05 : 0.015);
       for (const f of flaps)
         f.m.position.z =
-          (Math.sin(t * (walking ? 9 : 2.2) + f.k * 0.8) * 0.35 + (f.k % 2 ? -0.2 : 0.2)) * U +
-          f.m.userData.z0;
+          (Math.sin(t * (walking ? 9 : 2.2) + f.k * 0.8) * 0.35 + (f.k % 2 ? -0.2 : 0.2)) * U + f.z0;
     });
-    for (const f of flaps) f.m.userData.z0 = f.m.position.z;
   },
 };
 Object.assign(BACK_BUILDERS, BACKS);

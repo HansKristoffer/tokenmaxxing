@@ -139,7 +139,7 @@ const clouds: Draw = (p, f) => {
   }
 };
 
-// Gamelan Echo: gold ripples spread from the feet like a struck gong, four bronze discs on a ring ring out in turn.
+// Gamelan Echo: gold ripples spread from the feet like a struck gong, and four bronze gongs on a ring light up in turn.
 const GONG = ["..ooo..", ".obbbo.", "obbyybo", "obbyybo", ".obbbo.", "..ooo.."];
 const GONG_PAL = { o: "#6b4226", b: "#b9803a", y: "#ffd36a" };
 const echo: Draw = (p, f) => {

@@ -10,7 +10,7 @@ import { bake, cached, once } from "./pixels.ts";
 export const RED = "#d8283a";
 export const RED_D = "#a81d2c";
 export const WHITE = "#fbf7ef";
-export const WHITE_D = "#ddd5c6";
+const WHITE_D = "#ddd5c6";
 const BAMBOO = "#c9a95a";
 const BAMBOO_D = "#9c7d3a";
 const GOLD = "#f5c842";
@@ -69,8 +69,11 @@ export const buntingSprite = cached(
         p.rect(x - 1, y, 4, 1, c);
         p.rect(x, y + 1, 2, 1, c);
         p.px(x, y + 2, c);
-        if (c === WHITE) p.rect(x - 1, y, 4, 1, WHITE_D);
-        if (c === WHITE) p.rect(x, y + 1, 2, 1, WHITE);
+        // A white flag gets a shaded top edge and a bright centre.
+        if (c === WHITE) {
+          p.rect(x - 1, y, 4, 1, WHITE_D);
+          p.rect(x, y + 1, 2, 1, WHITE);
+        }
       }
     }),
 );
@@ -236,7 +239,7 @@ export const tumpengSprite = once(() =>
 // MARK: Makan kerupuk
 
 /** The kerupuk string between two bamboo posts: 16 wide, 30 tall, three crackers that swing. */
-export const KERUPUK_PX = { w: 16, h: 30 } as const;
+const KERUPUK_PX = { w: 16, h: 30 } as const;
 
 export const kerupukSprite = cached(
   (frame: 0 | 1) => String(frame),
@@ -266,7 +269,7 @@ export const kerupukSprite = cached(
 // MARK: The sack race
 
 /** A flag on a pole at the start (kind 0) or the finish (kind 1) of the lane: 16 wide, 26 tall. */
-export const FLAGLINE_PX = { w: 16, h: 26 } as const;
+const FLAGLINE_PX = { w: 16, h: 26 } as const;
 
 export const laneFlagSprite = cached(
   (kind: 0 | 1) => String(kind),
@@ -284,8 +287,9 @@ export const laneFlagSprite = cached(
         p.px(13, 9, WHITE);
       } else {
         // The finish: chequered.
-        for (let y = 0; y < 3; y++)
+        for (let y = 0; y < 3; y++) {
           for (let x = 0; x < 3; x++) p.rect(9 + x * 2, 5 + y * 3, 2, 3, (x + y) % 2 ? WHITE : C.ink);
+        }
         p.rect(9, 5, 6, 1, C.ink);
       }
       // A burlap sack on the ground by it.

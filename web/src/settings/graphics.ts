@@ -122,14 +122,14 @@ export function resolveSettings(
   return {
     tier,
     renderer: base.renderer,
-    renderScale: clamp(overrides.renderScale ?? base.renderScale, 0.5, 1.5),
+    renderScale: clampScale(overrides.renderScale ?? base.renderScale),
     fpsCap: overrides.fpsCap ?? base.fpsCap,
     shadows,
     shadowMap: shadowMapSize(tier, shadows),
     ao: overrides.ao ?? base.ao,
     post: { ...base.post, ...overrides.post },
     weather: clamp(overrides.weather ?? base.weather, 0, 1),
-    dprCap: clamp(overrides.dprCap ?? base.dprCap, 1, 4),
+    dprCap: clampDpr(overrides.dprCap ?? base.dprCap),
     reduceMotion: overrides.reduceMotion ?? prefersReducedMotion,
     labels: overrides.labels ?? "near",
     seasonal: overrides.seasonal ?? true,
@@ -147,6 +147,7 @@ export interface Detected {
   at: number;
 }
 
+/** A detection result is trusted for two weeks, as long as the GPU is the same. */
 export const DETECT_TTL_MS = 14 * 24 * 60 * 60 * 1000;
 export const freshDetected = (d: Detected | null, gpu: string | null, now = Date.now()): d is Detected =>
   d !== null && now - d.at < DETECT_TTL_MS && d.gpu === gpu;
@@ -162,6 +163,9 @@ export const GRAPHICS_KEY = "tokenmaxxing.graphics";
 const VERSION = 1;
 
 const isTier = (v: unknown): v is Tier => TIERS.includes(v as Tier);
+/** The render scale is kept between half and one and a half, and the device pixel cap between 1 and 4. */
+const clampScale = (v: number) => clamp(v, 0.5, 1.5);
+const clampDpr = (v: number) => clamp(v, 1, 4);
 const isNum = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v);
 const bool = (v: unknown): boolean | undefined => (typeof v === "boolean" ? v : undefined);
 
@@ -169,13 +173,13 @@ const bool = (v: unknown): boolean | undefined => (typeof v === "boolean" ? v : 
 export function sanitizeOverrides(raw: unknown): Overrides {
   const o = (typeof raw === "object" && raw ? raw : {}) as Record<string, unknown>;
   const out: Overrides = {};
-  if (isNum(o.renderScale)) out.renderScale = clamp(o.renderScale, 0.5, 1.5);
+  if (isNum(o.renderScale)) out.renderScale = clampScale(o.renderScale);
   if (o.fpsCap === 30 || o.fpsCap === 60 || o.fpsCap === 0) out.fpsCap = o.fpsCap;
   if (o.shadows === "off" || o.shadows === "low" || o.shadows === "high") out.shadows = o.shadows;
   const ao = bool(o.ao);
   if (ao !== undefined) out.ao = ao;
   if (isNum(o.weather)) out.weather = clamp(o.weather, 0, 1);
-  if (isNum(o.dprCap)) out.dprCap = clamp(o.dprCap, 1, 4);
+  if (isNum(o.dprCap)) out.dprCap = clampDpr(o.dprCap);
   const reduce = bool(o.reduceMotion);
   if (reduce !== undefined) out.reduceMotion = reduce;
   const seasonal = bool(o.seasonal);
@@ -196,6 +200,7 @@ export function sanitizeOverrides(raw: unknown): Overrides {
 export function parseSaved(raw: string | null): Saved {
   const empty: Saved = { choice: "auto", overrides: {}, meter: false, detected: null };
   try {
+    // Saved JSON that does not parse counts as nothing saved.
     const s = JSON.parse(raw ?? "null") as Record<string, unknown> | null;
     if (!s || s.v !== VERSION) return empty;
     const d = s.detected as Partial<Detected> | null;
@@ -244,6 +249,7 @@ export function createGraphics(storage?: Storage, prefersReducedMotion = () => f
     try {
       return parseSaved(storage?.getItem(GRAPHICS_KEY) ?? null);
     } catch {
+      // Blocked storage reads as nothing saved, so the defaults apply for this session.
       return parseSaved(null);
     }
   };
@@ -255,11 +261,14 @@ export function createGraphics(storage?: Storage, prefersReducedMotion = () => f
 
   const set = (patch: Partial<GraphicsState>, persist = true) => {
     state = { ...state, ...patch };
-    if (persist)
+    if (persist) {
       try {
         const { choice, overrides, meter, detected } = state;
         storage?.setItem(GRAPHICS_KEY, JSON.stringify({ v: VERSION, choice, overrides, meter, detected }));
-      } catch {}
+      } catch {
+        // Blocked or full storage: the settings still hold for this session.
+      }
+    }
     for (const l of listeners) l();
   };
 
@@ -281,7 +290,7 @@ export function createGraphics(storage?: Storage, prefersReducedMotion = () => f
     /** The settings a renderer should use right now. */
     effective(): GraphicsSettings {
       const s = resolveSettings(tier(), state.overrides, prefersReducedMotion());
-      return { ...s, renderScale: clamp(s.renderScale * state.runtime.scaleMul, 0.5, 1.5) };
+      return { ...s, renderScale: clampScale(s.renderScale * state.runtime.scaleMul) };
     },
     /** A new tier choice drops the governor's adjustments, and gives 3D another go if it had stopped. */
     setChoice(choice: TierChoice) {

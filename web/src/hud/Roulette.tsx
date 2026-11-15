@@ -75,17 +75,25 @@ const phaseLeft = (table: Table | null) =>
 const statusLine = (table: Table | null, left: number) => {
   const phase = table?.phase;
   const last = table?.last;
-  return phase === "betting"
-    ? `Bets close in ${Math.ceil(left / 1000)}s`
-    : phase === "spinning"
-      ? "No more bets…"
-      : phase === "result" && last
-        ? `${last.pocket} ${last.color}`
-        : "Waiting for a player";
+  if (phase === "betting") return `Bets close in ${Math.ceil(left / 1000)}s`;
+  if (phase === "spinning") return "No more bets…";
+  if (phase === "result" && last) return `${last.pocket} ${last.color}`;
+  return "Waiting for a player";
 };
 
 const colorOfUser = (table: Table | null, id: number) =>
   PLAYER_COLORS[table?.seats.find((x) => x.userId === id)?.spot ?? 0]!;
+
+/** Green for a gain, red for a loss, and no colour for an even result. */
+const toneOf = (net: number) => {
+  if (net > 0) return "up";
+  if (net < 0) return "down";
+  return "";
+};
+
+/** A seat's name at the table, with "(you)" on my own seat. */
+const seatName = (seat: Table["seats"][number], me: number) =>
+  seat.userId === me ? `${seat.name} (you)` : seat.name;
 
 /** The wheel: pockets in wheel order. `angle` turns it; the ball arm turns the other way and stops at the top. */
 function Wheel({ table }: { table: Table | null }) {
@@ -103,6 +111,7 @@ function Wheel({ table }: { table: Table | null }) {
     if (i < 0) return;
     if (reduced() || !animated) {
       setAnimate(false);
+      // Turn back by the angle from where the wheel stands to pocket `i`, within one turn.
       setWheel((w) => w - ((((w + i * STEP) % 360) + 360) % 360));
       setArm((a) => Math.round(a / 360) * 360);
       return;
@@ -110,8 +119,11 @@ function Wheel({ table }: { table: Table | null }) {
     setAnimate(true);
     setWheel((w) => {
       const target = -i * STEP;
-      return target + Math.ceil((w + 360 * 3 - target) / 360) * 360;
+      // Whole turns that keep the wheel moving forward, about three from where it stands.
+      const turns = Math.ceil((w + 360 * 3 - target) / 360);
+      return target + turns * 360;
     });
+    // The ball arm turns the other way: five turns back from the last full turn.
     setArm((a) => Math.floor(a / 360) * 360 - 360 * 5);
   };
   // The wheel lands on each spin once.
@@ -303,6 +315,7 @@ function RouletteDock() {
   };
   const add = (on: BetOn) => {
     if (!open) return;
+    // A table takes at most MAX_BETS spots, and one spin at most MAX_SPIN coins in all.
     if (!stakes.has(on) && stakes.size >= MAX_BETS) return;
     if (total + chip > MAX_SPIN || total + chip > balance) return;
     set([...placed, { on, stake: chip }]);
@@ -321,12 +334,10 @@ function RouletteDock() {
   const players = table?.players ?? [];
   const readyCount = players.filter((p) => p.ready).length;
   const mineOut = phase === "result" ? last?.results.find((o) => o.userId === me) : undefined;
-  const status =
-    phase === "betting"
-      ? `${statusLine(table, left)} · ${readyCount}/${players.length} ready`
-      : mineOut
-        ? `${statusLine(table, left)} · You ${signed(mineOut.payout - mineOut.staked)}`
-        : statusLine(table, left);
+  // While betting, the line counts who is ready; once the spin has paid, it says what I won or lost.
+  let status = statusLine(table, left);
+  if (phase === "betting") status = `${status} · ${readyCount}/${players.length} ready`;
+  else if (mineOut) status = `${status} · You ${signed(mineOut.payout - mineOut.staked)}`;
   const othersOn = (on: BetOn) =>
     players
       .filter((p) => p.userId !== me)
@@ -372,9 +383,7 @@ function RouletteDock() {
           {spot("n:0", "green rl-zero", "0")}
           {ROWS.map((row, r) => row.map((n) => spot(`n:${n}`, `${colorOf(n)} rl-r${r + 1}`, n)))}
           {(["c3", "c2", "c1"] as const).map((c, r) => spot(c, `rl-col rl-r${r + 1}`, "2:1"))}
-          {(["d1", "d2", "d3"] as const).map((d, i) =>
-            spot(d, `rl-dozen rl-d${i + 1}`, ["1st 12", "2nd 12", "3rd 12"][i]),
-          )}
+          {(["d1", "d2", "d3"] as const).map((d, i) => spot(d, `rl-dozen rl-d${i + 1}`, NAMES[d]))}
           {OUTSIDE.map((o, i) =>
             spot(o.on, `rl-out ${o.on === "red" || o.on === "black" ? o.on : ""} rl-o${i + 1}`, o.label),
           )}
@@ -434,7 +443,7 @@ function RouletteDock() {
               <i className="rl-dot" style={{ background: PLAYER_COLORS[seat.spot] }} />
               {seat.userId === me ? "You" : seat.name}
               {out ? (
-                <strong className={net > 0 ? "up" : net < 0 ? "down" : ""}> {signed(net)}</strong>
+                <strong className={toneOf(net)}> {signed(net)}</strong>
               ) : (
                 staked > 0 && <span className="muted"> 🪙 {staked}</span>
               )}
@@ -526,7 +535,7 @@ export function RouletteWatch() {
                 // biome-ignore lint/suspicious/noArrayIndexKey: spots are fixed places.
                 <li key={i} className={seat ? "" : "muted"}>
                   {seat && <i className="rl-dot" style={{ background: PLAYER_COLORS[i] }} />}
-                  {seat ? (seat.userId === me ? `${seat.name} (you)` : seat.name) : "Open spot"}
+                  {seat ? seatName(seat, me) : "Open spot"}
                   {seat && staked > 0 && ` · 🪙 ${staked}`}
                   {p?.ready && " · ready ✓"}
                 </li>

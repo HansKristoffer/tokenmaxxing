@@ -1,6 +1,6 @@
 # Christmas (Jul) seasonal theme: design
 
-Status: design only. Nothing here is implemented. Names follow the repo's conventions (`halloween.ts` is the template).
+Status: the first slice is built (section 11). The rest is design. Names follow the repo's conventions (`halloween.ts` is the template).
 
 ## 0. What exists, and what this adds
 
@@ -8,11 +8,11 @@ Already in the game, so we extend rather than duplicate:
 
 | Existing | Where | Consequence for this theme |
 |---|---|---|
-| Snow over the whole town all December, whatever the weather | `core/src/december.ts` `decemberSnow`, wired in `web/src/game/sky.ts` | Do NOT add snow. The theme adds *snow on roofs/props* only if `snow.ts`'s cover doesn't already do it (it does for baked sprites; 3D roofs: verify). |
+| Snow over the whole town all December, whatever the weather | `core/src/december.ts` `decemberSnow`, wired in `web/src/game/sky.ts` | Do not add snow. The theme adds *snow on roofs/props* only if `snow.ts`'s cover doesn't already do it (it does for baked sprites; 3D roofs: verify). |
 | Julekalender: 24 doors, 1-24 Dec, server-claimed once per user per day (gifts: coins, Hygge moustache, Danish flag cap, Cykelhjelm, Julehue) | `core/src/december.ts` `DOORS`, `server/src/town/julekalender.ts` | The advent-calendar *reward* already exists and is server-backed. Our build-up is the *visual* sibling and links to it (section 7). |
 | Julefrokost in the Tavern, Fri/Sat evenings up to the 23rd | `december.ts` `julefrokostOn` | Reuse for tavern decor; no new logic. |
 | J-dag / Nissebryg truck, first Friday of November | `core/src/jdag.ts`, `web/src/game/jdag.ts`, `web/src/art/jdag.ts`, `web/src/render3d/town/truck3d.ts` | Its palette (RED `#b3262e`, GREEN `#2f6b3a`, CREAM `#fbf7ef`, bulbs `#ff5a5a #f5d14a #5fd38a #6fb4ff`) and the fairy-light-on-the-roof idea are the house style. Reuse the exact constants. |
-| Julehue (`hat.12`, "Nisse-issue"), sold in the Clothes shop, door 24 gift | `core/src/headwear.ts`, `web/src/art/headwear.ts:112`, `web/src/render3d/people/gear3dHead.ts:631` | The nisse hat is DONE. Only a Santa hat is new. |
+| Julehue (`hat.12`, "Nisse-issue"), sold in the Clothes shop, door 24 gift | `core/src/headwear.ts`, `web/src/art/headwear.ts:112`, `web/src/render3d/people/gear3dHead.ts:631` | The nisse hat is already done. Only a Santa hat is new. |
 | Holiday costumes on sale 14 days before to 2 after, `COSTUME_BASE = 200` | `core/src/costumes.ts` | Add Christmas costumes here; they auto-appear 10 Dec to 26 Dec. |
 | `HOLIDAYS.christmas` = Juleaften, 24 Dec | `core/src/holidays.ts` | The anchor for `near`/`daysFrom`. |
 | Pumpkins as scenery on door-adjacent grass, from the clock and map | `core/src/halloween.ts`, `web/src/game/halloween.ts`, `web/src/render3d/town/pumpkins3d.ts` | Copy this pattern one-for-one (core spots function + 2D draw + 3D class, all gated by one `...Out(ms)`). |

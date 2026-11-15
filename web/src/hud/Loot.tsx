@@ -28,19 +28,18 @@ export function lootLine(item: Item | undefined): string | null {
 type Drop = NonNullable<Raid["loot"]>["drops"][number];
 const RARITY_RANK: Record<Rarity, number> = { common: 0, rare: 1, epic: 2, legendary: 3 };
 const rarityOf = (d: Drop): Rarity => itemById(d.item)?.loot?.rarity ?? "common";
+const bestRank = (drops: Drop[]) => Math.max(...drops.map((d) => RARITY_RANK[rarityOf(d)]));
 
 /** Who got what this week, one accordion row per player (most drops first, me on top); a row opens into their drops. */
-export function DropsByPlayer({ drops }: { drops: Drop[] }) {
+function DropsByPlayer({ drops }: { drops: Drop[] }) {
   const [open, setOpen] = useState<number | null>(null);
   const byUser = new Map<number, Drop[]>();
   for (const d of drops) byUser.set(d.userId, [...(byUser.get(d.userId) ?? []), d]);
-  const rows = [...byUser.values()].sort(
-    (a, b) =>
-      Number(b[0]!.userId === world.selfId) - Number(a[0]!.userId === world.selfId) ||
-      b.length - a.length ||
-      Math.max(...b.map((d) => RARITY_RANK[rarityOf(d)])) -
-        Math.max(...a.map((d) => RARITY_RANK[rarityOf(d)])),
-  );
+  const rows = [...byUser.values()].sort((a, b) => {
+    // Each group is one player's drops, so its first drop names the player.
+    const mineFirst = Number(b[0]!.userId === world.selfId) - Number(a[0]!.userId === world.selfId);
+    return mineFirst || b.length - a.length || bestRank(b) - bestRank(a);
+  });
   return (
     <ul className="loot-drops">
       {rows.map((mine) => {
@@ -143,7 +142,8 @@ export function LootToast() {
   const news = useHud((s) => s.lootNews);
   // In the dungeon it flies to their desk with their name on it instead.
   const inDungeon = useHud((s) => s.room === "dungeon");
-  if (!useFresh(news?.at, NEWS_MS) || !news || inDungeon) return null;
+  const isFresh = useFresh(news?.at, NEWS_MS);
+  if (!isFresh || !news || inDungeon) return null;
   const theirs = news.news.filter((n) => n.userId !== world.selfId);
   if (theirs.length === 0) return null;
   const shown = theirs.slice(0, NEWS_SHOWN);

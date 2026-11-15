@@ -220,9 +220,14 @@ const GLASSES: Record<string, Art> = {
 };
 
 const artOf = (slot: "hat" | "glasses", index: number): Art | undefined => {
-  const e = editionAt(slot, index) ?? costumeAt(slot, index) ?? caseAt(slot, index) ?? stallAt(slot, index);
+  const entry =
+    editionAt(slot, index) ?? costumeAt(slot, index) ?? caseAt(slot, index) ?? stallAt(slot, index);
+  if (!entry) return undefined;
+
+  const ownArt = slot === "hat" ? HATS : GLASSES;
   // The cases' hats and glasses (the Night Market's and the Nusantara's) are drawn in `case.ts`.
-  return e && ((slot === "hat" ? HATS : GLASSES)[e.id] ?? (slot === "hat" ? CASE_HATS : CASE_GLASSES)[e.id]);
+  const caseArt = slot === "hat" ? CASE_HATS : CASE_GLASSES;
+  return ownArt[entry.id] ?? caseArt[entry.id];
 };
 
 /** Draws `look`'s editions and costume over a character frame (`characterFrame`, `sleeperFrame`). */

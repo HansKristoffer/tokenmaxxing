@@ -394,7 +394,7 @@ const adventskrans: AuraBuilder = (m, tick) => {
     g.scale.setScalar(1.35);
     ring.add(g);
     const wax = i % 2 ? "#f4ecd8" : "#c8102e";
-    cube(g, [0.08, 0.026, 0.08], basic("#c9a14a"), [0, 0.0, 0]);
+    cube(g, [0.08, 0.026, 0.08], basic("#c9a14a"), [0, 0, 0]);
     cube(g, [0.052, 0.2, 0.052], basic(wax), [0, 0.11, 0]);
     cube(g, [0.056, 0.02, 0.056], basic(i % 2 ? "#c8102e" : "#f4ecd8"), [0, 0.15, 0]);
     cube(g, [0.056, 0.012, 0.056], basic(i % 2 ? "#c8102e" : "#f4ecd8"), [0, 0.07, 0]);
@@ -563,18 +563,17 @@ const snefnug: AuraBuilder = (m, tick) => {
     y: rnd() * 1.3 - 0.45,
     p: rnd() * 6,
   }));
-  // A low mound of snow cubes round the feet.
-  const heap = Array.from({ length: 16 }, (_, i) => {
+  // A low mound of snow cubes round the feet. The cubes are only added to the wearer, never ticked.
+  for (let i = 0; i < 16; i++) {
     const a = (i / 16) * TAU + rnd() * 0.3;
     const r = 0.38 + rnd() * 0.25;
     const s = 0.04 + rnd() * 0.04;
-    return cube(m, [s, s * 0.7, s], basic(i % 3 ? "#ffffff" : "#d9ecf7", 0.9), [
+    cube(m, [s, s * 0.7, s], basic(i % 3 ? "#ffffff" : "#d9ecf7", 0.9), [
       Math.sin(a) * r,
       FLOOR + s * 0.3,
       Math.cos(a) * r,
     ]);
-  });
-  void heap;
+  }
   tick((t, walking) => {
     for (const f of flakes) {
       const k = (t * f.s + f.p) % 1;

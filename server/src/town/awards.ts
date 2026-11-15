@@ -57,12 +57,19 @@ export async function awardSweep(
   );
   const known = new Set(have.map((r) => `${r.badge} ${r.tier}`));
   const silent = opts.backfill || have.length === 0;
+  // Every tier of a badge up to the one reached, and every milestone level, that has no row yet.
   const due: { badge: string; tier: number }[] = [];
-  for (const b of badgeStates(facts))
-    for (let tier = 1; tier <= b.tier; tier++)
+  for (const b of badgeStates(facts)) {
+    for (let tier = 1; tier <= b.tier; tier++) {
       if (!known.has(`${b.id} ${tier}`)) due.push({ badge: b.id, tier });
-  for (const m of MILESTONES)
-    if (m.level <= level && !known.has(`level ${m.level}`)) due.push({ badge: "level", tier: m.level });
+    }
+  }
+  for (const m of MILESTONES) {
+    const isNewLevel = m.level <= level && !known.has(`level ${m.level}`);
+    if (isNewLevel) due.push({ badge: "level", tier: m.level });
+  }
+
+  // The insert is the claim: a row that already exists returns nothing, so it is not fresh.
   const fresh: Award[] = [];
   for (const d of due) {
     const row = await one(
@@ -73,15 +80,16 @@ export async function awardSweep(
       d.badge,
       d.tier,
       now,
-      +silent,
+      silent ? 1 : 0,
     );
     if (row) fresh.push({ userId, ...d, announce: null });
   }
   if (silent || fresh.length === 0) return fresh;
+
   const name = (await userById(sql, userId)).name;
-  const lines = fresh.filter((a) =>
-    a.badge === "level" ? a.tier >= ANNOUNCE_LEVEL : announced(a.badge, a.tier),
-  );
+  const isAnnounced = (a: Award) =>
+    a.badge === "level" ? a.tier >= ANNOUNCE_LEVEL : announced(a.badge, a.tier);
+  const lines = fresh.filter(isAnnounced);
   for (const a of lines.slice(0, ANNOUNCE_MAX)) {
     a.remark = awardRemark(name, a.badge, a.tier) ?? undefined;
     a.announce =
@@ -96,9 +104,9 @@ export async function awardSweep(
 
 const MARKER = "badge_backfill";
 /**
- * A second pass over everyone for tiers added since the first (longer ladders, new badges): the same silent
- * recording, kept apart so the Hall of Fame (`backfillDone`) isn't empty while it runs. Records are only
- * ever added, so running it again is safe; bump the key to run it for tiers added later.
+ * A second pass over everyone for tiers added since the first (longer ladders, new badges): the same
+ * silent recording, kept apart so the Hall of Fame (`backfillDone`) isn't empty while it runs. Records
+ * are only ever added, so running it again is safe; bump the key to run it for tiers added later.
  */
 export const RECHECK = "badge_recheck_2";
 /** Players one sweep backfills. */
@@ -186,8 +194,12 @@ export async function awardStep(
       console.warn(`[awards] ${id}: ${String(err)}`);
     }
   }
-  // The map only needs the recent.
-  if (swept.size > 1000) for (const [id, at] of swept) if (now - at >= AWARD_EVERY) swept.delete(id);
+  // Only players swept within the last AWARD_EVERY need remembering, so the map is pruned past 1000.
+  if (swept.size > 1000) {
+    for (const [id, at] of swept) {
+      if (now - at >= AWARD_EVERY) swept.delete(id);
+    }
+  }
   return { awards, backfilled: false };
 }
 

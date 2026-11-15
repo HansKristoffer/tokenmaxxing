@@ -31,7 +31,7 @@ export const CANDLE_SLOTS = 14;
 /** How many candles one player lights (a year). */
 export const MAX_MINE = 4;
 
-/** Candles the town has lit on the tray at a build-up (`intensity`, 0..1): 6 at the start, 10 on the evening. */
+/** Candles the town has lit on the tray at a build-up (`intensity`, 0..1): 3 at the start, 10 on the evening. */
 export const townCandles = (intensity: number): number =>
   Math.min(CANDLE_SLOTS - MAX_MINE, Math.round(3 + 7 * Math.min(1, Math.max(0, intensity))));
 
@@ -39,8 +39,11 @@ export const inMemorial = (x: number, y: number): boolean =>
   x >= MEMORIAL.x && x < MEMORIAL.x + MEMORIAL.w && y >= MEMORIAL.y && y < MEMORIAL.y + MEMORIAL.h;
 
 /** Whether a tile is taken by the memorial, a flagpole or the storyteller. */
-export const isBefrielsenSolid = (x: number, y: number): boolean =>
-  inMemorial(x, y) || (x === NPC_TILE.x && y === NPC_TILE.y) || FLAGPOLES.some((p) => p.x === x && p.y === y);
+export function isBefrielsenSolid(x: number, y: number): boolean {
+  const isStoryteller = x === NPC_TILE.x && y === NPC_TILE.y;
+  const isFlagpole = FLAGPOLES.some((p) => p.x === x && p.y === y);
+  return inMemorial(x, y) || isStoryteller || isFlagpole;
+}
 
 /** What the memorial says as each of your candles is lit, in turn. */
 export const CANDLE_LINES: readonly string[] = [

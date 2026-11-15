@@ -13,6 +13,7 @@ import "./gear3dRagnarokAura.ts";
 import "./gear3dRagnarokBody.ts";
 import {
   COVERS_HAIR,
+  type Ctx,
   dome,
   EYE_Y,
   eyeAt,
@@ -48,9 +49,9 @@ function roundAt(m: THREE.Object3D, a: number, r: number): [number, number] {
   return [x * k, z * k];
 }
 
-/** Blocks on a path, as [centre x, centre y, size]. */
-function path(m: Model, p: Paint, pts: [number, number, number][], z = 0, deep = 1): void {
-  for (const [x, y, sz] of pts) m.box([sz, sz, sz * deep], p, [x, y - sz / 2, z], 0.004);
+/** Cubes along a path, as [centre x, centre y, size]; each one hangs below its centre. */
+function path(m: Model, p: Paint, pts: [number, number, number][]): void {
+  for (const [x, y, sz] of pts) m.box([sz, sz, sz], p, [x, y - sz / 2, 0], 0.004);
 }
 
 // MARK: Hats
@@ -59,15 +60,13 @@ function path(m: Model, p: Paint, pts: [number, number, number][], z = 0, deep =
  * A crown over the head: on a blocky head (which ignores a thin dome: its hair block pokes through) two stacked
  * slabs that cover the whole skull, on a smooth one a dome.
  */
-function crown(m: Model, color: string, o: { y?: number; h?: number; top?: string } = {}): void {
-  const y = o.y ?? 0.0;
-  const h = o.h ?? 0.3;
+function crown(m: Model, color: string, o: { y: number; h: number; top: string }): void {
   if (!isVox(m)) {
-    dome(m, color, 0.285, y + 0.02, 0.56);
+    dome(m, color, 0.285, o.y + 0.02, 0.56);
     return;
   }
-  m.box([0.55, h, 0.55], color, [0, y, 0], 0.01);
-  m.box([0.47, 0.06, 0.47], o.top ?? color, [0, y + h, 0], 0.01);
+  m.box([0.55, o.h, 0.55], color, [0, o.y, 0], 0.01);
+  m.box([0.47, 0.06, 0.47], o.top, [0, o.y + o.h, 0], 0.01);
 }
 
 /** A shaggy wolf-grey hood: a crown, a ring of pale fringe, darker ears and a drape down the back. */
@@ -123,14 +122,14 @@ function nasalHelm(m: Model): void {
   // A ridge over the crown, and the nasal bar down the face.
   m.box([0.06, 0.04, 0.5], STEEL_DARK, [0, 0.33, 0], 0.008);
   m.box([0.06, 0.18, 0.04], STEEL, [0, -0.1, 0.3], 0.01);
-  m.box([0.1, 0.05, 0.05], STEEL_DARK, [0, 0.0, 0.3], 0.006);
+  m.box([0.1, 0.05, 0.05], STEEL_DARK, [0, 0, 0.3], 0.006);
   // A short aventail of mail at the back and over the ears.
   for (const s of [-1, 1]) m.box([0.04, 0.17, 0.3], STEEL_DARK, [s * 0.285, -0.16, -0.03], 0.006);
   m.box([0.56, 0.15, 0.04], STEEL_DARK, [0, -0.15, -0.3], 0.006);
 }
 
 /** Three braids with a bead each: two to the front of the shoulders, one down the back. */
-function beadedBraids(m: Model, c: { hair: string; tick(fn: (t: number) => void): void }): void {
+function beadedBraids(m: Model, c: Ctx): void {
   const beads = [EMBER, GOLD, EMBER];
   const swing: Model[] = [];
   const dark = tint(c.hair, -0.2);
@@ -192,7 +191,7 @@ function operaHorns(m: Model): void {
 Object.assign(HAT_BUILDERS, {
   "Fur hood": (m: Model) => furHood(m),
   "Nasal helm": (m: Model) => nasalHelm(m),
-  "Beaded braids": (m: Model, c: { hair: string; tick(fn: (t: number) => void): void }) => beadedBraids(m, c),
+  "Beaded braids": (m: Model, c: Ctx) => beadedBraids(m, c),
   "Opera horns": (m: Model) => operaHorns(m),
 });
 for (const n of ["Fur hood", "Nasal helm", "Opera horns"]) COVERS_HAIR.add(n);
@@ -200,7 +199,7 @@ for (const n of ["Fur hood", "Nasal helm", "Opera horns"]) COVERS_HAIR.add(n);
 // MARK: Glasses
 
 /** A round lens (a square pane on a blocky face) in a rim. */
-function roundLens(e: Model, frame: string, glass: string, r = 0.062, opacity = 0.5): THREE.Mesh | undefined {
+function roundLens(e: Model, frame: string, glass: string, r = 0.062, opacity = 0.5): THREE.Mesh {
   ring(e, frame, r, 0.009, [0, 0, 0], false);
   if (isVox(e)) return squarePane(e, r * 0.95, see(glass, opacity), [0, 0, 0.002]);
   const disc = new THREE.Mesh(new THREE.CircleGeometry(r, 20), see(glass, opacity));
@@ -221,16 +220,16 @@ function arms(m: Model, color: string, y = EYE_Y): void {
 /** A band round the head at eye height (a leather strap). */
 function strap(m: Model, color: string, y = EYE_Y, w = 0.03): void {
   if (isVox(m)) {
-    const g = new THREE.BoxGeometry(0.44, w, 0.03).translate(0, 0, 0.21);
+    const front = new THREE.BoxGeometry(0.44, w, 0.03).translate(0, 0, 0.21);
     const back = new THREE.BoxGeometry(0.44, w, 0.03).translate(0, 0, -0.32);
-    const l = new THREE.BoxGeometry(0.03, w, 0.5).translate(-0.215, 0, -0.055);
-    const r = new THREE.BoxGeometry(0.03, w, 0.5).translate(0.215, 0, -0.055);
-    for (const b of [g, back, l, r]) place(m, b, color, [0, y - w / 2, 0]);
+    const left = new THREE.BoxGeometry(0.03, w, 0.5).translate(-0.215, 0, -0.055);
+    const right = new THREE.BoxGeometry(0.03, w, 0.5).translate(0.215, 0, -0.055);
+    for (const b of [front, back, left, right]) place(m, b, color, [0, y - w / 2, 0]);
     return;
   }
-  const r = m.cyl(0.262, w, color, [0, y - w / 2, 0], 0.262, 24);
-  r.scale.set(1.0, 1, 0.97);
-  (r.material as THREE.Material).side = THREE.DoubleSide;
+  const band = m.cyl(0.262, w, color, [0, y - w / 2, 0], 0.262, 24);
+  band.scale.set(1, 1, 0.97);
+  (band.material as THREE.Material).side = THREE.DoubleSide;
 }
 
 Object.assign(FACE_BUILDERS, {
@@ -249,7 +248,7 @@ Object.assign(FACE_BUILDERS, {
     }
   },
   // Round lenses rimed with ice, a few sparkles that blink, and an icicle hanging off each rim.
-  "Frosted specs": (m: Model, c: { tick(fn: (t: number) => void): void }) => {
+  "Frosted specs": (m: Model, c: Ctx) => {
     const sparkles: THREE.Mesh[] = [];
     for (const s of [-1, 1] as const) {
       const e = eyeAt(m, s);
@@ -272,13 +271,13 @@ Object.assign(FACE_BUILDERS, {
     );
   },
   // One round lens on a leather strap, with a faint blue water shimmer sliding across the glass.
-  "Mimir's lens": (m: Model, c: { tick(fn: (t: number) => void): void }) => {
+  "Mimir's lens": (m: Model, c: Ctx) => {
     strap(m, OAK, EYE_Y, 0.032);
     strap(m, OAK_DARK, EYE_Y + 0.034, 0.012);
     const e = eyeAt(m, 1);
     const lens = roundLens(e, "#b8894a", "#7fc8ff", 0.078, 0.38);
     ring(e, "#e9b73d", 0.088, 0.008, [0, 0, 0.004], false);
-    e.box([0.02, 0.03, 0.024], "#b8894a", [0.09, 0.0, 0.0], 0.004);
+    e.box([0.02, 0.03, 0.024], "#b8894a", [0.09, 0, 0], 0.004);
     const wave = [0, 1].map((i) =>
       e.box([0.1, 0.012, 0.008], lit(i ? "#bfe6ff" : "#7fd0ff"), [0, 0, 0.012], 0.002),
     );
@@ -289,9 +288,11 @@ Object.assign(FACE_BUILDERS, {
         w.position.y = 0.07 - k * 0.14;
         w.scale.x = Math.sin(k * Math.PI) * (0.9 - i * 0.3) + 0.05;
       });
-      drops.position.y = -0.1 - ((t * 0.5) % 1) * 0.05;
-      drops.scale.setScalar(1 - ((t * 0.5) % 1));
-      if (lens) (lens.material as THREE.MeshBasicMaterial).opacity = 0.34 + Math.sin(t * 2) * 0.06;
+      // Drops fall through the lower half of the lens and shrink as they go.
+      const fall = (t * 0.5) % 1;
+      drops.position.y = -0.1 - fall * 0.05;
+      drops.scale.setScalar(1 - fall);
+      (lens.material as THREE.MeshBasicMaterial).opacity = 0.34 + Math.sin(t * 2) * 0.06;
     });
   },
 });

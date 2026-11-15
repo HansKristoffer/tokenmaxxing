@@ -24,16 +24,10 @@ function energinet(co2: { from: number; g: number[] } | Error, prices: number[] 
     calls.push(set);
     const reply = set === "co2" ? co2 : prices;
     if (reply instanceof Error) throw reply;
-    const records =
-      set === "co2"
-        ? (co2 as { from: number; g: number[] }).g.map((g, i) => ({
-            Minutes5UTC: iso((co2 as { from: number }).from + i * MIN5),
-            CO2Emission: g,
-          }))
-        : (prices as number[]).map((dkk, i) => ({
-            TimeUTC: iso(NOW + i * 15 * 60_000),
-            DayAheadPriceDKK: dkk,
-          }));
+    // The CO2 series is an object, the prices an array: the shape tells them apart.
+    const records = Array.isArray(reply)
+      ? reply.map((dkk, i) => ({ TimeUTC: iso(NOW + i * 15 * 60_000), DayAheadPriceDKK: dkk }))
+      : reply.g.map((g, i) => ({ Minutes5UTC: iso(reply.from + i * MIN5), CO2Emission: g }));
     return { ok: true, json: async () => ({ records }) };
   }) as unknown as typeof fetch;
   return { fetcher, calls };

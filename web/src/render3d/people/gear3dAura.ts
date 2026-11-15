@@ -223,11 +223,10 @@ AURA_BUILDERS["Gamelan Echo"] = (m, tick) => {
     m.add(o);
     return { o, mat };
   });
-  // Four gongs: a bronze disc with a darker rim and a bright boss, laid flat round the wearer.
+  // Four gongs laid flat round the wearer, like the pots of a bonang: a bronze disc with a darker rim and a bright knob.
   const gongs = Array.from({ length: 4 }, () => {
     const g = new THREE.Group();
     m.add(g);
-    // They lie flat like the pots of a bonang, a bronze disc with a darker rim and a bright knob.
     const disc = (r: number, h: number, col: THREE.Material, y = 0) => {
       const o = new THREE.Mesh(new THREE.CylinderGeometry(r, r, h, 16), col);
       o.position.y = y;
@@ -253,7 +252,7 @@ AURA_BUILDERS["Gamelan Echo"] = (m, tick) => {
       const a = (i / gongs.length) * Math.PI * 2 + t * 0.22;
       g.position.set(
         Math.cos(a) * 0.46,
-        0.0 + (i % 2) * 0.14 + Math.sin(t * 1.3 + i * 1.6) * 0.03,
+        (i % 2) * 0.14 + Math.sin(t * 1.3 + i * 1.6) * 0.03,
         Math.sin(a) * 0.46,
       );
       g.rotation.z = Math.sin(t * 1.1 + i) * 0.1;

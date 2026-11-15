@@ -92,11 +92,12 @@ export function seeThrough(root: THREE.Object3D): void {
     const mesh = o as THREE.Mesh;
     if (!mesh.isMesh || mesh.userData.nosee) return;
     let patched = false;
-    for (const mat of Array.isArray(mesh.material) ? mesh.material : [mesh.material])
+    for (const mat of Array.isArray(mesh.material) ? mesh.material : [mesh.material]) {
       if ((mat as THREE.MeshToonMaterial).isMeshToonMaterial && !mat.transparent) {
         addPatch(mat, "see", patch);
         patched = true;
       }
+    }
     if (patched && mesh.geometry.getAttribute("position")) markMiddle(mesh.geometry);
   });
 }
@@ -137,6 +138,7 @@ export class PlayerOcclusion {
 
   update(at: THREE.Vector3, camera: THREE.OrthographicCamera, dt: number, calm: boolean): number {
     this.elapsed += dt;
+    // About 12 probes a second: the cutaway eases over a fraction of a second, so finer probing buys nothing.
     if (this.elapsed >= 0.08) {
       this.elapsed = 0;
       this.root.updateMatrixWorld();
@@ -158,13 +160,15 @@ export class PlayerOcclusion {
         !camera.matrixWorld.equals(this.lastView) ||
         !camera.projectionMatrix.equals(this.lastProjection) ||
         meshes.length !== this.previous.length;
-      for (let i = 0; i < meshes.length; i++) {
-        const mesh = meshes[i]!;
+      for (const [i, mesh] of meshes.entries()) {
         const geometry = mesh.geometry;
         const attribute = geometry.getAttribute("position");
         const version =
           (attribute as THREE.BufferAttribute).version ??
           (attribute as THREE.InterleavedBufferAttribute).data.version;
+        const indexVersion = geometry.index?.version ?? 0;
+
+        // Any change to the piece's mesh, geometry, matrix or draw range makes the cutaway probe again.
         const old = this.previous[i];
         changed ||=
           !old ||
@@ -174,9 +178,10 @@ export class PlayerOcclusion {
           old.index !== geometry.index ||
           !old.matrix.equals(mesh.matrixWorld) ||
           old.version !== version ||
-          old.indexVersion !== (geometry.index?.version ?? 0) ||
+          old.indexVersion !== indexVersion ||
           old.start !== geometry.drawRange.start ||
           old.count !== geometry.drawRange.count;
+
         if (old) {
           old.mesh = mesh;
           old.geometry = geometry;
@@ -184,10 +189,10 @@ export class PlayerOcclusion {
           old.index = geometry.index;
           old.matrix.copy(mesh.matrixWorld);
           old.version = version;
-          old.indexVersion = geometry.index?.version ?? 0;
+          old.indexVersion = indexVersion;
           old.start = geometry.drawRange.start;
           old.count = geometry.drawRange.count;
-        } else
+        } else {
           this.previous.push({
             mesh,
             geometry,
@@ -195,10 +200,11 @@ export class PlayerOcclusion {
             index: geometry.index,
             matrix: mesh.matrixWorld.clone(),
             version,
-            indexVersion: geometry.index?.version ?? 0,
+            indexVersion,
             start: geometry.drawRange.start,
             count: geometry.drawRange.count,
           });
+        }
       }
       this.previous.length = meshes.length;
       if (changed) {
@@ -212,6 +218,8 @@ export class PlayerOcclusion {
           for (let column = -1; column <= 1; column++) {
             this.point.copy(at).addScaledVector(this.right, column * PROBE_SIDE);
             this.point.y += PROBE_LOW + row * PROBE_RISE;
+
+            // Depth from the camera sets how far the ray goes; the screen position aims it.
             const depth = -this.projected.copy(this.point).applyMatrix4(camera.matrixWorldInverse).z;
             this.projected.copy(this.point).project(camera);
             this.ndc.set(this.projected.x, this.projected.y);
@@ -229,11 +237,13 @@ export class PlayerOcclusion {
           }
         }
         this.near.length = 0;
-        // Hysteresis keeps a roof edge from flickering between adjacent samples while walking.
+        // Of the nine samples, five must be blocked to start a cutaway and four to keep one going. The gap keeps a
+        // roof edge from flickering between adjacent samples while walking.
         this.hidden = blocked >= (this.hidden ? 4 : 5);
       }
     }
     const target = this.hidden ? 1 : 0;
+    // The cutaway opens a little faster than it closes.
     this.amount = calm ? target : THREE.MathUtils.damp(this.amount, target, this.hidden ? 18 : 12, dt);
     if (Math.abs(this.amount - target) < 0.005) this.amount = target;
     return this.amount;

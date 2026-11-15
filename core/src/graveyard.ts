@@ -63,15 +63,14 @@ export function tend(plots: readonly Plot[], pool: readonly PoolModel[], now: nu
       gone: null,
       buried: null,
     };
-    if (
-      !was ||
-      was.gone !== null ||
-      was.buried !== null ||
-      was.model !== next.model ||
-      was.listed !== next.listed ||
-      !samePrice(was.price, next.price)
-    )
-      changed.push(next);
+    const isUnchanged =
+      was !== undefined &&
+      was.gone === null &&
+      was.buried === null &&
+      was.model === next.model &&
+      was.listed === next.listed &&
+      samePrice(was.price, next.price);
+    if (!isUnchanged) changed.push(next);
   }
   const living = plots.filter((p) => p.buried === null);
   if (pool.length < living.length * PARTIAL) return changed;
@@ -104,15 +103,9 @@ export const GRAVEYARD = { x: 15, y: 16 } as const;
  * The plots, in town tiles: a tile apart, so every stone has a front to stand on and its name room to show.
  * Nothing stands south of them, so the camera always sees the whole row.
  */
-export const GRAVES: readonly (readonly [number, number])[] = (
-  [
-    [-4, 0],
-    [-2, 0],
-    [0, 0],
-    [2, 0],
-    [4, 0],
-  ] as const
-).map(([dx, dy]) => [GRAVEYARD.x + dx, GRAVEYARD.y + dy] as const);
+export const GRAVES: readonly (readonly [number, number])[] = [-4, -2, 0, 2, 4].map(
+  (dx): [number, number] => [GRAVEYARD.x + dx, GRAVEYARD.y],
+);
 
 /**
  * The stones the graveyard shows: the newest burials, as many as it has plots. Each keeps its plot as
@@ -135,7 +128,10 @@ export const sameStones = (a: readonly Stone[], b: readonly Stone[]): boolean =>
 
 /** The stone on tile (x, y), if there's one there. */
 export const stoneAt = (stones: readonly Stone[], x: number, y: number): Stone | undefined =>
-  stones.find((s) => GRAVES[s.plot]![0] === x && GRAVES[s.plot]![1] === y);
+  stones.find((s) => {
+    const [graveX, graveY] = GRAVES[s.plot]!;
+    return graveX === x && graveY === y;
+  });
 
 /** The stone whose front is tile (x, y): the tile below it, where you stand to read it. */
 export const stoneInFront = (stones: readonly Stone[], x: number, y: number): Stone | undefined =>
@@ -179,16 +175,7 @@ const dateOf = (ms: number): string => new Date(ms).toLocaleDateString("en-GB", 
 const hashOf = (s: string): number => [...s].reduce((n, c) => (n * 31 + c.charCodeAt(0)) >>> 0, 7);
 
 /** What a tombstone says: who lies here (as OpenRouter named them), who made them, the dates they were listed, and what they last cost. */
-export function epitaphOf(s: Stone): {
-  title: string;
-  name: string;
-  provider: string;
-  accent: string;
-  id: string;
-  dates: string;
-  price: string;
-  epitaph: string;
-} {
+export function epitaphOf(s: Stone) {
   const p = providerOf(s.provider);
   return {
     title: "🪦 Here lies",

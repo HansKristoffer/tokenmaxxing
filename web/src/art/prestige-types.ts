@@ -1,10 +1,20 @@
 import type { Art } from "./editions.ts";
 import type { Pen } from "./pixels.ts";
-import type { Back, Outfit } from "./wardrobe.ts";
+import type { Back, BackView, Outfit } from "./wardrobe.ts";
+
+/**
+ * The shared helpers for a track's back items. They live here, not in `wardrobe.ts`, because `wardrobe.ts` imports
+ * `prestige.ts` and a track importing `wardrobe.ts` at run time would make an import cycle.
+ */
+
+/** An empty 16×16 frame, then `rows` dropped in at row `y`. */
+export const frameAt = (rows: string[], y: number): string[] => [...Array<string>(y).fill(""), ...rows];
+/** A back view that has only a front layer. */
+export const frontView = (front: string[]): BackView => ({ front });
 
 /** One prestige track's 2D wearables (`core/src/prestige.ts`); `prestige.ts` files them under their look indices. */
 export interface TrackArt {
-  /** Keyed like `FISHING_HATS`: the four directions are `down`, `side`, `up` of a 16-wide head piece. */
+  /** Keyed like `FISHING_HATS`: `down`, `side` and `up` views of a 16-wide head piece. */
   hat?: Art;
   outfit?: Outfit;
   back?: Back;

@@ -28,19 +28,26 @@ const BRICK_L = "#b4574a";
 const MORTAR = "#cdb9a2";
 const FROST = "#bcd8e8";
 
-// MARK: Pieces
+/**
+ * The point `u` of the way (0 to 1) along a line from (x0, y0) to (x1, y1), which sags `sag` pixels in the
+ * middle: a parabola, so a wire or a string of bunting hangs between its two ends.
+ */
+function sagPoint(x0: number, y0: number, x1: number, y1: number, sag: number, u: number): [number, number] {
+  const x = Math.round(x0 + (x1 - x0) * u);
+  const y = Math.round(y0 + (y1 - y0) * u + sag * 4 * u * (1 - u));
+  return [x, y];
+}
 
 /** A string of fairy lights from (x0, y0) to (x1, y1), sagging `sag` pixels in the middle: a dark wire and warm bulbs. */
 function fairyLights(p: Pen, x0: number, y0: number, x1: number, y1: number, sag: number, every = 4): void {
   const n = Math.abs(x1 - x0);
+  const bulbs = [GOLD, "#ff8a6b", "#fff2b0"];
   for (let i = 0; i <= n; i++) {
-    const u = i / n;
-    const x = Math.round(x0 + (x1 - x0) * u);
-    const y = Math.round(y0 + (y1 - y0) * u + sag * 4 * u * (1 - u));
+    const [x, y] = sagPoint(x0, y0, x1, y1, sag, i / n);
     p.px(x, y, C.ink);
     if (i % every === 2) {
       const k = Math.floor(i / every) % 3;
-      p.px(x, y + 1, k === 0 ? GOLD : k === 1 ? "#ff8a6b" : "#fff2b0");
+      p.px(x, y + 1, bulbs[k]!);
     }
   }
 }
@@ -49,9 +56,7 @@ function fairyLights(p: Pen, x0: number, y0: number, x1: number, y1: number, sag
 function bunting(p: Pen, x0: number, y0: number, x1: number, y1: number, sag: number): void {
   const n = Math.abs(x1 - x0);
   for (let i = 0; i <= n; i++) {
-    const u = i / n;
-    const x = Math.round(x0 + (x1 - x0) * u);
-    const y = Math.round(y0 + (y1 - y0) * u + sag * 4 * u * (1 - u));
+    const [x, y] = sagPoint(x0, y0, x1, y1, sag, i / n);
     p.px(x, y, C.ink);
     // A 3-wide, 3-deep pennant every 4 pixels, alternating red and white.
     if (i % 4 === 1) {
@@ -99,8 +104,6 @@ function snowCap(p: Pen, x: number, y: number, w: number, deep = 2): void {
   }
 }
 
-// MARK: The gate
-
 const W = JULE_GATE.w * TILE;
 const H = JULE_GATE.h * TILE;
 
@@ -113,8 +116,9 @@ function hut(p: Pen, x: number): void {
     p.rect(x + 1, y + 2, 28, 1, BRICK_D);
     for (let i = y % 6 === 0 ? 0 : 3; i < 28; i += 6) p.rect(x + 1 + i, y, 1, 2, BRICK_D);
   }
-  for (let k = 0; k < 14; k++)
+  for (let k = 0; k < 14; k++) {
     p.px(x + 2 + Math.floor(hash(x, k, 8) * 26), 19 + Math.floor(hash(k, x, 9) * 27), BRICK_L);
+  }
   // A stone plinth.
   p.rect(x, 43, 30, 5, C.ink);
   p.rect(x + 1, 44, 28, 3, C.stoneDark);
@@ -126,7 +130,7 @@ function hut(p: Pen, x: number): void {
   p.rect(x + 14, 26, 2, 10, CREAM);
   p.rect(x + 10, 30, 10, 2, CREAM);
   p.px(x + 11, 27, "#fff2c8");
-  // The pitched roof: three tapering courses, snow on top, a red stripe along the eave.
+  // The pitched roof: a snow-white slope with a red stripe along the eave, and two smaller tiers stepping up above it.
   p.rect(x - 2, 9, 34, 9, C.ink);
   p.rect(x - 1, 10, 32, 7, SNOW);
   p.rect(x - 1, 14, 32, 2, DANNEBROG);
@@ -144,6 +148,14 @@ function hut(p: Pen, x: number): void {
   fairyLights(p, x - 1, 17, x + 30, 17, 3, 3);
 }
 
+/** The passage's sky by its height `u` (0 at the top, 1 at the paving): dusk blue, then a warm pink. */
+function skyAt(u: number): string {
+  if (u < 0.25) return "#2b2a4a";
+  if (u < 0.5) return "#3d3556";
+  if (u < 0.8) return "#5a4560";
+  return "#8a5a58";
+}
+
 /** The gate, from its top-left tile: two huts, a beam with the sign, a wreath, bunting and the glow between. */
 export const julemarkedGate = once(() =>
   bake(W, H, (p) => {
@@ -154,14 +166,7 @@ export const julemarkedGate = once(() =>
     const x0 = left + 30;
     const x1 = right;
     for (let y = 18; y < H - 3; y++) {
-      const u = (y - 18) / (H - 21);
-      p.rect(
-        x0,
-        y,
-        x1 - x0,
-        1,
-        u < 0.5 ? (u < 0.25 ? "#2b2a4a" : "#3d3556") : u < 0.8 ? "#5a4560" : "#8a5a58",
-      );
+      p.rect(x0, y, x1 - x0, 1, skyAt((y - 18) / (H - 21)));
     }
     for (let i = 0; i < 26; i++) {
       const bx = x0 + 3 + Math.floor(hash(i, 4, 21) * (x1 - x0 - 6));
@@ -180,7 +185,7 @@ export const julemarkedGate = once(() =>
     p.rect(x0, H - 6, x1 - x0, 1, C.plazaLight);
     hut(p, left);
     hut(p, right);
-    // The beam across the top of the passage, with a snow cap and posts' brackets.
+    // The beam across the top of the passage, with a snow cap on it.
     p.rect(x0 - 2, 13, x1 - x0 + 4, 8, C.ink);
     p.rect(x0 - 1, 14, x1 - x0 + 2, 6, WOOD);
     p.rect(x0 - 1, 14, x1 - x0 + 2, 1, WOOD_L);
@@ -204,8 +209,6 @@ export const julemarkedGate = once(() =>
     bunting(p, left + 15, 8, right + 15, 8, 5);
   }),
 );
-
-// MARK: Stalls
 
 const SW = 5 * TILE;
 const SH = 3 * TILE;
@@ -282,7 +285,7 @@ const WARES: Record<StallId, (p: Pen) => void> = {
       p.px(x, 28, SNOW);
       p.px(x + 1, 27, SNOW);
     }
-    // Strings of dried apples and a paper bag of almonds.
+    // A paper bag of almonds.
     p.rect(70, 27, 6, 8, C.ink);
     p.rect(71, 28, 4, 7, "#d8b684");
   },
@@ -389,8 +392,6 @@ export const julemarkedStall = cached(
     }),
 );
 
-// MARK: The tree
-
 /** The market's Christmas tree for its 2x2 tiles: tiers of snowy spruce, fairy lights, red baubles, a gold star and gifts. */
 export const julemarkedTree = once(() =>
   bake(2 * TILE, 56, (p) => {
@@ -449,32 +450,30 @@ export const julemarkedTree = once(() =>
   }),
 );
 
-// MARK: The wall
-
 /**
- * The courtyard's wall, a Danish brick wall capped with snow, for every `W` tile of the market: the top row of
- * the back wall is the cap, the face below it brick.
+ * The courtyard's wall, a Danish brick wall capped with snow, drawn one tile at a time: `face` picks the
+ * coping seen from above or the brick face below it.
  */
 export function julemarkedWall(p: Pen, ox: number, oy: number, x: number, y: number, face: boolean): void {
   if (!face) {
     // The top of the wall, seen from above: snow over the coping.
     p.rect(ox, oy, TILE, TILE, SNOW);
     p.rect(ox, oy + TILE - 3, TILE, 3, SNOW_SHADE);
-    for (let k = 0; k < 4; k++)
+    for (let k = 0; k < 4; k++) {
       p.px(ox + Math.floor(hash(x, y, 40 + k) * TILE), oy + Math.floor(hash(y, x, 44 + k) * 12), FROST);
+    }
     return;
   }
+
   p.rect(ox, oy, TILE, TILE, BRICK);
   for (let j = 0; j < TILE; j += 4) {
     p.rect(ox, oy + j + 3, TILE, 1, MORTAR);
     for (let i = (j / 4) % 2 ? 4 : 0; i < TILE; i += 8) p.rect(ox + i, oy + j, 1, 3, MORTAR);
   }
-  for (let k = 0; k < 6; k++)
-    p.px(
-      ox + Math.floor(hash(x, y, 50 + k) * TILE),
-      oy + Math.floor(hash(y, x, 56 + k) * TILE),
-      k % 2 ? BRICK_L : BRICK_D,
-    );
+  for (let k = 0; k < 6; k++) {
+    const color = k % 2 ? BRICK_L : BRICK_D;
+    p.px(ox + Math.floor(hash(x, y, 50 + k) * TILE), oy + Math.floor(hash(y, x, 56 + k) * TILE), color);
+  }
   // The snow cap's lip and fairy-light bulbs along the wall.
   p.rect(ox, oy, TILE, 3, SNOW);
   p.rect(ox, oy + 3, TILE, 1, SNOW_SHADE);

@@ -6,6 +6,11 @@ import { hud } from "../store.ts";
 import { Modal } from "./ui.tsx";
 
 const names = ["Token Trail", "Stack Overflow", "Cache Crawler", "Firewall Breaker"];
+/** The hint under the board for the cabinets that differ from the arrow keys. */
+const CONTROLS: Record<number, string> = {
+  1: "Arrow keys move and rotate; space drops.",
+  3: "Move the paddle with left and right.",
+};
 type Point = { x: number; y: number };
 const same = (a: Point, b: Point) => a.x === b.x && a.y === b.y;
 const random = (n: number) => Math.floor(Math.random() * n);
@@ -40,18 +45,19 @@ export function Retro({ cabinet }: { cabinet: number }) {
       live = false;
     };
   }, [cabinet]);
-  const [best, setBest] = useState(() => Number(storage.getItem(`retro.${cabinet}`)) || 0);
+  const bestKey = `retro.${cabinet}`;
+  const [best, setBest] = useState(() => Number(storage.getItem(bestKey)) || 0);
   useEffect(() => {
     void run; // Restart creates a fresh game.
     const g = canvas.current?.getContext("2d");
     if (!g) return;
-    let points = 0,
-      ended = false,
-      ticks = 0,
-      stage = 1,
-      playing = false,
-      lines = 0,
-      eaten = 0;
+    let points = 0;
+    let ended = false;
+    let ticks = 0;
+    let stage = 1;
+    let playing = false;
+    let lines = 0;
+    let eaten = 0;
     const advance = () => {
       stage++;
       setLevel(stage);
@@ -60,8 +66,8 @@ export function Retro({ cabinet }: { cabinet: number }) {
       if (ended) return;
       ended = true;
       setOver(true);
-      const high = Math.max(points, Number(storage.getItem(`retro.${cabinet}`)) || 0);
-      storage.setItem(`retro.${cabinet}`, String(high));
+      const high = Math.max(points, Number(storage.getItem(bestKey)) || 0);
+      storage.setItem(bestKey, String(high));
       setBest(high);
       if (points > 0)
         town
@@ -89,9 +95,9 @@ export function Retro({ cabinet }: { cabinet: number }) {
       { x: 7, y: 10 },
       { x: 6, y: 10 },
     ];
-    let dir = { x: 1, y: 0 },
-      next = dir,
-      food = { x: 13, y: 10 };
+    let dir = { x: 1, y: 0 };
+    let next = dir;
+    let food = { x: 13, y: 10 };
     let obstacles: Point[] = [];
     const shapes = [
       [[1, 1, 1, 1]],
@@ -121,9 +127,9 @@ export function Retro({ cabinet }: { cabinet: number }) {
       ],
     ];
     let board = Array.from({ length: 20 }, () => Array<number>(10).fill(0));
-    let shape = shapes[random(shapes.length)]!.map((row) => [...row]),
-      bx = 3,
-      by = 0;
+    let shape = shapes[random(shapes.length)]!.map((row) => [...row]);
+    let bx = 3;
+    let by = 0;
     const fits = (s: number[][], x: number, y: number) =>
       s.every((row, dy) =>
         row.every(
@@ -178,17 +184,17 @@ export function Retro({ cabinet }: { cabinet: number }) {
       "####################",
     ];
     let maze = mazeTemplate.map((row) => row.split(""));
-    let player = { x: 1, y: 1 },
-      bugs: Point[] = [
-        { x: 18, y: 18 },
-        { x: 18, y: 1 },
-        { x: 1, y: 18 },
-      ],
-      wish = { x: 0, y: 0 };
+    let player = { x: 1, y: 1 };
+    let bugs: Point[] = [
+      { x: 18, y: 18 },
+      { x: 18, y: 1 },
+      { x: 1, y: 18 },
+    ];
+    let wish = { x: 0, y: 0 };
     const open = (p: Point) => maze[p.y]?.[p.x] !== undefined && maze[p.y]?.[p.x] !== "#";
-    let paddle = 8,
-      ball = { x: 200, y: 300 },
-      velocity = { x: 3, y: -3 };
+    let paddle = 8;
+    const ball = { x: 200, y: 300 };
+    const velocity = { x: 3, y: -3 };
     let bricks = Array.from({ length: 5 }, (_, y) =>
       Array.from({ length: 10 }, (_, x) => ({ x, y, alive: true })),
     ).flat();
@@ -412,7 +418,7 @@ export function Retro({ cabinet }: { cabinet: number }) {
       window.removeEventListener("keydown", onKey, true);
       action.current = () => {};
     };
-  }, [cabinet, run]);
+  }, [cabinet, run, bestKey]);
   return (
     <Modal title={`🕹️ ${names[cabinet]}`}>
       <p>
@@ -432,13 +438,7 @@ export function Retro({ cabinet }: { cabinet: number }) {
           background: "#101321",
         }}
       />
-      <p className="muted small">
-        {cabinet === 1
-          ? "Arrow keys move and rotate; space drops."
-          : cabinet === 3
-            ? "Move the paddle with left and right."
-            : "Use the arrow keys to move."}
-      </p>
+      <p className="muted small">{CONTROLS[cabinet] ?? "Use the arrow keys to move."}</p>
       <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
         {!started && !over && (
           <button type="button" className="primary" onClick={() => action.current("Start")}>

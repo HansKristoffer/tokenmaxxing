@@ -33,7 +33,7 @@ export async function savePlots(sql: TxSql, changed: readonly Plot[]): Promise<v
   if (changed.length === 0) return;
   await sql.transaction(
     async (tx) => {
-      for (const p of changed)
+      for (const p of changed) {
         await tx.execute(
           `INSERT INTO graveyard (id, model, provider, listed, price, gone, buried) VALUES (?, ?, ?, ?, ?, ?, ?)
            ON CONFLICT (id) DO UPDATE SET model = excluded.model, provider = excluded.provider,
@@ -46,6 +46,7 @@ export async function savePlots(sql: TxSql, changed: readonly Plot[]): Promise<v
           p.gone,
           p.buried,
         );
+      }
     },
     { name: "graveyard" },
   );

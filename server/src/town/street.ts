@@ -12,7 +12,7 @@ import { lookOf, TOKENS, USER_COLS, type UserRow } from "./users.ts";
 /** How many days back the paper looks for streaks and comebacks, and for the month before the month. */
 const LOOKBACK = 59;
 
-/** The days (newest first, `day` itself first) each person was active, as a set of day keys. */
+/** How many days in a row, counting back from `day` itself, are in `days` (a set of day keys). */
 function streakOf(days: Set<string>, day: string): number {
   let n = 0;
   while (days.has(addDays(day, -n))) n++;
@@ -37,11 +37,12 @@ export async function paperFacts(sql: Sql, day: string): Promise<PaperFacts> {
   const active = users.filter((u) => u.tokens > 0).sort((a, b) => b.tokens - a.tokens);
   // By company as people are in them now: good enough for a paper.
   const byCompany = new Map<number, { tokens: number; members: number }>();
-  for (const u of active)
+  for (const u of active) {
     if (u.companyId !== null) {
       const c = byCompany.get(u.companyId) ?? { tokens: 0, members: 0 };
       byCompany.set(u.companyId, { tokens: c.tokens + u.tokens, members: c.members + 1 });
     }
+  }
   const [topCo] = sortBy([...byCompany], { by: ([, c]) => c.tokens, order: "desc" });
   const activity = await all<{ name: string; prs: number; prompts: number }>(
     sql,
@@ -65,6 +66,9 @@ export async function paperFacts(sql: Sql, day: string): Promise<PaperFacts> {
   const owners = users.filter((u) => lookOf(u).pet > 0).sort((a, b) => a.id - b.id);
   const owner = owners[Math.floor(random(Number(day.replaceAll("-", "")))() * owners.length)];
   const shipper = activity[0];
+  // A pet is at its owner's company when they have one, else at the Inn.
+  const ownerCompany = owner?.companyId ?? null;
+  const petPlace = ownerCompany !== null && names.has(ownerCompany) ? names.get(ownerCompany)! : "the Inn";
 
   // The days before: one query for the last two months, then every comparison is arithmetic.
   const from = addDays(day, -LOOKBACK);
@@ -81,7 +85,12 @@ export async function paperFacts(sql: Sql, day: string): Promise<PaperFacts> {
   for (const r of perDay) {
     town.set(r.day, (town.get(r.day) ?? 0) + r.tokens);
     if (r.tokens <= 0) continue;
-    (seen.get(r.user_id) ?? seen.set(r.user_id, new Set()).get(r.user_id)!).add(r.day);
+    let days = seen.get(r.user_id);
+    if (!days) {
+      days = new Set();
+      seen.set(r.user_id, days);
+    }
+    days.add(r.day);
     const lead = leaders.get(r.day);
     if (!lead || r.tokens > lead.tokens) leaders.set(r.day, { id: r.user_id, tokens: r.tokens });
   }
@@ -144,8 +153,7 @@ export async function paperFacts(sql: Sql, day: string): Promise<PaperFacts> {
       ? {
           owner: owner.name,
           pet: itemById(`pet.${lookOf(owner).pet}`)?.name ?? "pet",
-          place:
-            owner.companyId !== null && names.has(owner.companyId) ? names.get(owner.companyId)! : "the Inn",
+          place: petPlace,
         }
       : null,
     game: game ? { name: game.name, game: gameOf(game.game)?.name ?? game.game, won: game.won } : null,

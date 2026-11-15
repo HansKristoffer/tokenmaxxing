@@ -12,13 +12,14 @@ const HOURS_PER_TX = 24;
 const TROPHY_BACKFILL = 6;
 
 /**
+ * Creates the trophy tables. Called from `migrateEvents`, after `events` and `usage_report_migrations`.
+ *
  * A player's events boiled down for trophies, kept in their database: tokens and prompts per hour
  * (`trophy_hours`) and their PRs (`trophy_prs`). Whatever changes events marks their hours in
  * `trophy_dirty`, and a look works out just those again, from the events: a look never reads the whole
- * history. Before, the totals were kept in memory and the first look after every restart read it all,
- * which for a big history held the player's lock past the 60 s action limit and stalled their syncs.
+ * history. The totals are not kept in memory: reading a big history under the player's lock runs past
+ * the 60 s action limit and stalls their syncs.
  */
-/** In `migrateEvents`, after `events` and `usage_report_migrations`. */
 export async function migrateTrophies(d: Sql): Promise<void> {
   await d.execute(`CREATE TABLE IF NOT EXISTS trophy_hours (
     hour INTEGER PRIMARY KEY,
@@ -42,6 +43,8 @@ export async function migrateTrophies(d: Sql): Promise<void> {
 /** Marks the hours of these event timestamps to be worked out again: in the transaction that changed them. */
 export async function trophyHoursChanged(sql: Sql, timestamps: readonly number[]): Promise<void> {
   const hours = [...new Set(timestamps.map((t) => Math.floor(t / HOUR_MS)))];
+
+  // Chunks of 500 hours: the statement binds one variable per hour.
   for (const chunk of chunkArray(hours, 500))
     await sql.execute(
       `INSERT OR IGNORE INTO trophy_dirty VALUES ${chunk.map(() => "(?)").join(",")}`,
@@ -67,6 +70,7 @@ async function settleBatch(sql: TxSql): Promise<boolean> {
         // By `timestamp`, on its index: only that hour's events are read.
         const from = hour * HOUR_MS;
         const to = from + HOUR_MS;
+
         await tx.execute("DELETE FROM trophy_hours WHERE hour = ?", hour);
         await tx.execute(
           `INSERT INTO trophy_hours
@@ -81,6 +85,7 @@ async function settleBatch(sql: TxSql): Promise<boolean> {
           from,
           to,
         );
+
         await tx.execute("DELETE FROM trophy_prs WHERE hour = ?", hour);
         await tx.execute(
           `INSERT INTO trophy_prs SELECT ?, timestamp, message_id FROM events
@@ -89,6 +94,7 @@ async function settleBatch(sql: TxSql): Promise<boolean> {
           from,
           to,
         );
+
         await tx.execute("DELETE FROM trophy_dirty WHERE hour = ?", hour);
       }
       return rows.length > 0;
@@ -96,6 +102,9 @@ async function settleBatch(sql: TxSql): Promise<boolean> {
     { name: "trophy-hours" },
   );
 }
+
+const trophiesReady = async (sql: Sql) =>
+  (await sql.execute("SELECT 1 FROM usage_report_migrations WHERE version = ?", TROPHY_BACKFILL)).length > 0;
 
 /**
  * Fills `trophy_hours` from a history kept before it, once, in the player's `run`: marks every hour
@@ -108,12 +117,15 @@ export async function backfillTrophies(
   signal?: AbortSignal,
 ): Promise<void> {
   if (await trophiesReady(sql)) return;
+
+  // The defaults cover a fresh backfill: its table has no row until the first step writes one.
   const [{ last } = { last: 0 }] = (await sql.execute("SELECT last_id AS last FROM trophy_backfill")) as {
     last: number;
   }[];
   const [{ max } = { max: 0 }] = (await sql.execute("SELECT COALESCE(MAX(id), 0) AS max FROM events")) as {
     max: number;
   }[];
+
   for (let from = last; from < max; from += BACKFILL_IDS) {
     signal?.throwIfAborted();
     const to = from + BACKFILL_IDS;
@@ -122,15 +134,16 @@ export async function backfillTrophies(
       from,
       to,
     );
+
+    // One row: the id this step reached, so a restart picks up here.
     await sql.execute("DELETE FROM trophy_backfill");
     await sql.execute("INSERT INTO trophy_backfill VALUES (?)", to);
   }
+
+  // Each batch takes the lock on its own, so a sync can run between two of them.
   while (await lock(() => settleBatch(sql))) signal?.throwIfAborted();
   await sql.execute("INSERT OR IGNORE INTO usage_report_migrations VALUES (?)", TROPHY_BACKFILL);
 }
-
-const trophiesReady = async (sql: Sql) =>
-  (await sql.execute("SELECT 1 FROM usage_report_migrations WHERE version = ?", TROPHY_BACKFILL)).length > 0;
 
 /**
  * The trophies a player has earned, from their own events. Throws while the one-time backfill is still
@@ -138,7 +151,10 @@ const trophiesReady = async (sql: Sql) =>
  */
 export async function trophiesOf(sql: TxSql, now: number): Promise<Trophy[]> {
   if (!(await trophiesReady(sql))) throw new Error("trophies are still being counted");
+
+  // Settle every marked hour first, so the reads below include the events that just changed.
   while (await settleBatch(sql));
+
   const hours = (await sql.execute("SELECT hour, tokens, prompts, sources FROM trophy_hours")) as {
     hour: number;
     tokens: number;
@@ -146,6 +162,7 @@ export async function trophiesOf(sql: TxSql, now: number): Promise<Trophy[]> {
     sources: string | null;
   }[];
   const prs = (await sql.execute("SELECT at, hash FROM trophy_prs")) as { at: number; hash: string }[];
+
   return trophiesFor({
     hours: hours.map((r) => ({
       hour: r.hour * HOUR_MS,

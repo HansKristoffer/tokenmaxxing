@@ -67,7 +67,7 @@ describe("world", () => {
       expect(doorsNow()).toHaveLength(3);
       return [...doorsNow()];
     });
-    const of = (doors: typeof full, u: { userId: number }) => doors.find((d) => d.userId === u.userId)!;
+    const doorOf = (doors: typeof full, u: { userId: number }) => doors.find((d) => d.userId === u.userId)!;
     // Packed by id to begin with.
     expect(full.map((d) => d.slot).sort()).toEqual([0, 1, 2]);
     await b.town.leaveCompany();
@@ -75,8 +75,8 @@ describe("world", () => {
       expect(doorsNow()).toHaveLength(2);
       return [...doorsNow()];
     });
-    expect(of(less, a)).toMatchObject({ x: of(full, a).x, y: of(full, a).y });
-    expect(of(less, c)).toMatchObject({ x: of(full, c).x, y: of(full, c).y });
+    expect(doorOf(less, a)).toMatchObject({ x: doorOf(full, a).x, y: doorOf(full, a).y });
+    expect(doorOf(less, c)).toMatchObject({ x: doorOf(full, c).x, y: doorOf(full, c).y });
     // Someone new, with a higher id than everyone, lands in the slot b left.
     const d = await signUp("slot");
     await admit(a, d, co.id);
@@ -85,8 +85,13 @@ describe("world", () => {
       expect(doorsNow()).toHaveLength(3);
       return [...doorsNow()];
     });
-    expect(of(more, d)).toMatchObject({ slot: of(full, b).slot, x: of(full, b).x, y: of(full, b).y });
-    for (const u of [a, c]) expect(of(more, u)).toMatchObject({ x: of(full, u).x, y: of(full, u).y });
+    expect(doorOf(more, d)).toMatchObject({
+      slot: doorOf(full, b).slot,
+      x: doorOf(full, b).x,
+      y: doorOf(full, b).y,
+    });
+    for (const u of [a, c])
+      expect(doorOf(more, u)).toMatchObject({ x: doorOf(full, u).x, y: doorOf(full, u).y });
     await watch.conn.dispose();
   });
 
@@ -265,6 +270,7 @@ describe("world", () => {
     expect(back.drop?.rot).toBeUndefined();
     for (const c of [o, late]) await c.conn.dispose();
   });
+
   test("an owner puts the whole office away, places a piece on a chosen tile, and undoes it by id", async () => {
     const owner = await rich("tidy", 200);
     await owner.town.createCompany("Tidy");

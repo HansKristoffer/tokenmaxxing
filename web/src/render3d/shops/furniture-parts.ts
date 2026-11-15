@@ -105,7 +105,7 @@ export function priceTag(row: Pick<FurnRow, "name" | "price" | "level" | "earned
   const m = new Model();
   const [w, h] = [1.0 * scale, 0.4 * scale];
   const tex = canvasTexture(256, 102, (g) => drawTag(g, 256, 102, row), true);
-  const lean = m.part([0, 0.03 * scale, 0.0]);
+  const lean = m.part([0, 0.03 * scale, 0]);
   lean.rotation.x = -0.5;
   lean.box([w + 0.06, h + 0.06, 0.04 * scale], INK, [0, 0, 0], 0.01);
   lean.plane(w, h, glow("#fff", tex), [0, (h + 0.06) / 2, 0.025 * scale]);
@@ -230,7 +230,7 @@ export interface BankSlot {
   row: Pick<FurnRow, "name" | "price" | "level" | "earned">;
 }
 
-/** Scales `m` so it fits `maxH` tall and `maxW` wide, and returns its footprint size. */
+/** Scales `m` down, never up, so it fits `maxH` tall and `maxW` wide. */
 export function fitTo(m: THREE.Object3D, maxH: number, maxW: number): void {
   m.updateMatrixWorld(true);
   const box = new THREE.Box3().setFromObject(m);
@@ -293,23 +293,21 @@ export function counter(w: number): Model {
   for (let x = -w / 2 + 0.2; x < w / 2 - 0.1; x += 0.25)
     m.box([0.03, 0.78, 0.02], C.wood, [x, 0.06, 0.46], 0.005);
   m.box([w + 0.12, 0.08, 1.0], "#f3ead8", [0, 0.9, 0], 0.02);
-  m.box([w - 0.1, 0.1, 0.04], C.woodDark, [0, 0.0, 0.47], 0.01);
+  m.box([w - 0.1, 0.1, 0.04], C.woodDark, [0, 0, 0.47], 0.01);
   // The till on the right.
   const till = m.part([w / 2 - 1.0, 0.98, -0.05]);
   till.box([0.62, 0.2, 0.5], "#4a4f63", [0, 0, 0], 0.03);
   till.box([0.5, 0.16, 0.04], "#2b2433", [0, 0.14, 0.12], 0.01).rotation.x = -0.4;
   till.plane(0.44, 0.12, glow("#7ee0a0"), [0, 0.22, 0.17]).rotation.x = -0.4;
-  for (let i = 0; i < 3; i++)
-    for (let j = 0; j < 2; j++)
-      till.box([0.09, 0.03, 0.07], "#e8e2d4", [-0.15 + i * 0.15, 0.2, 0.0 - j * 0.0 + 0.0 + j * 0.0], 0.008);
+  for (let i = 0; i < 3; i++) till.box([0.09, 0.03, 0.07], "#e8e2d4", [-0.15 + i * 0.15, 0.2, 0], 0.008);
   till.box([0.5, 0.05, 0.26], "#3b3f50", [0, 0, 0.28], 0.015);
   // A big tape measure on a hook, a stack of catalogues, a brass bell and a pencil jar.
   const tape = m.part([-w / 2 + 1.3, 0.98, 0.1]);
   tape.cyl(0.17, 0.1, "#f2c230", [0, 0, 0], 0.17, 18);
   tape.cyl(0.07, 0.11, "#2b2433", [0, 0, 0], 0.07, 12);
-  tape.box([0.4, 0.015, 0.05], "#f6df74", [0.3, 0.0, 0.1], 0.004);
-  for (let i = 0; i < 4; i++) tape.box([0.012, 0.016, 0.052], INK, [0.14 + i * 0.1, 0.0, 0.1]);
-  const books = m.part([-w / 2 + 3.0, 0.98, 0.0]);
+  tape.box([0.4, 0.015, 0.05], "#f6df74", [0.3, 0, 0.1], 0.004);
+  for (let i = 0; i < 4; i++) tape.box([0.012, 0.016, 0.052], INK, [0.14 + i * 0.1, 0, 0.1]);
+  const books = m.part([-w / 2 + 3.0, 0.98, 0]);
   ["#c4544b", "#4f8fe0", "#58b36a", "#f0b53c"].forEach((c, i) => {
     books.box([0.5 - i * 0.02, 0.06, 0.38], c, [0, i * 0.06, 0], 0.01).rotation.y = i * 0.18;
   });
@@ -320,9 +318,9 @@ export function counter(w: number): Model {
   for (const [x, c] of [
     [-0.02, "#f2c230"],
     [0.02, "#e8584f"],
-    [0.0, "#4f8fe0"],
+    [0, "#4f8fe0"],
   ] as const) {
-    const p = jar.box([0.02, 0.28, 0.02], c, [x, 0.02, 0.0], 0.004);
+    const p = jar.box([0.02, 0.28, 0.02], c, [x, 0.02, 0], 0.004);
     p.rotation.z = x * 3;
   }
   // A sample-fan of wallpaper chips.
@@ -415,18 +413,17 @@ export function makeShopkeeper(): Shopkeeper {
     for (let i = 0; i < 4; i++) b.box([0.036, 0.008, 0.014], INK, [s * 0.075, 0.6 + i * 0.045, 0.117], 0.001);
   }
   // A tape-measure case clipped to the hip.
-  const case_ = b.part([-0.16, 0.34, 0.0]);
-  case_.cyl(0.05, 0.05, tapeY, [0, 0, 0], 0.05, 10);
-  case_.cyl(0.02, 0.055, INK, [0, 0, 0], 0.02, 8);
+  const tapeCase = b.part([-0.16, 0.34, 0]);
+  tapeCase.cyl(0.05, 0.05, tapeY, [0, 0, 0], 0.05, 10);
+  tapeCase.cyl(0.02, 0.055, INK, [0, 0, 0], 0.02, 8);
   // The tape in her hand: a case, and a strip she pulls out and puts away.
   const hand = avatar.arms[1];
   hand.cyl(0.04, 0.05, tapeY, [0, -0.3, 0.08], 0.04, 10);
   hand.cyl(0.015, 0.055, INK, [0, -0.3, 0.08], 0.015, 8);
-  const blade = hand.part([0.0, -0.27, 0.12]);
+  const blade = hand.part([0, -0.27, 0.12]);
   const strip = blade.box([0.03, 0.012, 1], "#f6df74", [0, 0, 0.5], 0.002);
   strip.scale.z = 0.01;
   for (let i = 0; i < 12; i++) blade.box([0.031, 0.013, 0.01], INK, [0, 0, 0.04 + i * 0.06]);
-  blade.visible = true;
 
   const tagTex = spriteOf(1.5, 0.42, (g, w, h) => {
     g.fillStyle = "rgba(43,36,51,0.92)";
@@ -512,8 +509,7 @@ export function wallpaperRolls(): Model {
   m.box([1.2, 0.5, 0.5], C.woodDark, [0, 0, 0], 0.02);
   const cols = ["#f5e3bd", "#c8503c", "#9fb59a", "#a9b3bd", "#f3d983", "#10151a", "#a14d3b", "#b88a58"];
   cols.forEach((c, i) => {
-    const r = m.cyl(0.1, 0.9, c, [-0.45 + (i % 4) * 0.3, 0.4, i < 4 ? -0.1 : 0.1], 0.1, 10);
-    r.userData.noBlock = false;
+    m.cyl(0.1, 0.9, c, [-0.45 + (i % 4) * 0.3, 0.4, i < 4 ? -0.1 : 0.1], 0.1, 10);
     m.cyl(0.04, 0.92, "#e8e2d4", [-0.45 + (i % 4) * 0.3, 0.4, i < 4 ? -0.1 : 0.1], 0.04, 6);
   });
   return m;
@@ -528,7 +524,7 @@ export function suppliesDesk(): Model {
   const w = 2;
   m.box([w, 0.9, 0.9], C.woodLight, [0, 0, 0], 0.02);
   m.box([w + 0.1, 0.08, 1.0], "#f3ead8", [0, 0.9, 0], 0.02);
-  m.box([w - 0.1, 0.1, 0.04], C.woodDark, [0, 0.0, 0.47], 0.01);
+  m.box([w - 0.1, 0.1, 0.04], C.woodDark, [0, 0, 0.47], 0.01);
   // The ledger: two pages, a spine, and a ribbon.
   const book = m.part([-0.4, 0.98, 0.05]);
   book.box([0.5, 0.05, 0.4], "#8a3f30", [0, 0, 0], 0.01);
@@ -552,7 +548,7 @@ export function suppliesDesk(): Model {
   const lamp = m.part([-0.85, 0.98, -0.1]);
   lamp.cyl(0.08, 0.03, C.woodDark, [0, 0, 0], 0.08, 10);
   lamp.box([0.02, 0.3, 0.02], "#4a4f63", [0, 0.03, 0], 0.004);
-  lamp.cyl(0.1, 0.1, glow("#ffe9b0"), [0.0, 0.3, 0.04], 0.04, 10);
+  lamp.cyl(0.1, 0.1, glow("#ffe9b0"), [0, 0.3, 0.04], 0.04, 10);
   // The sign on the front.
   const tex = canvasTexture(
     192,
@@ -671,23 +667,22 @@ export function furnitureStorefront(): Model {
   stage(left, "sofa-chesterfield", [-0.12, 0, -0.26], 0.52);
   stage(left, "arc-lamp", [0.58, 0, -0.3], 0.5);
   stage(left, "plant", [-0.6, 0, -0.34], 0.55);
-  stage(left, "coffee-table", [-0.1, 0, 0.0], 0.34);
+  stage(left, "coffee-table", [-0.1, 0, 0], 0.34);
   stage(right, "lounge-chair", [-0.4, 0, -0.2], 0.58);
   stage(right, "monstera", [0.58, 0, -0.3], 0.5);
   stage(right, "bookshelf-library", [0.08, 0, -0.38], 0.44);
   // Awnings over the windows.
   for (const s of [-1, 1]) {
-    const aw = m.part([s * winX, winY[1] + 0.1, 0.0]);
+    const aw = m.part([s * winX, winY[1] + 0.1, 0]);
     for (let i = 0; i < 6; i++) {
       const x = -winW / 2 - 0.1 + (i + 0.5) * ((winW + 0.2) / 6);
       const strip = aw.part([x, 0, 0]);
       const board = strip.box(
         [(winW + 0.2) / 6, 0.04, 0.5],
         i % 2 ? "#f4efe4" : "#c4544b",
-        [0, 0, 0.0],
+        [0, -0.08, 0.24],
         0.005,
       );
-      board.position.set(0, -0.08, 0.24);
       board.rotation.x = 0.4;
       strip.box([(winW + 0.2) / 6, 0.1, 0.03], i % 2 ? "#f4efe4" : "#c4544b", [0, -0.21, 0.43], 0.005);
     }
@@ -718,22 +713,22 @@ export function furnitureStorefront(): Model {
   m.box([3.7, 0.36, 0.06], "#1f3f3c", [0, h - 0.5, 0.03], 0.015);
   m.plane(3.62, 0.34, glow("#fff", bandTex), [0, h - 0.5 + 0.18, 0.07]);
   // The door: glass, teal frame, a brass handle and the open sign.
-  const door = m.part([0, 0.22, 0.0]);
+  const door = m.part([0, 0.22, 0]);
   door.box([1.12, 1.18, 0.1], trim, [0, 0, -0.03], 0.02);
-  door.box([0.88, 0.98, 0.06], glass("#bfe4f2", 0.5), [0, 0.06, 0.0], 0.01);
-  door.box([0.88, 0.04, 0.08], trim, [0, 0.62, 0.0]);
-  door.box([0.04, 0.98, 0.08], trim, [0, 0.06, 0.0]);
-  door.box([0.88, 0.3, 0.07], tint(trim, 0.1), [0, 0.0, 0.0], 0.01);
+  door.box([0.88, 0.98, 0.06], glass("#bfe4f2", 0.5), [0, 0.06, 0], 0.01);
+  door.box([0.88, 0.04, 0.08], trim, [0, 0.62, 0]);
+  door.box([0.04, 0.98, 0.08], trim, [0, 0.06, 0]);
+  door.box([0.88, 0.3, 0.07], tint(trim, 0.1), [0, 0, 0], 0.01);
   door.box([0.025, 0.3, 0.05], "#e9b73d", [0.34, 0.45, 0.07], 0.008);
   door.box([1.5, 0.12, 0.5], C.stoneLight, [0, 0, 0.2], 0.02);
   // The hanging sign beside the door.
   const hang = m.part([w / 2 - 0.18, h - 0.65, 0.18]);
   hang.box([0.04, 0.04, 0.4], C.woodDark, [0, 0.1, -0.15]);
-  const swing = hang.part([0, 0, 0.0]);
-  swing.box([0.04, 0.3, 0.04], C.woodDark, [0, -0.3, 0.0]);
-  swing.box([0.4, 0.36, 0.05], "#f4efe4", [0, -0.66, 0.0], 0.02);
-  swing.box([0.3, 0.1, 0.06], "#e0a63a", [0, -0.5, 0.0], 0.02);
-  swing.box([0.18, 0.16, 0.06], "#e0a63a", [0, -0.7, 0.0], 0.03);
+  const swing = hang.part([0, 0, 0]);
+  swing.box([0.04, 0.3, 0.04], C.woodDark, [0, -0.3, 0]);
+  swing.box([0.4, 0.36, 0.05], "#f4efe4", [0, -0.66, 0], 0.02);
+  swing.box([0.3, 0.1, 0.06], "#e0a63a", [0, -0.5, 0], 0.02);
+  swing.box([0.18, 0.16, 0.06], "#e0a63a", [0, -0.7, 0], 0.03);
   ticks.push((time) => (swing.rotation.z = Math.sin(time * 1.5) * 0.07));
   // The roof: a low parapet, a skylight and the big yellow armchair.
   m.box([w + 0.16, 0.1, d + 0.16], "#7b7f8c", [0, h, -d / 2], 0.02);
@@ -779,8 +774,8 @@ export function furnitureStorefront(): Model {
     true,
   );
   board.plane(0.62, 0.72, glow("#fff", boardTex), [0, 0.42, 0.04]);
-  const roll = m.part([-2.0, 0.0, 0.7], 0.2);
-  roll.cyl(0.13, 0.9, "#c4544b", [0, 0.0, 0], 0.13, 12).rotation.z = 0.26;
+  const roll = m.part([-2.0, 0, 0.7], 0.2);
+  roll.cyl(0.13, 0.9, "#c4544b", [0, 0, 0], 0.13, 12).rotation.z = 0.26;
   roll.cyl(0.13, 0.04, "#e0a15a", [0, 0.9, 0], 0.13, 12).rotation.z = 0.26;
   // Lanterns each side of the door.
   for (const s of [-1, 1]) {

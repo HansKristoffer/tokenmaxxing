@@ -41,15 +41,16 @@ export const stoneById = (id: string): Stone | undefined => currentStones().find
 
 /** Stones this browser has read (their ids). */
 const READ = "tokenmaxxing.graves";
-const read = new Set<string>(
-  (() => {
-    try {
-      return JSON.parse(storage.getItem(READ) ?? "[]") as string[];
-    } catch {
-      return [];
-    }
-  })(),
-);
+const read = new Set<string>(readIds());
+
+/** The ids saved from earlier visits. A corrupt entry reads as none, so the epitaphs open again. */
+function readIds(): string[] {
+  try {
+    return JSON.parse(storage.getItem(READ) ?? "[]") as string[];
+  } catch {
+    return [];
+  }
+}
 
 const open = (s: Stone): void => hud.set({ panel: { kind: "tombstone", id: s.id } });
 

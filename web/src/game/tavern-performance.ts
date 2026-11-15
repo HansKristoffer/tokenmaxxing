@@ -5,6 +5,8 @@ import { tavernNow } from "./tavern-clock.ts";
 
 let cachedAt = -1;
 let cachedSet: ReturnType<typeof tavernSet> = null;
+
+/** The set playing now, worked out once a second rather than on every frame. */
 export function currentBandSet(): ReturnType<typeof tavernSet> {
   const at = tavernNow();
   const second = Math.floor(at / 1000);

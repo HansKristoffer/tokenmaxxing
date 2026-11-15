@@ -279,15 +279,6 @@
 .rl-total {
   margin-left: auto;
 }
-.rl-legend {
-  margin: 0;
-}
-.rl-go {
-  display: flex;
-  gap: 12px;
-  align-items: center;
-  flex-wrap: wrap;
-}
 .rl-spin {
   min-width: 180px;
   padding: 12px 28px;
@@ -307,16 +298,6 @@
 .rl-res-name {
   text-transform: capitalize;
   color: var(--muted);
-}
-.rl-net {
-  margin-left: auto;
-  font-size: 1.5rem;
-}
-.rl-net.up {
-  color: #6fdc7a;
-}
-.rl-net.down {
-  color: var(--bad);
 }
 .rl-res-list {
   list-style: none;
@@ -347,12 +328,6 @@
   }
 }
 
-.rl-ticker {
-  margin: 0.4rem 0;
-}
-.rl-ticker.big {
-  font-size: 1.05rem;
-}
 .rl-seats {
   list-style: none;
   margin: 0;

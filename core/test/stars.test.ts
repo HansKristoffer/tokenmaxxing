@@ -93,7 +93,7 @@ test("a show's rockets are the same for everyone, go up, burst and fade within t
 
 test("a burst's sparks start together, fly out to its radius and fade", () => {
   const show = starFireworks({ milestone: 100, at: 0 });
-  const r = rocketsAt(show, 0 + 2_000).find((r) => r.burst !== null)!;
+  const r = rocketsAt(show, 2_000).find((r) => r.burst !== null)!;
   const start = { ...r, burst: 0 };
   expect(sparkAt(start, 3).map((n) => Math.round(n * 1e6) / 1e6)).toEqual([0, 0, 0]);
   const late = { ...r, burst: 0.99 };

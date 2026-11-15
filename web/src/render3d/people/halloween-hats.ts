@@ -22,7 +22,7 @@ export const HALLOWEEN_HAT_BUILDERS: Record<string, Build> = {
   // A white sheet over the whole head with two black eye holes and an "oooh", a wavy hem on the shoulders.
   "Ghost sheet": (m) => {
     const sheet = "#eef2ff";
-    m.ball(0.34, sheet, [0, 0.0, 0], [1, 1.1, 1], 18);
+    m.ball(0.34, sheet, [0, 0, 0], [1, 1.1, 1], 18);
     m.cyl(0.46, 0.5, sheet, [0, -0.62, 0], 0.32, 18);
     for (let i = 0; i < 9; i++) {
       const a = (i / 9) * Math.PI * 2;
@@ -51,16 +51,18 @@ export const HALLOWEEN_HAT_BUILDERS: Record<string, Build> = {
     for (const x of [-0.09, 0.09]) m.box([0.07, 0.06, 0.02], "#14091f", [x, 0.29, 0.19], 0.004);
     m.box([0.2, 0.035, 0.02], "#14091f", [0, 0.21, 0.19], 0.004);
     const sweets = ["#ff4fa3", "#ffe14a", "#4fd1ff", "#8a3b12"];
-    for (const [i, [x, z]] of (
-      [
-        [-0.1, -0.08],
-        [0.09, -0.1],
-        [-0.07, 0.09],
-        [0.1, 0.07],
-        [0, 0],
-      ] as const
-    ).entries())
-      m.box([0.1, 0.06, 0.1], sweets[i % sweets.length]!, [x, 0.41 + (i === 4 ? 0.04 : 0), z], 0.01);
+    // Four sweets around the rim and one in the middle, which sits a step higher on top of the heap.
+    const heap = [
+      [-0.1, -0.08],
+      [0.09, -0.1],
+      [-0.07, 0.09],
+      [0.1, 0.07],
+      [0, 0],
+    ] as const;
+    for (const [i, [x, z]] of heap.entries()) {
+      const lift = i === heap.length - 1 ? 0.04 : 0;
+      m.box([0.1, 0.06, 0.1], sweets[i % sweets.length]!, [x, 0.41 + lift, z], 0.01);
+    }
     for (const s of [-1, 1]) m.box([0.025, 0.16, 0.025], "#9aa0a8", [s * 0.19, 0.4, 0], 0.004);
     m.box([0.405, 0.025, 0.025], "#9aa0a8", [0, 0.56, 0], 0.004);
   },

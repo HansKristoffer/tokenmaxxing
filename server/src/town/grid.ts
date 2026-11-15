@@ -12,7 +12,8 @@ export async function migrateGrid(sql: Sql): Promise<void> {
     day TEXT NOT NULL, hour INTEGER NOT NULL CHECK (hour >= 0 AND hour < 24),
     PRIMARY KEY (day, hour)) WITHOUT ROWID`);
   const activity = (await sql.execute("PRAGMA table_info(activity_daily)")) as { name: string }[];
-  // 24 comma-separated token sums by world hour, minute-capped like `usage_daily`; empty before the day was re-reported.
+  // 24 comma-separated token sums by world hour, minute-capped like `usage_daily`. Empty before the day
+  // was re-reported.
   if (!activity.some((c) => c.name === "hour_tokens"))
     await sql.execute("ALTER TABLE activity_daily ADD COLUMN hour_tokens TEXT NOT NULL DEFAULT ''");
 }
@@ -26,10 +27,15 @@ export async function recordGreen(sql: Sql, hours: readonly number[], now: numbe
   let fresh = 0;
   for (const [day, hs] of greenByDay(due)) {
     if (day < GREEN_FROM) continue;
-    for (const h of hs)
-      fresh += (
-        await all(sql, "INSERT OR IGNORE INTO green_hours (day, hour) VALUES (?, ?) RETURNING day", day, h)
-      ).length;
+    for (const h of hs) {
+      const inserted = await all(
+        sql,
+        "INSERT OR IGNORE INTO green_hours (day, hour) VALUES (?, ?) RETURNING day",
+        day,
+        h,
+      );
+      fresh += inserted.length;
+    }
   }
   return fresh;
 }
@@ -37,12 +43,14 @@ export async function recordGreen(sql: Sql, hours: readonly number[], now: numbe
 /** Every day's green world hours, from `from` on. */
 async function greenDays(sql: Sql, from: string): Promise<Map<string, number[]>> {
   const out = new Map<string, number[]>();
-  for (const r of await all<{ day: string; hour: number }>(
+  const rows = await all<{ day: string; hour: number }>(
     sql,
     "SELECT day, hour FROM green_hours WHERE day >= ?",
     from,
-  ))
+  );
+  for (const r of rows) {
     out.set(r.day, [...(out.get(r.day) ?? []), r.hour]);
+  }
   return out;
 }
 

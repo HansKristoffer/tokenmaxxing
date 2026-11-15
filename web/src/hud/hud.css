@@ -1968,7 +1968,16 @@ html[data-tier]:not([data-tier="low"]) button.plaque:hover {
   overflow-y: auto;
 }
 
-.listings li,
+.listings li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: space-between;
+  padding: 6px 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
 .members .answer {
   display: flex;
   align-items: center;
@@ -1988,13 +1997,6 @@ html[data-tier]:not([data-tier="low"]) button.plaque:hover {
   max-height: 260px;
   overflow-y: auto;
   overscroll-behavior: contain;
-}
-
-.listings li {
-  justify-content: space-between;
-  padding: 6px 8px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
 }
 
 .applied {
@@ -2420,6 +2422,7 @@ button.lb-item:hover {
 .trophies .earned {
   color: var(--accent);
 }
+
 /* The traveling merchant's cart (Merchant.tsx): a card per edition, its stock as a bar. */
 .merchant-hello {
   display: flex;
@@ -3321,11 +3324,8 @@ html[data-tier]:not([data-tier="low"]) .raid-teaser-box button.plaque {
   top: 14px;
   padding: 2px 8px;
   font-size: 11px;
-  pointer-events: none;
-}
-
-.fps-meter {
   white-space: nowrap;
+  pointer-events: none;
 }
 
 .tray {
@@ -3442,7 +3442,7 @@ html[data-tier]:not([data-tier="low"]) .raid-teaser-box button.plaque {
 }
 
 /*
- * MARK: Block Hood skin. On the 3D tiers (`stage.ts` sets `data-tier` on <html>) the panels read like the voxel
+ * Block Hood skin. On the 3D tiers (`stage.ts` sets `data-tier` on <html>) the panels read like the voxel
  * world's labels: cream on ink, gold accents, chunky bevelled borders and flat blocky shadows. Low keeps the
  * classic look above untouched.
  */

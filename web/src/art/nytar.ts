@@ -21,8 +21,6 @@ const STONE = "#c9c4bb";
 const STONE_D = "#a39e95";
 const STONE_L = "#e2ded6";
 
-// MARK: The clock
-
 /** The clock's sprite size, where its face is centred in it, and the face's radius (pixels). */
 export const CLOCK_PX = { w: 24, h: 58, cx: 12, cy: 24, r: 8 } as const;
 
@@ -64,24 +62,25 @@ export const clockSprite = cached(
         const x = Math.round(cx + Math.sin(a) * d);
         const y = Math.round(cy - Math.cos(a) * d);
         p.px(x, y, q ? NAVY_D : GOLD_D);
-        if (q) p.px(Math.round(cx + Math.sin(a) * (d - 1)), Math.round(cy - Math.cos(a) * (d - 1)), NAVY_D);
+        if (q) {
+          const innerX = Math.round(cx + Math.sin(a) * (d - 1));
+          const innerY = Math.round(cy - Math.cos(a) * (d - 1));
+          p.px(innerX, innerY, NAVY_D);
+        }
       }
-      // The roof and its spire: narrow at the top, widest where it meets the clock room.
-      for (let r = 0; r < 12; r++) {
-        const half = Math.min(10, 1 + Math.floor(r * 0.85));
-        p.rect(cx - half - 1, 2 + r, (half + 1) * 2, 1, C.ink);
-      }
-      for (let r = 0; r < 12; r++) {
-        const half = Math.min(10, 1 + Math.floor(r * 0.85));
-        p.rect(cx - half, 2 + r, half * 2, 1, r % 4 === 3 ? NAVY_L : NAVY);
+
+      // The roof and its spire: narrow at the top, widest where it meets the clock room. Each row is an
+      // ink outline one pixel wider than its navy fill, and every fourth row is lighter.
+      for (let row = 0; row < 12; row++) {
+        const half = Math.min(10, 1 + Math.floor(row * 0.85));
+        p.rect(cx - half - 1, 2 + row, (half + 1) * 2, 1, C.ink);
+        p.rect(cx - half, 2 + row, half * 2, 1, row % 4 === 3 ? NAVY_L : NAVY);
       }
       p.rect(cx - 1, 0, 2, 3, GOLD_D);
       p.px(cx - 1, 0, GOLD);
       p.rect(cx + 1, 0, 3, 2, "#e8584f");
     }),
 );
-
-// MARK: The buffet
 
 /** The table's sprite size: two tiles wide, and tall enough for the tower. */
 export const TABLE_PX = { w: 32, h: 34 } as const;
@@ -134,8 +133,6 @@ export const tableSprite = once(() =>
   }),
 );
 
-// MARK: The chair
-
 export const CHAIR_PX = { w: 14, h: 18 } as const;
 
 /** The chair to jump from: wood, a navy cushion, a gold streamer on the back. */
@@ -159,8 +156,6 @@ export const chairSprite = once(() =>
   }),
 );
 
-// MARK: Balloons
-
 export const BALLOON_PX = { w: 16, h: 30 } as const;
 const BALLOON_COLOURS = [
   ["#f4c95d", "#c9971f"],
@@ -182,8 +177,8 @@ export const balloonSprite = cached(
       ];
       for (const [i, [bx, by]] of at.entries()) {
         const [main, dark] = BALLOON_COLOURS[(n + i * 2) % BALLOON_COLOURS.length]!;
-        // The string, down to the knot at the bottom.
-        p.rect(bx, by + 4, 1, 22 - by - 4 + 4, "#6b6578");
+        // The string, from under the balloon down to row 25, where the knot sits.
+        p.rect(bx, by + 4, 1, 22 - by, "#6b6578");
         p.disc(bx, by, 4, C.ink);
         p.disc(bx, by, 3, main);
         p.px(bx - 1, by - 2, C.white);
@@ -194,8 +189,6 @@ export const balloonSprite = cached(
       p.rect(8, 26, 1, 1, GOLD);
     }),
 );
-
-// MARK: The night watchman
 
 /** Who Niels is under the hat. */
 const WATCHMAN_LOOK: Look = {

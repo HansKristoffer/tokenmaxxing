@@ -148,7 +148,7 @@ export function outfitColours(i: number): { outfit: [string, string]; pants: str
 }
 
 /** Company merch as the world has it (the colours, initials and print 2D wears), else a pair picked by the id. */
-export function merchFor(companyId: number, initials = "TM"): MerchLook {
+export function merchFor(companyId: number): MerchLook {
   const known = knownColours(companyId);
   if (known)
     return {
@@ -159,7 +159,7 @@ export function merchFor(companyId: number, initials = "TM"): MerchLook {
       design: known.design?.rows ?? null,
     };
   const [main, accent] = MERCH_PAIRS[companyId % MERCH_PAIRS.length]!;
-  return { main, shade: tint(main, -0.25), accent, initials };
+  return { main, shade: tint(main, -0.25), accent, initials: "TM" };
 }
 
 /** What a 2D look is wearing, by name, for galleries and tooltips. */
@@ -184,7 +184,6 @@ export function wornBy(look: Look2D): Worn {
   const set = (slot: "hat" | "glasses" | "held" | "back" | "aura", index = 0) => {
     const it = index ? itemAt(slot, index) : undefined;
     if (it) worn[slot] = it;
-    return it;
   };
   set("hat", look.hat);
   set("glasses", look.glasses);
@@ -377,10 +376,10 @@ class Dress implements Gear {
     tick((t) => {
       rings[0]!.scale.setScalar(1 + Math.sin(t * 2.4) * 0.05);
       sparks.forEach((s, i) => {
-        const k = (t * 0.55 + i / sparks.length) % 1;
+        const rise = (t * 0.55 + i / sparks.length) % 1;
         const ang = i * 2.4 + 0.5;
-        s.position.set(Math.sin(ang) * (0.3 + (i % 3) * 0.04), -0.35 + k * 1.2, Math.cos(ang) * 0.25);
-        s.scale.setScalar(Math.sin(k * Math.PI) * 1.1);
+        s.position.set(Math.sin(ang) * (0.3 + (i % 3) * 0.04), -0.35 + rise * 1.2, Math.cos(ang) * 0.25);
+        s.scale.setScalar(Math.sin(rise * Math.PI) * 1.1);
         s.rotation.y = t * 3 + i;
       });
     });
@@ -405,19 +404,14 @@ interface HeadFit {
   /** Extra height for a hat to clear the hair, and a step forward for flat faces (the builders curve round a ball). */
   lift: number;
   front: number;
-  /** The eyes sit higher and wider on a voxel face than on the builders' ball.  */
+  /** The eyes sit higher and wider on a voxel face than on the builders' ball. */
   eyes: number;
   wide: number;
   /** Hand height, from the shoulder. */
   hand: number;
 }
 function headFit(a: Avatar): HeadFit {
-  const hand = (() => {
-    a.root.updateMatrixWorld(true);
-    const arm = a.arms[1];
-    const box = new THREE.Box3().setFromObject(arm);
-    return box.min.y - arm.getWorldPosition(new THREE.Vector3()).y + 0.04;
-  })();
+  a.root.updateMatrixWorld(true);
   if (a.style === "voxel")
     return {
       y: 0.1575,
@@ -429,7 +423,10 @@ function headFit(a: Avatar): HeadFit {
       wide: 1.25,
       hand: -0.33,
     };
-  a.root.updateMatrixWorld(true);
+  const arm = a.arms[1];
+  const armBox = new THREE.Box3().setFromObject(arm);
+  const hand = armBox.min.y - arm.getWorldPosition(new THREE.Vector3()).y + 0.04;
+
   const box = new THREE.Box3().setFromObject(a.head);
   const c = a.head.worldToLocal(box.getCenter(new THREE.Vector3()));
   const top = a.head.worldToLocal(new THREE.Vector3(0, box.max.y, 0)).y;
@@ -476,7 +473,7 @@ export function lookFrom2D(look: Look2D, opts: LookOptions = {}): Look {
   const bits = look.merch ? (look.merchWorn ?? 0) : 0;
   const company = look.merch ? (opts.company ?? merchFor(look.merch)) : undefined;
   const wearsTop = !!company && (bits & 3) > 0;
-  const colours: [string, string] = wearsTop ? [company!.main, company!.shade] : outfit;
+  const colours: [string, string] = company && wearsTop ? [company.main, company.shade] : outfit;
   const hat = look.hat ?? 0;
   const base: Hat = BASE_HATS[hat] ?? (look.style === 1 && !hat ? "cap" : "none");
   const worn = wornBy(look);
@@ -491,7 +488,7 @@ export function lookFrom2D(look: Look2D, opts: LookOptions = {}): Look {
     // The 2D head is a person, in a tee; the beards and glasses the voxel face draws itself are its own.
     species: "human",
     age: "adult",
-    top: bits & 2 && wearsTop ? "hoodie" : "tee",
+    top: wearsTop && (bits & 2) > 0 ? "hoodie" : "tee",
     beard: 0,
     glasses: false,
     // Under a hat that covers the crown, the hair's fringe, spikes and bun are tucked away.
@@ -519,10 +516,12 @@ export function petCrown(): Model {
   return m;
 }
 
+/** A seated or sleeping figure is shorter, so its tag floats lower. */
+const SEATED_TAG_LIFT: Record<string, number> = { sleep: 0.55, sit: 0.97, type: 0.97 };
+
 /** How far over a character's head a name tag should float, in world units: higher over a halo. */
 export const tagLift = (level = 0, pose = "stand"): number =>
-  (pose === "sleep" ? 0.55 : pose === "sit" || pose === "type" ? 0.97 : 1.35) +
-  (level >= LEGENDARY_LEVEL ? 0.14 : 0);
+  (SEATED_TAG_LIFT[pose] ?? 1.35) + (level >= LEGENDARY_LEVEL ? 0.14 : 0);
 
 // MARK: Overhead chips
 

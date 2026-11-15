@@ -44,13 +44,13 @@ export class FallingLeaves {
     this.mesh.count = 0;
     this.mesh.visible = false;
     this.mesh.frustumCulled = false;
-    this.mesh.castShadow = this.mesh.receiveShadow = false;
+    this.mesh.castShadow = false;
+    this.mesh.receiveShadow = false;
     this.mesh.userData.live = true;
-    for (let i = 0; i < MAX; i++)
-      this.mesh.setColorAt(
-        i,
-        new THREE.Color(COLOURS[i % COLOURS.length]!).multiplyScalar(0.9 + (i % 3) * 0.05),
-      );
+    for (let i = 0; i < MAX; i++) {
+      const shade = 0.9 + (i % 3) * 0.05;
+      this.mesh.setColorAt(i, new THREE.Color(COLOURS[i % COLOURS.length]!).multiplyScalar(shade));
+    }
     this.group.add(this.mesh);
     this.group.userData.live = true;
   }
@@ -93,10 +93,11 @@ export class FallingLeaves {
   ): void {
     const near = this.crownsNear(x, z);
     const want = near.length ? Math.round(Math.min(MAX, near.length * 6) * falling * density) : 0;
+    const randomCrown = () => near[Math.floor(Math.random() * near.length)]!;
     // Grow over a few seconds (so they don't all let go at once, at any frame rate); shrink as each one lands.
     this.owed = this.leaves.length < want ? this.owed + dt * (want / 3) : 0;
     for (; this.owed >= 1 && this.leaves.length < want; this.owed--)
-      this.leaves.push(this.letGo(undefined, near[Math.floor(Math.random() * near.length)]!));
+      this.leaves.push(this.letGo(undefined, randomCrown()));
     let n = 0;
     for (let i = 0; i < this.leaves.length; i++) {
       const l = this.leaves[i]!;
@@ -104,7 +105,7 @@ export class FallingLeaves {
         l.lying += dt;
         if (l.lying > LIE_S) {
           if (n >= want || !near.length) continue;
-          this.letGo(l, near[Math.floor(Math.random() * near.length)]!);
+          this.letGo(l, randomCrown());
         }
       } else {
         l.at.y -= dt * (0.55 + Math.sin(t * 2.3 + l.ph) * 0.2);

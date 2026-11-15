@@ -18,7 +18,10 @@ export const LEVEL_COINS_BASE = 2;
  */
 export const levelUpCoins = (level: number): number => {
   let coins = 0;
-  for (let l = 1; l <= level; l++) if (!MILESTONES.some((m) => m.level === l)) coins += LEVEL_COINS_BASE + l;
+  for (let l = 1; l <= level; l++) {
+    const isMilestone = MILESTONES.some((m) => m.level === l);
+    if (!isMilestone) coins += LEVEL_COINS_BASE + l;
+  }
   return coins;
 };
 
@@ -153,11 +156,15 @@ export function streakBonus(days: readonly string[], coinsOf: (day: string) => n
 /** The multiplier the next active day would have, going on from yesterday: for the HUD. */
 export function streakNow(days: readonly string[], today: string): number {
   const all = streakMultipliers(days);
-  if (all.has(today)) return all.get(today)!;
+  const onToday = all.get(today);
+  if (onToday !== undefined) return onToday;
+
   const last = [...all.keys()].sort().at(-1);
   if (!last) return 1;
-  // Today isn't active yet: what today would be worth.
-  const steps = Math.min((all.get(last)! - 1) / STREAK_STEP + 1, STREAK_STEPS);
+
+  // Today isn't active yet: what today would be worth, one step on from the last active day's run.
+  const lastMultiplier = all.get(last)!;
+  const steps = Math.min((lastMultiplier - 1) / STREAK_STEP + 1, STREAK_STEPS);
   return 1 + STREAK_STEP * (between(last, today) > 1 ? 0 : steps);
 }
 
@@ -179,6 +186,7 @@ export const modelKey = (model: string): string =>
  * counts for "claude-opus-5-5-20261027", but "claude-opus-5" doesn't count for "claude-opus-5-5".
  */
 export const isModel = (reported: string, key: string): boolean => {
-  const r = modelKey(reported);
-  return r === key || (r.startsWith(`${key}-`) && /^\d{6,}/.test(r.slice(key.length + 1)));
+  const reportedKey = modelKey(reported);
+  if (reportedKey === key) return true;
+  return reportedKey.startsWith(`${key}-`) && /^\d{6,}/.test(reportedKey.slice(key.length + 1));
 };

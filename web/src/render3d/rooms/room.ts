@@ -1,7 +1,7 @@
 /**
  * A room on a tile grid, Habbo-style: a floor slab floating in the dark, walls on all four sides, and the
  * two between the camera and the room lowered to a skirting so you can see in. Furniture is placed by
- * tile and turn; the grid knows what's blocked, and finds walking paths round it.
+ * tile and turn; the grid knows which tiles are taken.
  */
 import * as THREE from "three";
 import { C } from "../../art/palette.ts";
@@ -32,28 +32,27 @@ const skyTexture = (night: boolean) =>
     g.fillStyle = s;
     g.fillRect(0, 0, 8, 16);
     g.fillStyle = night ? "#fbf7ef" : "#ffffff";
-    // Two stars, or a cloud.
-    for (const [x, y, w] of night
-      ? [
+
+    // Two stars at night, or a cloud by day, as [x, y, width] pixels.
+    const marks = night
+      ? ([
           [5, 3, 1],
           [2, 7, 1],
-        ]
-      : [
+        ] as const)
+      : ([
           [1, 4, 4],
           [2, 3, 2],
-        ])
-      g.fillRect(x!, y!, w!, 1);
+        ] as const);
+    for (const [x, y, w] of marks) g.fillRect(x, y, w, 1);
   });
 const DAY_SKY = glow("#fff", skyTexture(false));
 const NIGHT_SKY = glow("#fff", skyTexture(true));
 const windows: THREE.Mesh[] = [];
 
-const isNight = false;
-
 /** A window on a wall's inner face; `at` is its bottom centre. */
 function windowOn(wall: Model, x: number): void {
   const w = wall.part([x, 1.2, WALL_T / 2 + 0.01]);
-  const pane = w.plane(0.9, 0.85, isNight ? NIGHT_SKY : DAY_SKY, [0, 0.45, 0]);
+  const pane = w.plane(0.9, 0.85, DAY_SKY, [0, 0.45, 0]);
   pane.userData.nightGlow = { mesh: pane, day: DAY_SKY, night: NIGHT_SKY };
   windows.push(pane);
   w.box([1.02, 0.07, 0.07], C.white, [0, -0.04, 0], 0.015);
@@ -134,25 +133,6 @@ export class Room {
     this.build();
   }
 
-  /** Grows or shrinks the room to `W`x`D` tiles. Furniture that no longer fits is hidden, and comes back if it does again. */
-  resize(W: number, D: number): void {
-    this.W = W;
-    this.D = D;
-    this.grid = Array(W * D).fill(null);
-    for (const p of this.placed) {
-      const [w, d] = Room.footprint(p.asset, p.turn);
-      const fits = this.inside(p.x, p.z) && this.inside(p.x + w - 1, p.z + d - 1);
-      p.model.visible = fits;
-      if (!fits) continue;
-      for (let i = 0; i < w; i++)
-        for (let j = 0; j < d; j++) {
-          const cell = (p.z + j) * W + p.x + i;
-          if (p.asset.id !== "rug" || !this.grid[cell]) this.grid[cell] = p;
-        }
-    }
-    this.build();
-  }
-
   private build(): void {
     const { W, D } = this;
     // The static batching holds copies of the old shell: let it go (and batch the new one).
@@ -210,7 +190,9 @@ export class Room {
       const [g0, g1] = [gap[0], gap[0] + gap[1]];
       north = wall(g0 + WALL_T, [(g0 - WALL_T) / 2, -WALL_T / 2], 0, [0, 1]);
       wall(W + WALL_T - g1, [(g1 + W + WALL_T) / 2, -WALL_T / 2], 0, [0, 1]);
-    } else north = wall(W + WALL_T * 2, [W / 2, -WALL_T / 2], 0, [0, 1]);
+    } else {
+      north = wall(W + WALL_T * 2, [W / 2, -WALL_T / 2], 0, [0, 1]);
+    }
     const west = wall(D, [-WALL_T / 2, D / 2], Math.PI / 2, [1, 0]);
     wall(W + WALL_T * 2, [W / 2, D + WALL_T / 2], Math.PI, [0, -1]);
     wall(D, [W + WALL_T / 2, D / 2], -Math.PI / 2, [-1, 0]);
@@ -254,6 +236,7 @@ export class Room {
     return turn % 2 ? [asset.d, asset.w] : [asset.w, asset.d];
   }
 
+  /** The piece on tile (x, z), or null for an empty or outside tile. */
   at(x: number, z: number): Placed | null {
     if (x < 0 || z < 0 || x >= this.W || z >= this.D) return null;
     return this.grid[z * this.W + x]!;
@@ -270,16 +253,26 @@ export class Room {
     return !p || p.asset.id === "rug";
   }
 
+  /**
+   * Whether a piece fits on its tiles. A rug may lie under furniture and furniture may stand on a rug, but two
+   * rugs, or two pieces that are not rugs, may not share a tile.
+   */
   fits(asset: Asset, x: number, z: number, turn: Turn): boolean {
     const [w, d] = Room.footprint(asset, turn);
-    for (let i = 0; i < w; i++)
+    for (let i = 0; i < w; i++) {
       for (let j = 0; j < d; j++) {
         if (!this.inside(x + i, z + j)) return false;
         const p = this.grid[(z + j) * this.W + x + i];
         if (p && p.asset.id !== "rug" && asset.id !== "rug") return false;
         if (p && p.asset.id === "rug" && asset.id === "rug") return false;
       }
+    }
     return true;
+  }
+
+  /** Marks a tile as taken by `p`. A rug stays under whatever is put on it, so it never takes a tile from a piece. */
+  private claim(cell: number, p: Placed): void {
+    if (p.asset.id !== "rug" || !this.grid[cell]) this.grid[cell] = p;
   }
 
   place(asset: Asset, x: number, z: number, turn: Turn = 0, model = asset.build()): Placed {
@@ -289,12 +282,9 @@ export class Room {
     this.group.add(model);
     const p: Placed = { asset, x, z, turn, model };
     this.placed.push(p);
-    for (let i = 0; i < w; i++)
-      for (let j = 0; j < d; j++) {
-        const cell = (z + j) * this.W + x + i;
-        // A rug stays under whatever is put on it.
-        if (asset.id !== "rug" || !this.grid[cell]) this.grid[cell] = p;
-      }
+    for (let i = 0; i < w; i++) {
+      for (let j = 0; j < d; j++) this.claim((z + j) * this.W + x + i, p);
+    }
     return p;
   }
 
@@ -320,10 +310,7 @@ export class Room {
     this.group.add(model);
     const p: Placed = { asset, x, z, turn: quarter as Turn, model };
     this.placed.push(p);
-    for (let j = 0; j < tiles; j++) {
-      const cell = (z + j) * this.W + x;
-      if (asset.id !== "rug" || !this.grid[cell]) this.grid[cell] = p;
-    }
+    for (let j = 0; j < tiles; j++) this.claim((z + j) * this.W + x, p);
     return p;
   }
 
@@ -341,46 +328,5 @@ export class Room {
       at: p.model.localToWorld(new THREE.Vector3(...p.asset.seat.at)),
       turn: p.model.rotation.y + p.asset.seat.turn,
     };
-  }
-
-  bedOf(p: Placed): { at: THREE.Vector3; turn: number } | null {
-    if (!p.asset.bed) return null;
-    p.model.updateMatrixWorld();
-    return { at: p.model.localToWorld(new THREE.Vector3(...p.asset.bed)), turn: p.model.rotation.y };
-  }
-
-  /** The shortest walk from one tile to another (8 ways, no cutting corners), or null. `goal` may be a seat. */
-  path(from: [number, number], goal: [number, number]): [number, number][] | null {
-    const key = (x: number, z: number) => z * this.W + x;
-    const prev = new Map<number, number>([[key(...from), -1]]);
-    const queue: [number, number][] = [from];
-    const target = key(...goal);
-    while (queue.length) {
-      const [x, z] = queue.shift()!;
-      if (key(x, z) === target) break;
-      for (const [dx, dz] of [
-        [1, 0],
-        [-1, 0],
-        [0, 1],
-        [0, -1],
-        [1, 1],
-        [1, -1],
-        [-1, 1],
-        [-1, -1],
-      ] as const) {
-        const nx = x + dx;
-        const nz = z + dz;
-        const k = key(nx, nz);
-        if (!this.inside(nx, nz) || prev.has(k)) continue;
-        if (!this.open(nx, nz) && k !== target) continue;
-        if (dx && dz && (!this.open(x + dx, z) || !this.open(x, z + dz))) continue;
-        prev.set(k, key(x, z));
-        queue.push([nx, nz]);
-      }
-    }
-    if (!prev.has(target)) return null;
-    const out: [number, number][] = [];
-    for (let k = target; k !== -1; k = prev.get(k)!) out.unshift([k % this.W, Math.floor(k / this.W)]);
-    return out;
   }
 }

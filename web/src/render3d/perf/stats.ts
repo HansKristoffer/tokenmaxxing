@@ -49,8 +49,10 @@ export function sceneStats(scene: THREE.Object3D): SceneStats {
     geos.add(g);
     const available = (g.index?.count ?? g.getAttribute("position")?.count ?? 0) - g.drawRange.start;
     const tris = Math.max(0, Math.min(available, g.drawRange.count)) / 3;
-    const n = (m as THREE.InstancedMesh).isInstancedMesh ? (m as THREE.InstancedMesh).count : 1;
-    if (n !== 1 || (m as THREE.InstancedMesh).isInstancedMesh) {
+    const instanced = m as THREE.InstancedMesh;
+    const isInstanced = !!instanced.isInstancedMesh;
+    const n = isInstanced ? instanced.count : 1;
+    if (n !== 1 || isInstanced) {
       s.instanced++;
       s.instances += n;
     }
@@ -74,18 +76,20 @@ interface Tracked {
   scene: () => THREE.Scene | null;
 }
 const tracked: Tracked[] = [];
+/** The globals the perf harness and the console read. */
+const debug = globalThis as unknown as Record<string, unknown>;
 
 /** Registers a renderer so the perf harness (and the console) can read `renderer.info` and the live scene. */
 export function trackRenderer(renderer: THREE.WebGLRenderer, scene: () => THREE.Scene | null): () => void {
   const entry = { renderer, scene };
   tracked.push(entry);
-  (globalThis as unknown as Record<string, unknown>).__perfRenderer = renderer;
-  (globalThis as unknown as Record<string, unknown>).__perfScene = () => tracked[0]?.scene() ?? null;
-  (globalThis as unknown as Record<string, unknown>).__unbatched = () => {
+  debug.__perfRenderer = renderer;
+  debug.__perfScene = () => tracked[0]?.scene() ?? null;
+  debug.__unbatched = () => {
     const sc = tracked[0]?.scene();
     return sc ? unbatched(sc) : null;
   };
-  (globalThis as unknown as Record<string, unknown>).__perfStats = () =>
+  debug.__perfStats = () =>
     tracked.map((t) => {
       const sc = t.scene();
       const i = t.renderer.info;
@@ -98,7 +102,6 @@ export function trackRenderer(renderer: THREE.WebGLRenderer, scene: () => THREE.
   return () => {
     const i = tracked.indexOf(entry);
     if (i >= 0) tracked.splice(i, 1);
-    const debug = globalThis as unknown as Record<string, unknown>;
     if (debug.__perfRenderer === renderer) debug.__perfRenderer = tracked.at(-1)?.renderer;
   };
 }

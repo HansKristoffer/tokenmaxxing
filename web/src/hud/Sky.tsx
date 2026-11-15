@@ -28,8 +28,22 @@ const WEATHER_ICON: Record<WeatherKind, string> = {
 /** How far you can see, in words: metres up close, kilometres beyond. */
 const distance = (m: number) => (m < 1_000 ? `${Math.round(m / 50) * 50} m` : `${Math.round(m / 1_000)} km`);
 
+/**
+ * The chip's next sun event: sunrise before dawn, sunset before dusk, and after dark the moon's phase with
+ * tomorrow's sunrise.
+ */
+function nextSunEvent(now: number, sunrise: number, sunset: number, moonAge: number) {
+  if (now < sunrise) return { icon: "🌅", text: `sunrise ${clockTime(sunrise)}` };
+  if (now < sunset) return { icon: "☀️", text: `sunset ${clockTime(sunset)}` };
+  return {
+    icon: MOONS[Math.round(moonAge * 8) % 8]!,
+    text: `sunrise ${clockTime(sunTimes(now + 86_400_000).sunrise)}`,
+  };
+}
+
 /** World time and weather in the top bar: the next sun event, the temperature and the wind. Hover for the detail. */
 export function Sky() {
+  // Subscribing here redraws the chip when the weather changes.
   useHud((s) => s.weather);
   useTicker(30_000);
   const now = skyNow();
@@ -37,15 +51,8 @@ export function Sky() {
   const moon = moonPhase(now);
   const weather = weatherNow();
   const { sunrise, sunset } = sunTimes(now);
-  const next =
-    now < sunrise
-      ? { icon: "🌅", text: `sunrise ${clockTime(sunrise)}` }
-      : now < sunset
-        ? { icon: "☀️", text: `sunset ${clockTime(sunset)}` }
-        : {
-            icon: MOONS[Math.round(moon.age * 8) % 8]!,
-            text: `sunrise ${clockTime(sunTimes(now + 86_400_000).sunrise)}`,
-          };
+  const next = nextSunEvent(now, sunrise, sunset, moon.age);
+
   const wind = Math.round(weather.windMs);
   const temp = Math.round(weather.tempC);
   const pollen = pollenLevel(weather.pollen);

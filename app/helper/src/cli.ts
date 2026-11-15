@@ -120,14 +120,16 @@ function helperFor(onRevoked: () => void): Helper {
 
 async function link(code: string | undefined, opts: { name?: string; server?: string; service: boolean }) {
   const userId = /^(\d{1,12})\./.exec(code ?? "")?.[1];
-  if (!code || !userId)
+  if (!code || !userId) {
     throw new Fail("Usage: tokenmaxxing link <code>. Get a code in the app: Link a computer…");
+  }
   const server = opts.server ?? process.env.TOKENMAXXING_SERVER_URL;
   if (!server) throw new Fail("Which server? Pass --server <url>, or use the install command from the app.");
   const existing = await loadConfig();
   if (existing) throw new Fail(`Already linked as "${existing.name}". Run tokenmaxxing unlink first.`);
-  if (existsSync(appStatePath()))
+  if (existsSync(appStatePath())) {
     throw new Fail("The Tokenmaxxing app already sends this computer's usage, so there's nothing to link.");
+  }
 
   const name = (opts.name ?? hostname().replace(/\.local$/, "")).trim();
   const linked = await clientFor(server)
@@ -157,11 +159,10 @@ async function link(code: string | undefined, opts: { name?: string; server?: st
     if (s.note) console.log(s.note);
   } else {
     console.log(`Couldn't set up the background service (${s.why}). Keep it running with:`);
-    console.log(
-      `  nohup ${runCommand()
-        .map((w) => JSON.stringify(w))
-        .join(" ")} >> ~/tokenmaxxing.log 2>&1 &`,
-    );
+    const command = runCommand()
+      .map((word) => JSON.stringify(word))
+      .join(" ");
+    console.log(`  nohup ${command} >> ~/tokenmaxxing.log 2>&1 &`);
   }
 }
 
@@ -200,6 +201,7 @@ async function run(): Promise<void> {
   };
   process.on("SIGTERM", stop);
   process.on("SIGINT", stop);
+  // Never settles: the helper's timer keeps the process alive until a signal or a revoked token exits it.
   await new Promise(() => {});
 }
 
@@ -225,12 +227,13 @@ async function status(): Promise<void> {
 
 async function unlink(): Promise<void> {
   const c = await requireConfig();
+  // Already revoked on the server (removed in the game) counts as removed here too.
   const removed = await clientFor(c.server)
     .player.get([String(c.userId)], { params: { token: c.token } })
     .revokeDevice(c.deviceId)
     .then(
       () => true,
-      (err) => (err as { code?: unknown }).code === "unauthorized",
+      (err) => errorCode(err) === "unauthorized",
     );
   await uninstallService();
   await forget();

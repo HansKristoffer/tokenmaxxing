@@ -89,11 +89,12 @@ export const PETWEAR: readonly Petwear[] = [
     ms: 360, dy: -4, float: true,
   },
   {
+    // One grid for every frame: the band's letters take the next colour each frame, so the loop is seven frames.
     frames: Array.from({ length: HUES.length }, () => PRISM[0]!),
-    pal: (f) => ({
-      P: "#f4f0ff", W: "#ffffff", s: "#c9c2e8",
-      ...Object.fromEntries([..."abcdefg"].map((k, i) => [k, HUES[(i + f) % HUES.length]!])),
-    }),
+    pal: (f) => {
+      const band = Object.fromEntries([..."abcdefg"].map((k, i) => [k, HUES[(i + f) % HUES.length]!]));
+      return { P: "#f4f0ff", W: "#ffffff", s: "#c9c2e8", ...band };
+    },
     ms: 150, dy: -2,
   },
 ];
@@ -119,7 +120,8 @@ const sprite = cached(
  */
 export function petwearRank(badge: Partial<PrestigeBadge> | null | undefined): number {
   const rank = badge?.rank ?? 0;
-  const r = rank >= 1 && (badge?.runLevel ?? 0) >= REWARD_LEVEL.petwear ? rank : rank - 1;
+  const reachedReward = rank >= 1 && (badge?.runLevel ?? 0) >= REWARD_LEVEL.petwear;
+  const r = reachedReward ? rank : rank - 1;
   return PETWEAR[r - 1] ? r : 0;
 }
 
@@ -143,10 +145,14 @@ export function prestigePetwear(
   const top = w && petTop(pet, hop);
   if (!w || !top) return null;
   const art = sprite(rank, Math.floor(now / w.ms) % w.frames.length);
+
   // The collar goes on the neck row of the species' own anchor; a pet without one gets it a few rows below the top.
   const neck = w.dy > 0 ? petNeck(pet, hop) : null;
   const at = neck ?? top;
-  const x = Math.round(left ? PET_W - 1 - at.x : at.x) - Math.floor(art.width / 2);
+  const anchorX = Math.round(left ? PET_W - 1 - at.x : at.x);
+  const x = anchorX - Math.floor(art.width / 2);
+
   const bob = w.float ? Math.round((Math.sin(now / 420) + 1) / 2) : 0;
-  return [art, x, neck ? neck.y : top.y + w.dy - bob - lift];
+  const y = neck ? neck.y : top.y + w.dy - bob - lift;
+  return [art, x, y];
 }

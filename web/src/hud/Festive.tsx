@@ -14,10 +14,12 @@ const SHOWN_MS = 8000;
 /** The festive theme now, refreshed every 20 s and the moment the setting or the server's pin changes. */
 export function useFestive(): Festive | null {
   const [, tick] = useState(0);
+  // A theme that starts while the page is open shows up within 20 s, with no reload.
   useEffect(() => {
     const id = setInterval(() => tick((n) => n + 1), 20_000);
     return () => clearInterval(id);
   }, []);
+  // `festiveNow` reads the pin from the store itself; this subscription only re-renders the caller on a change.
   useHud((s) => s.festivePin);
   useSyncExternalStore(graphics.subscribe, () => graphics.get().overrides.seasonal);
   return festiveNow();
@@ -44,8 +46,8 @@ export const festiveSeenKey = (id: string, ms: number): string => {
 
 /** Once a day, on the first visit in a theme's window: "Happy Halloween", "6 sleeps to Christmas". */
 export function FestiveToast() {
-  const f = useFestive();
-  const id = f?.id;
+  const festive = useFestive();
+  const id = festive?.id;
   const [shown, setShown] = useState<{ text: string; at: number } | null>(null);
   useEffect(() => {
     const now = festiveNow();
@@ -59,7 +61,7 @@ export function FestiveToast() {
     setShown({ text: festiveGreeting(now), at: Date.now() });
   }, [id]);
   const fresh = useFresh(shown?.at, SHOWN_MS);
-  if (!fresh || !shown || !f) return null;
+  if (!fresh || !shown || !festive) return null;
   return (
     <ToastButton className="festive-toast" dismiss={() => setShown(null)}>
       {shown.text}

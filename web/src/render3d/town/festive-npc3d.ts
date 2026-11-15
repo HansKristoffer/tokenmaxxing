@@ -42,16 +42,11 @@ export class FestiveNpc3d {
 
   constructor(private readonly toWorld: (tx: number, ty: number) => [number, number]) {
     this.group.name = "festive-npc";
-    // Built after the town is batched: `live` keeps the batching from putting the empty group to sleep (hidden, matrices frozen).
+    // Empty until a theme's NPC is built, and built after the town is batched and baked. `live` and `noBake` keep
+    // the batching and the bake from hiding and sleeping an empty group for good.
     this.group.userData.live = true;
+    this.group.userData.noBake = true;
     this.group.userData.nobatch = true;
-    // Empty at first, so the room's bake would put it to sleep (hidden, its matrices frozen): it must stay awake for its NPC.
-    this.group.userData.noBake = true;
-    // Empty at first: the room's batching would hide and sleep an empty subtree for good, so it is marked live.
-    // Built after the town is baked, and rebuilt as themes come and go: the bake must not put it to sleep.
-    this.group.userData.live = true;
-    // Empty when the room is baked, it would be put to sleep (hidden, its matrices frozen) as a quiet group.
-    this.group.userData.noBake = true;
   }
 
   update(t: number): void {
@@ -63,7 +58,7 @@ export class FestiveNpc3d {
     // The room hides what it did not build itself: a built NPC shows its own group.
     this.group.visible = this.shown !== null;
     const root = this.shown?.root;
-    (root?.userData.tick as ((t: number) => void) | undefined)?.(t);
+    root?.userData.tick?.(t);
   }
 
   private build(id: FestiveId, npc: FestiveNpc): void {

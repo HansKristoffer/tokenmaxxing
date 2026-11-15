@@ -24,12 +24,18 @@ function keptRows(value: object, byEntry: readonly string[] = []): Map<string, s
   const rows = new Map<string, string>();
   for (const [key, v] of Object.entries(value)) {
     if (v === undefined) continue;
-    // Read back, a row named `a/b` is the entry `b` under `a`.
+
+    // A row reads back as `key/entry` when it is an entry, so a plain key cannot hold a slash.
     if (key.includes("/")) throw new Error(`kept: the key ${key} has a slash`);
-    if (!byEntry.includes(key)) rows.set(key, JSON.stringify(v));
-    else
-      for (const [entry, e] of Object.entries(v as object))
-        if (e !== undefined) rows.set(`${key}/${entry}`, JSON.stringify(e));
+
+    if (!byEntry.includes(key)) {
+      rows.set(key, JSON.stringify(v));
+      continue;
+    }
+
+    for (const [entry, e] of Object.entries(v as object)) {
+      if (e !== undefined) rows.set(`${key}/${entry}`, JSON.stringify(e));
+    }
   }
   return rows;
 }
@@ -67,12 +73,15 @@ export class Kept<T extends object> {
     const value: Record<string, unknown> = {};
     for (const { name, json } of rows) {
       const slash = name.indexOf("/");
-      if (slash < 0) value[name] = JSON.parse(json);
-      else {
-        const key = name.slice(0, slash);
-        value[key] ??= {};
-        (value[key] as Record<string, unknown>)[name.slice(slash + 1)] = JSON.parse(json);
+      if (slash < 0) {
+        value[name] = JSON.parse(json);
+        continue;
       }
+
+      const key = name.slice(0, slash);
+      const entry = name.slice(slash + 1);
+      value[key] ??= {};
+      (value[key] as Record<string, unknown>)[entry] = JSON.parse(json);
     }
     // With no entries there are no rows to say the key was there.
     for (const key of byEntry) value[key] ??= {};
@@ -95,26 +104,35 @@ export class Kept<T extends object> {
       return this.write();
     });
     this.queued = run;
+    // The next save waits for this one to settle, failed or not, so one failure does not block the queue.
+    // The caller still gets the error, through `run`.
     this.tail = run.catch(() => {});
     return run;
   }
 
   private async write(): Promise<void> {
     const rows = keptRows(this.value, this.byEntry);
+
     const changed: [string, string][] = [];
-    for (const row of rows) if (this.written.get(row[0]) !== row[1]) changed.push(row);
+    for (const [name, json] of rows) {
+      if (this.written.get(name) !== json) changed.push([name, json]);
+    }
     const gone = [...this.written.keys()].filter((name) => !rows.has(name));
     if (changed.length === 0 && gone.length === 0) return;
+
     await this.db.transaction(
       async (tx) => {
         await upsert(tx, changed);
         for (let i = 0; i < gone.length; i += BATCH) {
           const names = gone.slice(i, i + BATCH);
-          await tx.execute(`DELETE FROM kept WHERE name IN (${names.map(() => "?").join(", ")})`, ...names);
+          const placeholders = names.map(() => "?").join(", ");
+          await tx.execute(`DELETE FROM kept WHERE name IN (${placeholders})`, ...names);
         }
       },
       { name: "keep" },
     );
+
+    // What is on disk is recorded only after the transaction commits, so a failed write is retried in full.
     for (const [name, json] of changed) this.written.set(name, json);
     for (const name of gone) this.written.delete(name);
   }

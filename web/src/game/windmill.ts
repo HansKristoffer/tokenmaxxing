@@ -47,7 +47,9 @@ export function drawWindmills(f: Frame): void {
     const top = (y + 2) * TILE - MILL_H;
     const sx = left + CAP[0] + hx - SAILS_HALF;
     const sy = top + CAP[1] + hy - SAILS_HALF;
-    if (!inView(f, Math.min(left, sx), sy, Math.max(MILL_W, SAILS_HALF * 2), SAILS_HALF * 2, TILE)) continue;
+    const boxLeft = Math.min(left, sx);
+    const boxWidth = Math.max(MILL_W, SAILS_HALF * 2);
+    if (!inView(f, boxLeft, sy, boxWidth, SAILS_HALF * 2, TILE)) continue;
     f.items.push({ y: y * TILE + sortY(WINDMILL) + side, draw: () => f.g.drawImage(sails, sx, sy) });
   }
 }

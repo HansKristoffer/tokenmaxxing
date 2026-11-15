@@ -117,6 +117,7 @@ function kept(key: string, make: () => THREE.BufferGeometry): THREE.BufferGeomet
 }
 
 const merged = (parts: THREE.BufferGeometry[]) => {
+  // Every part is a non-indexed box, so their attributes match and the merge cannot come back null.
   const g = mergeGeometries(parts.map((p) => p.toNonIndexed()))!;
   for (const p of parts) p.dispose();
   return g;
@@ -171,7 +172,7 @@ AURA_BUILDERS["Orbiting wireframe"] = (m, tick) => {
       kept(`joint${i}`, () => corners(s, r, 0.018)),
       basic(GLOW),
     );
-    // The pen.
+    // A white cube the size of a pen tip, moved along the solid's edges in the tick.
     const pen = new THREE.Mesh(
       kept("pen", () => new THREE.BoxGeometry(1, 1, 1)),
       basic("#ffffff"),
@@ -214,7 +215,7 @@ AURA_BUILDERS["Orbiting wireframe"] = (m, tick) => {
       );
       o.g.rotation.set(0.5 + o.i * 0.4, t * (0.9 + o.i * 0.15), t * 0.3);
       // The pen goes edge to edge, a new one every second or so.
-      const k = (t * 0.9 + o.i * 0.37) * 1;
+      const k = t * 0.9 + o.i * 0.37;
       const e = Math.floor(k) % o.s.e.length;
       const f = k - Math.floor(k);
       const [va, vb] = o.s.e[e]!;

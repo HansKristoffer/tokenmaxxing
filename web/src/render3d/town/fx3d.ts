@@ -68,8 +68,6 @@ const srgb = (c: readonly [number, number, number]) =>
   scratch.setRGB(c[0] / 255, c[1] / 255, c[2] / 255, THREE.SRGBColorSpace);
 const MIST = "#b9a6d8";
 
-// MARK: Sky
-
 const SKY_VERT = /* glsl */ `varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`;
 const SKY_FRAG = /* glsl */ `
 varying vec2 vUv;
@@ -110,11 +108,18 @@ void main(){
 }
 `;
 
-// MARK: Weather particles
-
 const RAIN_MAX = 900;
 const SNOW_MAX = 700;
 const REACH = 17;
+
+/** The lightning's brightness `e` seconds after a strike: a double flicker, then a fade out. */
+function flashCurve(e: number): number {
+  if (e < 0.07) return 0.9;
+  if (e < 0.13) return 0.15;
+  if (e < 0.2) return 0.8;
+  if (e < 0.5) return 0.8 * (1 - (e - 0.2) / 0.3);
+  return 0;
+}
 
 class Particles {
   readonly group = new THREE.Group();
@@ -128,10 +133,11 @@ class Particles {
   private readonly s = new THREE.Vector3(1, 1, 1);
   private readonly bolt = new THREE.Group();
   private boltUntil = 0;
+  private flashAt = -9;
+  private nextBolt = 0;
   flash = 0;
   density = 1;
   calm = false;
-  private nextBolt = 0;
 
   constructor() {
     const rnd = (a: number) => (Math.random() - 0.5) * 2 * a;
@@ -202,7 +208,6 @@ class Particles {
     this.flash = 1;
     this.flashAt = t;
   }
-  private flashAt = -9;
 
   update(dt: number, t: number, w: Weather, centre: THREE.Vector3, wind: THREE.Vector2): void {
     const falls = w.kind === "rain" || w.kind === "drizzle" || w.kind === "storm";
@@ -266,17 +271,7 @@ class Particles {
       }
     }
     const e = t - this.flashAt;
-    this.flash = this.calm
-      ? 0
-      : e < 0.07
-        ? 0.9
-        : e < 0.13
-          ? 0.15
-          : e < 0.2
-            ? 0.8
-            : e < 0.5
-              ? 0.8 * (1 - (e - 0.2) / 0.3)
-              : 0;
+    this.flash = this.calm ? 0 : flashCurve(e);
     this.bolt.visible = t < this.boltUntil && (e < 0.2 || Math.floor(e * 40) % 2 === 0);
   }
 
@@ -299,8 +294,6 @@ export const meltSnow = (): void => {
   SNOW.value = 0;
 };
 
-// MARK: Fx
-
 /** Seconds the light takes to catch up with the clock. */
 const BLEND = 0.35;
 
@@ -317,7 +310,8 @@ export class Fx {
   private shown: Weather = { ...this.weather };
   /** 0..1 how thick the fog is, eased (`fogOf`). */
   private fog = 0;
-  private light = { dark: 0, warm: 0, glow: 0, dim: 1 };
+  /** The glow and dimmer the lamps were last set to, so they are only touched when these move. */
+  private lampsApplied = { glow: 0, dim: 1 };
   /** The street lamps' dimmer, eased toward `lampDim` so they fade rather than blink. */
   private dim = 1;
   private lit = { dark: 0, warm: 0, glow: 0 };
@@ -392,8 +386,6 @@ export class Fx {
     host.town.scene.add(this.particles.group);
   }
 
-  // ——— Clock ———
-
   /** How dark the sky is now, 0 (day) to 1 (night), as last shown. */
   clockDark(): number {
     return this.lit.dark;
@@ -406,10 +398,8 @@ export class Fx {
 
   /** The sky's colour at the horizon right now (for atmospheric haze). */
   horizon(): THREE.Color {
-    return this.sky.material.uniforms.hor!.value as THREE.Color;
+    return this.sky.material.uniforms.hor!.value;
   }
-
-  // ——— Frame ———
 
   private current(): FxStageRef {
     return this.host.stages.find((s) => s.name === this.host.current()) ?? this.host.town;
@@ -470,7 +460,7 @@ export class Fx {
     this.lit.glow = lerp(this.lit.glow, glowTarget, blend);
     const { dark, warm, glow } = this.lit;
     this.flashBoost = this.particles.flash;
-    this.applyLight(dark, warm, murk, ms, glow);
+    this.applyLight(dark, warm, murk, ms);
 
     // Lamps and windows come on once it's dim enough.
     if (!this.nightOn && glow > 0.4) {
@@ -538,18 +528,17 @@ export class Fx {
       // Fog fades the far end of the slab into the horizon.
       if (haze > 0.05) {
         if (!stage.scene.fog) stage.scene.fog = new THREE.Fog(hor.getHex(), 60, 90);
-        const f = stage.scene.fog;
-        (f as THREE.Fog).color.copy(hor);
-        (f as THREE.Fog).near = lerp(90, 46, haze);
-        (f as THREE.Fog).far = lerp(120, 78, haze);
+        const f = stage.scene.fog as THREE.Fog;
+        f.color.copy(hor);
+        f.near = lerp(90, 46, haze);
+        f.far = lerp(120, 78, haze);
       } else stage.scene.fog = null;
     } else if (this.sky.parent) this.sky.removeFromParent();
 
     // Weather in the town (the indoor stages stay dry).
-    const winds = new THREE.Vector2(
-      -Math.sin((s.windDir * Math.PI) / 180) * Math.min(1, s.windMs / 10) * 2.5,
-      Math.cos((s.windDir * Math.PI) / 180) * Math.min(1, s.windMs / 10) * 1.2,
-    );
+    const heading = (s.windDir * Math.PI) / 180;
+    const gust = Math.min(1, s.windMs / 10);
+    const winds = new THREE.Vector2(-Math.sin(heading) * gust * 2.5, Math.cos(heading) * gust * 1.2);
     this.particles.group.visible = inTown;
     this.particles.update(dt, t, s, this.host.town.target, winds);
     // Snow settles on up-facing surfaces and melts away; fog banks drift.
@@ -568,13 +557,13 @@ export class Fx {
       mat.color.copy(fixed(mist > fog ? MIST : "#e4e9ee"));
       mat.opacity = lerp(mat.opacity, want, Math.min(1, dt));
       m.visible = mat.opacity > 0.01 && inTown;
-      m.position.x += (m.userData.speed as number) * dt * (winds.x >= 0 ? 1 : -1);
+      m.position.x += m.userData.speed * dt * (winds.x >= 0 ? 1 : -1);
       if (m.position.x > 40) m.position.x = -6;
       if (m.position.x < -6) m.position.x = 40;
     }
   }
 
-  private applyLight(dark: number, warm: number, murk: number, ms: number, glow: number): void {
+  private applyLight(dark: number, warm: number, murk: number, ms: number): void {
     const dayHemi = fixed("#fff4e0");
     const warmHemi = fixed("#ffc89a");
     const nightHemi = fixed("#8fa0ff");
@@ -606,34 +595,34 @@ export class Fx {
       s.sun.target.position.copy(s.target);
       (s.scene.background as THREE.Color | null)?.copy(mixCol(fixed("#1b1f2a"), fixed("#0f111a"), dark));
     }
-    void glow;
   }
 
   /** Lamps shine in proportion to how dim it is: smoothly, not on and off. */
   private applyPointLights(glow: number, t: number): void {
     const dim = this.dim;
-    if (
-      Math.abs(glow - this.light.glow) < 0.004 &&
-      Math.abs(dim - this.light.dim) < 0.004 &&
-      t - this.lightsAt < 1.5
-    )
-      return;
-    this.light.glow = glow;
-    this.light.dim = dim;
+    const unchanged =
+      Math.abs(glow - this.lampsApplied.glow) < 0.004 &&
+      Math.abs(dim - this.lampsApplied.dim) < 0.004 &&
+      t - this.lightsAt < 1.5;
+    if (unchanged) return;
+
+    this.lampsApplied = { glow, dim };
     setStreetLampDim(dim);
+    // The lamp list is searched again every 1.5 s, not every frame: a room may have been built since.
     const refresh = t - this.lightsAt > 1.5;
     if (refresh) this.lightsAt = t;
     for (const s of this.host.stages) {
       let list = this.pointLights.get(s.name);
       if (!list || refresh) {
-        list = [];
+        const found: THREE.PointLight[] = [];
         s.scene.traverse((o) => {
-          if (o instanceof THREE.PointLight && typeof o.userData.night === "number") list!.push(o);
+          if (o instanceof THREE.PointLight && typeof o.userData.night === "number") found.push(o);
         });
+        list = found;
         this.pointLights.set(s.name, list);
       }
       for (const p of list) {
-        p.intensity = (p.userData.night as number) * glow * (p.userData.street ? dim : 1);
+        p.intensity = p.userData.night * glow * (p.userData.street ? dim : 1);
         p.visible = p.intensity > 0;
       }
     }
@@ -654,7 +643,7 @@ export class Fx {
       const mesh = o as THREE.Mesh;
       if (!mesh.isMesh) return;
       for (const mat of Array.isArray(mesh.material) ? mesh.material : [mesh.material]) {
-        if (!(mat as THREE.MeshToonMaterial).isMeshToonMaterial || mat.userData.snowy) continue;
+        if (!(mat instanceof THREE.MeshToonMaterial) || mat.userData.snowy) continue;
         mat.userData.snowy = true;
         addPatch(mat, "snowy", (sh) => {
           sh.uniforms.uSnow = uSnow;

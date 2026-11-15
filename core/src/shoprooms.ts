@@ -1,14 +1,15 @@
 /**
  * The physical shops as rooms: Møbelhuset (furniture), Thread & Token (clothes), Figaro's (barber), the pet shop,
- * Natmarked (the night market hall where cases are sold) and Torvehallen (the market hall where players sell to each other). Their plans are the 3D shops' interiors tile for tile (web/src/render3d/shops): each map is the
+ * Natmarked (the night market hall where cases are sold) and Torvehallen (the market hall where players sell to
+ * each other). Their plans are the 3D shops' interiors tile for tile (web/src/render3d/shops): each map is the
  * interior at the world-grid inset `SHOP_INSET` (two wall rows on top, one wall column on the left), so a 3D
  * builder can generate the room from this file alone: sizes, the door, the counter, the shopkeeper's spot,
- * the seats (`c` chairs, `b` beds) and the displays (`DISPLAYS`: a tile and what E on it opens).
+ * the seats (`c` chairs, `b` beds) and the displays (`displays` in each shop: a tile and what E on it opens).
  *
  * The tiles: `¢` the counter, `¤ § ¶ ¥` a shop's display (a shelf, rack, mirror or pen; on a wall, the sample
  * boards hung there), `‡` a fixture that is only to look at. Pure data: `maps.ts` builds the `GameMap`s.
  */
-/** Natmarked’s freestanding case leaderboard, beside the entrance. */
+/** Natmarked's freestanding case leaderboard, beside the entrance. */
 export const CASE_BOARD_TILE = "Ŀ";
 export const CASE_BOARD_AT: readonly [number, number] = [14, 12];
 

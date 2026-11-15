@@ -56,7 +56,7 @@ test("a minion fires a third as fast as its raider, and sputters when its raider
   expect(minionRate(1e6, 0)).toBe(0);
 });
 
-test("a pet fires a quarter as fast as its raider, at least once every five seconds, and sputters when its raider does", () => {
+test("a pet fires a quarter as fast as its raider, and sputters when its raider does", () => {
   expect(petRate(1e6, 4)).toBeCloseTo(1);
   expect(petRate(1e5, 0.6)).toBe(0.2);
   expect(petRate(0, SPUTTER)).toBeCloseTo(SPUTTER / 2);

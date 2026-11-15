@@ -9,8 +9,10 @@ import { openGame, playwright, portals, ready, room, signUp, through, walkTile a
 
 const args = process.argv.slice(2);
 const TIERS = ["low", "medium", "high", "ultra"];
-const tiers = args[0] === "both" || !TIERS.includes(args[0]) ? ["low", "high"] : [args[0]];
-if (args[0] === "both" || TIERS.includes(args[0])) args.shift();
+// A tier name picks one tier; `both` or nothing runs low and high. Whatever is left names the screenshots.
+let tiers = ["low", "high"];
+if (TIERS.includes(args[0])) tiers = [args.shift()];
+else if (args[0] === "both") args.shift();
 const only = new Set(args);
 const out = process.env.OUT ?? "/tmp/seasonal-shots/halloween";
 mkdirSync(out, { recursive: true });

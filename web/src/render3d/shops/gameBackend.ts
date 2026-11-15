@@ -65,6 +65,16 @@ export interface GameDeps {
 const PLAIN = { wall: DECORS.wall[0]!.id, floor: DECORS.floor[0]!.id };
 const isFurniture = (id: string) => itemById(id)?.slot === "furniture";
 
+/** The reason the shop gives for an item the player cannot buy: where it is earned, or why it is not for sale. */
+function unsoldMessage(item: ShopItem, why: string): string {
+  if (why === "level") return "That one is earned at a level, not bought.";
+  if (why === "case") return "That one only comes out of a case.";
+  if (why === "loot") return "That one drops in the raid.";
+  if (why === "edition") return "Only the traveling merchant sells that.";
+  if (why === "season") return offSeason(itemById(item.id)!.holiday!);
+  return "That one is earned, not bought.";
+}
+
 export function createGameBackend({ net, store, world }: GameDeps): ShopBackend {
   let decorOwned = new Set<string>();
   let desks = { owned: new Set<string>(["laptop"]), using: "laptop" };
@@ -129,7 +139,6 @@ export function createGameBackend({ net, store, world }: GameDeps): ShopBackend 
   async function commitLook(next: Look): Promise<Outcome> {
     const me = store.me();
     if (!me) return fail("offline", "Not signed in yet.");
-    const before = me;
     store.setMe({ ...me, look: next });
     world.previewLook(next);
     try {
@@ -137,7 +146,7 @@ export function createGameBackend({ net, store, world }: GameDeps): ShopBackend 
       await net.refreshMe();
       return done();
     } catch (err) {
-      store.setMe(before);
+      store.setMe(me);
       world.previewLook(null);
       return failOf(err);
     }
@@ -211,20 +220,7 @@ export function createGameBackend({ net, store, world }: GameDeps): ShopBackend 
     if (!me || !w) return fail("offline", "Not signed in yet.");
     switch (p.kind) {
       case "unsold":
-        return fail(
-          "level",
-          p.why === "level"
-            ? "That one is earned at a level, not bought."
-            : p.why === "case"
-              ? "That one only comes out of a case."
-              : p.why === "loot"
-                ? "That one drops in the raid."
-                : p.why === "edition"
-                  ? "Only the traveling merchant sells that."
-                  : p.why === "season"
-                    ? offSeason(itemById(item.id)!.holiday!)
-                    : "That one is earned, not bought.",
-        );
+        return fail("level", unsoldMessage(item, p.why));
       case "unknown":
         return fail("unavailable", "That one is not in this town's shop.");
       case "free":
@@ -235,7 +231,8 @@ export function createGameBackend({ net, store, world }: GameDeps): ShopBackend 
     if (!stackable(item.id) && owns(item.id)) return fail("owned", "You have that already.");
 
     const employee = p.kind === "merch" && me.company?.id === p.companyId;
-    const price = p.kind === "merch" ? merchPrice(item.id.split(".")[2] as MerchKind, employee) : listed;
+    const merchKind = item.id.split(".")[2] as MerchKind;
+    const price = p.kind === "merch" ? merchPrice(merchKind, employee) : listed;
     const company = me.company;
     if (p.kind === "piece") {
       if (!company)

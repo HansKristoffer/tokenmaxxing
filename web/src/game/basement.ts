@@ -345,6 +345,7 @@ export function basementInteract(x: number, y: number): boolean {
     const i = world.map.find("C").findIndex(([cx, cy]) => cx === x && cy === y);
     const game = CABINET_GAMES[i];
     if (!game) return false;
+    // Cabinets 0 to 3 open the retro panel. The rest are table games.
     if (i < 4) {
       hud.set({ panel: { kind: "retro", cabinet: i } });
       return true;

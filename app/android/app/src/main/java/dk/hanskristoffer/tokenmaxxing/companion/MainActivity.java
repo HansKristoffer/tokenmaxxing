@@ -208,6 +208,7 @@ public class MainActivity extends ComponentActivity {
     }
 
     private void signOut() {
+        // evaluateJavascript runs in whatever page is showing, so it only runs on the game's own origin.
         if (!PairingLink.isTrusted(BuildConfig.SERVER_URL, web.getUrl())) return;
         web.evaluateJavascript("localStorage.removeItem('tokenmaxxing.session'); sessionStorage.clear();", ignored -> {
             CookieManager.getInstance().removeAllCookies(done -> {

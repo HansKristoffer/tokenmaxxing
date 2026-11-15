@@ -43,6 +43,8 @@ const SPARK_MS = 320;
 const FALL_MS = 2200;
 const ARRIVE_MS = 700;
 const BANNER_MS = 3500;
+/** The next rung's banner fades out over its last 600 ms. */
+const BANNER_FADE_MS = 600;
 /** The launch: the gate's boards burst off. */
 const BURST_MS = 2600;
 /** Before the launch the boarded gate rumbles every so often, and something inside talks. */
@@ -75,12 +77,15 @@ const BOSS_W = BOSS_SIZE * BOSS_SCALE;
 /** What the missiles aim at: the boss's middle. Loot pops out of it too (game/loot.ts). */
 export const TARGET = { x: AT.x, y: AT.y - BOSS_W / 2 };
 
-/** Seats nearest the boss first: the busiest raiders get them when they arrive. */
-const SEATS = [...map.find("r")].sort(
-  ([ax, ay], [bx, by]) =>
-    Math.hypot(ax + 0.5 - AT.x / TILE, ay - AT.y / TILE) -
-      Math.hypot(bx + 0.5 - AT.x / TILE, by - AT.y / TILE) || ax - bx,
-);
+/** Distance in tiles from a seat to the boss, measured from the seat's middle. */
+const distanceToBoss = ([x, y]: readonly [number, number]) =>
+  Math.hypot(x + 0.5 - AT.x / TILE, y - AT.y / TILE);
+
+/**
+ * Seats nearest the boss first: the busiest raiders get them when they arrive. Equal distances keep the
+ * left seat first.
+ */
+const SEATS = [...map.find("r")].sort((a, b) => distanceToBoss(a) - distanceToBoss(b) || a[0] - b[0]);
 /** Seats are handed out from the front, in bands this big (see `setRaiders`). */
 const SEAT_BAND = 10;
 const TORCHES = map.find("j");
@@ -286,17 +291,14 @@ export function drawRaid(f: Frame): void {
     for (let i = 0; i < minions; i++) {
       const mx = px - 8 + (i % 4) * MINION_W;
       const my = py + TILE - 2 + Math.floor(i / 4) * 5;
-      const fired = shoot(
-        shooter(p.id, i),
-        // Smaller guns: a minion fires a third as fast, and only sputters when its raider does.
-        rate && (fireRate(p.burn) ? Math.max(0.25, rate / 3) : rate / 2),
-        dt,
-        now,
-        mx + 7,
-        my + 6,
-        true,
-      );
-      const frame = fired || Math.floor((now + i * 137) / 400) % 4 === 0 ? 1 : 0;
+      // A minion's gun is smaller: a third of its raider's rate while the raider fires (never below 0.25 a
+      // second), and half the rate when the raider only sputters. Zero while the week is down.
+      const minionRate = rate && (fireRate(p.burn) ? Math.max(0.25, rate / 3) : rate / 2);
+      const fired = shoot(shooter(p.id, i), minionRate, dt, now, mx + 7, my + 6, true);
+
+      // The minion flaps its wings while it fires, and now and then on its own.
+      const flapping = Math.floor((now + i * 137) / 400) % 4 === 0;
+      const frame = fired || flapping ? 1 : 0;
       items.push({
         y: my + MINION_H,
         draw: () => g.drawImage(minionFrame(frame), mx, my - (Math.floor((now + i * 90) / 260) % 2)),
@@ -332,7 +334,9 @@ export function drawRaid(f: Frame): void {
 
   if (r) drawPlaques(f, r);
   // A week with kills ends in gold sparkles instead of missiles.
-  if (down && r.kills.length > 0 && fx.sparks.length < MAX_SPARKS && Math.random() < dt / 60)
+  const sparkles = down && r.kills.length > 0;
+  const sparkleRoom = fx.sparks.length < MAX_SPARKS;
+  if (sparkles && sparkleRoom && Math.random() < dt / 60)
     spark(TARGET.x + (Math.random() - 0.5) * 70, TARGET.y + (Math.random() - 0.5) * 50, now, "#ffd35c", 1);
 
   if (r) drawBoss(f, r);
@@ -524,7 +528,7 @@ function drawBoss(f: Frame, r: Raid): void {
 
     // The next rung's, as it comes up.
     if (next && now >= next.at) {
-      g.globalAlpha = Math.min(1, (BANNER_MS - (now - next.at)) / 600);
+      g.globalAlpha = Math.min(1, (BANNER_MS - (now - next.at)) / BANNER_FADE_MS);
       sign(
         g,
         sx,

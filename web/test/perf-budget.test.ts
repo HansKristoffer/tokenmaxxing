@@ -1,6 +1,5 @@
 import { beforeAll, expect, test } from "bun:test";
 import { BUDGETS, budgetFor } from "../src/render3d/perf/budgets.ts";
-
 import { installHeadlessGlobals } from "../src/render3d/perf/stubs.ts";
 
 installHeadlessGlobals();

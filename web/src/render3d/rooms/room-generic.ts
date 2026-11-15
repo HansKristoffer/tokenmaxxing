@@ -1,4 +1,4 @@
-import { type GameMap, LEGEND } from "@tokenmaxxing/core/maps.ts";
+import { type GameMap, LEGEND, type SeatKind } from "@tokenmaxxing/core/maps.ts";
 import * as THREE from "three";
 import { C } from "../../art/palette.ts";
 import { batchStatic } from "../engine/batch.ts";
@@ -6,8 +6,9 @@ import { disposeObject } from "../engine/dispose.ts";
 import { canvasTexture, Model, painted, seeded, tint, toon } from "../kit/kit.ts";
 import { ExitMarkers } from "./exit-markers.ts";
 import { exitDoorway } from "./exits3d.ts";
-import { type RoomCtx, type RoomView, registerFallbackRoom } from "./rooms.ts";
+import { type RoomCtx, type RoomView, registerFallbackRoom, SEAT_Y } from "./rooms.ts";
 import { wallEase } from "./walls.ts";
+import { groundTileOf, hash } from "./world.ts";
 
 /**
  * Any core map, drawn from its legend: a floor painted tile by tile, walls that drop out of the way of the
@@ -47,12 +48,6 @@ function heightOf(name: string, seat: string | undefined, portal: boolean): numb
   return 0.9;
 }
 
-function hash(s: string): number {
-  let h = 7;
-  for (const c of s) h = (h * 31 + c.charCodeAt(0)) >>> 0;
-  return h;
-}
-
 /** Where a block's name goes: the offset from its middle and the turn that faces the plane outward. */
 const SIDES: readonly [number, number, number][] = [
   [0, 1, 0],
@@ -65,7 +60,7 @@ export function buildGenericRoom(id: string, ctx: RoomCtx): RoomView {
   const map: GameMap = ctx.map;
   const W = map.width;
   const D = map.height;
-  const base = id === "town" ? "." : id === "dungeon" ? "q" : "_";
+  const base = groundTileOf(id);
   const group = new THREE.Group();
   const toWorld = (tx: number, ty: number): [number, number] => [tx - map.x0 + 0.5, ty - map.y0 + 0.5];
   const toTile = (x: number, z: number): [number, number] => [Math.floor(x) + map.x0, Math.floor(z) + map.y0];
@@ -74,7 +69,7 @@ export function buildGenericRoom(id: string, ctx: RoomCtx): RoomView {
   // The floor: one canvas, a square per tile, under everything.
   const rnd = seeded(hash(id));
   const tex = canvasTexture(W * PX, D * PX, (g) => {
-    for (let y = 0; y < D; y++)
+    for (let y = 0; y < D; y++) {
       for (let x = 0; x < W; x++) {
         const c = ch(x, y);
         const [a, b] = GROUND[FLAT.has(c) ? c : base] ?? GROUND._!;
@@ -87,13 +82,15 @@ export function buildGenericRoom(id: string, ctx: RoomCtx): RoomView {
           g.globalAlpha = 1;
         } else if (c === "." || c === '"') {
           g.fillStyle = "#86c76d";
-          for (let i = 0; i < 4; i++)
+          for (let i = 0; i < 4; i++) {
             g.fillRect(x * PX + Math.floor(rnd() * 10), y * PX + Math.floor(rnd() * 10), 1, 1);
+          }
         } else if (c === "~") {
           g.fillStyle = "#8fd3f5";
           g.fillRect(x * PX + 2 + ((x + y) % 4), y * PX + 5, 4, 1);
         }
       }
+    }
   });
   const side = toon(tint(base === "." ? "#6fb35a" : C.floor, -0.4));
   const slab = new THREE.Mesh(new THREE.BoxGeometry(W, 0.35, D), [
@@ -178,13 +175,13 @@ export function buildGenericRoom(id: string, ctx: RoomCtx): RoomView {
   const plane = new THREE.PlaneGeometry(0.7, 0.26);
   const solid = new Model();
   group.add(solid);
-  for (let y = 0; y < D; y++)
+  for (let y = 0; y < D; y++) {
     for (let x = 0; x < W; x++) {
       const c = ch(x, y);
       if (FLAT.has(c)) continue;
+
       const kind = LEGEND[c];
-      if (c === "W" || !kind) {
-        if (c !== "W" && !kind) continue;
+      if (c === "W") {
         const g = wallOf(edgeOf(x, y));
         const tx = x + 0.5;
         const tz = y + 0.5;
@@ -193,6 +190,9 @@ export function buildGenericRoom(id: string, ctx: RoomCtx): RoomView {
         g.box([1.01, 0.12, 1.01], C.woodDark, [tx, 0, tz], 0.01);
         continue;
       }
+      // A tile the legend does not name has nothing to draw.
+      if (!kind) continue;
+
       // Walk-through tiles with no ground colour of their own (the stage, a chandelier): leave the floor.
       if (kind.walk) continue;
       const edge = edgeOf(x, y);
@@ -204,22 +204,25 @@ export function buildGenericRoom(id: string, ctx: RoomCtx): RoomView {
         solid.add(door);
         continue;
       }
+
       const h = heightOf(kind.name, kind.seat, false);
-      const colour = `#${new THREE.Color().setHSL(((hash(c) % 360) / 360 + 0.0) % 1, kind.seat ? 0.35 : 0.45, 0.55).getHexString()}`;
-      const target = solid;
+      const hue = (hash(c) % 360) / 360;
+      const colour = `#${new THREE.Color().setHSL(hue, kind.seat ? 0.35 : 0.45, 0.55).getHexString()}`;
       const front = faceOf(kind.name, colour);
       const box = new THREE.Mesh(boxGeometry(h), toon(tint(colour, 0.1)));
       box.position.set(x + 0.5, 0, y + 0.5);
       box.castShadow = box.receiveShadow = true;
-      target.add(box);
+      solid.add(box);
+
       // The name on every side, so it reads from whichever way the view is turned.
       for (const [dx, dz, turn] of SIDES) {
         const sign = new THREE.Mesh(plane, front);
         sign.position.set(x + 0.5 + dx * 0.442, h * 0.55, y + 0.5 + dz * 0.442);
         sign.rotation.y = turn;
-        target.add(sign);
+        solid.add(sign);
       }
     }
+  }
 
   // Each wall group moves as one (it drops out of the camera's way), so what is inside it can be merged now.
   group.updateMatrixWorld(true);
@@ -238,7 +241,7 @@ export function buildGenericRoom(id: string, ctx: RoomCtx): RoomView {
     view: Math.max(7, Math.min(10.5, Math.max(W * 0.5, D * 0.75))),
     toWorld,
     toTile,
-    seatY: (_x, _y, kind) => ({ bench: 0.31, chair: 0.33, sofa: 0.36, bed: 0.3 })[kind] ?? 0.33,
+    seatY: (_x, _y, kind) => SEAT_Y[kind as SeatKind] ?? 0.33,
     tick(_t, _dt, toward) {
       const k = wallEase.k;
       for (const w of walls) {

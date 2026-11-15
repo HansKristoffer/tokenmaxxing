@@ -25,7 +25,7 @@ const PEARL = "#f4f0ff";
 const PEARL_SHADE = "#cfc6ea";
 const LILAC = "#8a7fc0";
 const PINK = "#ff7ad9";
-/** Red to pink, as the 2D art has them (`art/prestige-5.ts`). */
+/** The spectrum from red to violet, as the 2D art has it (`art/prestige-5.ts`); the pink is set apart as an accent. */
 const SPECTRUM = ["#ff5d73", "#ff9a4d", "#ffe066", "#5df0a0", "#5fe0ff", "#6f9bff", "#a78bfa"];
 
 // MARK: Outfit
@@ -115,6 +115,7 @@ function wing(b: VoxModel, side: 1 | -1, glints: THREE.Material[]): { root: VoxM
   const root = vpart(b, [side * 1.6 * U, -1.2 * U, -1.3 * U]);
   root.rotation.y = side * 0.55;
   const feathers: VoxModel[] = [];
+  // Mirrors a box `w` wide for the left wing, so both wings are built from the same offsets.
   const at = (x: number, w: number) => (side > 0 ? x : -x - w);
   FEATHERS.forEach((col, i) => {
     const f = vpart(root, [0, 0, 0.02 * i]);
@@ -172,9 +173,8 @@ const BACKS: Record<string, BackBuilder> = {
         w.root.rotation.y = side * (0.55 + (walking ? 0.12 : 0.03) + beat * 0.6);
         w.feathers.forEach((f, i) => {
           // The feathers ripple one after another down the wing.
-          f.rotation.z =
-            base[wi]![i]! +
-            side * (Math.sin(t * (walking ? 9 : 1.6) - i * 0.5) * (walking ? 0.05 : 0.02) + beat * 0.3);
+          const ripple = Math.sin(t * (walking ? 9 : 1.6) - i * 0.5) * (walking ? 0.05 : 0.02);
+          f.rotation.z = base[wi]![i]! + side * (ripple + beat * 0.3);
         });
       });
       glints.forEach((g, i) => {

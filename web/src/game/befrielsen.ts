@@ -150,12 +150,14 @@ const FACES = Object.keys(DIRS) as Facing[];
 
 /**
  * A click-to-walk route that does not run into the memorial, a flagpole or Henning: `path` (from `route`, which
- * knows only the map) if it is clear, else the shortest way round them. `path` again when there is none.
+ * knows only the map) if it is clear, else the shortest way round them and round `avoid`. `path` again when there
+ * is none.
  */
 export function routeAround(
   path: Facing[],
   from: readonly [number, number],
   to: readonly [number, number],
+  avoid: (x: number, y: number) => boolean,
 ): Facing[] {
   if (!befrielsenOn()) return path;
   let [x, y] = from;
@@ -178,7 +180,7 @@ export function routeAround(
       const k = key(nx, ny);
       const goal = nx === to[0] && ny === to[1];
       if (seen.has(k) || !world.map.contains(nx, ny)) continue;
-      if (!goal && (!world.map.walkable(nx, ny) || isBefrielsenSolid(nx, ny))) continue;
+      if (!goal && (!world.map.walkable(nx, ny) || isBefrielsenSolid(nx, ny) || avoid(nx, ny))) continue;
       seen.add(k);
       came.set(k, { from: key(cx, cy), d });
       if (goal) {

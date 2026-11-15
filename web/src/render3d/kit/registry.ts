@@ -69,13 +69,17 @@ export async function loadSlices(rooms?: readonly MapId[]): Promise<Asset[]> {
       if (!key.endsWith("_ASSETS") || !Array.isArray(value)) continue;
       const list = (value as Asset[]).filter((a) => !seen.has(a.id));
       for (const a of list) seen.add(a.id);
-      const byRoom = new Map<string, Asset[]>();
+
+      // Assets that draw in the same rooms are registered together. No rooms means every room.
+      const byRooms = new Map<string, { rooms: readonly MapId[] | undefined; assets: Asset[] }>();
       for (const a of list) {
-        const rs = s.scope?.[a.id] ?? s.rooms;
-        const k = rs?.join(",") ?? "";
-        byRoom.set(k, [...(byRoom.get(k) ?? []), a]);
+        const rooms = s.scope?.[a.id] ?? s.rooms;
+        const key = rooms?.join(",") ?? "";
+        const group = byRooms.get(key) ?? { rooms: key ? rooms : undefined, assets: [] };
+        group.assets.push(a);
+        byRooms.set(key, group);
       }
-      for (const [k, assets] of byRoom) registerTileAssets(assets, k ? (k.split(",") as MapId[]) : undefined);
+      for (const { rooms, assets } of byRooms.values()) registerTileAssets(assets, rooms);
       out.push(...list);
     }
   }

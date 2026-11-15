@@ -105,8 +105,9 @@ export const hearth = once(() =>
     p.rect(3, 1, 26, 20, C.stone);
     p.rect(3, 1, 26, 2, C.stoneLight);
     for (let y = 4; y < 21; y += 4) p.rect(3, y, 26, 1, C.stoneDark);
-    for (let y = 4; y < 21; y += 4)
+    for (let y = 4; y < 21; y += 4) {
       for (let x = ((y / 4) % 2) * 4 + 5; x < 29; x += 8) p.rect(x, y + 1, 1, 3, C.stoneDark);
+    }
     p.rect(0, 5, 32, 3, C.ink);
     p.rect(1, 6, 30, 1, C.woodLight);
     p.rect(1, 7, 30, 1, C.woodDark);
@@ -162,7 +163,9 @@ export const sconce = cached(
       p.rect(1, 9, 4, 2, C.ink);
       p.rect(2, 5, 2, 4, BRASS);
       p.rect(2, 5, 1, 4, BRASS_LIGHT);
-      p.rect(2, 3 - (frame % 2 ? 1 : 0), 2, 2 + (frame % 2 ? 1 : 0), "#f8c43a");
+      // The flame is one pixel taller on odd frames, so it flickers.
+      const lift = frame % 2 ? 1 : 0;
+      p.rect(2, 3 - lift, 2, 2 + lift, "#f8c43a");
       p.px(2, 4, "#fff0a8");
     }),
 );
@@ -399,26 +402,32 @@ const rouletteBody = once(() =>
     // The wheel: a round brown rim, red and black pockets, a gold hub, the ball.
     const cx = 14;
     const cy = 15;
-    for (let y = -7; y <= 7; y++)
+    for (let y = -7; y <= 7; y++) {
       for (let x = -7; x <= 7; x++) {
         const d = x * x + y * y;
         if (d > 49) continue;
+        // Every eighth of a turn is half red and half black, so the pockets alternate round the wheel.
+        const sector = (Math.atan2(y, x) + Math.PI) % (Math.PI / 4);
+        const isRedPocket = sector < Math.PI / 8;
         let c: string = C.woodDark;
-        if (d <= 36)
-          c = (Math.atan2(y, x) + Math.PI) % (Math.PI / 4) < Math.PI / 8 ? ROULETTE_RED : ROULETTE_BLACK;
+        if (d <= 36) c = isRedPocket ? ROULETTE_RED : ROULETTE_BLACK;
         if (d <= 16) c = C.wood;
         if (d <= 5) c = ROULETTE_GOLD;
         p.px(cx + x, cy + y, c);
       }
+    }
     p.px(cx + 3, cy - 3, C.white);
+
     // The betting grid: 3 rows of 4 red and black cells, a green zero strip on its left.
     const gx = 28;
     const gy = 9;
     p.rect(gx - 1, gy - 1, 16, 14, C.white);
     p.rect(gx, gy, 3, 12, FELT_DARK);
-    for (let r = 0; r < 3; r++)
-      for (let c = 0; c < 3; c++)
+    for (let r = 0; r < 3; r++) {
+      for (let c = 0; c < 3; c++) {
         p.rect(gx + 3 + c * 3, gy + r * 4, 3, 3, (r + c) % 2 ? ROULETTE_BLACK : ROULETTE_RED);
+      }
+    }
   }),
 );
 
@@ -434,12 +443,13 @@ export const rouletteTable = cached(
 /** A walkable player spot below the roulette table: a small round red mat with a gold ring. */
 export const rouletteSpot = once(() =>
   bake(16, 16, (p) => {
-    for (let y = -4; y <= 4; y++)
+    for (let y = -4; y <= 4; y++) {
       for (let x = -5; x <= 5; x++) {
         const d = (x * x) / 25 + (y * y) / 16;
         if (d > 1) continue;
         p.px(8 + x, 9 + y, d > 0.7 ? ROULETTE_GOLD : ROULETTE_RED);
       }
+    }
   }),
 );
 
@@ -501,16 +511,19 @@ export function worldClocks(
     p.rect(DIALS[0] - 1, 0, 3, 1, C.ink);
     p.px(DIALS[0], 0, lit ? "#ff6a4a" : "#6b2a2a");
     for (const [i, cx] of DIALS.entries()) {
-      for (const [j, half] of DIAL_ROWS.entries())
+      for (const [j, half] of DIAL_ROWS.entries()) {
         p.rect(cx - half, DIAL_Y - 3 + j, half * 2 + 1, 1, j === 0 || j === 6 ? BRASS_DARK : BRASS);
+      }
       const face = i === 0 && lit ? BRASS_LIGHT : PAPER;
-      for (const [j, half] of DIAL_ROWS.slice(1, -1).entries())
+      for (const [j, half] of DIAL_ROWS.slice(1, -1).entries()) {
         p.rect(cx - half + 1, DIAL_Y - 2 + j, half * 2 - 1, 1, face);
+      }
       const { hour, minute } = hands[i] ?? { hour: 0, minute: 0 };
       const hand = (turns: number, len: number, color: string) => {
         const a = turns * 2 * Math.PI;
-        for (let r = 1; r <= len; r++)
+        for (let r = 1; r <= len; r++) {
           p.px(cx + Math.round(Math.sin(a) * r), DIAL_Y - Math.round(Math.cos(a) * r), color);
+        }
       };
       hand(minute / 60, 2, C.ink);
       hand(((hour % 12) + minute / 60) / 12, 1, C.rug);

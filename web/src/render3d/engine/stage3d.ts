@@ -16,11 +16,6 @@ import { PlayerOcclusion, seeThrough } from "./seethrough.ts";
 const ROOM_BACKGROUND = "#1b1f2a";
 const SHADOW_FAR = 90;
 
-/**
- * A room as the renderer shows it: its scene and lights. Outdoors it also owns the sky: `Fx` (`fx3d.ts`: the
- * sky dome, sun, moon, clouds, weather and lamps) driven by the game's own clock and the server's weather.
- * Indoors the light is fixed, as the 2D game's rooms are (only the town is tinted by the hour).
- */
 /** What the stage can ask of the renderer: the clock the room's schedules read, for working out what moves. */
 export interface StageHooks {
   clock: (minutes: number | null) => void;
@@ -29,6 +24,11 @@ export interface StageHooks {
 /** Hours of the day the batching probe tries (minutes since midnight), so a schedule that moves things shows. */
 const PROBE_MINUTES = [120, 450, 690, 750, 870, 1010, 1200];
 
+/**
+ * A room as the renderer shows it: its scene and lights. Outdoors it also owns the sky: `Fx` (`fx3d.ts`: the
+ * sky dome, sun, moon, clouds, weather and lamps) driven by the game's own clock and the server's weather.
+ * Indoors the light is fixed, as the 2D game's rooms are (only the town is tinted by the hour).
+ */
 export class RoomStage {
   readonly scene = new THREE.Scene();
   readonly hemi = new THREE.HemisphereLight("#fff4e0", "#7a6a8a", 1.6);
@@ -76,11 +76,16 @@ export class RoomStage {
         },
         { clock: skyNow, weather: weatherNow, light: lightAt, lampDim, festive: festiveNow },
       );
-    } else this.fx = null;
+    } else {
+      this.fx = null;
+    }
+
     const t0 = performance.now();
     seeThrough(view.group);
     this.occlusion = new PlayerOcclusion(view.group);
     this.timing.see = performance.now() - t0;
+
+    // A page opened with `nobatch` in its URL builds the room unbatched.
     const opened = performance.getEntriesByType("navigation")[0]?.name ?? "";
     if (!opened.includes("nobatch")) this.batch(hooks);
     if (view.extras) scene.add(view.extras);
@@ -118,6 +123,7 @@ export class RoomStage {
 
   /** The sun's shadow box, `reach` world units either way. */
   private setReach(reach: number): void {
+    // Rebuilt only after the reach moves by 8% or more: a smaller change would redraw the shadow for nothing.
     if (Math.abs(reach - this.reach) < this.reach * 0.08) return;
     this.reach = reach;
     const s = this.sun.shadow.camera;
@@ -136,7 +142,7 @@ export class RoomStage {
   /** Shadows on or off, and how sharp (the graphics settings'). */
   applySettings(s: GraphicsSettings): void {
     const on = s.shadowMap > 0;
-    if (this.sun.castShadow !== on) this.sun.castShadow = on;
+    this.sun.castShadow = on;
     if (on && this.sun.shadow.mapSize.x !== s.shadowMap) {
       this.sun.shadow.mapSize.set(s.shadowMap, s.shadowMap);
       this.sun.shadow.map?.dispose();

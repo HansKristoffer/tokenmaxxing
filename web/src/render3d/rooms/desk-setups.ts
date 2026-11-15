@@ -36,14 +36,20 @@ export class DeskSetups {
   update(nowMs: number): void {
     if (!this.desks.length || nowMs - this.at < EVERY) return;
     this.at = nowMs;
+
     const fleet = world.companies.get(companyOfRoom(world.room) ?? -1)?.deskFleet;
     const seated = new Map<number, number | undefined>();
-    for (const a of world.avatars.values())
+    for (const a of world.avatars.values()) {
       if (a.state === "working" || a.state === "sit") seated.set(this.map.index(a.x, a.y), a.info.desk);
+    }
+
     for (const d of this.desks) {
-      const chair = this.map.at(d.x, d.y + 1) === "c" ? this.map.index(d.x, d.y + 1) : -1;
-      const tier = effectiveDesk(world.owner?.desk ?? (chair < 0 ? undefined : seated.get(chair)), fleet);
+      const isChairBelow = this.map.at(d.x, d.y + 1) === "c";
+      const chair = isChairBelow ? this.map.index(d.x, d.y + 1) : -1;
+      const sitterDesk = world.owner?.desk ?? (chair < 0 ? undefined : seated.get(chair));
+      const tier = effectiveDesk(sitterDesk, fleet);
       if (tier === d.tier) continue;
+
       d.tier = tier;
       const next = fleetDesk(tier, d.seed);
       for (const c of [...d.model.children]) {

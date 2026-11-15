@@ -36,10 +36,12 @@ export function PrestigeButton({ level, badge }: { level: number; badge: Prestig
 }
 
 function Reward({ row }: { row: PlanRow }) {
+  // The pet accessory and the trophy have no item in the bag, so they get an emoji.
+  const emoji = row.kind === "trophy" ? "🏆" : "🐾";
   return (
     <li className="prestige-reward">
       <span className="prestige-art">
-        {row.item ? <ItemImage item={row.item} look={LOOK} bare /> : row.kind === "trophy" ? "🏆" : "🐾"}
+        {row.item ? <ItemImage item={row.item} look={LOOK} bare /> : emoji}
       </span>
       <span>
         <strong>{row.name}</strong>
@@ -179,18 +181,24 @@ export function PrestigeToasts() {
     prev.current = { rank, runLevel };
     // The first badge after load is where I started, not news.
     if (!before) return;
+    // A lower rank than before has no toasts to show.
+    if (rank < before.rank) return;
+
     const toasts =
-      rank > before.rank
-        ? runToasts(rank, -1, runLevel)
-        : rank === before.rank
-          ? runToasts(rank, before.runLevel, runLevel)
-          : [];
+      rank > before.rank ? runToasts(rank, -1, runLevel) : runToasts(rank, before.runLevel, runLevel);
     if (toasts.length > 0) setFresh({ toasts, at: Date.now() });
   }, [rank, runLevel]);
   const open = useHud((s) => s.panel !== null);
   const shown = useFresh(fresh?.at, TOAST_MS);
   const c: CardPrestige = cardPrestige(level, badge);
-  const callout = c.can && !open && !storage.getItem(calloutKey(c.next)) && gone !== c.next;
+
+  // Dismissed for this track, by either button and in an earlier visit.
+  const dismissed = gone === c.next || !!storage.getItem(calloutKey(c.next));
+  const callout = c.can && !open && !dismissed;
+  const dismissCallout = () => {
+    storage.setItem(calloutKey(c.next), "1");
+    setGone(c.next);
+  };
   return (
     <>
       {shown &&
@@ -205,8 +213,7 @@ export function PrestigeToasts() {
             type="button"
             className="prestige-callout-open"
             onClick={() => {
-              storage.setItem(calloutKey(c.next), "1");
-              setGone(c.next);
+              dismissCallout();
               hud.set({ panel: { kind: "prestige" } });
             }}
           >
@@ -217,10 +224,7 @@ export function PrestigeToasts() {
             type="button"
             className="prestige-callout-close"
             aria-label="Dismiss"
-            onClick={() => {
-              storage.setItem(calloutKey(c.next), "1");
-              setGone(c.next);
-            }}
+            onClick={dismissCallout}
           >
             ×
           </button>

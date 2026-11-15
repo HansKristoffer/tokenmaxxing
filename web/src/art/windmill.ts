@@ -31,8 +31,9 @@ export const millTower = once(() =>
     p.rect(5, 43, 22, 16, BRICK);
     p.rect(5, 43, 3, 16, BRICK_LIGHT);
     p.rect(23, 43, 4, 16, BRICK_DARK);
-    for (let y = 46; y < 58; y += 3)
+    for (let y = 46; y < 58; y += 3) {
       for (let x = 6 + ((y / 3) % 2) * 2; x < 26; x += 4) p.px(x, y, BRICK_DARK);
+    }
     p.rect(13, 49, 6, 10, C.ink);
     p.rect(14, 50, 4, 9, C.woodDark);
     p.rect(14, 50, 4, 1, C.wood);
@@ -79,7 +80,9 @@ const ANGLES = 18;
 const SHEAR = 0.4;
 /** How much a step towards or away from the view moves things up or down the screen. */
 const DEPTH = 0.5;
+/** The sail's length from the hub, in pixels. */
 const RADIUS = 23;
+/** How far the cloth reaches back from the stock, in pixels. */
 const CLOTH = 6;
 
 /** The windshaft's end, where the sails turn, from the cap's middle (screen px) for compass `facing`. */
@@ -114,11 +117,16 @@ const sailsFrame = cached(
         const ex = -Math.sin(phi) * rx;
         const ey = -Math.sin(phi) * ry - Math.cos(phi);
         // The lattice sail, on the trailing side of the stock: cloth in a frame, with bars across it.
-        for (let s = RADIUS * 0.3; s <= RADIUS; s += 0.5)
+        for (let s = RADIUS * 0.3; s <= RADIUS; s += 0.5) {
           for (let b = 1; b <= CLOTH; b += 0.5) {
-            const bar = Math.round(s) % 4 === 0 || b >= CLOTH - 0.25 || s >= RADIUS - 0.25;
-            put(s * dx - b * ex, s * dy - b * ey, bar ? C.woodDark : away ? C.wallDark : C.white);
+            // Bars every fourth step along the sail, and a frame on its outer and far edges.
+            const isBar = Math.round(s) % 4 === 0 || b >= CLOTH - 0.25 || s >= RADIUS - 0.25;
+            let colour: string = C.white;
+            if (away) colour = C.wallDark;
+            if (isBar) colour = C.woodDark;
+            put(s * dx - b * ex, s * dy - b * ey, colour);
           }
+        }
         for (let s = 0; s <= RADIUS + 1; s += 0.5) put(s * dx, s * dy, C.trunkDark);
       }
       p.disc(c, c, 2, C.ink);
@@ -128,7 +136,11 @@ const sailsFrame = cached(
 
 /** The sails at compass `facing`, `turn` turns round (they look the same every quarter turn). */
 export function millSails(facing: number, turn: number): HTMLCanvasElement {
-  const f = Math.round((((facing % 360) + 360) % 360) / (360 / FACINGS)) % FACINGS;
-  const a = Math.floor(((((turn * 4) % 1) + 1) % 1) * ANGLES) % ANGLES;
+  const degrees = ((facing % 360) + 360) % 360;
+  const f = Math.round(degrees / (360 / FACINGS)) % FACINGS;
+
+  // The sails look the same every quarter turn, so only the fraction of a quarter turn picks the frame.
+  const quarterTurn = (((turn * 4) % 1) + 1) % 1;
+  const a = Math.floor(quarterTurn * ANGLES) % ANGLES;
   return sailsFrame(f, a);
 }

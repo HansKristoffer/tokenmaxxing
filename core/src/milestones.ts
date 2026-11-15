@@ -52,6 +52,9 @@ export const milestoneItems = (m: Milestone): Item[] => ITEMS.filter((i) => i.le
 
 /** "Nebula visor, 🪙 1000 and the Starwalker title", for the card and the toast. */
 export function milestoneText(m: Milestone): string {
-  const parts = [...milestoneItems(m).map((i) => i.name), ...(m.perks ? [m.perks] : []), `🪙 ${m.coins}`];
+  const itemNames = milestoneItems(m).map((i) => i.name);
+  const perks = m.perks ? [m.perks] : [];
+  const coins = `🪙 ${m.coins}`;
+  const parts = [...itemNames, ...perks, coins];
   return `${parts.join(", ")} and the ${m.title} title`;
 }

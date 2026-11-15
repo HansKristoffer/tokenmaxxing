@@ -6,6 +6,7 @@ import { HALLOWEEN_TAVERN, HALLOWEEN_TOWN } from "./halloween-music.ts";
 import { MIDSOMMER_TAVERN, MIDSOMMER_TOWN } from "./midsommer-music.ts";
 import { NYTAR_TAVERN, NYTAR_TOWN } from "./nytar-music.ts";
 import { PAASKE_TAVERN, PAASKE_TOWN } from "./paaske-music.ts";
+import { isTavernRoom } from "./tavern.ts";
 import { tavernSet } from "./tavern-band.ts";
 import type { Tune } from "./tunes.ts";
 import type { RoomId } from "./world.ts";
@@ -102,24 +103,25 @@ export const THEMES: readonly Theme[] = [
   },
 ];
 
+/** The usual theme of a room: houses are the company's, offices the desk, the Tavern's three floors one. */
+function baseThemeOf(room: RoomId): BaseThemeId {
+  if (room === "town") return "town";
+  if (room === "dungeon") return "raid";
+  if (isTavernRoom(room)) return "tavern";
+  if (room.startsWith("hq:")) return "company";
+  return "office";
+}
+
 /**
- * The theme for a room: houses are the company's, offices the desk, the Tavern's three floors one. A festive theme's own
- * track wins; otherwise the Tavern floor switches to the live folk set after 16:00.
+ * The theme for a room. A festive theme's own track wins; otherwise the Tavern floor switches to the live
+ * folk set after 16:00.
  */
 export function themeOf(room: RoomId, festive?: FestiveId | null, at = Date.now()): Theme {
-  const set = room === "inn" ? tavernSet(at) : null;
-  const id: BaseThemeId =
-    room === "town"
-      ? "town"
-      : room === "dungeon"
-        ? "raid"
-        : room === "inn" || room === "upstairs" || room === "basement"
-          ? "tavern"
-          : room.startsWith("hq:")
-            ? "company"
-            : "office";
+  const id = baseThemeOf(room);
   const own = festiveTheme(festive, id);
   if (own) return own;
+
+  const set = room === "inn" ? tavernSet(at) : null;
   if (set) return THEMES.find((t) => t.id === set)!;
   return THEMES.find((t) => t.id === id)!;
 }
@@ -129,7 +131,7 @@ export const festiveTheme = (festive: FestiveId | null | undefined, base: BaseTh
   festive && (base === "town" || base === "tavern") ? (FESTIVE_THEMES[festive]?.[base] ?? null) : null;
 
 /**
- * A festive theme's own tracks, by the room theme they replace: a feature agent appends its entry here, e.g.
+ * A festive theme's own tracks, by the room theme they replace: each festive theme lists its entry here, e.g.
  * `nytar: { town: NYTAR_TOWN }` with `{ id: "festive-nytar-town", ...64-step lead/bass/drums }` (same note format as
  * `THEMES`; `themes.test.ts` checks every one is `THEME_STEPS` long and parses). While the theme is on, `music.ts`
  * plays it for the room; when the window ends it is the usual tune again, with no cleanup. A theme with no entry,

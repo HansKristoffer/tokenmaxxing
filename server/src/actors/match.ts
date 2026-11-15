@@ -9,6 +9,7 @@ import type { Frame, MatchChatLine, MatchInfo, Seat } from "@tokenmaxxing/core/g
 import type { Battle } from "@tokenmaxxing/core/protocol.ts";
 import { CHAT_HISTORY } from "@tokenmaxxing/core/world.ts";
 import { actor, UserError } from "rivetkit";
+import type { Client } from "rivetkit/client";
 import { db } from "rivetkit/db";
 import { RateLimiter } from "../rate-limit.ts";
 import { parseChatText } from "../validate.ts";
@@ -60,7 +61,9 @@ interface MatchState extends MatchInput {
 const AWAY_MS = 20_000;
 /** A safety net: a held game still running after this is called off and refunded. */
 const HELD_LIMIT_MS = 20 * 60_000;
+/** How long before `arcade` is asked again, after it could not take the outcome. */
 const REPORT_RETRY_MS = 5_000;
+/** Chat lines one player may send in a minute. */
 const CHAT_PER_MIN = 20;
 
 const defOf = (s: { game: GameId }) => gameOf(s.game)!;
@@ -95,7 +98,7 @@ export const match = actor({
       /** The game and how it stands: saved after every action and every turn of the loop. */
       state: kept.value,
       kept,
-      callers: new Map() as Callers,
+      callers: new Map<string, Caller>(),
       loop: null as Promise<void> | null,
       chat: new RateLimiter(CHAT_PER_MIN, 60_000),
     };
@@ -171,22 +174,26 @@ export const match = actor({
         (await main(c.client()).town.names([userId]))[userId] ??
         "?";
       const chat = c.vars.state.chat ?? [];
-      const line: MatchChatLine = { id: (chat.at(-1)?.id ?? 0) + 1, userId, name, text, at: Date.now() };
+      const lineId = (chat.at(-1)?.id ?? 0) + 1;
+      const line: MatchChatLine = { id: lineId, userId, name, text, at: Date.now() };
       c.vars.state.chat = [...chat, line].slice(-CHAT_HISTORY);
-      for (const [id, caller] of c.vars.callers)
-        if (caller.kind === "user") c.conns.get(id)?.send("chat", line);
+
+      for (const [connId, caller] of c.vars.callers) {
+        if (caller.kind === "user") c.conns.get(connId)?.send("chat", line);
+      }
     },
 
-    // MARK: From `arcade`
-
-    /** Side bets so far, for the frame. */
+    /** Side bets so far, for the frame. Only `arcade` sends them. */
     bets: (c, bets: Record<number, number>): void => {
       requireInternal(callerOf(c));
       c.vars.state.bets = bets;
       pushFrames(c);
     },
 
-    /** After a player syncs (usage games): pull their tokens in the window. Returns until when to keep syncing fast. */
+    /**
+     * After a player syncs (usage games): pulls their tokens in the window. Returns their standing, whose
+     * `until` says how long the app keeps syncing fast.
+     */
     usage: async (c, userId: number): Promise<Battle | null> => {
       requireInternal(callerOf(c));
       const s = plain(c.vars.state);
@@ -207,7 +214,7 @@ export const match = actor({
 
     /**
      * Where a player stands, from the last pull. For the app's poll: each sync already pulls (`usage`),
-     * so this reads nothing, and a slow player database can't pile polls up here.
+     * so this reads no player data, and a slow player database can't pile polls up here.
      */
     standing: (c, userId: number): Battle | null => {
       requireInternal(callerOf(c));
@@ -232,7 +239,7 @@ saveAfterActions(match);
 type MatchCtx = {
   vars: { state: MatchState; callers: Callers };
   conns: Map<string, { send(name: string, ...args: unknown[]): void }>;
-  client(): import("rivetkit/client").Client<typeof registry>;
+  client(): Client<typeof registry>;
   keepAwake<T>(promise: Promise<T>): Promise<T>;
 };
 
@@ -262,12 +269,16 @@ async function turn(c: MatchCtx, signal: AbortSignal): Promise<boolean> {
   if (def.holdPlayers !== false) {
     const here = connectedPlayers(c);
     for (const p of current.players) {
-      if (here.has(p.userId)) c.vars.state.seen[p.userId] = now;
-      else if (
-        now - (c.vars.state.seen[p.userId] ?? now) > AWAY_MS &&
-        !c.vars.state.forfeited.includes(p.userId) &&
-        !def.outcome(next)
-      ) {
+      if (here.has(p.userId)) {
+        c.vars.state.seen[p.userId] = now;
+        continue;
+      }
+
+      // A player with no `seen` entry yet counts as seen now.
+      const lastSeen = c.vars.state.seen[p.userId] ?? now;
+      const isAway = now - lastSeen > AWAY_MS;
+      const alreadyForfeited = c.vars.state.forfeited.includes(p.userId);
+      if (isAway && !alreadyForfeited && !def.outcome(next)) {
         c.vars.state.forfeited = [...c.vars.state.forfeited, p.userId];
         next = def.forfeit(next, p.userId, now);
       }
@@ -286,12 +297,14 @@ function standing(s: MatchState, userId: number): Battle | null {
   const window = def.usageWindow?.(s.state);
   if (!def.usage || !window || s.outcome || !s.players.some((p) => p.userId === userId)) return null;
   const board = def.board?.(s.state, Date.now()) ?? [];
-  const place = board.findIndex((r) => r.player === userId);
+  const index = board.findIndex((r) => r.player === userId);
+  const row = index < 0 ? undefined : board[index];
   return {
     name: def.name,
-    place: place < 0 || !board[place]!.value ? null : place + 1,
+    // Nobody with no tokens yet holds a place.
+    place: row?.value ? index + 1 : null,
     players: s.players.length,
-    tokens: board[place]?.value ?? 0,
+    tokens: row?.value ?? 0,
     endsAt: window.to,
     until: window.until,
   };
@@ -308,15 +321,18 @@ function requirePlayer(s: MatchState, userId: number): number {
 
 function connectedPlayers(c: MatchCtx): Set<number> {
   const out = new Set<number>();
-  for (const caller of c.vars.callers.values()) if (caller.kind === "user") out.add(caller.userId);
+  for (const caller of c.vars.callers.values()) {
+    if (caller.kind === "user") out.add(caller.userId);
+  }
   return out;
 }
 
 function watchersOf(c: MatchCtx, s: MatchState): number {
   const players = new Set(s.players.map((p) => p.userId));
   let n = 0;
-  for (const caller of c.vars.callers.values())
+  for (const caller of c.vars.callers.values()) {
     if (caller.kind === "user" && !players.has(caller.userId)) n++;
+  }
   return n;
 }
 
@@ -369,20 +385,29 @@ const plainState = (s: MatchState): unknown => JSON.parse(JSON.stringify(s.state
 async function apply(c: MatchCtx, next: unknown, before: unknown): Promise<void> {
   const def = defOf(c.vars.state);
   c.vars.state.state = next;
+
   const callouts = def.callouts?.(before, next) ?? [];
   const { world, arcade } = main(c.client());
-  for (const line of callouts) await world.callout(c.vars.state.id, line.player, line.text).catch(() => {});
+  // The move is already applied, so a failed call to the world or `arcade` must not fail it.
+  for (const line of callouts) {
+    await world.callout(c.vars.state.id, line.player, line.text).catch(() => {});
+  }
+
   // One copy for the frames and the world.
   const s = plain(c.vars.state);
   pushFrames(c, s);
   await reportStatus(c, s);
+
   // `arcade` calls off a held game that stops moving on.
   if (def.holdPlayers !== false) await arcade.moved(c.vars.state.id).catch(() => {});
   const out = def.outcome(next);
   if (out) await finish(c, out);
 }
 
-/** The live status over each player's head in the world, and the arena's scoreboard. */
+/**
+ * The live status over each player's head in the world, and the arena's scoreboard. Best effort: the
+ * next change sends a fresh one.
+ */
 async function reportStatus(c: MatchCtx, s: MatchState): Promise<void> {
   const def = defOf(s);
   const update = publicStatus(
@@ -406,10 +431,11 @@ async function finish(c: MatchCtx, outcome: Outcome): Promise<void> {
 
 /** Tells `arcade` how it ended, so it pays out. The run loop retries until it has. */
 async function report(c: MatchCtx): Promise<void> {
-  if (!c.vars.state.outcome || c.vars.state.reported) return;
+  const { outcome } = c.vars.state;
+  if (!outcome || c.vars.state.reported) return;
   try {
     const s = plain(c.vars.state);
-    await main(c.client()).arcade.finished(s.id, s.outcome!);
+    await main(c.client()).arcade.finished(s.id, outcome);
     c.vars.state.reported = true;
   } catch (err) {
     console.warn(`[match ${c.vars.state.id}] reporting the outcome: ${String(err)}`);

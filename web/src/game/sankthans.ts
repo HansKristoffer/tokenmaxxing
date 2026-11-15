@@ -29,11 +29,13 @@ export function drawBonfire(f: Frame): void {
   const state = bonfireNow();
   if (!state || !inView(f, left(), top(), PILE_PX.w, PILE_PX.h, TILE)) return;
   const pile = pileSprite();
-  const [x, y] = [left(), top()];
+  const x = left();
+  const y = top();
   f.items.push({
     y: (BONFIRE.y + 1) * TILE - 1,
     draw: () => {
       f.g.drawImage(pile, x, y);
+      // The fire swaps between its two frames every 140 ms.
       if (state === "lit") f.g.drawImage(fireSprite(Math.floor(f.now / 140) % 2), x, y);
     },
   });

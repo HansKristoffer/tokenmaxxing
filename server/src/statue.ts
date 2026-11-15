@@ -19,6 +19,7 @@ export async function readLeader(
     const res = await fetcher(LMARENA_ROWS, { signal: AbortSignal.timeout(TIMEOUT_MS) });
     return res.ok ? leaderFrom(await res.json()) : null;
   } catch {
+    // A failed read leaves the statue as it was.
     return null;
   }
 }

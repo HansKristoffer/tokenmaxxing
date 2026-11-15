@@ -19,8 +19,8 @@ import {
 /** The badge on a server payload that may not carry one yet (older server, a bot): missing is NO_PRESTIGE. */
 export const badgeOf = (x: unknown): PrestigeBadge => {
   const b = (x as { prestige?: Partial<PrestigeBadge> } | null | undefined)?.prestige;
-  const rank = Number.isInteger(b?.rank) ? Math.max(0, b!.rank!) : 0;
-  if (rank === 0) return NO_PRESTIGE;
+  const rank = b?.rank;
+  if (rank === undefined || !Number.isInteger(rank) || rank < 1) return NO_PRESTIGE;
   return { rank, runLevel: Math.min(RUN_LEVELS, Math.max(0, Math.floor(b?.runLevel ?? 0))) };
 };
 
@@ -44,7 +44,7 @@ export const cardPrestige = (level: number, badge: PrestigeBadge): CardPrestige 
   };
 };
 
-/** "Prestige II · Cosmic — run level 12/50". */
+/** The prestige tag and the run level out of the run's cap, e.g. "Prestige II · Cosmic" at level 12 of 50. */
 export const runLine = (badge: PrestigeBadge): string =>
   badge.rank > 0 ? `${prestigeTag(badge.rank)} — run level ${badge.runLevel}/${RUN_LEVELS}` : "";
 
@@ -70,6 +70,14 @@ const LABEL = {
   trophy: "Home trophy",
 } as const;
 
+/** The name a reward row shows: the track's own accessory and trophy, or the wearable from the bag. */
+function rewardName(kind: PlanRow["kind"], t: PrestigeTrack, item: CaseItem | undefined): string {
+  if (kind === "petwear") return t.petwear.name;
+  if (kind === "trophy") return t.trophy.name;
+  if (!item) throw new Error(`No ${kind} for prestige track ${t.rank}`);
+  return item.name;
+}
+
 /** The track's six rewards in the order they unlock. */
 export const rewardPlan = (t: PrestigeTrack): PlanRow[] =>
   (["hat", "outfit", "petwear", "back", "aura", "trophy"] as const).map((kind) => {
@@ -77,7 +85,7 @@ export const rewardPlan = (t: PrestigeTrack): PlanRow[] =>
       kind === "petwear" || kind === "trophy"
         ? undefined
         : PRESTIGE_ITEMS.find((i) => i.slot === kind && i.index === 700 + t.rank - 1);
-    const name = kind === "petwear" ? t.petwear.name : kind === "trophy" ? t.trophy.name : item!.name;
+    const name = rewardName(kind, t, item);
     return { kind, level: REWARD_LEVEL[kind], label: LABEL[kind], name, item };
   });
 
@@ -115,12 +123,15 @@ export const runToasts = (rank: number, from: number, to: number): RunToast[] =>
   const entered = from < 0;
   const { rewards, coins } = claimableBetween(rank, Math.max(0, from), to);
   const out: RunToast[] = [];
-  if (entered) out.push({ key: "tag", text: `🎖️ ${prestigeTag(rank)}: your new tag` });
-  else if (to > from)
+  if (entered) {
+    out.push({ key: "tag", text: `🎖️ ${prestigeTag(rank)}: your new tag` });
+  } else {
     out.push({
       key: "level",
       text: `⬆️ Run level ${to}${coins > 0 ? ` · 🪙 ${coins.toLocaleString()}` : ""}`,
     });
+  }
+
   for (const r of rewards)
     if (r.kind !== "tag") out.push({ key: r.kind, text: `${REWARD_ICON[r.kind]} Unlocked: ${r.name}` });
   return out;

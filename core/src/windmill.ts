@@ -40,7 +40,11 @@ export interface Mill {
 type Wind = Pick<Weather, "windMs" | "windDir">;
 
 /** A mill already turning with `wind`, facing into it (a page that opens in a storm finds it spinning). */
-export const newMill = (wind: Wind): Mill => ({ turn: 0, rps: sailRps(wind.windMs), facing: wind.windDir });
+export const newMill = (wind: Wind): Mill => ({
+  turn: 0,
+  rps: sailRps(wind.windMs),
+  facing: wind.windDir,
+});
 
 /**
  * Moves `mill` on by `dt` seconds of `wind`, in place (it runs every frame): the sails ease towards their
@@ -52,9 +56,13 @@ export function turnMill(mill: Mill, wind: Wind, dt: number): Mill {
   // Coming to rest takes forever on a curve: stop once it's too slow to see.
   if (rps === 0 && mill.rps < 0.005) mill.rps = 0;
   mill.turn = (mill.turn + mill.rps * dt) % 1;
-  const off = ((((wind.windDir - mill.facing) % 360) + 540) % 360) - 180;
+
+  // The signed turn from the cap to the wind, in [-180, 180): the shorter way round.
+  const gap = (wind.windDir - mill.facing) % 360;
+  const off = ((gap + 540) % 360) - 180;
   const step = SAILS.winding * dt;
-  mill.facing = (((mill.facing + clamp(off, -step, step)) % 360) + 360) % 360;
+  const facing = mill.facing + clamp(off, -step, step);
+  mill.facing = ((facing % 360) + 360) % 360;
   return mill;
 }
 

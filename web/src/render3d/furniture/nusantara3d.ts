@@ -34,7 +34,10 @@ function cutout(
   at: [number, number, number],
 ) {
   const shape = new THREE.Shape();
-  for (const [i, [x, y]] of pts.entries()) i ? shape.lineTo(x, y) : shape.moveTo(x, y);
+  pts.forEach(([x, y], i) => {
+    if (i === 0) shape.moveTo(x, y);
+    else shape.lineTo(x, y);
+  });
   shape.closePath();
   const geo = new THREE.ExtrudeGeometry(shape, { depth, bevelEnabled: false });
   const o = new THREE.Mesh(geo, toon(color));
@@ -231,6 +234,13 @@ const warungStool = (): Model => {
 
 // MARK: Angkringan cart
 
+/** The three browns of the fried snacks in the cabinet. */
+const friedSnack = (k: number): string => {
+  if (k === 0) return "#a8631f";
+  if (k === 1) return "#c98a3a";
+  return "#8a4f1a";
+};
+
 /** An angkringan: a wooden cart with a glass cabinet of fried snacks, a red tarp, a hanging lamp and a hissing kettle. */
 const angkringanCart = (): Model => {
   const m = new Model();
@@ -269,8 +279,13 @@ const angkringanCart = (): Model => {
     cab.box([CW - 0.06, 0.012, CD - 0.08], BAMBOO, [0, sy, 0], 0.003);
     for (let i = 0; i < 7; i++) {
       for (let j = 0; j < 3; j++) {
-        const shade = (i + j) % 3 === 0 ? "#a8631f" : (i + j) % 3 === 1 ? "#c98a3a" : "#8a4f1a";
-        const o = cab.ball(0.035, shade, [-0.44 + i * 0.145, sy + 0.04, -0.14 + j * 0.14], [1.2, 0.8, 1], 6);
+        const o = cab.ball(
+          0.035,
+          friedSnack((i + j) % 3),
+          [-0.44 + i * 0.145, sy + 0.04, -0.14 + j * 0.14],
+          [1.2, 0.8, 1],
+          6,
+        );
         o.rotation.y = i * 0.7 + j;
       }
     }
@@ -297,8 +312,7 @@ const angkringanCart = (): Model => {
   m.box([0.03, 0.03, 0.03], "#3a3a40", [0.6, 1.275, -0.02], 0.008);
   const spout = m.box([0.03, 0.12, 0.03], "#c9ced6", [0.7, 1.13, -0.02], 0.006);
   spout.rotation.z = -0.9;
-  const handle = m.box([0.2, 0.012, 0.012], "#3a3a40", [0.6, 1.3, -0.02], 0.003);
-  handle.rotation.z = 0.0;
+  m.box([0.2, 0.012, 0.012], "#3a3a40", [0.6, 1.3, -0.02], 0.003);
   const puffs = [0, 1, 2, 3].map(() => m.ball(0.022, "#ffffff", [0.76, 1.2, -0.02], [1, 1, 1], 6));
   ticks.push((t) =>
     puffs.forEach((p, i) => {
@@ -308,7 +322,7 @@ const angkringanCart = (): Model => {
       p.scale.setScalar(1.1 - u * 0.7);
     }),
   );
-  // Glasses and a thermos on the near ledge, a hanging bundle of snack packs at the cart's end.
+  // Three glasses on the near ledge, and a row of snack packs hung at the cart's end.
   for (const x of [0.38, 0.5, 0.62])
     m.cyl(0.03, 0.07, glass("#e8f6fb", 0.5), [x - 0.85, 0.84, D / 2 - 0.12], 0.034, 8);
   for (const [i, c] of [HIBISCUS, SAFFRON, TURQUOISE, CREAM].entries())
@@ -361,7 +375,7 @@ const bonangRack = (): Model => {
     pot(-0.78 + i * 0.3, 0.15, r);
     pot(-0.72 + i * 0.28, -0.15, r - 0.008);
   }
-  // The two mallets: a wooden stick, a cord-wrapped padded head, laid across the middle rest of the front row.
+  // The two mallets lie in the middle of the rack: a wooden stick with a padded head each.
   for (const [x, z, a] of [
     [0.1, 0.0, 0.4],
     [-0.1, 0.02, -0.25],
@@ -382,8 +396,7 @@ const pinisi = (): Model => {
   // The cradle: two cross-members and four posts holding the hull off the floor.
   for (const x of [-0.6, 0.6]) {
     m.box([0.12, 0.05, 0.62], TEAK_DARK, [x, 0.0, 0.0], 0.01);
-    for (const z of [-0.26, 0.26])
-      m.box([0.06, 0.28, 0.06], TEAK_LIGHT, [x, 0.04, z], 0.01).rotation.z = z * 0.0;
+    for (const z of [-0.26, 0.26]) m.box([0.06, 0.28, 0.06], TEAK_LIGHT, [x, 0.04, z], 0.01);
     m.box([0.18, 0.08, 0.5], TEAK, [x, 0.3, 0], 0.02);
   }
   m.box([2.3, 0.04, 0.08], TEAK_DARK, [0, 0.03, -0.28], 0.008);

@@ -2,12 +2,13 @@
 import * as THREE from "three";
 import { blockify } from "../../../web/src/render3d/kit/blocky.ts";
 
-const VOXEL = location.hash === "#voxel";
-
 import { avatarFor } from "../../../web/src/render3d/people/gear3d.ts";
 import { view } from "../../../web/src/render3d/perf/freeze.ts";
 import { petFrom2D } from "../../../web/src/render3d/pets/pets3d.ts";
 
+const VOXEL = location.hash === "#voxel";
+
+// Show every model in the sheet, whatever the freeze view would cull.
 view.sees = () => true;
 const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
 const scene = new THREE.Scene();

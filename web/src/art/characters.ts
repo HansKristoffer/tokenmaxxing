@@ -354,18 +354,16 @@ const LOOT_HAT_ART: Wear[] = LOOT_HATS.map((h) => ({ ...h.rows, pal: h.pal }));
 const LOOT_FACE_ART: Wear[] = LOOT_GLASSES.map((g) => ({ ...g.rows, y: 5, pal: g.pal }));
 
 /** A hat or face thing as `headwear.ts` draws them: the first few here, the pack's after, then loot. */
-const hatArt = (i: number): Wear | undefined =>
-  i < HATS.length
-    ? { ...HATS[i]!, pal: HAT_COLORS[i]! }
-    : i < LOOT_FIRST.hat
-      ? HAT_ART[i - HATS.length]
-      : LOOT_HAT_ART[i - LOOT_FIRST.hat];
-const faceArt = (i: number): Wear | undefined =>
-  i < GLASSES.length
-    ? { ...GLASSES[i]!, y: 5, pal: GLASSES_COLORS[i]! }
-    : i < LOOT_FIRST.glasses
-      ? FACE_ART[i - GLASSES.length]
-      : LOOT_FACE_ART[i - LOOT_FIRST.glasses];
+const hatArt = (i: number): Wear | undefined => {
+  if (i < HATS.length) return { ...HATS[i]!, pal: HAT_COLORS[i]! };
+  if (i < LOOT_FIRST.hat) return HAT_ART[i - HATS.length];
+  return LOOT_HAT_ART[i - LOOT_FIRST.hat];
+};
+const faceArt = (i: number): Wear | undefined => {
+  if (i < GLASSES.length) return { ...GLASSES[i]!, y: 5, pal: GLASSES_COLORS[i]! };
+  if (i < LOOT_FIRST.glasses) return FACE_ART[i - GLASSES.length];
+  return LOOT_FACE_ART[i - LOOT_FIRST.glasses];
+};
 
 /** Over a head whose top is at `oy`; the wearer's own colours fill in what the item leaves out. */
 function wearOn(p: Pen, w: Wear | undefined, view: View, base: Palette, oy = 0, flip = false): void {
@@ -455,7 +453,7 @@ export const characterFrame = cached(
   },
 );
 
-/** A beard on the floor has to be some colour: brown. */
+/** The base colours for a hat or glasses lying on the floor, where there is no wearer: hair 1 is its hair colour. */
 const ON_THE_FLOOR = lookPalette({
   style: 0,
   skin: 0,

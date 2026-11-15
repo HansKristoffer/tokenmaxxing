@@ -82,13 +82,13 @@ AURA_BUILDERS["Event-horizon ring"] = (m, tick) => {
   const vox = isVox(m);
   const geo = vox ? CUBE : SPHERE;
   const rnd = seeded(703);
-  const add = (o: THREE.Object3D, parent: THREE.Object3D = m) => {
+  const add = <T extends THREE.Object3D>(o: T, parent: THREE.Object3D = m): T => {
     o.userData.noBlock = true;
     parent.add(o);
     return o;
   };
   const mesh = (g: THREE.BufferGeometry, mat: THREE.Material, parent: THREE.Object3D = m) =>
-    add(new THREE.Mesh(g, mat), parent) as THREE.Mesh;
+    add(new THREE.Mesh(g, mat), parent);
 
   // The pool of dark underfoot, a ring of light at its edge, and a faint dark halo round the body.
   const pool = mesh(vox ? CUBE : DISC, basic("#07030f", 0.55));
@@ -107,7 +107,12 @@ AURA_BUILDERS["Event-horizon ring"] = (m, tick) => {
   add(thinRing(vox, 0.46, 0.012, basic(PINK, 0.95)), disc);
   add(thinRing(vox, 0.58, 0.006, basic(MAGENTA, 0.6)), disc);
   add(thinRing(vox, 0.34, 0.005, basic(WHITE, 0.55)), disc);
-  const spots = [0, 1, 2].flatMap((i) => {
+  // Each spot has its own orbit radius and speed on the disc.
+  const spots = [
+    { r: 0.46, s: 1.5 },
+    { r: 0.58, s: 1.05 },
+    { r: 0.34, s: 2.1 },
+  ].map(({ r, s }, i) => {
     const head = mesh(geo, basic(i === 0 ? WHITE : PINK, 1), disc);
     head.scale.setScalar(i === 0 ? 0.05 : 0.036);
     const trail = [1, 2, 3, 4].map((j) => {
@@ -115,7 +120,7 @@ AURA_BUILDERS["Event-horizon ring"] = (m, tick) => {
       o.scale.setScalar(0.03 - j * 0.004);
       return o;
     });
-    return [{ head, trail, a: (i / 3) * Math.PI * 2, r: [0.46, 0.58, 0.34][i]!, s: [1.5, 1.05, 2.1][i]! }];
+    return { head, trail, a: (i / 3) * Math.PI * 2, r, s };
   });
 
   // The two rings of bent light round the body, one turning against the other.

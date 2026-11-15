@@ -20,11 +20,12 @@ console.log("in", await room(page));
 const seats = await page.evaluate(() => {
   const m = window.__tm.world.map;
   const out = [];
-  for (let y = m.y0; y < m.y0 + m.height; y++)
+  for (let y = m.y0; y < m.y0 + m.height; y++) {
     for (let x = m.x0; x < m.x0 + m.width; x++) {
       const k = m.kind(x, y);
       if (k.seat) out.push({ x, y, ch: m.at(x, y), kind: k.seat });
     }
+  }
   return out;
 });
 console.log("seats", seats.length);
@@ -48,11 +49,10 @@ for (const s of seats.filter((_, i) => i % step === 0)) {
   await page.waitForTimeout(700);
   const r = await page.evaluate(
     ([sx, sy]) => {
-      const m = window.__tm.self(),
-        R = window.__r3d;
+      const m = window.__tm.self();
+      const R = window.__r3d;
       const p = R?.entities.positionOf(window.__tm.world.selfId);
       const want = R?.stage.view.toWorld(sx, sy);
-      const _e = R?.entities;
       return {
         st: m.state,
         at: [m.x, m.y],
