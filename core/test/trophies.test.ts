@@ -23,9 +23,9 @@ test("nothing earned from nothing", () => {
 
 test("PR trophies go by the Copenhagen clock and say the day they were first earned", () => {
   const pr = (iso: string, hash = "ab") => ({ at: cph(iso), hash });
+  // 10 July 2026 is a Friday, but 3 AM isn't after five, so only the 1 July PR earns 3am.
   expect(trophiesFor({ ...none, prs: [pr("2026-07-10T03:15:00"), pr("2026-07-01T03:59:00")] })).toEqual([
     { id: "3am", day: "2026-07-01" },
-    // 10 July 2026 is a Friday, but 3 AM isn't after five.
   ]);
   expect(ids({ prs: [pr("2026-07-10T04:00:00")] })).toEqual([]);
   expect(ids({ prs: [pr("2026-07-10T17:00:00")] })).toEqual(["friday"]);

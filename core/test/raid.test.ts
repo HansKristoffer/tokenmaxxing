@@ -200,7 +200,7 @@ test("once the Invoice falls the ladder is cleared: no more bosses, the overflow
   );
   expect(more!.kills).toHaveLength(5);
   expect(more!.damage).toBe(530e9);
-  expect(raidCoins([more!], 1)).toBe(raidCoins([w!], 1) + 0);
+  expect(raidCoins([more!], 1)).toBe(raidCoins([w!], 1));
 });
 
 test("a steady town clears about four rungs in the first week", () => {

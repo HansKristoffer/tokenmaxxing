@@ -24,8 +24,7 @@ import {
   treatAt,
   treatSays,
 } from "../src/spooky.ts";
-import { FESTIVE_THEMES, THEME_STEPS, themeOf } from "../src/themes.ts";
-import { drumSteps, notes, voiceSteps } from "../src/tunes.ts";
+import { FESTIVE_THEMES, themeOf } from "../src/themes.ts";
 
 const cph = (at: string) => copenhagenToMs(at)!;
 const town = MAPS.town;
@@ -110,8 +109,8 @@ describe("trick-or-treat", () => {
     expect(treatAt("13,15", "2026-10-31")).toBe(treatAt("13,15", "2026-10-31"));
     const set = new Set(Array.from({ length: 60 }, (_, i) => treatAt(`${i},3`, "2026-10-30")));
     expect(set).toEqual(new Set(["candy", "big", "trick", "nobody"]));
-    const days = new Set(["2026-10-30", "2026-10-31", "2027-10-31"].map((d) => treatAt("5,5", d)));
-    expect(days.size).toBeGreaterThan(0);
+    const treats = new Set(["2026-10-30", "2026-10-31", "2027-10-31"].map((d) => treatAt("5,5", d)));
+    expect(treats.size).toBeGreaterThan(1);
   });
 
   test("about 55 / 15 / 20 / 10 over many doors", () => {
@@ -155,14 +154,8 @@ describe("Gerda", () => {
 });
 
 describe("the music", () => {
-  test("two whole loops that parse, played in the town and the Tavern on the day", () => {
-    for (const t of [HALLOWEEN_TOWN, HALLOWEEN_TAVERN]) {
-      expect(voiceSteps(t.lead)).toBe(THEME_STEPS);
-      expect(voiceSteps(t.bass)).toBe(THEME_STEPS);
-      expect(drumSteps(t.drums)).toBe(THEME_STEPS);
-      expect(() => notes(t.lead)).not.toThrow();
-      expect(() => notes(t.bass)).not.toThrow();
-    }
+  // The loops themselves parse and fill their length in themes.test.ts, which checks every festive track.
+  test("the Halloween tracks play in the town and the Tavern on the day", () => {
     expect(FESTIVE_THEMES.halloween).toEqual({ town: HALLOWEEN_TOWN, tavern: HALLOWEEN_TAVERN });
     expect(themeOf("town", "halloween")).toBe(HALLOWEEN_TOWN);
     expect(themeOf("inn", "halloween")).toBe(HALLOWEEN_TAVERN);
