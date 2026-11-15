@@ -18,6 +18,9 @@ Object.assign(globalThis, {
   navigator: { userAgent: "bun" },
 });
 
+/** Past `Graveyard3D`'s once-a-second look at the stones. */
+const CHECK_AFTER = 5000;
+
 test("the 3D graveyard's stones stand on the plots the 2D game draws and blocks them on", async () => {
   const { setGraves, blocksGrave } = await import("../src/game/graveyard.ts");
   const { world } = await import("../src/game/world.ts");
@@ -40,6 +43,3 @@ test("the 3D graveyard's stones stand on the plots the 2D game draws and blocks 
   expect(yard.group.children).toHaveLength(0);
   yard.dispose();
 });
-
-/** Past `Graveyard3D`'s once-a-second look at the stones. */
-const CHECK_AFTER = 5000;

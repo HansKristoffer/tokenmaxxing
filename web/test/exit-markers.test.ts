@@ -17,7 +17,7 @@ test("an exit's threshold is the walkable tile it is taken from", () => {
   ).toEqual(["S", "u", "x"]);
 });
 
-test("a marker shows only while the player is within reach, pulsing on one shared material", () => {
+test("a marker shows only while the player is within reach, and every marker shares one material", () => {
   const toWorld = (tx: number, ty: number): [number, number] => [tx + 0.5, ty + 0.5];
   const m = new ExitMarkers(MAPS.office, toWorld);
   expect(m.count).toBe(1);

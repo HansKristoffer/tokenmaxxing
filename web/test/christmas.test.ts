@@ -124,7 +124,7 @@ test("the 3D town builds Christmas only in the window, in a handful of meshes, a
   town.dispose();
 });
 
-test("Knud's model stands on the ground, facing +z, with an idle", () => {
+test("Knud's model has an idle tick that runs", () => {
   const model = knudModel(FESTIVE_NPC.christmas!);
   expect(model.userData.tick).toBeFunction();
   model.userData.tick(1.2);

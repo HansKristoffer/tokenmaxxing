@@ -28,7 +28,7 @@ test("every personal-office piece has its art, and every art is a piece", () => 
   }
 });
 
-test("every case piece (every case's) has its art, and every case art is a piece", () => {
+test("every case piece has its art, and every case art is a piece", () => {
   const art = [
     ...CASE_FURNITURE,
     ...NUSANTARA_FURNITURE,

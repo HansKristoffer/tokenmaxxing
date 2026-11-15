@@ -1,6 +1,7 @@
 import { beforeAll, expect, test } from "bun:test";
 import { MAPS } from "@tokenmaxxing/core/maps.ts";
 import { type Listing, MARKET_SLOTS } from "@tokenmaxxing/core/market.ts";
+import { itemById } from "@tokenmaxxing/core/shop.ts";
 import { SHOP_INSET } from "@tokenmaxxing/core/shoprooms.ts";
 import { installHeadlessGlobals } from "../src/render3d/perf/stubs.ts";
 
@@ -63,7 +64,6 @@ test("the hall blocks the tiles the server blocks, and every slot is on a blocke
 });
 
 test("an item gets the picture the shop would show it in", () => {
-  const { itemById } = require("@tokenmaxxing/core/shop.ts") as typeof import("@tokenmaxxing/core/shop.ts");
   expect(slots.iconOf(itemById("pet.2")!)).toEqual({ kind: "pet", pet: 2, variant: 0 });
   const hat = slots.iconOf(itemById("hat.1")!)!;
   expect(hat.kind).toBe("avatar");

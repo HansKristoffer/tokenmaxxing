@@ -62,7 +62,7 @@ test("the visor has all three views on the character's 16 columns, in its palett
   }
 });
 
-test("the robes have a body, a shade, trousers and marks of the right width in every view", () => {
+test("the robes have colours and marks for all three views, inside their palette", () => {
   const o = TRACK.outfit!;
   for (const c of [o.c, o.C, o.p]) expect(c).toMatch(/^#[0-9a-f]{6}$/i);
   for (const view of ["down", "side", "up"] as const) {
@@ -71,7 +71,7 @@ test("the robes have a body, a shade, trousers and marks of the right width in e
   }
 });
 
-test("the cape has every view, and its walking frames are as wide as the standing ones", () => {
+test("the cape has every view, and its walking frames fit the frame", () => {
   const b = TRACK.back!;
   for (const view of ["down", "side", "up"] as const) {
     const v = b.views[view];
@@ -131,7 +131,7 @@ test("a character wearing each piece, blocky or smooth, is dressed in more than 
   }
 });
 
-test("the whole set at once stays light: under a few thousand triangles in either style", async () => {
+test("the whole set at once stays light: under 12000 triangles in either style", async () => {
   const { avatarFor } = await import("../src/render3d/people/gear3d.ts");
   const bare = { style: 0, skin: 1, hair: 2, outfit: 1 };
   const all = Object.fromEntries(mine.map((i) => [i.slot, i.index]));

@@ -44,7 +44,10 @@ test("the grade grows with the intensity and the dark, and stays a colour", () =
       const g = festiveGrade({ id, intensity: 1, days: 0 }, d, w);
       expect(g.k).toBeGreaterThanOrEqual(0);
       expect(g.k).toBeLessThanOrEqual(1);
-      for (const c of g.rgb) (expect(c).toBeGreaterThanOrEqual(0), expect(c).toBeLessThanOrEqual(255));
+      for (const c of g.rgb) {
+        expect(c).toBeGreaterThanOrEqual(0);
+        expect(c).toBeLessThanOrEqual(255);
+      }
     }
   expect(Object.keys(SKY).sort()).toEqual(Object.keys(FESTIVE).sort());
 });

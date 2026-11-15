@@ -13,7 +13,7 @@ const INDEX = PRESTIGE_BASE + 2;
 const items = PRESTIGE_ITEMS.filter((i) => i.index === INDEX);
 const named = (slot: string) => items.find((i) => i.slot === slot)!;
 
-/** Every row is a line of `pal`'s characters (or `.`), exactly `width` wide unless `short`. */
+/** Every row is a line of `pal`'s characters (or `.`), no wider than `width` (16, the character's frame). */
 const checkRows = (what: string, rows: readonly string[], pal: Record<string, string>, width = 16) => {
   for (const [y, row] of rows.entries()) {
     expect(row.length, `${what} row ${y} is ${row.length} wide`).toBeLessThanOrEqual(width);
@@ -143,7 +143,7 @@ test("a character in the set, blocky or smooth, is dressed in more than a bare o
   }
 });
 
-test("the 3D set stays small: the whole set on a blocky character adds a few thousand triangles at most", async () => {
+test("the 3D set stays small: the whole set on a blocky character adds under 9000 triangles", async () => {
   const { avatarFor } = await import("../src/render3d/people/gear3d.ts");
   const tris = (o: THREE.Object3D) => {
     let n = 0;

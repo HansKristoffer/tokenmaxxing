@@ -62,7 +62,7 @@ test("the crown has all three views on the character's 16 columns, in its palett
   }
 });
 
-test("the regalia have a body, a shade, trousers and marks of the right width in every view", () => {
+test("the regalia have colours and marks for all three views, inside their palette", () => {
   const o = TRACK.outfit!;
   for (const c of [o.c, o.C, o.p]) expect(c).toMatch(/^#[0-9a-f]{6}$/i);
   for (const view of ["down", "side", "up"] as const) {
@@ -71,7 +71,7 @@ test("the regalia have a body, a shade, trousers and marks of the right width in
   }
 });
 
-test("the wings have every view, and its walking frames are as wide as the standing ones", () => {
+test("the wings have every view, and its walking frames fit the frame", () => {
   const b = TRACK.back!;
   for (const view of ["down", "side", "up"] as const) {
     const v = b.views[view];
@@ -131,7 +131,7 @@ test("a character wearing each piece, blocky or smooth, is dressed in more than 
   }
 });
 
-test("the whole set at once stays light: under a few thousand triangles in either style", async () => {
+test("the whole set at once stays light: under 12000 triangles in either style", async () => {
   const { avatarFor } = await import("../src/render3d/people/gear3d.ts");
   const bare = { style: 0, skin: 1, hair: 2, outfit: 1 };
   const all = Object.fromEntries(mine.map((i) => [i.slot, i.index]));
@@ -148,12 +148,12 @@ test("the whole set at once stays light: under a few thousand triangles in eithe
   }
 });
 
-test("the crown, the wings and the regalia are Prismatic's: pearl first, the spectrum along the crown's band", () => {
+test("the crown, the wings and the regalia are Prismatic's: their colours are defined and the regalia is pearl", () => {
   const hat = TRACK.hat!;
   for (const c of ["w", "r", "G", "b", "p"]) expect(hat.pal[c], c).toBeDefined();
   for (const view of ["down", "side", "up"] as const) expect(hat[view]!.length, view).toBe(7);
   expect(TRACK.outfit!.c.toLowerCase()).toBe("#f1ecff");
-  // The wings mirror: a feather of the left wing has its twin on the right in the front frames.
+  // Every wing row fits the 16-column frame.
   const rows = TRACK.back!.views.up.front!;
   for (const row of rows) if (row) expect(row.length).toBe(16);
 });

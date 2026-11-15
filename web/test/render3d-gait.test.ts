@@ -181,6 +181,6 @@ test("a walk at a fixed pace reads as one gait in the sampler and the pet trots 
   p.moving = false;
   for (let i = 30; i < 90; i++) p.update(i / 60, 0);
   expect((p.root.children[0] as THREE.Object3D).position.y).toBeCloseTo(0, 6);
-  expect(bobbing).toBeGreaterThanOrEqual(0);
+  expect(bobbing).toBeGreaterThan(0);
   p.dispose();
 });

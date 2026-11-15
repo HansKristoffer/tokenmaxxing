@@ -27,7 +27,7 @@ test("the stall hat has art on 16 columns, merged into the case hats", () => {
   }
 });
 
-test("the stall outfits have six marks views and the held treats a hand", () => {
+test("the stall outfits have marks for all three views and the held treats a hand", () => {
   for (const it of of("outfit")) {
     const o = STALL_OUTFITS[it.index];
     expect(o, it.name).toBeDefined();
@@ -47,7 +47,7 @@ test("the stall outfits have six marks views and the held treats a hand", () => 
   }
 });
 
-test("the art is exactly the catalog, and stays at or above STALL_BASE", () => {
+test("the art is exactly the catalog: nothing missing, nothing extra", () => {
   const keys = (t: Record<string, unknown>) => Object.keys(t).sort();
   expect(keys(STALL_HATS)).toEqual(
     of("hat")

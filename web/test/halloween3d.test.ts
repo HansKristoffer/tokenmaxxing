@@ -75,7 +75,7 @@ test("bats flap and fly, ghosts drift and shy from you", () => {
   town.dispose();
 });
 
-test("Gerda has a model that stands on the ground, ticks, and is the Halloween NPC's", () => {
+test("Gerda's model is the Halloween NPC's and has a tick that runs", () => {
   expect(NPC_MODELS.halloween).toBe(gerdaModel);
   const m = gerdaModel(GERDA);
   expect(count(m)).toBeGreaterThan(5);
