@@ -1073,7 +1073,7 @@ for the renderer; in 2D mode, or on Low, a shop counter opens the old pages inst
 
 ## 3D performance
 
-The 3D engine is measured, not guessed: a headless harness, hardware-independent counts, budgets that a test enforces.
+The 3D engine is measured with a headless harness and hardware-independent counts, and budgets that a test enforces.
 
 **What makes it cheap** (`web/src/render3d/perf/`, `web/src/render3d/engine/pipeline.ts`):
 
@@ -1139,7 +1139,7 @@ The 3D engine is measured, not guessed: a headless harness, hardware-independent
   tilt-shift, 4x MSAA, a 4K map, 24 AO taps. Device pixel ratio times scale is capped at 2. Fps caps, idle and battery
   throttling and the governor live in `game/stage.ts` / `settings/governor.ts`.
 
-**Measure**:
+**Measure.**
 
 - `bun scripts/perf/counts.ts medium|high` prints the per-room counts the budgets check, built headlessly.
 - `bun scripts/perf/game.mjs [--tiers medium,high,ultra] [--walkers 40] [--throttle 4] [--profile|--alloc|--nodes|--meshes|--heap]` measures
