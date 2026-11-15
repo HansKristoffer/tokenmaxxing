@@ -64,8 +64,6 @@ export const NYTAR_NPC: FestiveNpc = {
   ],
 };
 
-// MARK: The clock
-
 /** The stroke of midnight the nearest New Year starts at (ms) and the number of the year it begins. */
 export function midnightOf(ms: number): { at: number; year: number } {
   const show = newYearShow(ms);
@@ -95,8 +93,6 @@ export function nytarCaption(ms: number): string {
   const h = Math.ceil(secs / 3600);
   return `⏳ ${h} t til ${year}`;
 }
-
-// MARK: Shows
 
 const SHOW_MS = 150_000;
 const SHOW_TAIL_MS = 4_000;

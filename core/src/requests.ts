@@ -47,7 +47,14 @@ const RANK: Record<RequestStatus, number> = {
   done: 2,
   declined: 3,
 };
-export const byPile = (a: RequestEntry, b: RequestEntry): number =>
-  RANK[a.status] - RANK[b.status] ||
-  (a.status === "open" || a.status === "planned" ? b.votes - a.votes : 0) ||
-  b.createdAt - a.createdAt;
+export const byPile = (a: RequestEntry, b: RequestEntry): number => {
+  const byStatus = RANK[a.status] - RANK[b.status];
+  if (byStatus !== 0) return byStatus;
+
+  // Only the live requests are ranked by votes; a finished one falls through to its age.
+  const isLive = a.status === "open" || a.status === "planned";
+  const byVotes = isLive ? b.votes - a.votes : 0;
+  if (byVotes !== 0) return byVotes;
+
+  return b.createdAt - a.createdAt;
+};

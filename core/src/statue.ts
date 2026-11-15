@@ -76,8 +76,6 @@ export function withPin(s: StatueState, leader: Leader | null, now: number): Sta
   return { ...s, pin: { leader, since } };
 }
 
-// MARK: LMArena
-
 /** What the ranking is called on the plaque. */
 export const RANKING = "LMArena Text Arena";
 /** Where a player can see it for themselves. */
@@ -124,8 +122,6 @@ export function leaderFrom(body: unknown): Leader | null {
   return best;
 }
 
-// MARK: The plaque
-
 /** LMArena's names for the pool's providers where neither their id, name nor OpenRouter prefix matches. */
 const ORGS: Record<string, ProviderId> = { anthropic: "claude", openai: "codex", moonshot: "kimi" };
 
@@ -134,7 +130,9 @@ const keyOf = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
 /** The pool's provider (`PROVIDERS`) behind an organisation's name, or null for one outside it. */
 export function providerFor(org: string): ProviderId | null {
   const key = keyOf(org);
-  return ORGS[key] ?? findProvider(org)?.id ?? PROVIDERS.find((p) => keyOf(p.openrouter) === key)?.id ?? null;
+  const byName = findProvider(org)?.id;
+  const byPrefix = PROVIDERS.find((p) => keyOf(p.openrouter) === key)?.id;
+  return ORGS[key] ?? byName ?? byPrefix ?? null;
 }
 
 /** The plaque's colour for makers outside the pool: bronze. */
@@ -142,8 +140,11 @@ export const BRONZE = "#9a6a3a";
 
 /** Who made it, for the plaque ("Google"; "Deepseek" for one outside the pool), and their colour. */
 export function makerOf(l: Leader): { name: string; accent: string } {
-  const p = providerFor(l.org);
-  if (p) return { name: providerOf(p).name, accent: providerOf(p).accent };
+  const id = providerFor(l.org);
+  if (id) {
+    const provider = providerOf(id);
+    return { name: provider.name, accent: provider.accent };
+  }
   const name = /[A-Z]/.test(l.org) ? l.org : l.org.replace(/\b\w/g, (c) => c.toUpperCase());
   return { name, accent: BRONZE };
 }
@@ -167,20 +168,20 @@ export function plaqueOf(s: Statue): { sign: string; accent: string; text: strin
       text: "A plinth under a velvet drape. A brass plate reads: THE #1 MODEL. Unveiling soon.",
     };
   const by = makerOf(l);
-  const of = [
+  const details = [
     l.score === null ? "" : `score ${Math.round(l.score)}`,
     l.asOf ? `as of ${dayName(l.asOf)}` : "",
   ]
     .filter(Boolean)
     .join(", ");
+  const detailsText = details ? ` (${details})` : "";
+  const pinnedText = s.pinned ? " Put up by the town." : "";
   return {
     sign: `🏆 #1 ${l.model}`,
     accent: by.accent,
-    text: `The statue of the #1 model: ${l.model}, by ${by.name}. It leads ${l.ranking}${of ? ` (${of})` : ""}.${s.pinned ? " Put up by the town." : ""}`,
+    text: `The statue of the #1 model: ${l.model}, by ${by.name}. It leads ${l.ranking}${detailsText}.${pinnedText}`,
   };
 }
-
-// MARK: The unveiling
 
 /** How long the drape takes to come off a new statue. */
 export const UNVEIL_MS = 6_000;

@@ -27,8 +27,6 @@ const facingTile = (x: number, y: number, facing: Facing): [number, number] => [
   y + DIRS[facing][1],
 ];
 
-// MARK: Pølsevogn
-
 /** The hot dog cart: a rød pølse is on the house. How long it lasts, how much quicker you walk, and its hours. */
 export const POLSE = {
   ms: 10 * 60_000,
@@ -60,8 +58,6 @@ export const hasPolse = (until: number, now: number): boolean => until > now;
 export const stepPace = (polseUntil: number, now: number): number =>
   hasPolse(polseUntil, now) ? POLSE.pace : 1;
 
-// MARK: The build snail
-
 /** It leaves at 07:00 from the left of the square and reaches the goal flag at 17:00, along row `y`. */
 export const SNAIL = { y: 13, from: 4, to: 14, leaves: 7 * 60, arrives: 17 * 60 } as const;
 
@@ -71,7 +67,9 @@ type SnailPhase = "queued" | "deploying" | "deployed";
 export function snailAt(ms: number): { x: number; y: number; phase: SnailPhase; progress: number } {
   const m = clockMinutes(ms);
   const progress = normalize(m, SNAIL.leaves, SNAIL.arrives);
-  const phase = m < SNAIL.leaves ? "queued" : m < SNAIL.arrives ? "deploying" : "deployed";
+  let phase: SnailPhase = "deployed";
+  if (m < SNAIL.leaves) phase = "queued";
+  else if (m < SNAIL.arrives) phase = "deploying";
   return { x: lerp(SNAIL.from, SNAIL.to, progress), y: SNAIL.y, phase, progress };
 }
 
@@ -80,8 +78,6 @@ export const snailTile = (ms: number): [number, number] => {
   const s = snailAt(ms);
   return [Math.round(s.x), s.y];
 };
-
-// MARK: The morning paper
 
 /** When the paperboy sets off, and how fast he bikes (tiles a second). */
 export const PAPER = { at: 7 * 60, tilesPerSecond: 4 } as const;
@@ -97,6 +93,9 @@ export interface Ride {
   at: number;
 }
 
+/** The road under the block row that holds a door on row `y`. */
+const roadBelow = (y: number): number => (Math.floor(y / BLOCK_H) + 1) * BLOCK_H;
+
 /**
  * The paperboy's round: along the road below each row of blocks that has a door, top to bottom,
  * one after the other, from `left` to `right`.
@@ -106,7 +105,7 @@ export function paperRides(
   left: number,
   right: number,
 ): Ride[] {
-  const roads = sortBy([...new Set(doors.map(([, y]) => (Math.floor(y / BLOCK_H) + 1) * BLOCK_H))]);
+  const roads = sortBy([...new Set(doors.map(([, y]) => roadBelow(y)))]);
   const minutes = (right - left) / PAPER.tilesPerSecond / 60;
   return roads.map((y, i) => ({ y, from: left, to: right, at: PAPER.at + i * minutes }));
 }
@@ -122,7 +121,6 @@ export function paperboyAt(rides: readonly Ride[], m: number): { x: number; y: n
 /** When the paper for a door lands: as the paperboy passes it. Null if his round never comes by. */
 export function deliveredAt(rides: readonly Ride[], door: readonly [number, number]): number | null {
   const [x] = paperSpot(door);
-  const road = (Math.floor(door[1] / BLOCK_H) + 1) * BLOCK_H;
-  const r = rides.find((r) => r.y === road);
+  const r = rides.find((r) => r.y === roadBelow(door[1]));
   return r ? r.at + Math.max(0, x - r.from) / PAPER.tilesPerSecond / 60 : null;
 }

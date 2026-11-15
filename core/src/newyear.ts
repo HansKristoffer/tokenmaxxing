@@ -12,6 +12,7 @@ export const NEW_YEAR_MS = 10 * 60_000;
 export function newYearShow(ms: number): Fireworks {
   const { y, m } = worldWall(ms);
   const year = m === 12 ? y + 1 : y;
+  // A four-digit year always matches the pattern `copenhagenToMs` reads.
   const at = copenhagenToMs(`${year}-01-01T00:00`)!;
   return { at, ms: NEW_YEAR_MS, x: 10, y: 10.5, w: 9, h: 3, seed: year };
 }

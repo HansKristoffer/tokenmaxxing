@@ -90,7 +90,8 @@ const BY_CH = new Map<string, Piece>();
 for (const f of [...PIECES, ...COMPANY_FURNITURE, ...HOME_PIECES, ...ALL_CASE_PIECES])
   if (!BY_CH.has(f.ch)) BY_CH.set(f.ch, f);
 
-export const pieceOf = (ch: unknown): Piece | undefined => BY_CH.get(ch as string);
+export const pieceOf = (ch: unknown): Piece | undefined =>
+  typeof ch === "string" ? BY_CH.get(ch) : undefined;
 
 /** How far a piece is turned, in quarter turns clockwise seen from above: 0 as it comes, 1 faces left, 2 away, 3 right. */
 export type Rot = 0 | 1 | 2 | 3;
@@ -130,7 +131,10 @@ export const turnAt = (map: GameMap, x: number, y: number): Turn | null =>
   TURNED.get(map)?.get(`${x},${y}`) ?? null;
 
 /** Wall pieces hang as they are (their writing would read backwards); everything on the floor turns. */
-export const canTurn = (ch: string): boolean => pieceOf(ch) !== undefined && !pieceOf(ch)?.wall;
+export const canTurn = (ch: string): boolean => {
+  const piece = pieceOf(ch);
+  return piece !== undefined && !piece.wall;
+};
 
 /**
  * Where a piece's top-left tile goes when it is turned in place from `from` to `to` on its middle tile, so four
@@ -179,12 +183,19 @@ export const canHang = (map: GameMap, x: number, y: number, w: number, home = fa
 export function wallSpot(map: GameMap, x: number, w: number, home = false): { x: number; y: number } | null {
   const row = wallRowOf(map);
   if (row === null) return null;
-  const cost = (sx: number) =>
-    Math.abs(sx + w / 2 - x - 0.5) +
-    3 * Array.from({ length: w }, (_, i) => i).filter((i) => !map.walkable(sx + i, row + 1)).length;
+  // Distance from the piece's middle to the wanted column, plus three columns for each tile with furniture in front.
+  const cost = (sx: number) => {
+    const distance = Math.abs(sx + w / 2 - x - 0.5);
+    const tilesBlocked = Array.from({ length: w }, (_, i) => i).filter(
+      (i) => !map.walkable(sx + i, row + 1),
+    ).length;
+    return distance + 3 * tilesBlocked;
+  };
+
   let best: number | null = null;
-  for (let sx = map.x0; sx + w <= map.x0 + map.width; sx++)
+  for (let sx = map.x0; sx + w <= map.x0 + map.width; sx++) {
     if (canHang(map, sx, row, w, home) && (best === null || cost(sx) < cost(best))) best = sx;
+  }
   return best === null ? null : { x: best, y: row };
 }
 
@@ -203,11 +214,15 @@ export function withPieces(pieces: readonly Placed[], base: GameMap): GameMap {
     // A wall piece hangs along the wall whatever it says; the rest lie down their column when turned sideways.
     const rot = piece?.wall ? 0 : rotOf(p.rot);
     const tiles = tilesOf(p.x, p.y, w, rot);
-    for (const [tx, ty] of tiles)
+
+    for (const [tx, ty] of tiles) {
       if (piece?.wall || base.walkable(tx, ty)) rows[ty - base.y0]![tx - base.x0] = p.ch;
-    if (rot && canTurn(p.ch))
+    }
+    if (rot && canTurn(p.ch)) {
       for (const [tx, ty] of tiles) turned.set(`${tx},${ty}`, { x: p.x, y: p.y, w, rot });
+    }
   }
+
   const map = new GameMap(
     base.id,
     base.name,
@@ -219,8 +234,6 @@ export function withPieces(pieces: readonly Placed[], base: GameMap): GameMap {
   if (turned.size) TURNED.set(map, turned);
   return map;
 }
-
-// MARK: Doors
 
 /** A door in a company building: whose office, where, and whether it's open (the client draws a 🔒). */
 export interface Door {
@@ -288,6 +301,7 @@ export const withSlots = (owners: readonly Omit<Door, "x" | "y" | "slot">[]): Om
     owners.map((o) => o.userId),
     new Map(),
   );
+  // `assignSlots` gives every id a slot when nothing is kept, so each lookup hits.
   return owners.map((o) => ({ ...o, slot: slots.get(o.userId)! }));
 };
 
@@ -334,11 +348,16 @@ export function hqMap(doors: readonly Door[]): GameMap {
     `W${"_".repeat(floor.width - 2)}W`,
     `W${"_".repeat(floor.width - 2)}W`,
   ];
-  const rows = [...Array.from({ length: -y0 }, (_, i) => hall[i % HALL_H]!), ...floor.rows].map((r) => [
-    ...r,
-  ]);
+  const hallways = Array.from({ length: -y0 }, (_, i) => hall[i % HALL_H]!);
+  const rows = [...hallways, ...floor.rows].map((r) => [...r]);
+
   for (const d of doors) rows[d.y - y0]![d.x] = "R";
-  for (let y = y0 + 2; y < 2; y++) for (let i = 0; i < PASSAGE_W; i++) rows[y - y0]![PASSAGE_X + i] = "_";
+
+  // The passage runs up from the floor through every hallway's wall rows.
+  for (let y = y0 + 2; y < 2; y++) {
+    for (let i = 0; i < PASSAGE_W; i++) rows[y - y0]![PASSAGE_X + i] = "_";
+  }
+
   return new GameMap(
     "hq",
     floor.name,
@@ -360,8 +379,6 @@ export function setHq(companyId: number, doors: readonly Door[]): GameMap {
 /** The door at (x, y) in a building, if any. */
 export const doorAt = (doors: readonly Door[], x: number, y: number): Door | undefined =>
   doors.find((d) => d.x === x && d.y === y);
-
-// MARK: Sizes
 
 export type OfficeTier = 0 | 1 | 2 | 3;
 

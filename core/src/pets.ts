@@ -4,6 +4,8 @@
  * `PET_VARIANTS[pet][n - 1]`). The order is saved in looks, so only ever append to a list. The art for each
  * id is in `web/src/art/pet-variants/`.
  */
+import type { Look } from "./world.ts";
+
 export const PET_VARIANTS: Record<number, readonly string[]> = {
   // Duck
   1: ["mallard", "rubber", "pekin", "swedish", "duckling", "ghost"],
@@ -30,8 +32,6 @@ export const PET_VARIANTS: Record<number, readonly string[]> = {
   // Panda
   5: ["qinling", "polar", "albino", "red"],
 };
-
-import type { Look } from "./world.ts";
 
 /** How many looks a pet has: the original, then its variations. */
 export const petLooks = (pet: number): number => (PET_VARIANTS[pet]?.length ?? 0) + 1;
@@ -76,7 +76,7 @@ export const PET_NAMED: readonly { name: string; pet: number; variant: string; a
 
 /** The costume art id for a worn pet, or null for none: renaming it away takes the costume off. */
 export function petOutfit(look: Pick<Look, "pet" | "petVariant" | "petName">): string | null {
-  const name = cleanPetName(look.petName ?? "")?.toLowerCase();
+  const name = cleanPetName(look.petName)?.toLowerCase();
   const variant = look.petVariant > 0 ? PET_VARIANTS[look.pet]?.[look.petVariant - 1] : undefined;
   if (!name || !variant) return null;
   return (
@@ -91,7 +91,7 @@ export function petOutfit(look: Pick<Look, "pet" | "petVariant" | "petName">): s
  */
 export const PET_ACTS = ["pet", "treat", "trick"] as const;
 export type PetAct = (typeof PET_ACTS)[number];
-export const isPetAct = (v: unknown): v is PetAct => PET_ACTS.includes(v as PetAct);
+export const isPetAct = (v: unknown): v is PetAct => (PET_ACTS as readonly unknown[]).includes(v);
 
 /** Coins a treat costs, and how many a player can give in a world day. Both are checked in the town's SQL. */
 export const TREAT_COST = 2;

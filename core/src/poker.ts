@@ -5,8 +5,6 @@
  * so a hand never makes or loses one.
  */
 
-// MARK: Rules
-
 /** A seat's buy-in, in coins. The table has no other stake: sitting down always costs this. */
 export const BUY_IN = 50;
 export const SMALL_BLIND = 1;
@@ -24,8 +22,6 @@ export const MAX_TIMEOUTS = 2;
 /** The most a player can lose here in a UTC day, buy-ins counted. */
 export const DAILY_LOSS_CAP = 150;
 
-// MARK: Cards
-
 /** 0 to 51: `rank + 13 * suit`. Rank 0 is a deuce, 12 an ace; suits are clubs, diamonds, hearts, spades. */
 export type Card = number;
 
@@ -42,7 +38,7 @@ export const cardFace = (c: Card): { rank: string; suit: string; red: boolean } 
   red: suitOf(c) === 1 || suitOf(c) === 2,
 });
 export const isCard = (v: unknown): v is Card =>
-  Number.isInteger(v) && (v as number) >= 0 && (v as number) < 52;
+  typeof v === "number" && Number.isInteger(v) && v >= 0 && v < 52;
 
 export const freshDeck = (): Card[] => Array.from({ length: 52 }, (_, i) => i);
 
@@ -65,8 +61,6 @@ export function shuffle<T>(cards: T[], rnd: (n: number) => number = randomInt): 
   }
   return cards;
 }
-
-// MARK: Hands
 
 const BASE = 13 ** 5;
 
@@ -174,8 +168,6 @@ export function describe(score: number): string {
       return digit(0) === 12 ? "Royal flush" : `Straight flush, ${RANK_NAMES[digit(0)]} high`;
   }
 }
-
-// MARK: The table
 
 export type Street = "preflop" | "flop" | "turn" | "river";
 
@@ -347,8 +339,6 @@ function plan(t: Table, now: number): void {
   if (t.street === null && t.nextAt === 0 && eligible(t).length >= 2) t.nextAt = now + FIRST_HAND_MS;
 }
 
-// MARK: Dealing
-
 function post(s: Seat, amount: number): void {
   const n = Math.min(s.stack, amount);
   s.stack -= n;
@@ -371,12 +361,15 @@ export function startHand(t: Table, now: number): boolean {
   t.deck = shuffle(freshDeck(), t.rnd);
   t.button = after(t, t.button, (_, i) => players.includes(i));
   // Each in turn from the dealer's left: one card round, then the second.
+  // The dealer, at distance 0, is last: its distance counts as a full table.
   const order = players
     .map((i) => ({ i, k: (i - t.button + SEATS) % SEATS }))
     .sort((a, b) => (a.k || SEATS) - (b.k || SEATS))
     .map((o) => o.i);
   for (const i of order) t.seats[i]!.inHand = true;
-  for (let round = 0; round < 2; round++) for (const i of order) t.seats[i]!.hole.push(t.deck.pop()!);
+  for (let round = 0; round < 2; round++) {
+    for (const i of order) t.seats[i]!.hole.push(t.deck.pop()!);
+  }
   // Heads-up the dealer posts the small blind and acts first before the flop; otherwise the blinds follow
   // the dealer and the seat after the big blind opens.
   const headsUp = players.length === 2;
@@ -391,8 +384,6 @@ export function startHand(t: Table, now: number): boolean {
   next(t, bb, now);
   return true;
 }
-
-// MARK: Betting
 
 /** What `i` may do now: the call, the raise range (to a total bet on this street), whether they can check. */
 export interface Legal {
@@ -487,6 +478,8 @@ function next(t: Table, from: number, now: number): void {
   t.deadline = now + TURN_MS;
 }
 
+const NEXT_STREET = { preflop: "flop", flop: "turn", turn: "river" } as const;
+
 /** The street's betting is over: bets go to the pot and the next cards are dealt, or the hand is shown down. */
 function closeStreet(t: Table, now: number): void {
   for (const s of t.seats) if (s) Object.assign(s, { bet: 0, acted: false });
@@ -497,7 +490,7 @@ function closeStreet(t: Table, now: number): void {
   t.deck.pop(); // the burn card
   const cards = street === "preflop" ? 3 : 1;
   for (let k = 0; k < cards; k++) t.board.push(t.deck.pop()!);
-  t.street = street === "preflop" ? "flop" : street === "flop" ? "turn" : "river";
+  t.street = NEXT_STREET[street];
   for (const s of t.seats) if (s) s.last = s.folded ? s.last : null;
   const acting = t.seats.flatMap((s, i) => (canAct(s) ? [i] : []));
   // Everyone but one is all-in: no more bets to make, the board runs out.
@@ -505,8 +498,6 @@ function closeStreet(t: Table, now: number): void {
   t.toAct = after(t, t.button, (s) => canAct(s));
   t.deadline = now + TURN_MS;
 }
-
-// MARK: Pots
 
 /**
  * The hand's pots: the main pot, and a side pot for each time someone was all-in for less than the rest.
@@ -553,13 +544,16 @@ function award(t: Table, now: number, show: boolean): void {
   const results: PotResult[] = [];
   for (const pot of list) {
     const best = show ? Math.max(...pot.eligible.map((id) => scores.get(byUser.get(id)!)!)) : 0;
-    const winners = (
-      show ? pot.eligible.filter((id) => scores.get(byUser.get(id)!) === best) : pot.eligible
-    ).sort((a, b) => left(a) - left(b));
+    const tied = show ? pot.eligible.filter((id) => scores.get(byUser.get(id)!) === best) : pot.eligible;
+    const winners = tied.sort((a, b) => left(a) - left(b));
+
     const share = Math.floor(pot.amount / winners.length);
     let extra = pot.amount - share * winners.length;
     for (const id of winners) {
-      const n = share + (extra-- > 0 ? 1 : 0);
+      // Chips that do not split evenly go one each to the first winners, left of the dealer.
+      const oddChip = extra > 0 ? 1 : 0;
+      extra -= oddChip;
+      const n = share + oddChip;
       t.seats[byUser.get(id)!]!.stack += n;
       won[id] = (won[id] ?? 0) + n;
     }
@@ -600,8 +594,6 @@ function finish(t: Table, now: number): void {
   t.nextAt = eligible(t).length >= 2 ? now + NEXT_HAND_MS : 0;
   bump(t);
 }
-
-// MARK: Leaving and time
 
 /**
  * Stands seat `i` up. Between hands it goes at once and its stack is owed to the wallet; in a hand it folds
@@ -652,8 +644,6 @@ export function settled(t: Table, owed: readonly Owed[], v: number): void {
   t.owed = t.owed.filter((o) => !owed.includes(o));
   if (t.v === v) t.dirty = false;
 }
-
-// MARK: What each side sees
 
 export interface SeatView {
   userId: number;

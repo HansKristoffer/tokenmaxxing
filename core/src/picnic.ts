@@ -50,7 +50,9 @@ export function nextOutage(
   readings: Partial<Record<Provider, boolean | null>>,
   now: number,
 ): Outage | null {
-  const down = typedKeys(STATUS_PAGES).filter((p) => readings[p] ?? prev?.down.includes(p) ?? false);
+  // A page that gave no reading keeps the state it had.
+  const wasDown = (p: Provider) => prev?.down.includes(p) ?? false;
+  const down = typedKeys(STATUS_PAGES).filter((p) => readings[p] ?? wasDown(p));
   if (down.length === 0) return null;
   return { down, since: prev?.since ?? now };
 }
@@ -58,6 +60,12 @@ export function nextOutage(
 /** Whether two outages look the same to a player (who's down, and which picnic it is). */
 export const sameOutage = (a: Outage | null, b: Outage | null): boolean =>
   a === b || (!!a && !!b && a.since === b.since && a.down.join() === b.down.join());
+
+const FORCED = new Map<string, Provider[]>([
+  ["claude", ["Claude"]],
+  ["openai", ["OpenAI"]],
+  ["both", ["Claude", "OpenAI"]],
+]);
 
 /**
  * `PICNIC_OUTAGE` on the server, `?picnic=` in the page: `claude`, `openai` or `both` force an outage
@@ -67,16 +75,14 @@ export function forcedOutage(raw: string | null | undefined, now: number): Outag
   const v = raw?.trim().toLowerCase();
   if (!v) return undefined;
   if (v === "off") return null;
-  const down: Provider[] =
-    v === "claude" ? ["Claude"] : v === "openai" ? ["OpenAI"] : v === "both" ? ["Claude", "OpenAI"] : [];
-  return down.length ? { down, since: now } : undefined;
+
+  const down = FORCED.get(v);
+  return down ? { down: [...down], since: now } : undefined;
 }
 
 /** What the banner says. */
 export const bannerFor = (o: Outage): string =>
   `${o.down.join(" and ")} ${o.down.length > 1 ? "are" : "is"} down. Touch grass.`;
-
-// MARK: The blankets
 
 /** A blanket on the lawn at the square's south-west end, in town tiles (the square is always at block (0, 0)). */
 interface Blanket {

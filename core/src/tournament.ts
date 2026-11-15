@@ -36,8 +36,9 @@ export interface TournamentState {
   createdAt: number;
 }
 
-export const isSize = (n: unknown): n is Size => n === 4 || n === 8;
-export const isTournamentGame = (g: unknown): g is GameId => TOURNAMENT_GAMES.includes(g as GameId);
+export const isSize = (n: unknown): n is Size => (SIZES as readonly unknown[]).includes(n);
+export const isTournamentGame = (g: unknown): g is GameId =>
+  (TOURNAMENT_GAMES as readonly unknown[]).includes(g);
 
 /** Whether an open board should start now. */
 export const startDue = (t: TournamentState, now: number): boolean =>
@@ -79,8 +80,9 @@ export function makeBracket(players: readonly number[], seed: number): Bracket {
     winner: null,
   }));
   const rounds: Bracket = [first];
-  for (let n = half / 2; n >= 1; n /= 2)
+  for (let n = half / 2; n >= 1; n /= 2) {
     rounds.push(Array.from({ length: n }, () => ({ a: null, b: null, winner: null })));
+  }
   // A bye wins by showing up.
   first.forEach((m, i) => {
     if (m.a !== null && m.b === null) place(rounds, 0, i, m.a);
@@ -91,6 +93,8 @@ export function makeBracket(players: readonly number[], seed: number): Bracket {
 /** Records `winner` of match `i` in round `r`, and puts them in the next round's slot. Mutates. */
 function place(rounds: Bracket, r: number, i: number, winner: number): void {
   rounds[r]![i]!.winner = winner;
+
+  // Matches 2k and 2k + 1 of a round meet in match k of the next, as its first and second player.
   const next = rounds[r + 1]?.[i >> 1];
   if (next) next[i % 2 === 0 ? "a" : "b"] = winner;
 }
@@ -102,7 +106,7 @@ function place(rounds: Bracket, r: number, i: number, winner: number): void {
 export function report(bracket: Bracket, a: number, b: number, winner: number): Bracket | null {
   if (winner !== a && winner !== b) return null;
   const rounds = structuredClone(bracket);
-  for (const [r, round] of rounds.entries())
+  for (const [r, round] of rounds.entries()) {
     for (const [i, m] of round.entries()) {
       if (m.winner !== null || m.a === null || m.b === null) continue;
       if ((m.a === a && m.b === b) || (m.a === b && m.b === a)) {
@@ -110,6 +114,7 @@ export function report(bracket: Bracket, a: number, b: number, winner: number): 
         return rounds;
       }
     }
+  }
   return null;
 }
 
@@ -122,8 +127,10 @@ export const champion = (bracket: Bracket): number | null => bracket.at(-1)?.[0]
 
 /** "Final", "Semifinal", then "Round 1"... */
 export function roundName(rounds: number, r: number): string {
-  const left = rounds - r;
-  return left === 1 ? "Final" : left === 2 ? "Semifinal" : `Round ${r + 1}`;
+  const roundsLeft = rounds - r;
+  if (roundsLeft === 1) return "Final";
+  if (roundsLeft === 2) return "Semifinal";
+  return `Round ${r + 1}`;
 }
 
 /** What the board shows, with names filled in by the server. */

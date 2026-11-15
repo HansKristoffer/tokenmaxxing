@@ -55,8 +55,14 @@ const BLANKETS: readonly [number, number][] = [
 ];
 
 /** How many of a list show at this intensity (`festive.ts`): more as the 23rd comes on. */
-export const flagCount = (intensity: number): number => (intensity < 0.6 ? 2 : intensity < 0.85 ? 4 : 6);
-export const blanketCount = (intensity: number): number => (intensity < 0.6 ? 1 : intensity < 0.85 ? 2 : 3);
+export const flagCount = (intensity: number): number => {
+  if (intensity < 0.6) return 2;
+  return intensity < 0.85 ? 4 : 6;
+};
+export const blanketCount = (intensity: number): number => {
+  if (intensity < 0.6) return 1;
+  return intensity < 0.85 ? 2 : 3;
+};
 /** The glow-worms over the lawn: a handful at the start of the window, a swarm at the bonfire. */
 export const wormCount = (intensity: number): number => Math.round(6 + 14 * intensity);
 

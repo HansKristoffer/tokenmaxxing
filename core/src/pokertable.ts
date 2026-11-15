@@ -1,4 +1,4 @@
-import { type GameMap, MAPS } from "./maps.ts";
+import { type GameMap, MAPS, tileBounds } from "./maps.ts";
 import { SEATS } from "./poker.ts";
 import type { Facing } from "./world.ts";
 
@@ -23,13 +23,7 @@ export interface ChairSpot {
 
 /** The table's tiles as a rectangle, or null if the map has none. */
 export function pokerTable(map: GameMap = MAPS.basement): TableSpot | null {
-  const tiles = map.find(TABLE_CHAR);
-  if (tiles.length === 0) return null;
-  const xs = tiles.map(([x]) => x);
-  const ys = tiles.map(([, y]) => y);
-  const x = Math.min(...xs);
-  const y = Math.min(...ys);
-  return { x, y, w: Math.max(...xs) - x + 1, h: Math.max(...ys) - y + 1 };
+  return tileBounds(map.find(TABLE_CHAR));
 }
 
 /**
@@ -41,11 +35,18 @@ export function pokerChairs(map: GameMap = MAPS.basement): ChairSpot[] {
   if (!table) return [];
   const cx = table.x + table.w / 2;
   const cy = table.y + table.h / 2;
+  // A chair faces the table from whichever side of it the chair stands on.
+  const facingTable = (x: number, y: number): Facing => {
+    if (y < table.y) return "down";
+    if (y >= table.y + table.h) return "up";
+    if (x < table.x) return "right";
+    return "left";
+  };
+
   return map
     .find(CHAIR_CHAR)
     .map(([x, y]) => {
-      const facing: Facing =
-        y < table.y ? "down" : y >= table.y + table.h ? "up" : x < table.x ? "right" : "left";
+      const facing = facingTable(x, y);
       return { x, y, facing, angle: Math.atan2(y + 0.5 - cy, x + 0.5 - cx) };
     })
     .sort((a, b) => a.angle - b.angle)

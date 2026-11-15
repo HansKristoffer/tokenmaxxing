@@ -51,6 +51,7 @@ function offsetAt(ms: number): number {
   if (offset === undefined) {
     const w = intlWall(hour * HOUR);
     offset = Date.UTC(w.y, w.m - 1, w.d, w.hour, w.minute, w.second) - hour * HOUR;
+    // A bound on the cache, so a long-running server cannot grow it without end.
     if (offsets.size >= 100_000) offsets.clear();
     offsets.set(hour, offset);
   }

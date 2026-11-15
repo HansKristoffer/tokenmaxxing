@@ -90,8 +90,6 @@ export function specialOn(at: Date): string {
   return SPECIALS[specialIndex(copenhagenDay(at))]!;
 }
 
-// MARK: The special, served
-
 /** What a served special does: cosmetic, like coffee. It buys no pace and costs nothing. */
 export const BUFFS = ["jitter", "glow"] as const;
 export type Buff = (typeof BUFFS)[number];

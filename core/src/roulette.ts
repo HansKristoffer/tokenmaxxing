@@ -94,15 +94,20 @@ export function wins(on: BetOn, pocket: number): boolean {
 export function checkBets(raw: unknown): { bets: Bet[] } | { refused: string } {
   if (!Array.isArray(raw) || raw.length === 0) return { refused: "Place a bet first." };
   if (raw.length > MAX_BETS) return { refused: `At most ${MAX_BETS} bets a spin.` };
+
   const merged = new Map<BetOn, number>();
   for (const b of raw) {
     const on = (b as { on?: unknown } | null)?.on;
     const stake = (b as { stake?: unknown } | null)?.stake;
     if (!isBetOn(on)) return { refused: "That bet isn't on the table." };
-    if (typeof stake !== "number" || !Number.isInteger(stake) || stake < MIN_STAKE)
-      return { refused: `A chip is at least ${MIN_STAKE} coin.` };
+
+    // A chip is a whole number of coins, at least the minimum.
+    const isWholeChip = typeof stake === "number" && Number.isInteger(stake) && stake >= MIN_STAKE;
+    if (!isWholeChip) return { refused: `A chip is at least ${MIN_STAKE} coin.` };
+
     merged.set(on, (merged.get(on) ?? 0) + stake);
   }
+
   const bets = [...merged].map(([on, stake]) => ({ on, stake }));
   const total = bets.reduce((a, b) => a + b.stake, 0);
   if (total > MAX_SPIN) return { refused: `The table takes at most ${MAX_SPIN} coins a spin.` };
@@ -136,8 +141,6 @@ export function settle(bets: readonly Bet[], pocket: number): Settled {
 
 /** A pocket from a uniform `rand` in [0, 1). */
 export const spinPocket = (rand: () => number): number => Math.min(36, Math.floor(rand() * 37));
-
-// MARK: The table in the net cafe (what everyone in the room sees)
 
 /** Who stands where at the table: `spot` is the index of the `♥` tile, left to right. */
 export interface RouletteSeat {
