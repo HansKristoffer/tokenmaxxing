@@ -30,7 +30,7 @@ export function pumpkinsOutNow(): boolean {
 let spots: { map: GameMap; pumpkins: Pumpkin[] } | null = null;
 
 /** The pumpkins in town now, or none. */
-export function pumpkinsNow(): Pumpkin[] {
+function pumpkinsNow(): Pumpkin[] {
   if (world.room !== "town" || !pumpkinsOutNow()) return [];
   if (spots?.map !== world.map) spots = { map: world.map, pumpkins: pumpkinSpots(world.map) };
   return spots.pumpkins;

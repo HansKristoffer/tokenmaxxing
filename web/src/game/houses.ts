@@ -36,6 +36,13 @@ export function buildings(map: GameMap): Building[] {
 export const buildingAt = (x: number, y: number): Building | undefined =>
   buildings(world.map).find((b) => x >= b.x && x < b.x + b.w && y >= b.y && y < b.y + b.h);
 
+const STEPS = [
+  [1, 0],
+  [-1, 0],
+  [0, 1],
+  [0, -1],
+] as const;
+
 /** Largest building the door search walks through; past that it is fences or trees, not a building. */
 const BUILDING_MAX_TILES = 120;
 
@@ -50,17 +57,13 @@ export function doorOf(map: GameMap, x: number, y: number): [number, number] | n
     return null;
   const seen = new Set([`${x},${y}`]);
   const queue: [number, number][] = [[x, y]];
+  // Walked through the building's own tiles; a portal (a door) ends the walk.
   let best: [number, number] | null = null;
   let bestD = Infinity;
   for (let i = 0; i < queue.length; i++) {
     if (seen.size > BUILDING_MAX_TILES) return null;
     const [cx, cy] = queue[i]!;
-    for (const [dx, dy] of [
-      [1, 0],
-      [-1, 0],
-      [0, 1],
-      [0, -1],
-    ] as const) {
+    for (const [dx, dy] of STEPS) {
       const nx = cx + dx;
       const ny = cy + dy;
       const key = `${nx},${ny}`;
@@ -68,7 +71,10 @@ export function doorOf(map: GameMap, x: number, y: number): [number, number] | n
       seen.add(key);
       if (map.kind(nx, ny).portal) {
         const d = Math.abs(nx - x) + Math.abs(ny - y);
-        if (d < bestD) [best, bestD] = [[nx, ny], d];
+        if (d < bestD) {
+          best = [nx, ny];
+          bestD = d;
+        }
       } else if (!map.walkable(nx, ny)) queue.push([nx, ny]);
     }
   }

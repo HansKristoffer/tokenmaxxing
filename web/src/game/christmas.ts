@@ -56,6 +56,14 @@ import { candlesLit } from "./halloween.ts";
 import { skyNow } from "./sky.ts";
 import { world } from "./world.ts";
 
+/** The gift pile's box positions, in the order they fill: x and y offsets within a tile. */
+const SLOTS: [number, number][] = [
+  [4, 8],
+  [10, 9],
+  [6, 2],
+  [12, 3],
+];
+
 /** Christmas in play in the town now (the theme is on and we are in the square's room), or null. */
 export const christmasNow = (): Festive | null => {
   if (world.room !== "town") return null;
@@ -220,12 +228,6 @@ export function drawChristmas(f: Frame): void {
 
   // The gifts: up to four on each side of the trunk, the stacks growing a box a day.
   const boxes = giftsShown(p);
-  const SLOTS: [number, number][] = [
-    [4, 8],
-    [10, 9],
-    [6, 2],
-    [12, 3],
-  ];
   for (const [side, tile] of GIFT_TILES.entries())
     for (let k = 0; k < SLOTS.length; k++) {
       if (side + k * 2 >= boxes) continue;

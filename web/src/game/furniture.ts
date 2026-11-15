@@ -43,6 +43,9 @@ export const undoStack = new UndoStack();
 
 const itemOf = (m: GhostMode) => (m.kind === "move" ? m.drop.item : m.item);
 
+/** What a failed furnishing call says: the server's message, or a plain one. */
+const failed = (e: unknown) => hud.set({ dialog: e instanceof Error ? e.message : "That didn't work." });
+
 /** Whether a piece of furniture could stand with its top-left tile on `t` (turned as the ghost is), as the client sees the room. */
 export function fitsHere(mode: GhostMode, t: Tile): boolean {
   return ghostFits(
@@ -106,14 +109,11 @@ export function rotate(): void {
   const was = rotOf(drop.rot);
   const next = rotOf(was + 1);
   const at = turnedAround(drop.x, drop.y, pieceOfDrop(drop)?.w ?? 1, was, next);
-  void conn.move(drop.id, at.x, at.y, next).then(
-    (r) => {
-      hud.set({ dialog: r.notice });
-      if (r.drop && rotOf(r.drop.rot) !== was)
-        undoStack.push({ kind: "move", room: drop.room, id: drop.id, x: drop.x, y: drop.y, rot: was });
-    },
-    (e: unknown) => hud.set({ dialog: e instanceof Error ? e.message : "That didn't work." }),
-  );
+  void conn.move(drop.id, at.x, at.y, next).then((r) => {
+    hud.set({ dialog: r.notice });
+    if (r.drop && rotOf(r.drop.rot) !== was)
+      undoStack.push({ kind: "move", room: drop.room, id: drop.id, x: drop.x, y: drop.y, rot: was });
+  }, failed);
 }
 
 /**
@@ -182,7 +182,6 @@ export function confirm(): void {
   }
   const turned = ghost.rot;
   cancel();
-  const fail = (e: unknown) => hud.set({ dialog: e instanceof Error ? e.message : "That didn't work." });
   if (m.kind === "move") {
     const from = m.drop;
     const was = rotOf(from.rot);
@@ -190,7 +189,7 @@ export function confirm(): void {
       hud.set({ dialog: r.notice });
       if (r.drop && (r.drop.x !== from.x || r.drop.y !== from.y || rotOf(r.drop.rot) !== was))
         undoStack.push({ kind: "move", room: from.room, id: from.id, x: from.x, y: from.y, rot: was });
-    }, fail);
+    }, failed);
     return;
   }
   const at = { ...t, rot: turned };
@@ -207,7 +206,7 @@ export function confirm(): void {
       ...(r.drop.co !== undefined && { co: r.drop.co }),
     });
     await Promise.all([refreshMe(), refreshWallet()]);
-  }, fail);
+  }, failed);
 }
 
 /** Remembers a piece of mine taken off the floor (G), so Ctrl/Cmd+Z can put it back. */
@@ -248,7 +247,7 @@ export async function undo(): Promise<void> {
     hud.set({ dialog: r ? `Undo: ${r.notice}` : "Undo: that's gone." });
     await Promise.all([refreshMe(), refreshWallet()]);
   } catch (e) {
-    hud.set({ dialog: e instanceof Error ? e.message : "That didn't work." });
+    failed(e);
   } finally {
     undoing = false;
   }

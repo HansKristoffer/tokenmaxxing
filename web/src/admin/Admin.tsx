@@ -223,13 +223,7 @@ function Table<T extends { id: number }>({
 }) {
   const [by, setBy] = useState({ col: initial, desc: true });
   const key = columns[by.col]?.sort;
-  const sorted = !key
-    ? rows
-    : [...rows].sort((a, b) => {
-        const [x, y] = [key(a), key(b)];
-        const d = x < y ? -1 : x > y ? 1 : 0;
-        return by.desc ? -d : d;
-      });
+  const sorted = !key ? rows : [...rows].sort((a, b) => compareKeys(key(a), key(b), by.desc));
   return (
     <div className="scroll">
       <table>
@@ -273,6 +267,13 @@ function Table<T extends { id: number }>({
       </table>
     </div>
   );
+}
+
+/** Orders two sort keys; `desc` reverses the order. Keys that are neither less nor greater count as equal. */
+function compareKeys(x: number | string, y: number | string, desc: boolean): number {
+  if (x < y) return desc ? 1 : -1;
+  if (x > y) return desc ? -1 : 1;
+  return 0;
 }
 
 const date = (ms: number) => new Date(ms).toLocaleDateString(undefined, { dateStyle: "medium" });
@@ -368,73 +369,76 @@ function Users({ users, conn, act }: { users: AdminUser[]; conn: AdminConn; act:
     { label: "Joined", sort: (u) => u.createdAt, cell: (u) => date(u.createdAt) },
     {
       label: "",
-      cell: (u) => (
-        <div className="actions">
-          <button
-            type="button"
-            onClick={() => {
-              const name = askName(u.name);
-              if (name) void act(() => conn.adminRenameUser(u.id, name), `Renamed to ${name}.`);
-            }}
-          >
-            Rename
-          </button>
-          {u.bio && (
+      cell: (u) => {
+        const { company } = u;
+        return (
+          <div className="actions">
             <button
               type="button"
               onClick={() => {
-                if (window.confirm(`Clear ${u.name}'s bio?`))
-                  void act(() => conn.adminClearBio(u.id), `Cleared ${u.name}'s bio.`);
+                const name = askName(u.name);
+                if (name) void act(() => conn.adminRenameUser(u.id, name), `Renamed to ${name}.`);
               }}
             >
-              Clear bio
+              Rename
             </button>
-          )}
-          {u.company && (
-            <button
-              type="button"
-              onClick={() => {
-                if (window.confirm(`Take ${u.name} out of ${u.company!.name}?`))
-                  void act(() => conn.adminRemoveFromCompany(u.id), `${u.name} left ${u.company!.name}.`);
-              }}
-            >
-              Remove from company
-            </button>
-          )}
-          {u.tokensTotal > 0 && (
+            {u.bio && (
+              <button
+                type="button"
+                onClick={() => {
+                  if (window.confirm(`Clear ${u.name}'s bio?`))
+                    void act(() => conn.adminClearBio(u.id), `Cleared ${u.name}'s bio.`);
+                }}
+              >
+                Clear bio
+              </button>
+            )}
+            {company && (
+              <button
+                type="button"
+                onClick={() => {
+                  if (window.confirm(`Take ${u.name} out of ${company.name}?`))
+                    void act(() => conn.adminRemoveFromCompany(u.id), `${u.name} left ${company.name}.`);
+                }}
+              >
+                Remove from company
+              </button>
+            )}
+            {u.tokensTotal > 0 && (
+              <button
+                type="button"
+                className="danger"
+                onClick={() => {
+                  if (
+                    confirmName(
+                      `Wipe ${u.name}'s usage? Every synced event goes, with the coins and levels it earned.`,
+                      u.name,
+                    )
+                  )
+                    void act(() => conn.adminWipeUsage(u.id), `Wiped ${u.name}'s usage.`);
+                }}
+              >
+                Wipe usage
+              </button>
+            )}
             <button
               type="button"
               className="danger"
               onClick={() => {
                 if (
                   confirmName(
-                    `Wipe ${u.name}'s usage? Every synced event goes, with the coins and levels it earned.`,
+                    `Delete ${u.name}? Their usage, coins and items go, and the app and browser sign them out.`,
                     u.name,
                   )
                 )
-                  void act(() => conn.adminWipeUsage(u.id), `Wiped ${u.name}'s usage.`);
+                  void act(() => conn.adminDeleteUser(u.id), `Deleted ${u.name}.`);
               }}
             >
-              Wipe usage
+              Delete
             </button>
-          )}
-          <button
-            type="button"
-            className="danger"
-            onClick={() => {
-              if (
-                confirmName(
-                  `Delete ${u.name}? Their usage, coins and items go, and the app and browser sign them out.`,
-                  u.name,
-                )
-              )
-                void act(() => conn.adminDeleteUser(u.id), `Deleted ${u.name}.`);
-            }}
-          >
-            Delete
-          </button>
-        </div>
-      ),
+          </div>
+        );
+      },
     },
   ];
   return (
@@ -610,12 +614,10 @@ function Requests({ requests, conn, act }: { requests: RequestEntry[]; conn: Adm
         <select
           aria-label={`Status of "${r.text}"`}
           value={r.status}
-          onChange={(e) =>
-            void act(
-              () => conn.adminSetRequest(r.id, e.target.value as RequestStatus),
-              `Marked it ${STATUS_LABEL[e.target.value as RequestStatus]}.`,
-            )
-          }
+          onChange={(e) => {
+            const status = e.target.value as RequestStatus;
+            void act(() => conn.adminSetRequest(r.id, status), `Marked it ${STATUS_LABEL[status]}.`);
+          }}
         >
           {REQUEST_STATUSES.map((s) => (
             <option key={s} value={s}>

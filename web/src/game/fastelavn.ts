@@ -37,9 +37,10 @@ export function drawBarrel(f: Frame): void {
     const rest = brokenSprite();
     f.items.push({ y: bottom - 2, draw: () => f.g.drawImage(rest, left + 14, bottom - rest.height - 1) });
   } else {
-    // A whack swings it a little: a pixel either way, off the hits so far.
-    const swing = (b?.hits ?? 0) % 3 === 1 ? 1 : (b?.hits ?? 0) % 3 === 2 ? -1 : 0;
-    const s = barrelSprite(cracks(b?.hits ?? 0));
+    // A whack swings it a little: a pixel either way, by the hits so far.
+    const hits = b?.hits ?? 0;
+    const swing = [0, 1, -1][hits % 3]!;
+    const s = barrelSprite(cracks(hits));
     f.items.push({
       y: bottom - 1,
       draw: () => f.g.drawImage(s, left + BARREL_AT.x + swing, top + BARREL_AT.y),
@@ -55,12 +56,12 @@ export const blocksBarrel = (x: number, y: number): boolean =>
 
 /** E facing the barrel: a whack. False when it isn't there. */
 export function barrelInteract(
-  me: { x: number; y: number; facing: Facing },
+  facing: Facing,
   x: number,
   y: number,
   send: (r: Promise<StepResult>) => void,
 ): boolean {
   if (!blocksBarrel(x, y)) return false;
-  send(conn.whack(me.facing));
+  send(conn.whack(facing));
   return true;
 }

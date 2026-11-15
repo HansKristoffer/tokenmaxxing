@@ -281,8 +281,7 @@ export function goToShopDoor(shop: ShopId): boolean {
 const avoidProps = (x: number, y: number): boolean => blocksAgustusan(x, y) || blocksFestiveNpc(x, y);
 
 /** The next leg of the trip to `heading`: the shop's door in town, otherwise this room's way out. */
-function planTrip(me: { x: number; y: number }): void {
-  const shop = heading!;
+function planTrip(me: { x: number; y: number }, shop: ShopId): void {
   if (world.room === SHOP_ROOM[shop]) {
     heading = null;
     return;
@@ -343,7 +342,7 @@ export function send(result: Promise<StepResult>): void {
         return;
       }
       const me = self();
-      // Same room: the server disagreed (too fast, a seat) — take its word. Another room: a snapshot follows.
+      // Same room: the server disagreed (too fast, a seat); take its word. Another room: a snapshot follows.
       if (me && r.room === world.room) {
         Object.assign(me, { x: r.x, y: r.y, facing: r.facing, state: r.state, from: null });
         world.portalPending = false;
@@ -415,7 +414,7 @@ export function updateSelf(now: number): void {
     lastRoom = world.room;
   }
   if (heading && (held.length > 0 || tapped)) heading = null;
-  if (heading && path.length === 0 && !onArrival) planTrip(me);
+  if (heading && path.length === 0 && !onArrival) planTrip(me, heading);
   // At a game table: stay put until the game is over. At the poker table: until you leave it.
   if (me.state === "playing" || atPoker() || atRoulette()) {
     tapped = null;
@@ -466,24 +465,7 @@ export function updateSelf(now: number): void {
     if (t.act !== "walk") return;
   }
   const step = stepTarget(world.map, me.x, me.y, dir);
-  const target =
-    step.kind === "move" &&
-    (blocksStep(step.x, step.y) ||
-      blocksLaunch(step.x, step.y) ||
-      blocksTruck(step.x, step.y) ||
-      blocksBarrel(step.x, step.y) ||
-      blocksBonfire(step.x, step.y) ||
-      blocksGrave(step.x, step.y) ||
-      blocksSpooky(step.x, step.y) ||
-      blocksChristmas(step.x, step.y) ||
-      festiveNpcAt(step.x, step.y) ||
-      nytarBlocks(step.x, step.y) ||
-      blocksPaaske(step.x, step.y) ||
-      blocksBefrielsen(step.x, step.y) ||
-      blocksAgustusan(step.x, step.y) ||
-      blocksFestiveNpc(step.x, step.y))
-      ? { kind: "blocked" as const }
-      : step;
+  const target = step.kind === "move" && blockedStep(step.x, step.y) ? { kind: "blocked" as const } : step;
   if (target.kind === "blocked") {
     // (Christmas's tree and Knud are only the client's: the server would walk us through, so it isn't told.)
     const ours = step.kind === "move" && blocksChristmas(step.x, step.y);
@@ -505,6 +487,22 @@ export function updateSelf(now: number): void {
     );
   send(conn.step(dir));
 }
+
+/** Whether a step onto (x, y) is blocked by something in the world or by a festive prop or NPC. */
+const blockedStep = (x: number, y: number): boolean =>
+  blocksStep(x, y) ||
+  blocksLaunch(x, y) ||
+  blocksTruck(x, y) ||
+  blocksBarrel(x, y) ||
+  blocksBonfire(x, y) ||
+  blocksGrave(x, y) ||
+  blocksSpooky(x, y) ||
+  blocksChristmas(x, y) ||
+  festiveNpcAt(x, y) ||
+  nytarBlocks(x, y) ||
+  blocksPaaske(x, y) ||
+  blocksBefrielsen(x, y) ||
+  blocksAgustusan(x, y);
 
 /** Facing one of my own pieces: the keys that take it back or move it, shown at the bottom. */
 function updatePieceHint(me: ReturnType<typeof self>): void {
@@ -594,7 +592,7 @@ function interact(): void {
   if (streetInteract(me, x, y, send)) return;
   if (windmillInteract(x, y)) return;
   if (truckInteract(x, y)) return;
-  if (barrelInteract(me, x, y, send)) return;
+  if (barrelInteract(me.facing, x, y, send)) return;
   if (bonfireInteract(x, y)) return;
   if (launchInteract(me)) return;
   if (graveInteract(me)) return;

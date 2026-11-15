@@ -9,6 +9,8 @@ export interface PigeonPose {
 
 const OUT_MS = 700;
 const BACK_MS = 950;
+/** How long a scared pigeon stays on the ground before it hops home. */
+const GROUND_MS = 900;
 const ease = (t: number): number => t * t * (3 - 2 * t);
 
 /** A startled pigeon flutters aside, lands, then hops home once the passer-by has left. */
@@ -20,10 +22,10 @@ export class PigeonMotion {
   scare(now: number): void {
     if (now >= this.returnAt + BACK_MS) {
       this.started = now;
-      this.returnAt = now + OUT_MS + 900;
+      this.returnAt = now + OUT_MS + GROUND_MS;
     } else if (now < this.returnAt) {
       // A nearby player keeps it on the ground away from its home tile, never hovering.
-      this.returnAt = Math.max(this.returnAt, now + 900);
+      this.returnAt = Math.max(this.returnAt, now + GROUND_MS);
     }
   }
 

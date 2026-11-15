@@ -76,9 +76,6 @@ export function paaskeLayout(): Layout {
   return layout;
 }
 
-/** How many flowers, critters etc. of `total` are out at this build-up. */
-export const outOf = (total: number, intensity: number): number => shown(total, intensity);
-
 // MARK: The egg hunt
 
 const eggsKey = (day: string) => `paaske-eggs:${day}`;
@@ -211,6 +208,18 @@ export function paaskeInteract(x: number, y: number): boolean {
 
 // MARK: Drawing (2D)
 
+/** A sprite standing on its base row with a shadow under it, lifted `lift` pixels for a hop. */
+function standing(f: Frame, s: HTMLCanvasElement, px: number, base: number, lift: number): void {
+  f.items.push({
+    y: base,
+    draw: () => {
+      f.g.fillStyle = "rgba(20, 16, 28, 0.2)";
+      f.g.fillRect(px + 1, base - 1, s.width - 2, 2);
+      f.g.drawImage(s, px, Math.round(base - s.height - lift + 1));
+    },
+  });
+}
+
 /** A critter's place at `ms`, and its sprite. */
 function critterDraw(f: Frame, c: Critter, ms: number): void {
   const p = critterAt(c, ms);
@@ -223,14 +232,7 @@ function critterDraw(f: Frame, c: Critter, ms: number): void {
   const px = Math.round(p.x * TILE + (TILE - s.width) / 2);
   const base = Math.round((p.y + 1) * TILE - 2);
   if (!inView(f, px, base - 16, s.width, 20)) return;
-  f.items.push({
-    y: base,
-    draw: () => {
-      f.g.fillStyle = "rgba(20, 16, 28, 0.2)";
-      f.g.fillRect(px + 1, base - 1, s.width - 2, 2);
-      f.g.drawImage(s, px, Math.round(base - s.height - lift + 1));
-    },
-  });
+  standing(f, s, px, base, lift);
 }
 
 export function drawPaaske(f: Frame): void {
@@ -241,7 +243,7 @@ export function drawPaaske(f: Frame): void {
   const l = paaskeLayout();
 
   // Flowers: the first clumps on Palm Sunday, all by Easter Sunday noon.
-  for (const [i, fl] of l.flowers.slice(0, outOf(l.flowers.length, intensity)).entries()) {
+  for (const [i, fl] of l.flowers.slice(0, shown(l.flowers.length, intensity)).entries()) {
     const x = fl.x * TILE;
     const y = fl.y * TILE + 3;
     if (!inView(f, x, y, TILE, 14, TILE)) continue;
@@ -296,7 +298,7 @@ export function drawPaaske(f: Frame): void {
   }
 
   // Lambs, bunnies and chicks.
-  for (const c of CRITTERS.slice(0, outOf(CRITTERS.length, intensity))) critterDraw(f, c, skyNow());
+  for (const c of CRITTERS.slice(0, shown(CRITTERS.length, intensity))) critterDraw(f, c, skyNow());
 
   // The chick that follows.
   const fol = followerNow(f.now);
@@ -304,13 +306,6 @@ export function drawPaaske(f: Frame): void {
     const s = critterSprite("chick", fol.right, fol.hop > 0.5 ? 1 : 0);
     const px = Math.round(fol.x * TILE + (TILE - s.width) / 2);
     const base = Math.round((fol.y + 1) * TILE - 2);
-    items.push({
-      y: base,
-      draw: () => {
-        g.fillStyle = "rgba(20, 16, 28, 0.2)";
-        g.fillRect(px + 1, base - 1, s.width - 2, 2);
-        g.drawImage(s, px, Math.round(base - s.height - fol.hop * 3 + 1));
-      },
-    });
+    standing(f, s, px, base, fol.hop * 3);
   }
 }

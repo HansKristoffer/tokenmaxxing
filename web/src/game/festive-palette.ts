@@ -49,10 +49,10 @@ const mix = (a: RGB, b: RGB, t: number): RGB => [
  */
 export function festiveGrade(f: Festive, darkness: number, warmth: number): { rgb: RGB; k: number } {
   const g = GRADE[f.id];
-  const m = Math.max(darkness, warmth);
+  const strength = Math.max(darkness, warmth);
   let rgb = mix(g.day, g.night, darkness);
   rgb = mix(rgb, g.dusk, warmth * (1 - darkness * 0.5));
-  return { rgb, k: Math.min(1, f.intensity * (g.base + g.gain * m)) };
+  return { rgb, k: Math.min(1, f.intensity * (g.base + g.gain * strength)) };
 }
 
 /** The sky dome's colours for the theme: top and horizon, at dusk and at night (hex, for three). */

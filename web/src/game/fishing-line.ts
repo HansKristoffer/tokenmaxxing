@@ -9,13 +9,9 @@ export const setFishingLine = (cast: FishingCast | null): void => {
 /** My own line, while the panel is open and I'm still on the bank I cast from. */
 export function fishingLine(): FishingCast | null {
   const me = self();
-  return line &&
-    world.room === "town" &&
-    me?.x === line.x &&
-    me.y === line.y &&
-    hud.get().panel?.kind === "fishing"
-    ? line
-    : null;
+  if (!line || world.room !== "town" || !me) return null;
+  if (me.x !== line.x || me.y !== line.y) return null;
+  return hud.get().panel?.kind === "fishing" ? line : null;
 }
 
 /** A catch on its way out of the water: which fish, from where, and when it left (`performance.now()`, the frames' clock). */

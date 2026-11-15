@@ -39,7 +39,8 @@ export function lane(g: WorldGame, id: number): number {
 function around(laps: number, o: number): Omit<Lap, "running"> {
   const [l, r, t, b] = [PLAZA.left + o, PLAZA.right - o, PLAZA.top + o, PLAZA.bottom - o];
   const [w, h] = [r - l, b - t];
-  let d = ((((laps % 1) + 1) % 1) * 2 * (w + h) + w / 2) % (2 * (w + h));
+  const turn = ((laps % 1) + 1) % 1;
+  let d = (turn * 2 * (w + h) + w / 2) % (2 * (w + h));
   if (d < w) return { x: l + d, y: t, facing: "right" };
   d -= w;
   if (d < h) return { x: r, y: t + d, facing: "down" };
