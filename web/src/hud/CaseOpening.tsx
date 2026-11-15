@@ -16,21 +16,19 @@ import { coins } from "./format.ts";
 import { ItemImage } from "./Shop.tsx";
 import { Modal } from "./ui.tsx";
 
-/*
- * ============================ PLACEHOLDER ECONOMY ============================
- * The key price and the odds are UNDECIDED. These are stand-ins so the screen can be seen working;
- * do not read them as a design. The real roll comes from the server (`roll` prop), which is the one
- * place the odds live; this table only drives the mock roll and the look of the strip's filler.
+/**
+ * The key price and the odds are undecided. These are stand-ins so the screen can be seen working, not a design.
+ * The real roll comes from the server (`roll` prop), which is the one place the odds live; this table only drives
+ * the mock roll and the look of the strip's filler.
  */
-export const PLACEHOLDER_ODDS: Record<Rarity, number> = {
+const PLACEHOLDER_ODDS: Record<Rarity, number> = {
   common: 0.6,
   uncommon: 0.25,
   rare: 0.1,
   epic: 0.04,
   legendary: 0.01,
 };
-export const PLACEHOLDER_KEY_PRICE = 250;
-/* ============================================================================ */
+const PLACEHOLDER_KEY_PRICE = 250;
 
 /** The case's name, when none is given (the dev preview). */
 const CASE_NAME = "Night Market Case";
@@ -45,7 +43,7 @@ const THEME: Record<string, { emoji: string }> = {
 const themeOf = (def?: CaseDef) => THEME[def?.id ?? "night-market"] ?? THEME["night-market"]!;
 
 /** Every item the case holds: wearables, pets and the six furniture pieces, as shop `Item`s. */
-export const CASE_POOL: readonly Item[] = [
+const CASE_POOL: readonly Item[] = [
   ...CASE_ITEMS,
   ...CASE_PIECES.map((p): Item => ({
     id: `furn.${p.ch}`,
@@ -64,7 +62,7 @@ const rarityIn = (i: Item): Rarity => i.rarity ?? "common";
 const pickFrom = (list: readonly Item[]): Item => list[Math.floor(Math.random() * list.length)]!;
 
 /** The mock roll: a rarity by `PLACEHOLDER_ODDS`, then an item of it. Falls back down a tier if a tier is empty. */
-export function mockRoll(): Item {
+function mockRoll(): Item {
   let r = Math.random();
   let tier: Rarity = "common";
   for (const k of RARITIES) {
@@ -76,7 +74,10 @@ export function mockRoll(): Item {
   return pickFrom(of.length ? of : CASE_POOL);
 }
 
-/** Filler for the strip: what the odds would show, so the strip looks like the case and not a uniform shuffle. */
+/**
+ * Filler for the strip: what the odds would show, so the strip looks like the case and not a uniform shuffle.
+ * The weights are the odds times 1.6, plus 0.02 a tier. That is a display choice, not the roll.
+ */
 const fillerOf = (pool: readonly Item[], odds: Record<Rarity, number>) => (): Item => {
   let r = Math.random();
   let tier: Rarity = "common";
@@ -100,7 +101,7 @@ const SPIN_S = 6.5;
 /** The same, when motion is reduced: a short slide, then the reveal. */
 const REDUCED_S = 0.35;
 /** Position 0..1 of the way there at time 0..1: cubic ease-out, so it starts at ~3x the average speed and ends in a crawl. */
-export const ease = (t: number): number => 1 - (1 - t) ** 3;
+const ease = (t: number): number => 1 - (1 - t) ** 3;
 
 interface Run {
   tiles: Item[];
@@ -118,18 +119,25 @@ const buildRun = (winner: Item, filler: () => Item): Run => {
 const reducedMotion = (): boolean =>
   typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-const slotLabel = (i: Item): string => (i.slot === "furniture" ? "furniture" : i.slot);
+/** The strip's speed class (case.css) for its speed in px a second. */
+const speedClass = (pxPerSecond: number): string => {
+  if (pxPerSecond > 1800) return "fast";
+  if (pxPerSecond > 700) return "mid";
+  return "slow";
+};
 
 /** The case `caseId` (the Night Market's if left out), drawn from its pixel art: lid down, then lid up while it opens (`art/case-box.ts`). */
-export function CaseArt({ opening, caseId }: { opening: boolean; caseId?: string }) {
+function CaseArt({ opening, caseId }: { opening: boolean; caseId?: string }) {
   const ref = useRef<HTMLCanvasElement>(null);
   useEffect(() => {
-    const ctx = ref.current?.getContext("2d");
-    if (!ctx) return;
+    const canvas = ref.current;
+    const ctx = canvas?.getContext("2d");
+    if (!canvas || !ctx) return;
+
     const kind = opening ? "open" : "closed";
     const { w, h } = CASE_BOX_SIZE[kind];
     ctx.imageSmoothingEnabled = false;
-    ctx.clearRect(0, 0, ref.current!.width, ref.current!.height);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.drawImage(caseBoxSprite(kind, 0, caseId), 0, 0, w * 3, h * 3);
   }, [opening, caseId]);
   return (
@@ -159,7 +167,7 @@ function Tile({ item, won }: { item: Item; won?: boolean }) {
             <ItemImage item={item} look={LOOK} bare />
           </span>
           <span className="cs-name">{item.name}</span>
-          <span className="cs-slot">{slotLabel(item)}</span>
+          <span className="cs-slot">{item.slot}</span>
         </>
       )}
     </li>
@@ -167,6 +175,9 @@ function Tile({ item, won }: { item: Item; won?: boolean }) {
 }
 
 const LOOK = defaultLook(1);
+
+/** How far up the bell triad climbs for the rarity that lands: rare rings the first bell. */
+const BELL_RISE = { rare: 0, epic: 1, legendary: 2 } as const;
 
 type Phase = "idle" | "waiting" | "spinning" | "reveal";
 
@@ -251,7 +262,7 @@ export function CaseOpening({
       const dt = now - lastT;
       if (dt > 0) {
         const v = ((x - lastX) / dt) * 1000;
-        el.dataset.speed = v > 1800 ? "fast" : v > 700 ? "mid" : "slow";
+        el.dataset.speed = speedClass(v);
         lastX = x;
         lastT = now;
       }
@@ -275,7 +286,10 @@ export function CaseOpening({
       winner = await (roll ?? mockRoll)();
     } catch (e) {
       if (live.current) {
-        setError(roll ? errorText(e) : e instanceof Error ? e.message : "Couldn't open the case.");
+        let message = "Couldn't open the case.";
+        if (roll) message = errorText(e);
+        else if (e instanceof Error) message = e.message;
+        setError(message);
         setPhase("idle");
       }
       return;
@@ -297,7 +311,9 @@ export function CaseOpening({
     if (hud.get().jukeSettings.muted) return;
     const c = audio();
     if (!c || c.state !== "running") return;
-    const up = bellFor === "rare" ? 0 : bellFor === "epic" ? 1 : 2;
+
+    const up = BELL_RISE[bellFor];
+    // E5, G5 and B5: a major triad, each bell rung in turn.
     [659.25, 783.99, 987.77].forEach((hz, i) => {
       const f = hz * 2 ** ((up / 12) * 2);
       tone(c, c.currentTime + i * 0.13, 1.1, f, "sine", 0.22);
@@ -343,8 +359,8 @@ export function CaseOpening({
           ))}
         </ul>
         <span className="cs-marker" aria-hidden="true" />
-        {def?.id === "ragnarok-eve" && <RavenPointer />}
-        {def?.id === "julemarked" && <NissePointer />}
+        {def?.id === "ragnarok-eve" && <PerchedPointer sprite={ravenPointer} className="cs-raven" />}
+        {def?.id === "julemarked" && <PerchedPointer sprite={nissePointer} className="cs-raven cs-nisse" />}
         {def?.id === "julemarked" && won && rarityIn(won) === "legendary" && (
           <span aria-hidden="true" className="cs-snowfall" />
         )}
@@ -383,7 +399,7 @@ export function CaseOpening({
                     <ItemImage item={it} look={LOOK} bare />
                     <span className="cs-name">{it.name}</span>
                     <span className="cs-slot">
-                      {slotLabel(it)}
+                      {it.slot}
                       {chances && ` · ${percent(chances.get(it.id) ?? 0)}`}
                     </span>
                   </li>
@@ -398,38 +414,22 @@ export function CaseOpening({
   );
 }
 
-/** Ragnarok Eve's pointer: a raven perched on the marker, hopping with the strip while it spins (case.css). */
-function RavenPointer() {
+/**
+ * A small creature perched on the marker, drawn from its cached sprite (case.css): Ragnarok Eve's raven hops with
+ * the strip while it spins, Julemarked's nisse tips his cap on each tick.
+ */
+function PerchedPointer({ sprite, className }: { sprite: () => CanvasImageSource; className: string }) {
   return (
     <span aria-hidden="true" className="cs-raven-wrap">
       <canvas
-        className="cs-raven"
+        className={className}
         width={6}
         height={6}
         ref={(c) => {
           const g = c?.getContext("2d");
           if (!g) return;
           g.clearRect(0, 0, 6, 6);
-          g.drawImage(ravenPointer(), 0, 0);
-        }}
-      />
-    </span>
-  );
-}
-
-/** Julemarked's pointer: a tiny nisse perched on the marker, tipping his cap on each tick while it spins (case.css). */
-function NissePointer() {
-  return (
-    <span aria-hidden="true" className="cs-raven-wrap">
-      <canvas
-        className="cs-raven cs-nisse"
-        width={6}
-        height={6}
-        ref={(c) => {
-          const g = c?.getContext("2d");
-          if (!g) return;
-          g.clearRect(0, 0, 6, 6);
-          g.drawImage(nissePointer(), 0, 0);
+          g.drawImage(sprite(), 0, 0);
         }}
       />
     </span>
@@ -451,7 +451,7 @@ function Reveal({ item }: { item: Item }) {
       </div>
       <div className="cs-reveal-text">
         <span className="cs-rarity" style={{ color: RARITY_COLOR[rarity] }}>
-          {rarity} · {slotLabel(item)}
+          {rarity} · {item.slot}
         </span>
         <strong>{item.name}</strong>
         {item.blurb && <span className="muted">{item.blurb}</span>}

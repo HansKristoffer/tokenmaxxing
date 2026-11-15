@@ -73,13 +73,13 @@ function pagerKey(e: KeyboardEvent): 1 | -1 | 0 {
   if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return 0;
   if (e.metaKey || e.ctrlKey || e.altKey || e.shiftKey || hud.get().dialog) return 0;
   const t = e.target;
-  if (
+  const isTypedInto =
     t instanceof HTMLInputElement ||
     t instanceof HTMLTextAreaElement ||
     t instanceof HTMLSelectElement ||
-    (t instanceof HTMLElement && t.isContentEditable)
-  )
-    return 0;
+    (t instanceof HTMLElement && t.isContentEditable);
+  if (isTypedInto) return 0;
+
   return e.key === "ArrowRight" ? 1 : -1;
 }
 
@@ -142,7 +142,7 @@ export function CaseShop({ shelf, shop = "natmarked" }: { shelf?: number; shop?:
     return () => window.removeEventListener("keydown", onKey);
   }, [opening, SLIDES]);
 
-  if (opening)
+  if (opening) {
     return (
       <CaseOpening
         def={opening}
@@ -155,8 +155,12 @@ export function CaseShop({ shelf, shop = "natmarked" }: { shelf?: number; shop?:
         }}
       />
     );
+  }
 
   if (!me || !wallet) return <Modal title={title}>{failed ?? "Loading…"}</Modal>;
+
+  // Past the last case is the locked "Coming soon" slide.
+  const current = CASES[page.at];
 
   return (
     <Modal title={title} wide="xl" aside={<Balance balance={wallet.balance} />}>
@@ -176,19 +180,19 @@ export function CaseShop({ shelf, shop = "natmarked" }: { shelf?: number; shop?:
           ‹
         </button>
         <ul className="cshop-list" style={{ "--dir": page.dir } as CSSProperties}>
-          {page.at < CASES.length ? (
+          {current ? (
             <CaseCard
-              key={CASES[page.at]!.id}
-              def={CASES[page.at]!}
+              key={current.id}
+              def={current}
               balance={wallet.balance}
               bag={bag}
               busy={busy}
               onOpen={() => {
                 setSold(null);
-                setOpening(CASES[page.at]!);
+                setOpening(current);
               }}
               onSell={run(async () => {
-                const r = await town.sellDuplicates(CASES[page.at]!.id);
+                const r = await town.sellDuplicates(current.id);
                 hud.set({ wallet: r.wallet });
                 setBag(await town.bag());
                 setSold(
@@ -259,6 +263,7 @@ function CaseCard({
   const spare = useMemo(() => spareCopies(def, bag), [def, bag]);
   const short = def.keyPrice - balance;
   const tiers = [...new Set(rows.map((r) => r.tier))];
+  const duplicateNoun = spare.copies === 1 ? "duplicate" : "duplicates";
   return (
     <li className="cshop-card">
       <div className="cshop-top">
@@ -284,7 +289,7 @@ function CaseCard({
             >
               {spare.copies === 0
                 ? "Sell duplicates"
-                : `Sell ${spare.copies} duplicate${spare.copies === 1 ? "" : "s"} · +${coins(spare.coins)}`}
+                : `Sell ${spare.copies} ${duplicateNoun} · +${coins(spare.coins)}`}
             </button>
           </div>
           {short > 0 && (

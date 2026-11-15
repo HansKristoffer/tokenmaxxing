@@ -42,12 +42,13 @@ export function ArcadePanel() {
   const lobby = useHud((s) => s.lobby);
   const me = useHud((s) => s.me?.userId);
   const { error, run } = useRun();
-  if (!lobby)
+  if (!lobby) {
     return (
       <Modal title="🎮 Arcade" beside={<Chat />}>
         Loading…
       </Modal>
     );
+  }
   const { invites, open: joinable, playing, inGame } = lobbySummary(lobby, me);
   const mine = lobby.tables.find((t) => t.id === lobby.me.table);
   const open = joinable.filter((t) => !invites.includes(t));

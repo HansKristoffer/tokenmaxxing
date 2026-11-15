@@ -35,6 +35,7 @@ export function Computers() {
   useEffect(() => {
     if (!command) return;
     const player = connectPlayer();
+    // Every 5 s, so a computer shows up within a few seconds of linking.
     const id = setInterval(() => void player.devices().then(setList, () => {}), 5000);
     return () => {
       clearInterval(id);

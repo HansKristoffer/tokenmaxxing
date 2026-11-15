@@ -51,7 +51,7 @@ function useAct() {
       setNotice((await fn()).notice);
       await refreshMe();
     });
-  return { act, notice, error, run, setNotice };
+  return { act, notice, error };
 }
 
 /**
@@ -111,17 +111,13 @@ export function CompanyShop() {
   const me = useHud((s) => s.me);
   const co = me?.company;
   const inside = useHud((s) => co != null && (s.room === `hq:${co.id}` || s.room === `common:${co.id}`));
-  const { act, notice, error, run, setNotice } = useAct();
+  const { act, notice, error } = useAct();
   if (!me || !co) return <Modal title="🛋 Company furniture">Join a company first.</Modal>;
 
-  // Put out with a ghost to aim (`startPlace`): the piece stays in the storeroom until it is put down.
-  const putOut = (item: string) => () => {
-    startPlace(item, true);
-  };
-  const putAway = run(async () => {
-    setNotice(null);
-    setNotice((await conn.putAway()).notice);
-    await Promise.all([refreshMe(), refreshWallet()]);
+  const putAway = act(async () => {
+    const result = await conn.putAway();
+    await refreshWallet();
+    return result;
   });
 
   return (
@@ -155,7 +151,8 @@ export function CompanyShop() {
                   {itemById(s.item)?.name}
                   {s.count > 1 && <span className="muted"> ×{s.count}</span>}
                 </span>
-                <button type="button" disabled={!inside} onClick={putOut(s.item)}>
+                {/* Put out with a ghost to aim (`startPlace`): the piece stays in the storeroom until it is put down. */}
+                <button type="button" disabled={!inside} onClick={() => startPlace(s.item, true)}>
                   Put out…
                 </button>
               </li>

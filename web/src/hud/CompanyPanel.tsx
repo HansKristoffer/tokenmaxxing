@@ -33,7 +33,7 @@ export function CompanyPanel() {
   }, [branding]);
 
   if (!me) return <Modal title="Company">Loading…</Modal>;
-  if (!co)
+  if (!co) {
     return (
       <Modal title="🏢 Pick a company">
         <p className="muted">
@@ -62,6 +62,7 @@ export function CompanyPanel() {
         {error && <p className="error">{error}</p>}
       </Modal>
     );
+  }
 
   const next = nextTierAt(co.tier);
   const each = perMember(co.tokens30d, co.members.length);
@@ -221,16 +222,20 @@ function grouped(log: readonly WalletLine[]): { line: WalletLine; times: number;
   const out: { line: WalletLine; times: number; amount: number }[] = [];
   for (const l of log) {
     const last = out.at(-1);
-    if (
-      last &&
+    // A match is the company's 1:1 match of a day's coins, so each day keeps its own line.
+    const isSameMove =
+      last !== undefined &&
       l.kind !== "match" &&
       last.line.kind === l.kind &&
       last.line.ref === l.ref &&
-      last.line.name === l.name
-    ) {
+      last.line.name === l.name;
+
+    if (isSameMove) {
       last.times++;
       last.amount += l.amount;
-    } else out.push({ line: l, times: 1, amount: l.amount });
+    } else {
+      out.push({ line: l, times: 1, amount: l.amount });
+    }
   }
   return out;
 }
@@ -298,7 +303,8 @@ function PlotPicker({ value, onChange }: { value: number | null; onChange: (plot
   const built = companies.map((c) => [c.plot, c.name] as const);
   const free = frontier(built.map(([p]) => p));
   const chosen = value !== null && free.includes(value) ? value : free[0]!;
-  const blocks = [...CORE_BLOCKS, ...[...built.map(([p]) => p), ...free].map(plotBlock)];
+  const plots = [...built.map(([p]) => p), ...free];
+  const blocks = [...CORE_BLOCKS, ...plots.map(plotBlock)];
   const minX = Math.min(...blocks.map(([x]) => x));
   const minY = Math.min(...blocks.map(([, y]) => y));
   const cols = Math.max(...blocks.map(([x]) => x)) - minX + 1;

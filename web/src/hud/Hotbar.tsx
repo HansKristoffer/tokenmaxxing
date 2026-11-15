@@ -45,19 +45,26 @@ export function Hotbar() {
   }, [mine, wallet]);
   const shown = rows.slice(0, SLOTS);
   // 1 to 9 pick up the piece in that slot, unless a panel is open or a field is being typed in.
+  // The listener reads `rows` rather than `shown`, a new array every render, so it is not re-added on each one.
   useEffect(() => {
     if (!mine) return;
     const key = (e: KeyboardEvent) => {
       const n = Number(e.key);
       const target = e.target as HTMLElement | null;
-      if (!Number.isInteger(n) || n < 1 || n > shown.length || e.metaKey || e.ctrlKey || e.altKey) return;
+      const slots = rows.slice(0, SLOTS);
+      const isSlotKey = Number.isInteger(n) && n >= 1 && n <= slots.length;
+      const hasModifier = e.metaKey || e.ctrlKey || e.altKey;
+      if (!isSlotKey || hasModifier) return;
       if (hud.get().panel || target?.closest("input, textarea, [contenteditable]")) return;
+
+      const slot = slots[n - 1];
+      if (!slot) return;
       e.preventDefault();
-      startPlace(shown[n - 1]!.item.id);
+      startPlace(slot.item.id);
     };
     window.addEventListener("keydown", key);
     return () => window.removeEventListener("keydown", key);
-  }, [mine, shown]);
+  }, [mine, rows]);
   if (!mine || !me || panel || rows.length === 0) return null;
   const placing = ghost.mode?.kind === "place" ? ghost.mode.item : null;
 

@@ -62,26 +62,24 @@ export function Bag({ tab: wanted }: { tab?: BagTab }) {
   useEffect(() => {
     if (wanted) setTab(wanted);
   }, [wanted]);
-  if (!me || !bag)
+  if (!me || !bag) {
     return (
       <Modal title="🎒 Bag" wide="xl">
         {failed ?? "Loading…"}
       </Modal>
     );
+  }
 
   const look = draft ?? me.look;
   const typedPet = petName ?? me.look.petName ?? "";
   const cleanName = cleanPetName(typedPet);
   const badPetName = typedPet.trim() !== "" && !cleanName;
-  const next: Look = look.pet
-    ? cleanName
-      ? { ...look, petName: cleanName }
-      : omit(look, ["petName"])
-    : omit(look, ["petName"]);
+  // A pet's name stays only while a pet is worn and the name passes the filter.
+  const wornPetName = look.pet > 0 ? cleanName : null;
+  const next: Look = wornPetName ? { ...look, petName: wornPetName } : omit(look, ["petName"]);
   const lookChanged = !sameLook(next, me.look);
   const nameChanged = name !== null && name.trim() !== me.name;
   const changed = lookChanged || nameChanged;
-  const tryOn = (l: Look) => setDraft(l);
   const undo = () => {
     setDraft(null);
     setName(null);
@@ -89,7 +87,7 @@ export function Bag({ tab: wanted }: { tab?: BagTab }) {
   };
   const save = run(async () => {
     if (lookChanged) await town.setLook(next);
-    if (nameChanged) await town.rename(name!.trim());
+    if (nameChanged && name !== null) await town.rename(name.trim());
     await refreshMe();
     undo();
   });
@@ -112,12 +110,12 @@ export function Bag({ tab: wanted }: { tab?: BagTab }) {
         </div>
         <div className="wardrobe-side">
           <Pills value={tab} options={TABS} onChange={setTab} />
-          {tab === "you" && <You look={look} owned={owned} tryOn={tryOn} />}
+          {tab === "you" && <You look={look} owned={owned} tryOn={setDraft} />}
           {tab === "pet" && (
             <Pet
               look={look}
               owned={owned}
-              tryOn={tryOn}
+              tryOn={setDraft}
               petName={typedPet}
               setPetName={setPetName}
               badName={badPetName}
@@ -129,7 +127,7 @@ export function Bag({ tab: wanted }: { tab?: BagTab }) {
               copies={copies}
               look={look}
               tryOn={(item) => {
-                tryOn(withItem(item, look, true));
+                setDraft(withItem(item, look, true));
                 setTab(item.slot === "pet" || item.slot === "petwear" ? "pet" : "you");
               }}
             />
@@ -439,6 +437,7 @@ function Things(props: {
   // The last one dropped leaves nothing picked.
   const item = held.find((h) => h.item.id === picked)?.item;
   const piece = item && pieceOfDrop({ item: item.id });
+  const canPlace = Boolean(piece) && inMyOffice;
 
   return (
     <>
@@ -465,8 +464,8 @@ function Things(props: {
             </button>
           )}
           {(item.tradeable || (item.earned && inMyOffice)) && (
-            <button type="button" onClick={piece && inMyOffice ? () => startPlace(item.id) : drop(item.id)}>
-              {piece && inMyOffice ? "Place…" : inMyOffice ? "Drop here" : "Drop"}
+            <button type="button" onClick={canPlace ? () => startPlace(item.id) : drop(item.id)}>
+              {canPlace ? "Place…" : inMyOffice ? "Drop here" : "Drop"}
             </button>
           )}
         </div>
@@ -483,6 +482,7 @@ function Things(props: {
       <ul className="bag" ref={grid}>
         {held.map(({ row, item: it }) => {
           const wearing = isWorn(it, look);
+          const copy = copies.find((c) => c.item === row.item);
           return (
             <li key={row.item}>
               <button
@@ -496,9 +496,7 @@ function Things(props: {
               >
                 <ItemImage item={it} look={look} bare worn />
                 {it.level !== undefined && <span className="medal">🏅</span>}
-                {copies.some((c) => c.item === row.item) && (
-                  <span className="medal">#{copies.find((c) => c.item === row.item)!.n}</span>
-                )}
+                {copy && <span className="medal">#{copy.n}</span>}
                 {row.count > 1 && <span className="n">×{row.count}</span>}
               </button>
             </li>
@@ -610,7 +608,7 @@ function ShopHints({ missing }: { missing: readonly (typeof HINT_SLOTS)[number][
               shop={shop}
               className=""
               title={buyHint(slot, noun) ?? undefined}
-              label={`${HINT_ICON[slot]} ${noun[0]!.toUpperCase()}${noun.slice(1)}`}
+              label={`${HINT_ICON[slot]} ${noun.charAt(0).toUpperCase()}${noun.slice(1)}`}
             />
           )
         );
