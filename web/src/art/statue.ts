@@ -9,7 +9,7 @@ import { bake, cached, once } from "./pixels.ts";
 
 export const STATUE_W = 16;
 export const STATUE_H = 34;
-/** Where the figure's top is: the drape covers from here down to the plinth's cap. */
+/** The row of the plinth's cap. The drape hangs from the top of its sprite down to here. */
 const CAP = 17;
 
 const MARBLE = "#ece7de";

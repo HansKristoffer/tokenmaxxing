@@ -7,7 +7,7 @@ const GINGHAM: [string, string, string][] = [
   [C.roofRed, "#ec9c8f", C.white],
   [C.fabric, "#b3bde6", C.white],
 ];
-const CHECK = 4;
+const CHECK_PX = 4;
 
 /** A blanket `w × h` tiles, a little rumpled at the corners, with a snack or two on it. */
 export const blanket = cached(
@@ -18,13 +18,19 @@ export const blanket = cached(
     return bake(W, H + 1, (p) => {
       const [main, mix, white] = GINGHAM[i % GINGHAM.length]!;
       p.rect(1, 2, W - 2, H - 1, C.shadow);
+
       // Inset a pixel so the grass shows at the corners: a cloth, not a tile.
-      for (let y = 1; y < H - 1; y++)
+      for (let y = 1; y < H - 1; y++) {
         for (let x = 1; x < W - 1; x++) {
-          const a = Math.floor(x / CHECK) % 2 === 0;
-          const b = Math.floor(y / CHECK) % 2 === 0;
-          p.px(x, y, a && b ? main : a || b ? mix : white);
+          const evenColumn = Math.floor(x / CHECK_PX) % 2 === 0;
+          const evenRow = Math.floor(y / CHECK_PX) % 2 === 0;
+          let color = white;
+          if (evenColumn && evenRow) color = main;
+          else if (evenColumn || evenRow) color = mix;
+          p.px(x, y, color);
         }
+      }
+
       // A hem, and the corners turned up a little.
       p.rect(1, 1, W - 2, 1, main);
       p.rect(1, H - 2, W - 2, 1, main);
@@ -45,10 +51,12 @@ export const blanket = cached(
 function snacks(p: Pen, W: number, H: number, i: number): void {
   const x = i % 2 === 0 ? W - 15 : 3;
   const y = H - 13;
+
   // The plate.
   p.rect(x, y + 2, 10, 5, C.stoneLight);
   p.rect(x + 1, y + 1, 8, 7, C.stoneLight);
   p.rect(x + 1, y + 7, 8, 1, C.stone);
+
   // Two sandwich halves: bread, lettuce, bread.
   for (const sx of [x + 1, x + 5]) {
     p.rect(sx, y + 2, 4, 1, C.pathLight);
@@ -56,6 +64,7 @@ function snacks(p: Pen, W: number, H: number, i: number): void {
     p.rect(sx, y + 4, 4, 1, C.path);
     p.px(sx + 3, y + 2, C.pathDark);
   }
+
   // A cup of orange juice.
   const cx = i % 2 === 0 ? x - 5 : x + 12;
   p.rect(cx, y + 2, 3, 5, C.white);
@@ -84,7 +93,9 @@ export const basket = once(() =>
     // The wicker body: woven rows.
     p.rect(1, 8, 14, 8, C.ink);
     p.rect(2, 9, 12, 6, C.woodLight);
-    for (let y = 9; y < 15; y++) for (let x = 2 + (y % 2); x < 14; x += 2) p.px(x, y, C.wood);
+    for (let y = 9; y < 15; y++) {
+      for (let x = 2 + (y % 2); x < 14; x += 2) p.px(x, y, C.wood);
+    }
     p.rect(2, 9, 12, 1, C.woodDark);
     p.rect(2, 14, 12, 1, C.woodDark);
   }),
@@ -100,6 +111,7 @@ export const bunting = cached(
   (w: number, sag: number) => `${w}:${sag}`,
   (w: number, sag: number) =>
     bake(w + 1, sag + 8, (p) => {
+      // A parabola: the string is at `sag` pixels down at the middle and level with the ends.
       const at = (x: number) => Math.round((4 * sag * x * (w - x)) / (w * w));
       for (let x = 0; x <= w; x++) p.px(x, at(x), C.trunkDark);
       for (let x = 6, n = 0; x + 5 < w - 2; x += 8, n++) {

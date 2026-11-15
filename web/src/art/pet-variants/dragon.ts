@@ -2,9 +2,10 @@ import { C } from "../palette.ts";
 import { PETS } from "../pets.ts";
 import { type PetVariant, swap } from "./types.ts";
 
+// Pet 4 is the dragon. The index is fixed, so the lookup cannot miss.
 const BASE = PETS[4]!;
 
-/** Colour swaps of the dragon. Shapes are in shapes.ts. */
+/** Colour swaps of the dragon. Shapes are in other-shapes.ts. */
 export const DRAGON_SWAPS: PetVariant[] = [
   swap(BASE, "red", "Red dragon", {
     g: "#c94a3f",

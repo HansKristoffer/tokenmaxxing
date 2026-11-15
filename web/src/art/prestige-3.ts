@@ -1,8 +1,8 @@
 import type { Art } from "./editions.ts";
 import { C } from "./palette.ts";
 import type { Pen } from "./pixels.ts";
-import type { TrackArt } from "./prestige-types.ts";
-import type { Back, BackView, Outfit } from "./wardrobe.ts";
+import { frameAt, frontView, type TrackArt } from "./prestige-types.ts";
+import type { Back, Outfit } from "./wardrobe.ts";
 
 /**
  * Prestige track 3's wearables in 2D (`core/src/prestige.ts`): Voidwalker, obsidian plate and magenta light bent round
@@ -12,11 +12,8 @@ import type { Back, BackView, Outfit } from "./wardrobe.ts";
 
 const o = C.ink;
 
-// MARK: Hat
-
 // Event-horizon visor: a black helm with a fin of light on top and one wide lens across the brow, a bright magenta ring
 // round it with a white hot spot in the dark. From behind the lens is a crack of magenta where the helm's shell split.
-// Pixel art reads as a grid.
 // prettier-ignore
 const HAT: Art = {
   down: [
@@ -46,11 +43,8 @@ const HAT: Art = {
   pal: { o, K: "#352649", k: "#1d1428", h: "#5a4580", M: "#d946ef", P: "#ff7cf5", W: "#ffeafd" },
 };
 
-// MARK: Outfit
-
 // Voidwalker armour: obsidian plate, a glowing fault running down the chest and out along one pauldron, magenta
 // light bleeding out of the seams, and a belt clasp with a white-hot dot.
-// Pixel art reads as a grid.
 // prettier-ignore
 const OUTFIT: Outfit = {
   c: "#2a1d3d", C: "#1a1127", p: "#120c1b",
@@ -61,12 +55,6 @@ const OUTFIT: Outfit = {
   },
   pal: { g: "#6b54a0", K: "#4b3870", k: "#201530", M: "#d946ef", m: "#8f2fa8", W: "#ffeafd" },
 };
-
-// MARK: Back
-
-/** An empty 16×16 frame, then `rows` dropped in at row `y`. */
-const frameAt = (rows: string[], y: number): string[] => [...Array<string>(y).fill(""), ...rows];
-const view = (front: string[]): BackView => ({ front });
 
 // Rift mantle: a torn mantle of black, its edges crackling magenta, a rift of light split down it.
 const MANTLE_UP = frameAt(
@@ -137,19 +125,16 @@ const MANTLE_SIDE_B = frameAt(
   8,
 );
 
-// Pixel art reads as a grid.
 // prettier-ignore
 const BACK: Back = {
   views: {
     down: { behind: MANTLE_DOWN, front: frameAt([".....g....g....."], 9) },
     side: { behind: MANTLE_SIDE },
-    up: view(MANTLE_UP),
+    up: frontView(MANTLE_UP),
   },
-  walk: { up: view(MANTLE_UP_B), side: { behind: MANTLE_SIDE_B } },
+  walk: { up: frontView(MANTLE_UP_B), side: { behind: MANTLE_SIDE_B } },
   pal: { o, g: "#6b54a0", K: "#352649", k: "#1d1428", M: "#d946ef", P: "#ff7cf5" },
 };
-
-// MARK: Aura
 
 const CX = 14;
 const CY = 14;
@@ -157,16 +142,13 @@ const TAU = Math.PI * 2;
 const FRAMES = 8;
 
 /** One ring pixel by how bright it is (0 to 1): a faint magenta haze up to a white-hot core. */
-const ember = (k: number): string =>
-  k > 0.88
-    ? "#ffeafd"
-    : k > 0.66
-      ? "#ff7cf5"
-      : k > 0.4
-        ? "#d946ef"
-        : k > 0.2
-          ? "rgba(217, 70, 239, 0.55)"
-          : "rgba(217, 70, 239, 0.28)";
+function ember(k: number): string {
+  if (k > 0.88) return "#ffeafd";
+  if (k > 0.66) return "#ff7cf5";
+  if (k > 0.4) return "#d946ef";
+  if (k > 0.2) return "rgba(217, 70, 239, 0.55)";
+  return "rgba(217, 70, 239, 0.28)";
+}
 
 /** Brightness of a spot at angle `a` when the bright side of the ring has turned to `lead`: a lobe that is nearly dark opposite. */
 const beam = (a: number, lead: number): number => 0.18 + 0.82 * Math.max(0, Math.cos(a - lead)) ** 3;
@@ -180,6 +162,7 @@ const horizon = (p: Pen, f: number): void => {
   p.disc(CX, CY, 9, "rgba(10, 5, 20, 0.35)");
   // The bent light: a thin ring all the way round, brightest on the side that leads.
   const R = 12;
+  // Points that round to the same pixel are drawn once, so the ring does not brighten where the steps bunch.
   const seen = new Set<number>();
   for (let i = 0; i < 96; i++) {
     const a = (i / 96) * TAU;

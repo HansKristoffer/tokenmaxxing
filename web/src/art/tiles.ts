@@ -74,6 +74,9 @@ const DUNGEON = {
   wallTopLight: "#2a2533",
 };
 
+/** Grounds that furniture does not take its tile's ground from, because a bench or a shelf would look wrong on them. */
+const NOT_UNDER_FURNITURE: Ground[] = ["wall", "water", "exit", "stairs", "stairsUp"];
+
 function groundAt(map: GameMap, x: number, y: number): Ground {
   const own = GROUND[map.at(x, y)];
   if (own) return own;
@@ -88,8 +91,7 @@ function groundAt(map: GameMap, x: number, y: number): Ground {
     [-1, 1],
   ] as const) {
     const g = GROUND[map.at(x + dx, y + dy)];
-    if (g && g !== "wall" && g !== "water" && g !== "exit" && g !== "stairs" && g !== "stairsUp")
-      counts.set(g, (counts.get(g) ?? 0) + 1);
+    if (g && !NOT_UNDER_FURNITURE.includes(g)) counts.set(g, (counts.get(g) ?? 0) + 1);
   }
   const best = [...counts].sort((a, b) => b[1] - a[1])[0]?.[0];
   if (best) return best;
@@ -120,7 +122,7 @@ function groundAt(map: GameMap, x: number, y: number): Ground {
 
 function grass(p: Pen, ox: number, oy: number, x: number, y: number): void {
   p.rect(ox, oy, TILE, TILE, C.grass);
-  for (let j = 0; j < TILE; j++)
+  for (let j = 0; j < TILE; j++) {
     for (let i = 0; i < TILE; i++) {
       const h = hash(x * TILE + i, y * TILE + j, 1);
       if (h < 0.035) {
@@ -128,6 +130,7 @@ function grass(p: Pen, ox: number, oy: number, x: number, y: number): void {
         if (j > 0) p.px(ox + i, oy + j - 1, C.grassDark);
       } else if (h < 0.06) p.px(ox + i, oy + j, C.grassLight);
     }
+  }
 }
 
 function flowers(p: Pen, ox: number, oy: number, x: number, y: number): void {
@@ -155,12 +158,13 @@ function speckle(
   light: string,
 ) {
   p.rect(ox, oy, TILE, TILE, base);
-  for (let j = 0; j < TILE; j++)
+  for (let j = 0; j < TILE; j++) {
     for (let i = 0; i < TILE; i++) {
       const h = hash(x * TILE + i, y * TILE + j, 2);
       if (h < 0.05) p.px(ox + i, oy + j, dark);
       else if (h < 0.09) p.px(ox + i, oy + j, light);
     }
+  }
 }
 
 function plaza(p: Pen, ox: number, oy: number, x: number, y: number): void {
@@ -178,9 +182,11 @@ function plaza(p: Pen, ox: number, oy: number, x: number, y: number): void {
 
 function water(p: Pen, map: GameMap, ox: number, oy: number, x: number, y: number): void {
   p.rect(ox, oy, TILE, TILE, C.water);
-  for (let j = 0; j < TILE; j++)
-    for (let i = 0; i < TILE; i++)
+  for (let j = 0; j < TILE; j++) {
+    for (let i = 0; i < TILE; i++) {
       if (hash(x * TILE + i, y * TILE + j, 3) < 0.04) p.px(ox + i, oy + j, C.waterDark);
+    }
+  }
   // Shore: foam and a dark lip wherever the water meets land.
   const land = (dx: number, dy: number) => map.at(x + dx, y + dy) !== "~";
   if (land(0, -1)) {
@@ -206,19 +212,20 @@ export const FLOOR_ART: Record<string, (p: Pen, ox: number, oy: number, x: numbe
   },
   linoleum: (p, ox, oy, x, y) => {
     p.rect(ox, oy, TILE, TILE, "#7fa88a");
-    for (let j = 0; j < TILE; j++)
+    for (let j = 0; j < TILE; j++) {
       for (let i = 0; i < TILE; i++) {
         const h = hash(x * TILE + i, y * TILE + j, 41);
         if (h < 0.06) p.px(ox + i, oy + j, "#6d9578");
         else if (h < 0.1) p.px(ox + i, oy + j, "#93bb9d");
       }
+    }
     p.rect(ox, oy + 7, TILE, 1, "#6d9578");
     p.rect(ox + 7, oy, 1, TILE, "#6d9578");
   },
   parquet: (p, ox, oy, x, y) => herringbone(p, ox, oy, x, y, "#8a5733", "#5e3519"),
   fiskebenet: (p, ox, oy, x, y) => herringbone(p, ox, oy, x, y, "#dcc08e", "#b8935c"),
   checker: (p, ox, oy) => {
-    for (let q = 0; q < 4; q++)
+    for (let q = 0; q < 4; q++) {
       p.rect(
         ox + (q % 2) * 8,
         oy + Math.floor(q / 2) * 8,
@@ -226,6 +233,7 @@ export const FLOOR_ART: Record<string, (p: Pen, ox: number, oy: number, x: numbe
         8,
         (q % 2) + Math.floor(q / 2) === 1 ? "#2b2b33" : "#ece8e0",
       );
+    }
   },
   terrazzo: (p, ox, oy, x, y) => {
     p.rect(ox, oy, TILE, TILE, "#e9e2d6");
@@ -239,14 +247,17 @@ export const FLOOR_ART: Record<string, (p: Pen, ox: number, oy: number, x: numbe
   },
   klinker: (p, ox, oy, x, y) => {
     p.rect(ox, oy, TILE, TILE, "#c4a79a");
-    for (let j = 0; j < 2; j++)
+    for (let j = 0; j < 2; j++) {
       for (let i = 0; i < 2; i++) {
         const h = hash(x * 2 + i, y * 2 + j, 74);
-        const base = h < 0.33 ? "#a8553f" : h < 0.66 ? "#b4634a" : "#9a4a38";
+        let base = "#9a4a38";
+        if (h < 0.33) base = "#a8553f";
+        else if (h < 0.66) base = "#b4634a";
         p.rect(ox + i * 8 + 1, oy + j * 8 + 1, 7, 7, base);
         p.rect(ox + i * 8 + 1, oy + j * 8 + 1, 7, 1, "#c27658");
         p.px(ox + i * 8 + 1 + Math.floor(h * 5), oy + j * 8 + 4, "#8a3f30");
       }
+    }
   },
   datacentre: (p, ox, oy) => {
     p.rect(ox, oy, TILE, TILE, "#9aa3ae");
@@ -273,31 +284,34 @@ export const FLOOR_ART: Record<string, (p: Pen, ox: number, oy: number, x: numbe
       p.rect(ox, oy + j + 7, TILE, 1, "#c4a678");
       const joint = Math.floor(hash(x, y * 2 + j / 8, 75) * 12) + 2;
       p.rect(ox + joint, oy + j, 1, 7, "#c4a678");
-      for (let k = 0; k < 3; k++)
+      for (let k = 0; k < 3; k++) {
         p.px(ox + Math.floor(hash(x * 3 + k, y + j, 76) * 15), oy + j + 1 + (k % 3) * 2, "#d3b88c");
+      }
     }
   },
   bornholm: (p, ox, oy, x, y) => {
     p.rect(ox, oy, TILE, TILE, "#6a6f78");
-    for (let j = 0; j < 2; j++)
+    for (let j = 0; j < 2; j++) {
       for (let i = 0; i < 2; i++) {
         const h = hash(x * 2 + i, y * 2 + j, 42);
         p.rect(ox + i * 8 + 1, oy + j * 8 + 1, 6, 6, h < 0.5 ? "#8d939c" : "#7c828c");
         p.rect(ox + i * 8 + 1, oy + j * 8 + 1, 6, 1, "#a3a9b2");
       }
+    }
   },
 };
 
 /** Boards laid in a herringbone: diagonal planks, the other way up in the bottom half of each 8-pixel block. */
 function herringbone(p: Pen, ox: number, oy: number, x: number, y: number, base: string, line: string): void {
   p.rect(ox, oy, TILE, TILE, base);
-  for (let j = 0; j < TILE; j++)
+  for (let j = 0; j < TILE; j++) {
     for (let i = 0; i < TILE; i++) {
       const top = j % 8 < 4;
       const d = top ? i + j : i - j + 16;
       if (d % 4 === 0) p.px(ox + i, oy + j, line);
       else if (hash(x * TILE + i, y * TILE + j, 43) < 0.04) p.px(ox + i, oy + j, line);
     }
+  }
 }
 
 function floor(p: Pen, ox: number, oy: number, x: number, y: number, decor?: string): void {
@@ -317,7 +331,7 @@ function floor(p: Pen, ox: number, oy: number, x: number, y: number, decor?: str
 /** Flagstones, offset every other row like the plaza but rougher. */
 function stone(p: Pen, ox: number, oy: number, x: number, y: number): void {
   p.rect(ox, oy, TILE, TILE, DUNGEON.floor);
-  for (let j = 0; j < TILE; j++)
+  for (let j = 0; j < TILE; j++) {
     for (let i = 0; i < TILE; i++) {
       const gx = x * TILE + i;
       const gy = y * TILE + j;
@@ -325,6 +339,7 @@ function stone(p: Pen, ox: number, oy: number, x: number, y: number): void {
       if (gy % 8 === 0 || (gx + offset) % 8 === 0) p.px(ox + i, oy + j, DUNGEON.floorDark);
       else if (hash(gx, gy, 6) < 0.05) p.px(ox + i, oy + j, DUNGEON.floorLight);
     }
+  }
 }
 
 /** The boss's dais: raised, with a lip and a front face, and runes along its edge. */
@@ -369,6 +384,12 @@ function stage(p: Pen, map: GameMap, ox: number, oy: number, x: number, y: numbe
   if (off(1, 0)) p.rect(ox + TILE - 1, oy, 1, TILE, C.trunkDark);
 }
 
+/** A wall face with no wallpaper: flat paper with a seam every 4 pixels. */
+function plainWall(p: Pen, ox: number, oy: number): void {
+  p.rect(ox, oy, TILE, TILE, C.wall);
+  for (let i = 0; i < TILE; i += 4) p.rect(ox + i, oy + 2, 1, TILE - 5, C.wallDark);
+}
+
 function wall(p: Pen, map: GameMap, ox: number, oy: number, x: number, y: number): void {
   // The Julemarked's courtyard wall is brick, snow-capped; its face is the row with ground below it.
   if (map.id === "julemarked") {
@@ -398,10 +419,7 @@ function wall(p: Pen, map: GameMap, ox: number, oy: number, x: number, y: number
   }
   const paper = map.decor?.wall ? WALL_ART[map.decor.wall] : undefined;
   if (paper) paper(p, ox, oy, x, y);
-  else {
-    p.rect(ox, oy, TILE, TILE, C.wall);
-    for (let i = 0; i < TILE; i += 4) p.rect(ox + i, oy + 2, 1, TILE - 5, C.wallDark);
-  }
+  else plainWall(p, ox, oy);
   p.rect(ox, oy, TILE, 2, C.wallTopLight);
   p.rect(ox, oy + TILE - 3, TILE, 3, C.woodDark);
 }
@@ -416,8 +434,12 @@ export const WALL_ART: Record<string, (p: Pen, ox: number, oy: number, x: number
     p.rect(ox, oy + 2, TILE, 1, "#5a2a26");
   },
   hygge: (p, ox, oy, x, y) => {
-    for (let j = 0; j < TILE; j++)
-      p.rect(ox, oy + j, TILE, 1, j < 5 ? "#f0d8aa" : j < 10 ? "#f5e3bd" : "#f9ecd0");
+    for (let j = 0; j < TILE; j++) {
+      let shade = "#f9ecd0";
+      if (j < 5) shade = "#f0d8aa";
+      else if (j < 10) shade = "#f5e3bd";
+      p.rect(ox, oy + j, TILE, 1, shade);
+    }
     if (hash(x, y, 51) < 0.5) {
       p.rect(ox + 6, oy + 6, 3, 3, "#fff3cf");
       p.px(ox + 7, oy + 5, "#ffd36b");
@@ -434,16 +456,21 @@ export const WALL_ART: Record<string, (p: Pen, ox: number, oy: number, x: number
       const shift = (j / 4) % 2 === 0 ? 0 : 4;
       for (let i = shift; i < TILE; i += 8) p.rect(ox + i, oy + j, 1, 3, "#cdb9a2");
     }
-    for (let k = 0; k < 3; k++)
+    for (let k = 0; k < 3; k++) {
       p.px(ox + Math.floor(hash(x, y, 52 + k) * TILE), oy + Math.floor(hash(y, x, 55 + k) * 12), "#8a3f30");
+    }
   },
   jacobsen: (p, ox, oy) => {
     p.rect(ox, oy, TILE, TILE, "#9fb59a");
     p.rect(ox, oy + 2, TILE, 1, "#92a98d");
   },
   skagen: (p, ox, oy, x, y) => {
-    for (let j = 0; j < TILE; j++)
-      p.rect(ox, oy + j, TILE, 1, j < 6 ? "#f0cf6e" : j < 11 ? "#f3d983" : "#f6e19a");
+    for (let j = 0; j < TILE; j++) {
+      let shade = "#f6e19a";
+      if (j < 6) shade = "#f0cf6e";
+      else if (j < 11) shade = "#f3d983";
+      p.rect(ox, oy + j, TILE, 1, shade);
+    }
     p.rect(ox, oy + 8, TILE, 1, "#e9c460");
     if (hash(x, y, 77) < 0.4) p.rect(ox + 5, oy + 4, 6, 1, "#fbeab5");
   },
@@ -466,12 +493,13 @@ export const WALL_ART: Record<string, (p: Pen, ox: number, oy: number, x: number
   },
   kanban: (p, ox, oy, x, y) => {
     p.rect(ox, oy, TILE, TILE, "#b88a58");
-    for (let k = 0; k < 6; k++)
+    for (let k = 0; k < 6; k++) {
       p.px(
         ox + Math.floor(hash(x * 6 + k, y, 79) * 15),
         oy + Math.floor(hash(x, y * 6 + k, 80) * 12),
         "#a07548",
       );
+    }
     const notes = ["#f5d14a", "#f28bb2", "#7fe3ff", "#9fe08a"];
     const n = notes[(x * 3 + 1) % notes.length]!;
     p.rect(ox + 3, oy + 3, 5, 5, n);
@@ -484,12 +512,13 @@ export const WALL_ART: Record<string, (p: Pen, ox: number, oy: number, x: number
   },
   tivoli: (p, ox, oy, x, y) => {
     p.rect(ox, oy, TILE, TILE, "#1f2a54");
-    for (let k = 0; k < 4; k++)
+    for (let k = 0; k < 4; k++) {
       p.px(
         ox + 1 + Math.floor(hash(x, y, 60 + k) * 14),
         oy + 3 + Math.floor(hash(y, x, 64 + k) * 9),
         "#f2c94c",
       );
+    }
   },
 };
 
@@ -539,8 +568,9 @@ function paintTile(p: Pen, map: GameMap, x: number, y: number): void {
 /** The whole map's ground as one canvas; scenery and people are drawn over it every frame. */
 export function bakeGround(map: GameMap): HTMLCanvasElement {
   return bake(map.width * TILE, map.height * TILE, (p) => {
-    for (let y = map.y0; y < map.y0 + map.height; y++)
+    for (let y = map.y0; y < map.y0 + map.height; y++) {
       for (let x = map.x0; x < map.x0 + map.width; x++) paintTile(p, map, x, y);
+    }
   });
 }
 
@@ -574,21 +604,20 @@ export const decorSwatch = cached(
   (kind: DecorKind, id: string) => `${kind}.${id}`,
   (kind, id) =>
     bake(3 * TILE, 2 * TILE, (p) => {
-      for (let y = 0; y < 2; y++)
+      for (let y = 0; y < 2; y++) {
         for (let x = 0; x < 3; x++) {
-          const [ox, oy] = [x * TILE, y * TILE];
+          const ox = x * TILE;
+          const oy = y * TILE;
           if (kind === "floor") {
             floor(p, ox, oy, x, y, id);
             continue;
           }
           const paper = WALL_ART[id];
           if (paper) paper(p, ox, oy, x, y);
-          else {
-            p.rect(ox, oy, TILE, TILE, C.wall);
-            for (let i = 0; i < TILE; i += 4) p.rect(ox + i, oy + 2, 1, TILE - 5, C.wallDark);
-          }
+          else plainWall(p, ox, oy);
           if (y === 0) p.rect(ox, oy, TILE, 2, C.wallTopLight);
           if (y === 1) p.rect(ox, oy + TILE - 3, TILE, 3, C.woodDark);
         }
+      }
     }),
 );

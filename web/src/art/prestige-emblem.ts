@@ -116,7 +116,8 @@ const FULL: Record<number, string[]> = {
   ],
 };
 
-// Per rank: [palette extras]. `o` outline is a dark tint of the track so it reads on the dark HUD and the sky.
+// The shades each rank's crest needs beyond the track's three colours. `o` is a dark tint of the track, so the
+// outline reads on the dark HUD and the sky.
 // prettier-ignore
 const EXTRA: Record<number, Palette> = {
   1: { o: "#2b1a5c", a: "#d6dbe6", w: "#ffffff", d: "#5b34b8" },
@@ -152,9 +153,14 @@ const bakeEmblem = (rank: number, scale: number, frame: number): HTMLCanvasEleme
   const s = bake(EMBLEM_SIZE, EMBLEM_SIZE, (p) => {
     p.grid(rows, pal);
     if (frame < 0) return;
-    for (const [y, row] of rows.entries())
-      for (let x = 0; x < row.length; x++)
-        if (row[x] !== "." && row[x] !== "o" && lit(x, y, frame)) p.px(x, y, "#ffffff");
+
+    for (const [y, row] of rows.entries()) {
+      for (let x = 0; x < row.length; x++) {
+        // Outline and see-through pixels keep their colour; only the body catches the glint.
+        const isBody = row[x] !== "." && row[x] !== "o";
+        if (isBody && lit(x, y, frame)) p.px(x, y, "#ffffff");
+      }
+    }
   });
   if (scale === 1) return s;
   const out = document.createElement("canvas");

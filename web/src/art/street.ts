@@ -82,7 +82,9 @@ export const cartSprite = cached(
       } else {
         // Furled: a tight roll of stripes on the pole.
         p.rect(14, 1, 4, 12, C.ink);
-        for (let y = 2; y < 12; y++) p.rect(15, y, 2, 1, Math.floor(y / 2) % 2 ? RED : C.white);
+        for (let y = 2; y < 12; y++) {
+          p.rect(15, y, 2, 1, Math.floor(y / 2) % 2 ? RED : C.white);
+        }
       }
       // Counter: steel top, with ketchup, mustard and remoulade when it's open.
       if (open) {
@@ -122,7 +124,6 @@ export const cartSprite = cached(
     }),
 );
 
-// Pixel art reads as a grid.
 // prettier-ignore
 const SNAIL_FRAMES = [
   [
@@ -175,8 +176,9 @@ export const goalFlag = once(() =>
     p.rect(2, 1, 1, 20, C.metal);
     p.rect(1, 19, 3, 2, C.metal);
     p.rect(3, 1, 9, 7, C.ink);
-    for (let y = 0; y < 3; y++)
+    for (let y = 0; y < 3; y++) {
       for (let x = 0; x < 4; x++) p.rect(3 + x * 2, 2 + y * 2, 2, 2, (x + y) % 2 ? C.ink : C.white);
+    }
   }),
 );
 
@@ -222,7 +224,6 @@ export const paperSprite = once(() =>
   }),
 );
 
-// Pixel art reads as a grid.
 // prettier-ignore
 const SAUSAGE = [
   "..rrrrrrrrrr..",
