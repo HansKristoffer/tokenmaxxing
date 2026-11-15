@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import {
   checkBets,
   colorOf,
+  isBetOn,
   MAX_SPIN,
   nextPhase,
   PAYS,
@@ -120,4 +121,12 @@ describe("nextPhase", () => {
     expect(nextPhase({ ...v, phase: "result", endsAt: 10, now: 10, seated: 1 })).toBe("betting");
     expect(nextPhase({ ...v, phase: "result", endsAt: 10, now: 10 })).toBe("idle");
   });
+});
+
+test("a bet is one that is on the table, never an inherited key", () => {
+  expect(isBetOn("red")).toBe(true);
+  expect(isBetOn("n:17")).toBe(true);
+  expect(isBetOn("n:37")).toBe(false);
+  for (const key of ["constructor", "toString", "__proto__", "hasOwnProperty"])
+    expect(isBetOn(key)).toBe(false);
 });

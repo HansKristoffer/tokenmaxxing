@@ -83,24 +83,6 @@ function placed(): NonNullable<typeof spots> {
 /** The tree's trunk and Knud's tile are not walked through. */
 export const blocksChristmas = (x: number, y: number): boolean => christmasNow() !== null && blocksTile(x, y);
 
-/** The map as click-to-walk should see it: the tree and Knud are in the way, so the route goes round them. */
-let aware: { map: GameMap; view: GameMap } | null = null;
-export function routeMap(map: GameMap): GameMap {
-  if (!christmasNow()) return map;
-  if (aware?.map !== map)
-    aware = {
-      map,
-      view: new Proxy(map, {
-        get(target, key) {
-          if (key === "walkable") return (x: number, y: number) => target.walkable(x, y) && !blocksTile(x, y);
-          const v = Reflect.get(target, key, target);
-          return typeof v === "function" ? v.bind(target) : v;
-        },
-      }),
-    };
-  return aware.view;
-}
-
 // MARK: The player's own hearts
 
 const HEARTS_KEY = "tokenmaxxing.christmas.hearts";

@@ -123,7 +123,11 @@ export function leaderFrom(body: unknown): Leader | null {
 }
 
 /** LMArena's names for the pool's providers where neither their id, name nor OpenRouter prefix matches. */
-const ORGS: Record<string, ProviderId> = { anthropic: "claude", openai: "codex", moonshot: "kimi" };
+const ORGS = new Map<string, ProviderId>([
+  ["anthropic", "claude"],
+  ["openai", "codex"],
+  ["moonshot", "kimi"],
+]);
 
 const keyOf = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
 
@@ -132,7 +136,7 @@ export function providerFor(org: string): ProviderId | null {
   const key = keyOf(org);
   const byName = findProvider(org)?.id;
   const byPrefix = PROVIDERS.find((p) => keyOf(p.openrouter) === key)?.id;
-  return ORGS[key] ?? byName ?? byPrefix ?? null;
+  return ORGS.get(key) ?? byName ?? byPrefix ?? null;
 }
 
 /** The plaque's colour for makers outside the pool: bronze. */

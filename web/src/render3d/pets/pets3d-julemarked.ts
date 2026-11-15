@@ -430,10 +430,10 @@ export function marcipangris(): Built {
           e.rotation.z = SIDES[i]! * (-0.2 - flick * 0.7 - (moving ? 0.1 + Math.sin(t * 13 + i) * 0.1 : 0));
         });
         bow.rotation.z = Math.sin(t * 2 + 1) * 0.06;
-        // A wink every few seconds: the right eye shuts, the left stays open.
-        // A wink every 5.3 seconds, shut for 0.4 of one.
+        // A wink every 5.3 seconds, shut for 0.4 of one: the right eye shuts, the left stays open.
+        // Set from the clock, not from the last frame's scale, so the eye opens again after the wink.
         const wink = t % 5.3 > 3.4 && t % 5.3 < 3.8 ? 1 : 0;
-        eyeMeshes[1]!.scale.y = (1 - 0.9 * wink) * (eyeMeshes[1]!.scale.y > 0.5 ? 1 : 0.12);
+        eyeMeshes[1]!.scale.y = 1 - 0.9 * wink;
         for (const s of spark) {
           const f = Math.max(0, Math.sin(t * 2.4 + s.p * 9)) ** 4;
           s.o.position.set(

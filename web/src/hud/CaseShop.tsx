@@ -337,8 +337,8 @@ function CaseCard({
           })}
       </ul>
       <p className="muted small">
-        Chances are per opening, split evenly inside each rarity. Every {def.rareWithin}th opening in a row
-        without a rare is a rare or better. A pick you already own is drawn again{" "}
+        Chances are per opening, split evenly inside each rarity. Once {def.rareWithin - 1} openings in a row
+        have no rare, the next one is a rare or better. A pick you already own is drawn again{" "}
         {def.dupeRerolls === 1 ? "once" : `${def.dupeRerolls} times`}.
       </p>
     </li>

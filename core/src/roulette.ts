@@ -58,7 +58,8 @@ export function isBetOn(on: unknown): on is BetOn {
     const n = Number(on.slice(2));
     return /^n:(0|[1-9]\d?)$/.test(on) && n >= 0 && n <= 36;
   }
-  return on in PAYS;
+  // Own keys only: `"constructor" in PAYS` is true for every object.
+  return Object.hasOwn(PAYS, on);
 }
 
 /** Whether `pocket` wins a chip on `on`. Zero beats every outside bet. */

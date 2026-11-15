@@ -221,7 +221,8 @@ const SHIRTS = ["#e25d5d", "#4f8fe0", "#58b36a", "#f0b53c", "#9b6fd6", "#f28bb2"
  * (furniture), a clothes rail, a styling mirror (barber) or a pen with a pet in it (pets).
  */
 export const shopDisplay = cached(
-  (shop: ShopId, wall: boolean, x: number, y: number) => `${shop}${wall}${wall ? "" : (x * 7 + y * 3) % 4}`,
+  // Every tile draws its own art from its position, so the key is the position too.
+  (shop: ShopId, wall: boolean, x: number, y: number) => `${shop}${wall}${x},${y}`,
   (shop: ShopId, wall: boolean, x: number, y: number) => {
     if (wall) return bake(TILE, TILE, (p) => sample(p, shop, x, y));
     return bake(TILE, 20, (p) => {

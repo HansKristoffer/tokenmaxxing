@@ -37,7 +37,7 @@ import { basementInteract } from "./basement.ts";
 import { befrielsenInteract, blocksBefrielsen, routeAround } from "./befrielsen.ts";
 import { camera, viewHooks, zoom } from "./camera.ts";
 import { chalkboardText } from "./chalkboard.ts";
-import { blocksChristmas, christmasInteract, routeMap } from "./christmas.ts";
+import { blocksChristmas, christmasInteract } from "./christmas.ts";
 import { clocksText } from "./clocks.ts";
 import { barrelInteract, blocksBarrel } from "./fastelavn.ts";
 import { blocksFestiveNpc, festiveNpcAt, talkToFestiveNpc } from "./festive-npc.ts";
@@ -303,9 +303,11 @@ export function walkTo(x: number, y: number): void {
   const me = self();
   takeOnArrival = false;
   if (!me || (x === me.x && y === me.y)) return;
-  path = route(routeMap(world.map), [me.x, me.y], [x, y]) ?? [];
-  path = routeAround(route(world.map, [me.x, me.y], [x, y]) ?? [], [me.x, me.y], [x, y]);
-  path = route(world.map, [me.x, me.y], [x, y], avoidProps) ?? [];
+  // One avoid rule for the whole walk: the festive props, the Christmas tree and Knud, and the memorial (in `routeAround`).
+  const from: [number, number] = [me.x, me.y];
+  const to: [number, number] = [x, y];
+  const avoid = (ax: number, ay: number): boolean => avoidProps(ax, ay) || blocksChristmas(ax, ay);
+  path = routeAround(route(world.map, from, to, avoid) ?? [], from, to, avoid);
   interactOnArrival = path.length > 0 && !world.map.walkable(x, y) && !world.map.kind(x, y).portal;
 }
 

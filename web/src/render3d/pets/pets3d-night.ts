@@ -440,7 +440,8 @@ export function maneki(): Built {
         arm.rotation.z = -0.25 + Math.sin(t * (moving ? 9 : 4.5)) * 0.4;
         arm.rotation.x = 0.05;
         head.rotation.z = Math.sin(t * 1.4) * 0.04;
-        body.position.y += Math.abs(Math.sin(t * 9)) * (moving ? 0.01 : 0);
+        // Set, not added to: the body rests at 0, and an added bob would climb a little more every frame.
+        body.position.y = Math.abs(Math.sin(t * 9)) * (moving ? 0.01 : 0);
       },
     },
     body,
