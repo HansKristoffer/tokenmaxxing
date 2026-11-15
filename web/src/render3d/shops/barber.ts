@@ -82,7 +82,7 @@ export interface ShopSpec {
   buildInterior: () => {
     room: Room;
     /** world-grid tiles where a click means 'browse this item' */
-    displays: { item: ShopItem; at: [number, number] }[];
+    displays: { item: ShopItem; at: [number, number]; world?: [number, number, number] }[];
     shopkeeper: Avatar;
     counter: [number, number];
     door: [number, number];
@@ -91,16 +91,13 @@ export interface ShopSpec {
 
 // MARK: Items
 
-const group = (row: BarberRow): string =>
-  row.slot === "style"
-    ? "Hairstyles"
-    : row.slot === "hair"
-      ? "Hair colour"
-      : row.slot === "skin"
-        ? "Skin tone"
-        : (FACIAL_HAIR_IDS as readonly string[]).includes(row.id)
-          ? "Facial hair"
-          : "Face";
+const group = (row: BarberRow): string => {
+  if (row.slot === "style") return "Hairstyles";
+  if (row.slot === "hair") return "Hair colour";
+  if (row.slot === "skin") return "Skin tone";
+  const isFacialHair = (FACIAL_HAIR_IDS as readonly string[]).includes(row.id);
+  return isFacialHair ? "Facial hair" : "Face";
+};
 
 const previewOf = (row: BarberRow): (() => Model) => {
   switch (row.slot) {
@@ -164,15 +161,13 @@ export function restyle(look: Look, change: LookChange, opts: { level?: number }
 const BRICK = "#b5524a";
 const TRIM = "#fbf7ef";
 
-const stripes = (a: string, b: string, n = 8): THREE.CanvasTexture => {
-  const t = canvasTexture(n * 4, 8, (g) => {
+const stripes = (a: string, b: string, n = 8): THREE.CanvasTexture =>
+  canvasTexture(n * 4, 8, (g) => {
     for (let i = 0; i < n; i++) {
       g.fillStyle = i % 2 ? b : a;
       g.fillRect(i * 4, 0, 4, 8);
     }
   });
-  return t;
-};
 
 const brickTexture = (): THREE.CanvasTexture => {
   const t = canvasTexture(16, 16, (g) => {
@@ -215,10 +210,10 @@ function exterior(): Model {
   }
   // Roof slab, parapets and a cornice along the front.
   m.box([w, 0.06, d], "#5d6470", [0, h - 0.066, -d / 2], 0.005);
-  m.box([w + 0.14, 0.1, 0.16], TRIM, [0, h - 0.1, 0.0], 0.02);
+  m.box([w + 0.14, 0.1, 0.16], TRIM, [0, h - 0.1, 0], 0.02);
   m.box([w + 0.04, 0.22, 0.12], BRICK, [0, h - 0.04, -0.04], 0.02);
   m.box([w + 0.04, 0.22, 0.12], BRICK, [0, h - 0.04, -d + 0.04], 0.02);
-  for (const s of [-1, 1]) m.box([0.12, 0.22, d], BRICK, [s * (w / 2 - 0.0), h - 0.04, -d / 2], 0.02);
+  for (const s of [-1, 1]) m.box([0.12, 0.22, d], BRICK, [s * (w / 2), h - 0.04, -d / 2], 0.02);
   // Black-and-white tiles under the windows.
   const base = canvasTexture(8, 2, (g) => {
     for (let i = 0; i < 8; i++) {
@@ -329,13 +324,13 @@ function exterior(): Model {
   for (const s of [-1, 1]) {
     const blade = roofPole.box([0.04, 0.5, 0.03], CHROME, [0, -0.1, 0], 0.005);
     blade.rotation.z = s * 0.28;
-    roofPole.ball(0.07, RED, [-s * 0.14, -0.02, 0.0], [1, 1.2, 0.5], 8).rotation.z = 0;
+    roofPole.ball(0.07, RED, [-s * 0.14, -0.02, 0], [1, 1.2, 0.5], 8);
   }
 
   // The barber pole on the wall, right of the right window, spinning.
   const bracket = m.part([2.32, 0.3, 0.06]);
-  bracket.box([0.06, 0.06, 0.2], CHROME_DARK, [0, 0.0, 0.0], 0.01);
-  bracket.box([0.06, 0.06, 0.2], CHROME_DARK, [0, 1.0, 0.0], 0.01);
+  bracket.box([0.06, 0.06, 0.2], CHROME_DARK, [0, 0, 0], 0.01);
+  bracket.box([0.06, 0.06, 0.2], CHROME_DARK, [0, 1.0, 0], 0.01);
   const pole = barberPole(1.05, 0.085, true);
   pole.position.set(0, 0, 0.14);
   bracket.add(pole);
@@ -437,11 +432,11 @@ function header(
   m.add(p);
 }
 
-/** The wig wall: four hairstyle rows by six hair colours, 24 heads, a price card under each. */
 /** What each display shows, by row id, as the racks put it out: where the pointer finds it (`buildInterior`). */
 const spots = new Map<string, THREE.Object3D[]>();
 const spot = (id: string, o: THREE.Object3D) => spots.set(id, [...(spots.get(id) ?? []), o]);
 
+/** The wig wall: four hairstyle rows by six hair colours, 24 heads, a price card under each. */
 function wigWall(): Model {
   const m = new Model();
   const depth = 0.55;
@@ -469,7 +464,6 @@ function wigWall(): Model {
       );
     });
   });
-  // Towels, wig caps and spare dummies in the cabinet doors' top; a hairdryer on the highest board.
   light(m, [0, 2.4, 0.6], "#fff0cf", 1.6, 5);
   return m;
 }
@@ -508,7 +502,6 @@ function swatchWall(): Model {
     spot(row.id, wall.box([0.22, 0.05, 0.05], CHROME, [x, 1.82, 0.12], 0.01));
     const card = priceCard({ ...row, name: row.name.replace(" hair", "") }, 0.56, 0.42);
     card.position.set(x, 0.74, 0.11);
-    card.scale.setScalar(1);
     wall.add(card);
     // The dye bottle on the shelf, and a tub.
     wall.cyl(0.07, 0.24, glass(col, 0.9), [x - 0.1, 0.6, 0.3], 0.065, 10);
@@ -576,7 +569,7 @@ function beardBar(): Model {
   wall.cyl(0.011, 0.15, "#8c5c36", [-0.07, y0 + 0.09, 0.36], 0.011, 6);
   wall.ball(0.03, "#e8dcc4", [-0.07, y0 + 0.25, 0.36], [1, 1.3, 1], 8);
   wall.box([0.09, 0.035, 0.055], "#f5d98a", [0.09, y0, 0.38], 0.012);
-  const razor = wall.part([0.0, y0 + 0.01, 0.15], 0.5);
+  const razor = wall.part([0, y0 + 0.01, 0.15], 0.5);
   razor.box([0.18, 0.012, 0.03], CHROME, [0, 0, 0], 0.002);
   razor.box([0.09, 0.02, 0.025], "#2b2433", [0.13, 0, 0], 0.005);
   const rows: [BarberRow, readonly number[], number][] = [
@@ -640,7 +633,7 @@ function counter(): Model {
   for (let i = 0; i < 8; i++)
     m.box([0.03, 0.7, 0.035], i % 2 ? RED : "#fbf7ef", [-w / 2 + 0.3 + i * 0.5, 0.1, 0.37], 0.004);
   // The till.
-  m.box([0.5, 0.2, 0.4], "#8a93a1", [-1.2, 0.96, 0.0], 0.03);
+  m.box([0.5, 0.2, 0.4], "#8a93a1", [-1.2, 0.96, 0], 0.03);
   m.box([0.4, 0.22, 0.04], "#2b2433", [-1.2, 1.16, -0.12], 0.01).rotation.x = -0.35;
   m.box([0.3, 0.02, 0.1], "#3ddc84", [-1.2, 1.2, -0.1], 0.004);
   m.box([0.4, 0.04, 0.08], "#fbf7ef", [-1.2, 1.0, 0.17], 0.01);
@@ -652,7 +645,7 @@ function counter(): Model {
   m.box([0.14, 0.02, 0.09], "#fbf7ef", [0.3, 0.96, 0.15], 0.004);
   m.box([0.14, 0.03, 0.09], "#f5d98a", [0.3, 0.98, 0.15], 0.004).rotation.y = 0.2;
   const pole = barberPole(0.5, 0.06);
-  pole.position.set(1.4, 0.96, 0.0);
+  pole.position.set(1.4, 0.96, 0);
   m.add(pole);
   m.cyl(0.09, 0.22, glass("#fbd7e6", 0.6), [0.8, 0.96, 0.05], 0.09, 12);
   for (let i = 0; i < 5; i++) {
@@ -710,7 +703,7 @@ function priceBoard(): Model {
     },
     { px: 96, frame: "#5b3a24" },
   );
-  p.position.set(0, 0.5, 0.0);
+  p.position.set(0, 0.5, 0);
   m.add(p);
   m.box([0.05, 0.5, 0.05], C.woodDark, [-0.5, 0, -0.04], 0.01);
   m.box([0.05, 0.5, 0.05], C.woodDark, [0.5, 0, -0.04], 0.01);
@@ -815,11 +808,11 @@ function buildInterior(): ReturnType<ShopSpec["buildInterior"]> {
     hairFloor.push([at.x + 0.2, at.z]);
   });
   // The third chair waits, with a cape folded on it.
-  hairFloor.push([seatAt(chairs[2]!).x + 0.2, seatAt(chairs[2]!).z]);
+  const waitingSeat = seatAt(chairs[2]!);
+  hairFloor.push([waitingSeat.x + 0.2, waitingSeat.z]);
   const cape = new Model();
   cape.box([0.46, 0.04, 0.34], RED, [0, 0, 0], 0.015);
-  const capeAt = seatAt(chairs[2]!);
-  cape.position.set(capeAt.x, 0.52, capeAt.z);
+  cape.position.set(waitingSeat.x, 0.52, waitingSeat.z);
   room.group.add(cape);
   const floor = new Model();
   clippings(floor, [...HAIR_COLOURS], hairFloor[0]!, 3);

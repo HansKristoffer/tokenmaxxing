@@ -16,12 +16,11 @@ const TAB: Record<Exclude<ShopId, "natmarked" | "market">, Item["slot"]> = {
 };
 
 /** The page a shop's counter opens in 2D: the Shop page on the tab that shop sells. */
-export const pageForShop = (shop: ShopId): Panel =>
-  shop === "natmarked"
-    ? { kind: "caseShop" }
-    : shop === "market"
-      ? { kind: "market" }
-      : { kind: "shop", tab: TAB[shop] };
+export function pageForShop(shop: ShopId): Panel {
+  if (shop === "natmarked") return { kind: "caseShop" };
+  if (shop === "market") return { kind: "market" };
+  return { kind: "shop", tab: TAB[shop] };
+}
 
 /** The page that sells one item (a shelf in the 3D shop, in 2D): the same tab, or the page for what the Shop page does not carry. */
 export function pageForItem(id: string): Panel {

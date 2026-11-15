@@ -307,7 +307,7 @@ function awning(m: Model, cx: number, w: number, y: number, front: number, drop:
 
 /** A lit window display: a framed pane with warm paper behind, two shelves of toys, a sill. */
 function windowDisplay(m: Model, x: number, seed: number): void {
-  m.box([1.3, 1.0, 0.08], WOOD_D, [x, 0.5, 0.0], 0.015);
+  m.box([1.3, 1.0, 0.08], WOOD_D, [x, 0.5, 0], 0.015);
   const paper = m.box([1.14, 0.84, 0.05], "#fbe7bd", [x, 0.58, 0.04], 0.01);
   nightGlow(paper, "#ffd592");
   for (const y of [0.9, 1.22]) m.box([1.14, 0.03, 0.16], WOOD_L, [x, y - 0.03, 0.1], 0.005);
@@ -379,10 +379,10 @@ function exterior(): Model {
   for (const s of [-1, 1]) {
     // The sides, plain plaster over brick, with a lit window each.
     const side = m.part([s * (w / 2), 0, -d / 2], (s * Math.PI) / 2);
-    const pane = side.box([1.0, 0.7, 0.04], "#fbe7bd", [0, 0.75, 0.0], 0.01);
+    const pane = side.box([1.0, 0.7, 0.04], "#fbe7bd", [0, 0.75, 0], 0.01);
     nightGlow(pane, "#ffd592");
-    side.box([1.12, 0.06, 0.07], WOOD_D, [0, 0.72, 0.0], 0.01);
-    side.box([0.04, 0.74, 0.06], WOOD_D, [0, 0.74, 0.0], 0.004);
+    side.box([1.12, 0.06, 0.07], WOOD_D, [0, 0.72, 0], 0.01);
+    side.box([0.04, 0.74, 0.06], WOOD_D, [0, 0.74, 0], 0.004);
   }
   // The false front: a parapet over the whole width, a gold cap and finials, the sign on its face.
   m.box([w + 0.12, 0.8, 0.2], PLASTER, [0, h, -0.1], 0.02);
@@ -393,7 +393,7 @@ function exterior(): Model {
     m.ball(0.1, GOLD, [s * (w / 2 + 0.02), h + 1.1, -0.1], [1, 1, 1], 8);
   }
   const sign = signBoard(3.7, 0.5, [{ text: "TORVEHALLEN", color: CREAM, size: 0.62, y: 0.52 }]);
-  sign.position.set(0, h + 0.1, 0.0);
+  sign.position.set(0, h + 0.1, 0);
   m.add(sign);
   for (const s of [-1, 1]) {
     const lamp = m.ball(0.08, BULB, [s * 2.2, h + 0.4, 0.06], [1, 1.2, 1], 8);
@@ -413,7 +413,7 @@ function exterior(): Model {
   m.box([w + 0.52, 0.1, 0.16], tint(ROOF, -0.15), [0, h + rise, -d / 2], 0.02);
   // The doorway: a dark arch with a lit hall behind it, a brass frame, and a threshold step.
   m.ball(0.69, WOOD_L, [0, 1.84, 0.015], [1, 0.62, 0.1], 14);
-  m.box([1.38, 1.7, 0.08], WOOD_L, [0, 0.16, 0.0], 0.01);
+  m.box([1.38, 1.7, 0.08], WOOD_L, [0, 0.16, 0], 0.01);
   m.ball(0.62, "#2a1a14", [0, 1.84, 0.045], [1, 0.62, 0.1], 14);
   m.box([1.24, 1.68, 0.1], "#2a1a14", [0, 0.16, 0.03], 0.01);
   nightGlow(m.box([1.0, 1.6, 0.04], "#fbe7bd", [0, 0.16, 0.065], 0.005), "#ffd592");
@@ -436,7 +436,8 @@ function exterior(): Model {
   for (let i = 0; i < 24; i++) wire(flags, flagAt(i / 24), flagAt((i + 1) / 24));
   for (let i = 0; i < 11; i++) {
     const [fx, fy, fz] = flagAt((i + 0.5) / 11);
-    const flag = flags.box([0.13, 0.13, 0.012], TOYS[[0, 2, 1, 3, 7][i % 5]!]!, [fx, fy - 0.1, fz], 0.002);
+    const toy = TOYS[[0, 2, 1, 3, 7][i % 5]!]!;
+    const flag = flags.box([0.13, 0.13, 0.012], toy, [fx, fy - 0.1, fz], 0.002);
     flag.rotation.z = Math.PI / 4;
   }
   m.add(flags);
@@ -478,14 +479,14 @@ function makeKeeper(): Avatar {
 
 // MARK: The room
 
-const asset = (
-  id: string,
-  name: string,
-  w: number,
-  d: number,
-  build: () => Model,
-  extra: Partial<Asset> = {},
-): Asset => ({ id, name, price: 0, w, d, build, ...extra });
+const asset = (id: string, name: string, w: number, d: number, build: () => Model): Asset => ({
+  id,
+  name,
+  price: 0,
+  w,
+  d,
+  build,
+});
 
 /** The runs of `ch` in the plan, as room tiles: where each starts and how long it is. */
 function runs(ch: string): { x: number; z: number; n: number }[] {

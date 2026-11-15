@@ -13,7 +13,6 @@
  * Tiles are the room's own (x east, z south, from the north-west corner); the integrator adds the inset.
  */
 import * as THREE from "three";
-import { C } from "../../art/palette.ts";
 import { type Asset, assetById, light } from "../furniture/furniture.ts";
 import { canvasTexture, glass, glow, Model, painted, ticks, tint } from "../kit/kit.ts";
 import type { Avatar } from "../people/avatar.ts";
@@ -29,9 +28,7 @@ import {
   RARITY_HEX,
   type ShopItem,
 } from "./clothes-items.ts";
-import { bubble, CREAM, GOLD, INK, lockFor, PINK, PLUM, priceTag, signBoard } from "./clothes-parts.ts";
-
-export { tryOn, tryOnLook2D } from "./clothes-items.ts";
+import { bubble, CREAM, GOLD, lockFor, PINK, PLUM, priceTag, signBoard } from "./clothes-parts.ts";
 
 // MARK: Types (a local copy of the shared contract)
 
@@ -53,7 +50,7 @@ export interface ShopSpec {
 }
 
 /** What the interior adds beyond the contract. */
-export interface ClothesInterior {
+interface ClothesInterior {
   room: Room;
   displays: {
     item: ShopItem;
@@ -69,7 +66,7 @@ export interface ClothesInterior {
   update: (dt: number, t: number) => void;
 }
 
-export const SHOPKEEPER = { name: "Bree", title: "Stylist" };
+const SHOPKEEPER = { name: "Bree", title: "Stylist" };
 
 // MARK: Layout
 
@@ -197,7 +194,7 @@ function podium(item: ShopItem, a: Avatar, turn: number): Model {
   a.root.rotation.y = turn;
   m.add(a.root);
   const tag = priceTag(item, 1.15, 0.36);
-  tag.position.set(0, 0.0, 0.62);
+  tag.position.set(0, 0, 0.62);
   tag.rotation.x = -0.55;
   m.add(tag);
   if (isLocked(item.id)) {
@@ -214,7 +211,7 @@ function podium(item: ShopItem, a: Avatar, turn: number): Model {
   return m;
 }
 
-/** A mannequin's stance by index: a little turn and a gesture, never an animation. */
+/** Poses a mannequin by index (a gesture, never an animation) and returns the turn its podium gives it. */
 function pose(a: Avatar, i: number): number {
   const stance = i % 5;
   if (stance === 1) a.arms[1].rotation.z = 0.55;
@@ -236,7 +233,7 @@ function counterModel(w: number): Model {
   m.box([w - 0.2, 0.55, 0.02], PLUM, [0, 0.2, 0.36], 0.006);
   m.box([w - 0.2, 0.03, 0.025], GOLD, [0, 0.78, 0.37], 0.004);
   // The till.
-  m.box([0.42, 0.18, 0.34], "#3a3040", [-w / 2 + 0.9, 1.02, 0.0], 0.02);
+  m.box([0.42, 0.18, 0.34], "#3a3040", [-w / 2 + 0.9, 1.02, 0], 0.02);
   m.box([0.34, 0.2, 0.04], "#a8dcf7", [-w / 2 + 0.9, 1.2, -0.08], 0.01).rotation.x = -0.4;
   // Gift bags, a card reader, a tape measure and a pin cushion.
   for (const [x, c] of [
@@ -324,8 +321,8 @@ function mirrorModel(w: number, h: number): Model {
     false,
   );
   m.box([w + 0.24, h + 0.24, 0.1], GOLD, [0, 0, 0], 0.03);
-  m.box([w + 0.12, h + 0.12, 0.11], tint(GOLD, -0.25), [0, 0.0, 0.0], 0.02);
-  m.plane(w, h, glow("#fff", tex), [0, (h + 0.12) / 2 - 0.0, 0.06]);
+  m.box([w + 0.12, h + 0.12, 0.11], tint(GOLD, -0.25), [0, 0, 0], 0.02);
+  m.plane(w, h, glow("#fff", tex), [0, (h + 0.12) / 2, 0.06]);
   m.ball(0.09, GOLD, [0, h + 0.28, 0.02]);
   return m;
 }
@@ -334,9 +331,8 @@ function mirrorModel(w: number, h: number): Model {
 function tryOnSpot(): Model {
   const m = new Model();
   m.cyl(0.62, 0.05, "#3a3040", [0, 0, 0], 0.62, 24);
-  const ring = m.cyl(0.55, 0.06, glow(GOLD), [0, 0.0, 0], 0.55, 24);
+  m.cyl(0.55, 0.06, glow(GOLD), [0, 0, 0], 0.55, 24);
   m.cyl(0.5, 0.07, "#5b4a68", [0, 0, 0], 0.5, 24);
-  void ring;
   m.box([0.16, 0.01, 0.08], GOLD, [-0.1, 0.08, 0.1], 0.003);
   m.box([0.16, 0.01, 0.08], GOLD, [0.1, 0.08, 0.1], 0.003);
   return m;
@@ -427,7 +423,7 @@ function makeShopkeeper(): { avatar: Avatar; update: (dt: number, t: number) => 
 
 // MARK: The room
 
-export function buildClothesInterior(items = buildClothesItems()): ClothesInterior {
+function buildClothesInterior(items = buildClothesItems()): ClothesInterior {
   const room = new Room(W, D, { floor: FLOOR, wall: WALL, stripe: STRIPE, bare: true });
   const placements: Placement[] = [];
   const put = (a: Asset, x: number, z: number, turn: Turn = 0, model?: Model) =>
@@ -490,14 +486,18 @@ export function buildClothesInterior(items = buildClothesItems()): ClothesInteri
     1,
     held.model,
   );
-  for (const s of hats.spots)
+  // The hat wall starts at tile x 1 and is 13 tiles wide, so its middle is at 7.5.
+  for (const s of hats.spots) {
     placements.push({ item: s.item, holder: s.holder, tile: [Math.floor(1 + 6.5 + s.x), 0] });
+  }
+
+  // The west wall runs along z; the shelf's local x maps to world z (turned a quarter).
   for (const s of faces.spots) {
-    // The west wall runs along z; the shelf's local x maps to world z (turned a quarter).
     placements.push({ item: s.item, holder: s.holder, tile: [0, Math.floor(1 + 3.5 - s.x)] });
   }
-  for (const s of held.spots)
+  for (const s of held.spots) {
     placements.push({ item: s.item, holder: s.holder, tile: [0, Math.floor(8 + 3.5 - s.x)] });
+  }
 
   // Outfit mannequins, ten to a row, three rows.
   items.outfits.forEach((item, i) => {
@@ -542,12 +542,10 @@ export function buildClothesInterior(items = buildClothesItems()): ClothesInteri
     0,
     mt,
   );
-  for (const s of merchSpots)
-    placements.push({
-      item: s.item,
-      holder: s.holder,
-      tile: [16 + Math.floor((merchSpots.indexOf(s) + 0.5) * (5 / merchSpots.length)), 10],
-    });
+  for (const [i, s] of merchSpots.entries()) {
+    const x = 16 + Math.floor((i + 0.5) * (5 / merchSpots.length));
+    placements.push({ item: s.item, holder: s.holder, tile: [x, 10] });
+  }
 
   // The till, with Bree behind it (north of the counter, facing the customers).
   put(
@@ -593,6 +591,7 @@ export function buildClothesInterior(items = buildClothesItems()): ClothesInteri
     [21, 9],
   ] as const)
     put(assetById.get("plant")!, x, z);
+
   const lamps = new Model();
   for (const [x, y, z, c, i] of [
     [4, 2.3, 1.6, "#ffd9a8", 2.2],
@@ -658,8 +657,3 @@ export const SHOP_CLOTHES: ShopSpec = {
   footprint: { w: 5, d: 4 },
   buildInterior: () => buildClothesInterior(catalogue),
 };
-
-void C;
-void CREAM;
-void INK;
-void PLUM;

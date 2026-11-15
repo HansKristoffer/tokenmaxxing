@@ -6,7 +6,7 @@
  */
 import { C } from "../../art/palette.ts";
 import { light } from "../furniture/furniture.ts";
-import { glass, glow, Model, ticks, tint } from "../kit/kit.ts";
+import { glass, Model, ticks } from "../kit/kit.ts";
 import { nightGlow } from "../town/props.ts";
 import { mannequin } from "./clothes-items.ts";
 import { GOLD, INK, PINK, PLUM, signBoard } from "./clothes-parts.ts";
@@ -72,13 +72,12 @@ function awning(m: Model, w: number, top: number, drop: number, reach: number): 
 function hangerSign(m: Model, at: [number, number, number]): void {
   const g = m.part(at);
   for (const s of [-1, 1]) {
-    const bar = g.box([0.5, 0.06, 0.06], GOLD, [s * 0.22, 0.12, 0], 0.012);
-    bar.rotation.z = s * -0.38;
-    bar.position.set(s * 0.22, 0.12, 0);
+    const arm = g.box([0.5, 0.06, 0.06], GOLD, [s * 0.22, 0.12, 0], 0.012);
+    arm.rotation.z = -s * 0.38;
   }
   g.box([0.06, 0.2, 0.06], GOLD, [0, 0.24, 0], 0.012);
   g.cyl(0.07, 0.04, GOLD, [0, 0.42, 0], 0.07, 8);
-  g.box([0.8, 0.05, 0.05], GOLD, [0, 0.0, 0], 0.01);
+  g.box([0.8, 0.05, 0.05], GOLD, [0, 0, 0], 0.01);
   nightGlow(g.box([0.06, 0.06, 0.06], PINK, [0, 0.46, 0], 0.01), "#ffe28a");
 }
 
@@ -136,7 +135,7 @@ export function clothesExterior(): Model {
   ] as const) {
     const side = m.part([sx, 0, -d / 2], rot);
     for (const x of [-0.8, 0.8]) {
-      side.box([0.56, 0.7, 0.05], PLUM, [x, 0.7, 0.0], 0.015);
+      side.box([0.56, 0.7, 0.05], PLUM, [x, 0.7, 0], 0.015);
       nightGlow(side.box([0.44, 0.58, 0.05], "#a8dcf7", [x, 0.76, 0.01], 0.005), "#ffd98a");
     }
   }
@@ -180,13 +179,11 @@ export function clothesExterior(): Model {
   }
   const swing = m.part([2.35, h - 0.2, 0.3]);
   swing.box([0.04, 0.04, 0.4], PLUM, [0, 0.1, -0.15]);
-  const flag = swing.part([0, 0, 0.0]);
+  const flag = swing.part([0, 0, 0]);
   flag.box([0.34, 0.34, 0.04], PINK, [0, -0.4, 0], 0.015);
   flag.box([0.2, 0.05, 0.05], GOLD, [0, -0.28, 0.01], 0.008);
   flag.box([0.04, 0.2, 0.05], GOLD, [0, -0.45, 0.01], 0.008);
   ticks.push((t) => (flag.rotation.z = Math.sin(t * 1.5 + 1) * 0.08));
   light(m, [0, 1.0, 1.0], "#ffd9a8", 3, 6);
-  void glow;
-  void tint;
   return m;
 }

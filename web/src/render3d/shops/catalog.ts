@@ -65,7 +65,9 @@ export interface ShopRoom {
 const cache = new Map<ShopId, ShopRoom>();
 
 /** Drops the kept room, so the next `shopRoom` builds a fresh one (the real game frees a room when you leave it). */
-export const forgetShopRoom = (id: ShopId): void => void cache.delete(id);
+export const forgetShopRoom = (id: ShopId): void => {
+  cache.delete(id);
+};
 
 /** Interiors being built ahead, a slice at a time (`warmShop`), and those finished and waiting for the player to walk in. */
 const warming = new Map<
@@ -88,21 +90,21 @@ export const shopNeedsWarm = (id: ShopId): boolean =>
 export function warmShop(id: ShopId): boolean {
   const spec = SHOP_SPECS[id];
   if (!spec.slices || warmed.has(id) || cache.has(id)) return true;
-  let g = warming.get(id);
-  if (!g) {
-    g = { slices: spec.slices(), scopes: [], dormant: new THREE.Group() };
-    warming.set(id, g);
+  let warm = warming.get(id);
+  if (!warm) {
+    warm = { slices: spec.slices(), scopes: [], dormant: new THREE.Group() };
+    warming.set(id, warm);
   }
   const scope = beginTickScope();
-  g.scopes.push(scope);
+  warm.scopes.push(scope);
   let step: IteratorResult<void, ReturnType<ShopSpec["buildInterior"]>>;
   try {
-    step = g.slices.next();
+    step = warm.slices.next();
   } finally {
-    endTickScope(scope, g.dormant);
+    endTickScope(scope, warm.dormant);
   }
   if (step.done) {
-    ownWarmScopes(step.value, g.scopes);
+    ownWarmScopes(step.value, warm.scopes);
     warming.delete(id);
     warmed.set(id, step.value);
     return true;
@@ -157,17 +159,15 @@ export function shopRoom(id: ShopId): ShopRoom {
       endTickScope(scope, ahead?.room.group ?? pending.dormant);
     }
   }
-  const built = (ahead ?? spec.buildInterior()) as unknown as Omit<
-    ReturnType<ShopSpec["buildInterior"]>,
-    "displays"
-  > & {
-    displays: { item: ShopItem; at: [number, number]; world?: [number, number, number] }[];
-  };
+  const built = ahead ?? spec.buildInterior();
   const { room } = built;
+
   // The furniture shop's tiles carry the inset; the others are the room's own.
   const shift: [number, number] = id === "furniture" ? INSET : [0, 0];
   const local = (t: [number, number]): [number, number] => [t[0] - shift[0], t[1] - shift[1]];
   const door = local(built.door);
+
+  // The walkable map: a wall column on each side, two wall rows above the room and one below it.
   const rows: string[] = [];
   for (let y = 0; y < room.D + 3; y++) {
     let row = "";
@@ -178,31 +178,37 @@ export function shopRoom(id: ShopId): ShopRoom {
         row += "W";
         continue;
       }
-      if (rx === door[0] && rz === door[1]) row += "x";
-      else if (room.open(rx, rz)) row += "_";
-      else {
-        const p = room.at(rx, rz);
-        row += p?.asset.bed ? "b" : p?.asset.seat ? "c" : "H";
+      if (rx === door[0] && rz === door[1]) {
+        row += "x";
+        continue;
       }
+      if (room.open(rx, rz)) {
+        row += "_";
+        continue;
+      }
+      const p = room.at(rx, rz);
+      if (p?.asset.bed) row += "b";
+      else if (p?.asset.seat) row += "c";
+      else row += "H";
     }
     rows.push(row);
   }
+
   const seen = new Map<string, number>();
   const sampleIdx = { Wallpaper: 0, Floors: 0 };
   const displays = built.displays.map((d): ShopDisplay => {
     const tile = local(d.at);
     const onWall = tile[0] <= 0 || tile[1] <= 0;
-    let pos: THREE.Vector3;
     const g = d.item.group as keyof typeof sampleIdx;
-    if (d.world) pos = new THREE.Vector3(d.world[0], d.world[1], d.world[2]);
-    else if (id === "furniture" && g in sampleIdx) {
+
+    let pos: THREE.Vector3;
+    if (d.world) {
+      pos = new THREE.Vector3(d.world[0], d.world[1], d.world[2]);
+    } else if (id === "furniture" && g in sampleIdx) {
       // The wall samples: two rows of five panels on the west wall, 1.55 apart.
       const i = sampleIdx[g]++;
-      pos = new THREE.Vector3(
-        0.2,
-        0.62 + Math.floor(i / 5) * 1.12,
-        (g === "Wallpaper" ? 1.675 : 10.375) + (i % 5) * 1.55,
-      );
+      const firstZ = g === "Wallpaper" ? 1.675 : 10.375;
+      pos = new THREE.Vector3(0.2, 0.62 + Math.floor(i / 5) * 1.12, firstZ + (i % 5) * 1.55);
     } else {
       // Items sharing a tile stand on shelf tiers: spread them up the wall so they can each be picked.
       const key = `${tile[0]},${tile[1]}`;
@@ -212,6 +218,7 @@ export function shopRoom(id: ShopId): ShopRoom {
     }
     return { item: d.item, tile, pos };
   });
+
   s = {
     id,
     spec,

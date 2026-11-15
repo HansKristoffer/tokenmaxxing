@@ -43,7 +43,6 @@ interface ShopItem {
   /** A small 3D model of the item (for shelves/rails/pens and for the buy panel). */
   preview: () => Model;
 }
-type Avatar3D = Avatar;
 interface ShopSpec {
   id: "furniture" | "clothes" | "barber" | "pets";
   name: string;
@@ -54,7 +53,7 @@ interface ShopSpec {
   buildInterior: () => {
     room: Room;
     displays: { item: ShopItem; at: [number, number] }[];
-    shopkeeper: Avatar3D;
+    shopkeeper: Avatar;
     counter: [number, number];
     door: [number, number];
   };
@@ -214,7 +213,7 @@ function makeKeeper(): Avatar {
   const cat = petFrom2D("cat", "calico");
   cat.pose = "sit";
   cat.root.scale.setScalar(0.5);
-  cat.root.position.set(0.2, 0.8, 0.0);
+  cat.root.position.set(0.2, 0.8, 0);
   cat.root.rotation.y = -0.3;
   b.add(cat.root);
   animate(cat, 5, "sit");
@@ -312,9 +311,9 @@ function petsExterior(): Model {
   const wall = "#f9e2c4";
   m.box([w + 0.2, 0.2, d + 0.2], C.stone, [0, 0, -d / 2], 0.02);
   m.box([w, h - 0.2, d], wall, [0, 0.2, -d / 2], 0.02);
-  m.box([w + 0.04, 0.5, 0.06], TEAL, [0, 0.2, 0.0], 0.01);
-  m.box([w + 0.06, 0.12, 0.08], C.white, [0, h - 0.14, 0.0], 0.01);
-  for (const x of [-w / 2, w / 2]) m.box([0.14, h - 0.2, 0.1], C.white, [x, 0.2, 0.0], 0.02);
+  m.box([w + 0.04, 0.5, 0.06], TEAL, [0, 0.2, 0], 0.01);
+  m.box([w + 0.06, 0.12, 0.08], C.white, [0, h - 0.14, 0], 0.01);
+  for (const x of [-w / 2, w / 2]) m.box([0.14, h - 0.2, 0.1], C.white, [x, 0.2, 0], 0.02);
   gable(m.part([0, 0, -d / 2]), w, d, h, "#c4544b", tint(wall, -0.04));
   // Two window cases, either side of the door, with live pets.
   m.add(
@@ -619,21 +618,23 @@ function* fillInterior(room: Room): Generator<void, Interior, void> {
       return m;
     });
   yield;
-  [
+  // Beds on the floor, with a pet asleep in each one that has a species.
+  const beds: [number, number, string, string][] = [
     [2, 9, "cat", "witch"],
     [3, 9, "dog", "corgi"],
     [4, 9, "", ""],
-  ].forEach(([x, z, species, variant]) => {
+  ];
+  for (const [x, z, species, variant] of beds) {
     const bed = PETS_ASSETS[0]!;
     const model = bed.build();
-    room.place(bed, x as number, z as number, 0, model);
-    if (!species) return;
-    const sleeper = petFrom2D(species as string, variant as string);
-    sleeper.root.position.set((x as number) + 0.5, 0.15, (z as number) + 0.5);
+    room.place(bed, x, z, 0, model);
+    if (!species) continue;
+    const sleeper = petFrom2D(species, variant);
+    sleeper.root.position.set(x + 0.5, 0.15, z + 0.5);
     sleeper.root.rotation.y = 0.6;
     room.group.add(sleeper.root);
-    animate(sleeper, (x as number) * 3, "sleep");
-  });
+    animate(sleeper, x * 3, "sleep");
+  }
   yield;
   // The way out.
   const door = exitDoorway({ outside: true, wall: "#f7e5cd", leaf: "#3fa7a0" });
@@ -666,7 +667,7 @@ function* fillInterior(room: Room): Generator<void, Interior, void> {
     const f = new Model();
     const x = 6.2 + i * 0.25;
     f.cyl(0.1, 0.16, flags[i % flags.length]!, [0, -0.16, 0], 0.001, 3).rotation.y = Math.PI;
-    f.position.set(x, 2.33 + Math.sin(i * 0.5) * 0.04 * 0, 0.12);
+    f.position.set(x, 2.33, 0.12);
     room.group.add(f);
   }
   yield;
