@@ -209,8 +209,17 @@ function drawFace(
   };
   // A decal that only shows eyes skips the mouth, and the other way round.
   const draw = { eye, arc, brows, heart, smile, flat, oh };
-  if (!parts.eyes) draw.eye = draw.arc = draw.brows = draw.heart = () => {};
-  if (!parts.mouth) draw.smile = draw.flat = draw.oh = () => {};
+  if (!parts.eyes) {
+    draw.eye = () => {};
+    draw.arc = () => {};
+    draw.brows = () => {};
+    draw.heart = () => {};
+  }
+  if (!parts.mouth) {
+    draw.smile = () => {};
+    draw.flat = () => {};
+    draw.oh = () => {};
+  }
   paint(face, draw, lx, rx, ey, g, INK, parts.eyes);
 }
 
@@ -337,7 +346,7 @@ const LAYOUTS: Record<
   "animal-mouth": { ink: INKS.animal, scale: 1.9, y: 74, from: 96, eyes: false, mouth: true },
 };
 
-// ——— Voxel faces: pixel art on the 7×7 front of a voxel head, two pixels to a voxel ———
+// MARK: Voxel faces
 const PX = 14;
 const PIXEL = {
   eye: "#1b1520",
@@ -473,7 +482,8 @@ function drawVoxelFace(g: CanvasRenderingContext2D, face: Face, eyes: boolean, m
 
 function pixelTexture(draw: (g: CanvasRenderingContext2D) => void): THREE.CanvasTexture {
   const canvas = document.createElement("canvas");
-  canvas.width = canvas.height = PX;
+  canvas.width = PX;
+  canvas.height = PX;
   draw(canvas.getContext("2d")!);
   const t = new THREE.CanvasTexture(canvas);
   t.colorSpace = THREE.SRGBColorSpace;

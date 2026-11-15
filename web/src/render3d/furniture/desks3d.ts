@@ -36,7 +36,8 @@ const BEZEL = "#2b2433";
 
 /** The desk itself, as the shop's: a top, a side panel, a drawer unit. */
 function base(m: Model): void {
-  const [w, d] = [1.7, 0.7];
+  const w = 1.7;
+  const d = 0.7;
   m.box([w, 0.05, d], C.woodLight, [0, TOP, 0], 0.015);
   m.box([0.05, TOP, d - 0.08], C.wood, [-w / 2 + 0.06, 0, 0]);
   m.box([0.4, TOP - 0.02, d - 0.08], C.wood, [w / 2 - 0.24, 0, 0]);
@@ -128,6 +129,7 @@ function ultrawide(m: Model): void {
       false,
       i === 2,
     );
+    // Only the middle segment has a stand; the others hang, lifted to the same height.
     if (i !== 2) s.position.y += 0.1;
   }
   keyboard(m, -0.2, "#3c4454");
@@ -142,7 +144,8 @@ function battlestation(m: Model): void {
   m.box([0.01, 0.36, 0.28], "#2b3140", [0.747, TOP + 0.08, 0], 0.004);
   const fans = [0, 1, 2].map((i) => {
     const mat = glow("#5ff2ff");
-    m.cyl(0.05, 0.012, mat, [0.759, TOP + 0.13 + i * 0.11, 0.0], 0.05, 12).rotation.z = Math.PI / 2;
+    const fan = m.cyl(0.05, 0.012, mat, [0.759, TOP + 0.13 + i * 0.11, 0], 0.05, 12);
+    fan.rotation.z = Math.PI / 2;
     return mat;
   });
   keyboard(m, -0.2, "#b58cf0");
@@ -152,14 +155,12 @@ function battlestation(m: Model): void {
     m.box([0.1, 0.012, 0.012], mat, [-0.8 + i * 0.1, TOP - 0.012, 0.345], 0.002);
     return mat;
   });
+  // The strip and the fans trade the two colours every half second.
   ticks.push((t) => {
     const flip = Math.floor(t * 2) % 2;
-    strip.forEach((mat, i) => {
-      mat.color.set((i + flip) % 2 ? "#ff6ad5" : "#5ff2ff");
-    });
-    fans.forEach((mat, i) => {
-      mat.color.set((i + flip) % 2 ? "#ff6ad5" : "#5ff2ff");
-    });
+    const colourOf = (i: number) => ((i + flip) % 2 ? "#ff6ad5" : "#5ff2ff");
+    for (const [i, mat] of strip.entries()) mat.color.set(colourOf(i));
+    for (const [i, mat] of fans.entries()) mat.color.set(colourOf(i));
   });
   light(m, [0, TOP + 0.3, 0.3], "#b58cf0", 1.2, 2.5);
 }

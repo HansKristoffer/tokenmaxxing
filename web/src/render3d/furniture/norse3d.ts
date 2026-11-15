@@ -285,8 +285,7 @@ const feastTable = (): Model => {
   for (const s of [-1, 1]) {
     m.box([0.08, 0.58, 0.66], OAK_DARK, [s * 0.72, 0, 0], 0.012);
     m.box([0.14, 0.05, 0.7], OAK, [s * 0.72, 0.0, 0], 0.012);
-    for (const z of [-0.28, 0.28])
-      m.box([0.12, 0.2, 0.06], OAK_DARK, [s * 0.72, 0.0, z], 0.008).rotation.x = 0;
+    for (const z of [-0.28, 0.28]) m.box([0.12, 0.2, 0.06], OAK_DARK, [s * 0.72, 0.0, z], 0.008);
   }
   m.box([1.5, 0.05, 0.05], OAK, [0, 0.2, 0], 0.01);
   for (const s of [-1, 1]) m.box([0.03, 0.04, 0.07], OAK_LIGHT, [s * 0.72 + 0.08, 0.2, 0], 0.005);
@@ -377,7 +376,7 @@ const feastTable = (): Model => {
   ticks.push((t) =>
     steam.forEach((s, i) => {
       const u = (t * 0.4 + i / 4) % 1;
-      s.position.set(0.0 + Math.sin(u * 7 + i * 2) * 0.05, T + 0.5 + u * 0.4, Math.cos(u * 5 + i) * 0.06);
+      s.position.set(Math.sin(u * 7 + i * 2) * 0.05, T + 0.5 + u * 0.4, Math.cos(u * 5 + i) * 0.06);
       s.scale.setScalar((1 - u) * 1.3);
     }),
   );
@@ -493,9 +492,9 @@ const runestone = (): Model => {
     ] as const)
       g.fillRect(x - 1, y - 1, 2, 2);
   });
+  // The painted face is a plane in front of the slab, and it casts no shadow of its own.
   const face = m.plane(0.38, 0.665, painted(tex), [0.01, 0.65, 0.118]);
   face.castShadow = false;
-  // The painted panel is a flat decal on the box face; a raised rim of paint keeps it visible when blocky.
   return m;
 };
 
@@ -510,10 +509,11 @@ const yggdrasil = (): Model => {
   // A mossy mound and a pool of gold light under the leaves.
   disc(m, 1.0, 0.7, 0, 0.012, "#4f6b3a");
   disc(m, 0.75, 0.52, 0.012, 0.01, "#5a7d3e");
-  const pool = m.cyl(1.1, 0.004, glow("#ffd36a"), [0, 0.02, 0.05], 1.1, 24);
+  const poolMaterial = glow("#ffd36a");
+  poolMaterial.transparent = true;
+  poolMaterial.opacity = 0.2;
+  const pool = m.cyl(1.1, 0.004, poolMaterial, [0, 0.02, 0.05], 1.1, 24);
   pool.scale.z = 0.55;
-  (pool.material as { transparent: boolean; opacity: number }).transparent = true;
-  (pool.material as { opacity: number }).opacity = 0.2;
   // The trunk, in four slightly leaning drums with darker knots and bands.
   const drums: [number, number, number, number, number][] = [
     [0, 0.21, 0.17, 0.55, 0],
@@ -532,17 +532,9 @@ const yggdrasil = (): Model => {
   ] as const)
     m.ball(r, BARK_DARK, [0.01, y, z], [1, 1.2, 0.5], 6);
   // Roots: five spreading over the mound; the one at the front has been nibbled.
-  const root = (a: number, len: number, nib = false) => {
+  const root = (a: number, len: number) => {
     const r = m.part([0, 0.22, 0], a);
     r.cyl(0.06, len, BARK, [0, 0, 0], 0.025, 7).rotation.z = -(Math.PI / 2 + 0.38);
-    if (nib) {
-      const end = r.part([
-        Math.sin(Math.PI / 2 + 0.38) * len,
-        -Math.cos(0.38 + Math.PI / 2 - Math.PI / 2) * 0,
-        0,
-      ]);
-      void end;
-    }
   };
   root(0.5, 0.75);
   root(1.9, 0.62);

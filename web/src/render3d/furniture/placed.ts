@@ -12,19 +12,25 @@ const pieceChars = new Map<string, number>(
  */
 export function placedIn(map: GameMap): { ch: string; x: number; y: number; rot?: Rot }[] {
   const out: { ch: string; x: number; y: number; rot?: Rot }[] = [];
+
   map.rows.forEach((row, ry) => {
     for (let rx = 0; rx < row.length; rx++) {
-      const w = pieceChars.get(row[rx]!);
-      if (!w) continue;
-      const [x, y] = [rx + map.x0, ry + map.y0];
+      const ch = row.charAt(rx);
+      const width = pieceChars.get(ch);
+      if (!width) continue;
+
+      const x = rx + map.x0;
+      const y = ry + map.y0;
       const turn = turnAt(map, x, y);
       if (turn && sideways(turn.rot)) {
         // Its tiles run down the column: it is one piece, from its top tile.
-        if (turn.x === x && turn.y === y) out.push({ ch: row[rx]!, x, y, rot: turn.rot });
+        if (turn.x === x && turn.y === y) out.push({ ch, x, y, rot: turn.rot });
         continue;
       }
-      out.push({ ch: row[rx]!, x, y, ...(turn && { rot: turn.rot }) });
-      rx += w - 1;
+
+      out.push({ ch, x, y, ...(turn && { rot: turn.rot }) });
+      // The rest of a piece's tiles on this row are the same piece, so skip them.
+      rx += width - 1;
     }
   });
   return out;

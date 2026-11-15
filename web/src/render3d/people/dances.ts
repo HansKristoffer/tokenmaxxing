@@ -8,7 +8,7 @@ import { type DanceMove, tempoOf } from "@tokenmaxxing/core/dances.ts";
  * A knee above 0 bends back. The head's x above 0 looks down, its y above 0 turns to +x.
  */
 
-export type V3 = [number, number, number];
+type V3 = [number, number, number];
 
 export interface DancePose {
   /** The body over the feet: lifted, slid sideways (x) and forward (z), turned (y), leant forward (x) and tilted (z). */
@@ -190,16 +190,16 @@ export function dancePose(
     }
     // A hand behind the head, the other arm out in front, ticking round and sweeping back.
     case "sprinkler": {
+      // Over the first 80% of the four-beat cycle the body clicks round in eight steps; the last 20% sweeps back.
       const u = (b / 4) % 1;
-      const ticks = 8;
-      const turn =
-        u < 0.8 ? -0.8 + (1.6 * Math.floor((u / 0.8) * ticks)) / (ticks - 1) : 0.8 - 1.6 * ((u - 0.8) / 0.2);
-      p.turn = turn;
+      const steps = 8;
+      const click = Math.floor((u / 0.8) * steps);
+      p.turn = u < 0.8 ? -0.8 + (1.6 * click) / (steps - 1) : 0.8 - 1.6 * ((u - 0.8) / 0.2);
       set(p.armR, -Math.PI / 2, 0, 0.1);
       set(p.armL, -0.4, 0, -2.75);
       p.head[2] = 0.15;
       bend(p, "R", 0.35, 0);
-      p.lift = u < 0.8 ? 0.02 * snap(u * ticks * 1.25) : 0;
+      p.lift = u < 0.8 ? 0.02 * snap(u * steps * 1.25) : 0;
       break;
     }
     // Flap for two beats, then wiggle down low.
@@ -221,7 +221,9 @@ export function dancePose(
     case "disco": {
       const up = square(b, 1) > 0;
       const k = snap(b, 0.3);
-      set(p.armR, up ? lerp(-0.4, -0.3, k) : -0.35, 0, up ? lerp(-0.5, 2.6, k) : lerp(2.6, -0.5, k));
+      const armRX = up ? lerp(-0.4, -0.3, k) : -0.35;
+      const armRZ = up ? lerp(-0.5, 2.6, k) : lerp(2.6, -0.5, k);
+      set(p.armR, armRX, 0, armRZ);
       set(p.armL, 0.25, 0, -0.55);
       p.tilt = (up ? -0.1 : 0.08) * k;
       p.turn = (up ? 0.2 : -0.1) * k;
@@ -397,7 +399,8 @@ export function dancePose(
     case "levitate": {
       set(p.legR, -1.45, 0, 0.75);
       mirror(p.legR, p.legL);
-      p.kneeL = p.kneeR = 2.3;
+      p.kneeL = 2.3;
+      p.kneeR = 2.3;
       arms(p, -0.55, 0, 0.55);
       p.lift = 0.7 - hip + 0.08 * Math.sin(b * Math.PI);
       p.turn = 0.35 * Math.sin(b * Math.PI * 0.2);

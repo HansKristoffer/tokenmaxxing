@@ -109,7 +109,7 @@ function pix(
     const row = rows[r]!;
     let c = 0;
     while (c < row.length) {
-      const ch = row[c]!;
+      const ch = row.charAt(c);
       let e = c;
       while (e < row.length && row[e] === ch) e++;
       const p = pal[ch];
@@ -267,8 +267,8 @@ const heartGarland = (): Model => {
     const p = m.part([hx, y - 0.008, 0.02]);
     const drop = 0.1 + (i % 2) * 0.05;
     p.box([0.008, drop, 0.008], STRING, [0, -drop, 0], 0.001);
-    if (i % 2) paperHeart(p, 0, -drop - 0.17, 0, 0.36, JUL_CREAM, JUL_RED, true);
-    else paperHeart(p, 0, -drop - 0.17, 0, 0.36, JUL_RED, JUL_CREAM, true);
+    const [a, b] = i % 2 ? [JUL_CREAM, JUL_RED] : [JUL_RED, JUL_CREAM];
+    paperHeart(p, 0, -drop - 0.17, 0, 0.36, a, b, true);
     // A gold bead where each heart hangs.
     p.box([0.03, 0.03, 0.03], JUL_GOLD, [0, -drop - 0.012, 0.002], 0.001);
     swing.push({ p, ph: i * 1.1 });
@@ -689,7 +689,6 @@ const kravlenisse = (): Model => {
     else if (c > 6.5 && c < 7.2) up = 1 - smooth((c - 6.5) / 0.7);
     else if (c >= 7.2 && c < 9.8) up = 0;
     else if (c >= 9.8) up = smooth((c - 9.8) / 0.5) * 0.18;
-    const peek = c >= 9.8 && c < 10.4 ? 1 : 0;
     n.position.y = 0.06 + 0.14 * up - 0.46 * (1 - Math.min(1, up));
     n.position.y += 0.012 * Math.sin(t * 2.2) * clamp01(up);
     // Eyes: blink at two moments, look left and right while idle, go wide before the duck.
@@ -697,7 +696,7 @@ const kravlenisse = (): Model => {
     const blink = Math.max(blinkAt(2.0), blinkAt(4.6), blinkAt(8.8), c < 1.4 ? blinkAt(1.3) : 0);
     const wide = c > 6.1 && c < 7 ? 1.35 : 1;
     const happy = c > 3.2 && c < 6.2;
-    const eyeScaleY = happy ? 0.5 + 0.0 * blink : Math.max(0.08, 1 - blink * 0.95) * wide;
+    const eyeScaleY = happy ? 0.5 : Math.max(0.08, 1 - blink * 0.95) * wide;
     for (const e of [eyeL, eyeR]) e.scale.set(wide, eyeScaleY, 1);
     const look = c < 3.2 ? Math.sin((c - 1.1) * 2.4) * 0.018 : c < 6.5 ? 0.012 : 0;
     eyes.position.x = look;
@@ -714,7 +713,7 @@ const kravlenisse = (): Model => {
     tip.rotation.z = -0.5 + 0.18 * Math.sin(t * 2.6) + 0.25 * w * Math.sin((c - 3.2) * 4.5 + 1);
     tip2.rotation.z = -0.5 + 0.2 * Math.sin(t * 3.4 + 1);
     pom.scale.setScalar(1 + 0.08 * Math.sin(t * 6.1));
-    hat.rotation.x = peek * 0.0 + 0.04 * Math.sin(t * 1.7);
+    hat.rotation.x = 0.04 * Math.sin(t * 1.7);
     // The heart pops up over his head at the height of the wave, and the sparkles fly.
     const hp = (c - 3.9) / 1.6;
     pop.visible = hp > 0 && hp < 1;
@@ -799,10 +798,8 @@ const juleTree = (): Model => {
   topStar.box([0.09, 0.4, 0.07], starGlow.mats[1]!, [0, -0.2, 0], 0.002);
   for (const k of [-1, 1]) {
     const d = topStar.box([0.08, 0.34, 0.06], starGlow.mats[0]!, [0, 0, 0], 0.002);
-    d.position.y = 0;
     d.rotation.z = (k * Math.PI) / 4;
-    d.position.set(k * 0, 0, 0);
-    // The bar is built from its bottom: turn it about its middle.
+    // Hang the bar below the star's centre, so each diagonal turns about its top end.
     d.geometry = d.geometry.clone();
     d.geometry.translate(0, -0.17, 0);
   }
@@ -815,6 +812,13 @@ const juleTree = (): Model => {
     r.castShadow = false;
   }
   // Woven paper hearts hang from the tiers; flags on swags of string; paper cones in cream and red.
+  // How deep the tree is at a height: the tiers narrow as they rise, and a heart hangs just outside them.
+  const tierDepth = (y: number) => {
+    if (y < 0.7) return 1.0;
+    if (y < 1) return 0.88;
+    if (y < 1.3) return 0.76;
+    return y < 1.55 ? 0.62 : 0.5;
+  };
   const hang: [number, number, number][] = [
     [-0.5, 0.52, 0],
     [0.5, 0.52, 1],
@@ -829,11 +833,10 @@ const juleTree = (): Model => {
   for (const [x, y, k] of hang) {
     const ti = y > 1.3 ? tip : m;
     const ty = y > 1.3 ? y - 1.3 : y;
-    const wz = y < 0.7 ? 1.0 : y < 1 ? 0.88 : y < 1.3 ? 0.76 : y < 1.55 ? 0.62 : 0.5;
-    const out = wz / 2 + 0.03;
-    ti.box([0.006, 0.1, 0.006], STRING, [x, ty + 0.0, out], 0.001);
-    if (k) paperHeart(ti, x, ty - 0.02, out + 0.012, 0.22, JUL_CREAM, JUL_RED);
-    else paperHeart(ti, x, ty - 0.02, out + 0.012, 0.22, JUL_RED, JUL_CREAM);
+    const out = tierDepth(y) / 2 + 0.03;
+    const [a, b] = k ? [JUL_CREAM, JUL_RED] : [JUL_RED, JUL_CREAM];
+    ti.box([0.006, 0.1, 0.006], STRING, [x, ty, out], 0.001);
+    paperHeart(ti, x, ty - 0.02, out + 0.012, 0.22, a, b);
   }
   const swag = (x0: number, y0: number, x1: number, y1: number, z: number, n: number) => {
     for (let i = 0; i < n; i++) {
