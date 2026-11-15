@@ -34,16 +34,21 @@ await page.waitForTimeout(3000);
 const run = await page.evaluate(() => {
   const m = window.__tm.world.map,
     me = window.__tm.self();
-  for (let y = me.y; y < m.y0 + m.height; y++)
+  for (let y = me.y; y < m.y0 + m.height; y++) {
     for (let x = m.x0; x < m.x0 + m.width - 8; x++) {
       let ok = true;
-      for (let i = 0; i < 8; i++) if (!m.walkable(x + i, y)) ok = false;
+      for (let i = 0; i < 8; i++) {
+        if (!m.walkable(x + i, y)) ok = false;
+      }
       if (ok && window.__tm.route(m, [me.x, me.y], [x, y])) return [x, y];
     }
+  }
   return null;
 });
 await page.evaluate(([x, y]) => window.__tm.walkTo(x, y), run);
 await page.waitForTimeout(4000);
+
+// One entry per frame: the time since the last frame, the static shadow bakes in it, and whether the shadow redrew.
 await page.evaluate(() => {
   const r = window.__r3d;
   const log = [];
@@ -60,7 +65,9 @@ await page.evaluate(() => {
   requestAnimationFrame(loop);
 });
 for (let k = 0; k < 4; k++) {
-  await page.evaluate(([x, y, k]) => window.__tm.walkTo(k % 2 ? x : x + 7, y), [...run, k]);
+  // Walk to the far end of the run and back, one leg per turn.
+  const [x, y] = run;
+  await page.evaluate(([tx, ty]) => window.__tm.walkTo(tx, ty), [k % 2 ? x : x + 7, y]);
   await page.waitForTimeout(2600);
 }
 const log = await page.evaluate(() => window.__wf);
@@ -69,7 +76,8 @@ const g = log.map((e) => e[0]).sort((a, b) => a - b);
 const pct = (p) => g[Math.floor(g.length * p)].toFixed(1);
 const slow = log.filter((e) => e[0] > 25);
 const bakes = log.reduce((a, e) => a + e[1], 0);
+const slowBakes = slow.filter((e) => e[1]).length;
 console.log(
-  `${want} ${tier}: ${log.length} frames walking · median ${pct(0.5)} ms · p95 ${pct(0.95)} · p99 ${pct(0.99)} · worst ${g.at(-1).toFixed(1)} · over 25 ms: ${slow.length} · static shadow bakes: ${bakes} (on slow frames: ${slow.filter((e) => e[1]).length})`,
+  `${want} ${tier}: ${log.length} frames walking · median ${pct(0.5)} ms · p95 ${pct(0.95)} · p99 ${pct(0.99)} · worst ${g.at(-1).toFixed(1)} · over 25 ms: ${slow.length} · static shadow bakes: ${bakes} (on slow frames: ${slowBakes})`,
 );
 await browser.close();
