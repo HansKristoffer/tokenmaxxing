@@ -14,8 +14,6 @@ const smooth = (x: number) => {
   return t * t * (3 - 2 * t);
 };
 
-// MARK: The sun
-
 /** Julian centuries since J2000 (NOAA's `T`). */
 const centuries = (ms: number) => (ms / DAY_MS + 2440587.5 - 2451545) / 36525;
 
@@ -70,9 +68,9 @@ export function sunTimes(
   lon = AARHUS.lon,
 ): { sunrise: number; sunset: number } {
   const [y, m, d] = dayKey(ms).split("-").map(Number);
-  const noon = Date.UTC(y!, m! - 1, d!, 12);
-  let rise = noon - 6 * 3_600_000;
-  let set = noon + 6 * 3_600_000;
+  const midnight = Date.UTC(y!, m! - 1, d!);
+  let rise = midnight + 6 * 3_600_000;
+  let set = midnight + 18 * 3_600_000;
   // One pass at the day's own noon, then refined at the times it found.
   for (let i = 0; i < 2; i++) {
     const at = (t: number, sign: 1 | -1) => {
@@ -82,7 +80,7 @@ export function sunTimes(
         Math.tan(lat * RAD) * Math.tan(decl);
       const ha = Math.acos(clamp(cosH, -1, 1)) / RAD;
       const min = 720 - 4 * (lon + sign * ha) - eqTime;
-      return Date.UTC(y!, m! - 1, d!) + min * 60_000;
+      return midnight + min * 60_000;
     };
     rise = at(rise, 1);
     set = at(set, -1);
@@ -123,11 +121,14 @@ export function lightAt(ms: number): Light {
   const { elevation, morning } = sunElevation(ms);
   const darkness = smooth((DAY_DEG - elevation) / (DAY_DEG - NIGHT_DEG)) * nightDepth(ms);
   const warmth = smooth(1 - Math.abs(elevation - 1) / 9);
-  const phase: Phase = elevation > DAY_DEG ? "day" : elevation < -6 ? "night" : morning ? "dawn" : "dusk";
+
+  // Below civil twilight (6 degrees under the horizon) it is night; dawn and dusk are the sun's climb and fall in between.
+  let phase: Phase = "dusk";
+  if (elevation > DAY_DEG) phase = "day";
+  else if (elevation < -6) phase = "night";
+  else if (morning) phase = "dawn";
   return { phase, elevation, darkness, warmth };
 }
-
-// MARK: The moon
 
 const SYNODIC = 29.530588853;
 /** A known new moon: 2000-01-06 18:14 UTC. */
@@ -156,15 +157,11 @@ export function moonPhase(ms: number): { age: number; lit: number; waxing: boole
   };
 }
 
-// MARK: Time
-
 /** `HH:MM` on the Copenhagen clock (DST-correct). */
 export function clockTime(ms: number): string {
   const { hour, minute } = worldWall(ms);
   return `${pad2(hour)}:${pad2(minute)}`;
 }
-
-// MARK: Weather
 
 export type WeatherKind = "clear" | "cloudy" | "fog" | "drizzle" | "rain" | "storm" | "snow";
 
@@ -308,7 +305,10 @@ const fogAt = (visibilityM: number): number =>
  */
 export function weatherFrom(current: unknown): Weather | null {
   const c = current as Record<string, unknown> | null;
-  const num = (k: string) => (typeof c?.[k] === "number" && Number.isFinite(c[k]) ? (c[k] as number) : null);
+  const num = (k: string): number | null => {
+    const v = c?.[k];
+    return typeof v === "number" && Number.isFinite(v) ? v : null;
+  };
   const code = num("weather_code");
   if (code === null) return null;
   const visibilityM = Math.round(clamp(num("visibility") ?? CALM.visibilityM, 0, 100_000));
@@ -337,8 +337,6 @@ export function weatherFrom(current: unknown): Weather | null {
 export const fogOf = (w: Weather): number =>
   Math.max(w.kind === "fog" ? w.intensity : 0, Math.round(fogAt(w.visibilityM) * 100) / 100);
 
-// MARK: Cold
-
 /** People's breath shows at this temperature and below. */
 export const BREATH_C = 7;
 /** The town's people (the bots) put scarves on at this temperature and below. */
@@ -348,8 +346,6 @@ export const breathShows = (w: Weather): boolean => w.tempC <= BREATH_C;
 export const scarvesOn = (w: Weather): boolean => w.tempC <= SCARF_C;
 /** Below freezing the pond is iced over. */
 export const iceOver = (w: Weather): boolean => w.tempC < 0;
-
-// MARK: Pollen
 
 /**
  * Counts (grains/m³) Astma-Allergi Danmark calls high, by Open-Meteo's name for the pollen
@@ -376,8 +372,12 @@ export function pollenFrom(current: unknown): number | null {
 
 export type PollenLevel = "none" | "low" | "moderate" | "high";
 
-export const pollenLevel = (pollen: number): PollenLevel =>
-  pollen < 0.05 ? "none" : pollen < 0.4 ? "low" : pollen < 1 ? "moderate" : "high";
+export function pollenLevel(pollen: number): PollenLevel {
+  if (pollen < 0.05) return "none";
+  if (pollen < 0.4) return "low";
+  if (pollen < 1) return "moderate";
+  return "high";
+}
 
 /** How long a sneeze shows, and the stretch of time in which each person may sneeze once. */
 export const SNEEZE_MS = 1_400;
@@ -404,8 +404,6 @@ export function sneezeAt(id: number, ms: number, pollen: number): number | null 
   const into = ms - start;
   return into >= 0 && into < SNEEZE_MS ? into : null;
 }
-
-// MARK: Winter
 
 /**
  * Winter on the Copenhagen calendar (1 is January). In these months the town is snowy by default:

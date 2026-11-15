@@ -152,13 +152,11 @@ export const rungHp = (base: number, rung: number): number => Math.round(base * 
  * and 10% more each level. `week` is the raid week it falls in: before `RAID_REWARDS_FROM` the old payout.
  * Without one, today's.
  */
-export const rewardFor = (rung: number, level = 1, week?: string): number =>
-  Math.round(
-    (week !== undefined && week < RAID_REWARDS_FROM ? OLD_RAID_REWARDS : RAID_REWARDS)[
-      Math.min(rung, RAID_REWARDS.length) - 1
-    ]! *
-      REWARD_GROWTH ** (level - 1),
-  );
+export function rewardFor(rung: number, level = 1, week?: string): number {
+  const table = week !== undefined && week < RAID_REWARDS_FROM ? OLD_RAID_REWARDS : RAID_REWARDS;
+  const base = table[Math.min(rung, RAID_REWARDS.length) - 1]!;
+  return Math.round(base * REWARD_GROWTH ** (level - 1));
+}
 
 /** One player's world day, as the raid sees it. */
 export interface RaidDay {
@@ -184,8 +182,7 @@ const mondays = new Map<string, string>();
 export function weekOf(day: string): string {
   let monday = mondays.get(day);
   if (monday === undefined) {
-    const [y, m, d] = day.split("-").map(Number);
-    const weekday = new Date(Date.UTC(y!, m! - 1, d!)).getUTCDay();
+    const weekday = new Date(`${day}T00:00:00Z`).getUTCDay();
     monday = addDays(day, -((weekday + 6) % 7));
     mondays.set(day, monday);
   }
@@ -194,8 +191,7 @@ export function weekOf(day: string): string {
 
 /** When world day `day` starts, in ms. The world's clock is one or two hours ahead of UTC. */
 export function dayStart(day: string): number {
-  const [y, m, d] = day.split("-").map(Number);
-  const midnight = Date.UTC(y!, m! - 1, d!);
+  const midnight = new Date(`${day}T00:00:00Z`).getTime();
   for (const hours of [-2, -1, 0]) {
     const at = midnight + hours * 3_600_000;
     if (dayKey(at) === day) return at;
@@ -273,15 +269,16 @@ function ladder(week: string, level: number, hp: number, days: readonly RaidDay[
     // after that still counts as damage, but there's nothing more to hit.
     while (rung <= BOSSES.length && pool >= rungHp(hp, rung)) {
       pool -= rungHp(hp, rung);
+      const raiders = [...perUser]
+        .filter(([, n]) => n >= RAIDER_AT)
+        .map(([userId]) => userId)
+        .sort((a, b) => a - b);
       kills.push({
         rung,
         boss: bossAt(rung, level),
         day,
         coins: rewardFor(rung, level, week),
-        raiders: [...perUser]
-          .filter(([, n]) => n >= RAIDER_AT)
-          .map(([userId]) => userId)
-          .sort((a, b) => a - b),
+        raiders,
       });
       rung++;
     }
@@ -323,8 +320,7 @@ export const firstHp = (days: readonly RaidDay[], start: string): number => {
 export function raidWeeks(days: readonly RaidDay[], now: number, start: string): RaidWeek[] {
   const current = raidWeekAt(now);
   const byWeek = groupBy(days, (d) => weekOf(d.day));
-  // `firstHp`, from the week's own bucket.
-  const first = hpFor(totalDamage(byWeek[addDays(start, -7)] ?? []));
+  const first = firstHp(days, start);
   const out: RaidWeek[] = [];
   let hp = first;
   let level = 1;

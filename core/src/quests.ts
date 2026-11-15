@@ -52,7 +52,7 @@ export interface Counts {
 
 export const EMPTY_COUNTS: Counts = { coffee: 0, bench: 0, paper: 0, fountain: 0 };
 export const COUNT_KINDS = Object.keys(EMPTY_COUNTS) as (keyof Counts)[];
-export const isCountKind = (k: unknown): k is keyof Counts => COUNT_KINDS.includes(k as keyof Counts);
+export const isCountKind = (k: unknown): k is keyof Counts => (COUNT_KINDS as readonly unknown[]).includes(k);
 /** A counter never goes past this. */
 export const COUNT_CAP = 3;
 
@@ -120,11 +120,9 @@ const clamp = (n: number, lo: number, hi: number): number => Math.min(hi, Math.m
 /** 5-minute buckets as a length of time. */
 const span = (buckets: number): string => {
   const min = buckets * 5;
-  return min < 60
-    ? `${min} minutes`
-    : min % 60 === 0
-      ? plural(min / 60, "hour")
-      : `${(min / 60).toFixed(1)} hours`;
+  if (min < 60) return `${min} minutes`;
+  if (min % 60 === 0) return plural(min / 60, "hour");
+  return `${(min / 60).toFixed(1)} hours`;
 };
 
 const one = (): number => 1;
@@ -276,9 +274,11 @@ export function dailyQuests(day: string, b: Baseline, yesterday: readonly string
     const fresh = pool.filter((q) => !yesterday.includes(q.id));
     if (fresh.length > 0) pool = fresh;
     const wantsTown = rng() < TOWN_SHARE && town === 0;
-    const kinds = pool.filter((q) => !!q.town === wantsTown);
-    const from = kinds.length > 0 ? kinds : pool.filter((q) => !q.town || town === 0);
-    const pick = from[Math.floor(rng() * from.length)]!;
+    const ofWantedKind = pool.filter((q) => !!q.town === wantsTown);
+
+    // With no quest of the wanted kind left, any quest the in-town limit still allows will do.
+    const candidates = ofWantedKind.length > 0 ? ofWantedKind : pool.filter((q) => !q.town || town === 0);
+    const pick = candidates[Math.floor(rng() * candidates.length)]!;
     if (pick.town) town++;
     out.push({ id: pick.id, target: pick.target(b) });
   }
@@ -322,8 +322,6 @@ export const questCoins = (qs: readonly DayQuest[], f: DayFacts, c: Counts, day?
 /** Days before `LEGACY_FROM`: the two old quests, as they paid. A full day pays 7. */
 export const legacyQuestCoins = (f: Pick<DayFacts, "peakAgents" | "activeBuckets">): number =>
   (f.peakAgents >= 5 ? 5 : 0) + (f.activeBuckets >= 24 ? 2 : 0);
-
-// MARK: Weekly
 
 /** What the weekly quest paid before `WEEKLY_MULT_FROM`. */
 const WEEKLY_BASE_COINS = 15;

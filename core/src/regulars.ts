@@ -12,8 +12,7 @@ export const REGULAR_KEEP_WEEKS = 8;
 
 /** The Monday of the week containing the `YYYY-MM-DD` world day: the board starts over there. */
 export function mondayOf(day: string): string {
-  const [y, m, d] = day.split("-").map(Number);
-  const at = new Date(Date.UTC(y!, m! - 1, d!));
+  const at = new Date(`${day}T00:00:00Z`);
   at.setUTCDate(at.getUTCDate() - ((at.getUTCDay() + 6) % 7));
   return at.toISOString().slice(0, 10);
 }

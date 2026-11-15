@@ -79,14 +79,16 @@ export const listable = (itemId: unknown): boolean => isTradeable(itemId);
 
 /** A whole number of coins from 1 up to the cap of `itemId`, or null. */
 export function parsePrice(raw: unknown, itemId: unknown): number | null {
-  if (!Number.isInteger(raw)) return null;
-  const price = raw as number;
-  return price >= 1 && price <= priceCap(itemId) ? price : null;
+  if (typeof raw !== "number" || !Number.isInteger(raw)) return null;
+  return raw >= 1 && raw <= priceCap(itemId) ? raw : null;
 }
 
 /** A slot number in the hall, or null. */
-export const parseSlot = (raw: unknown): number | null =>
-  Number.isInteger(raw) && (raw as number) >= 0 && (raw as number) < MARKET_SLOTS ? (raw as number) : null;
+export function parseSlot(raw: unknown): number | null {
+  if (typeof raw !== "number" || !Number.isInteger(raw)) return null;
+  const inHall = raw >= 0 && raw < MARKET_SLOTS;
+  return inHall ? raw : null;
+}
 
 /** One thing on display, as everyone in the hall sees it. */
 export interface Listing {

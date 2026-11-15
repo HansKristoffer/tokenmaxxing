@@ -12,8 +12,6 @@
 import type { FestiveNpc } from "./festive.ts";
 import type { GameMap } from "./maps.ts";
 
-// MARK: Where things stand (town tiles)
-
 /**
  * Gudrun the egg farmer: on the lawn west of the square, off the road (x = 0) and clear of every path. Facing the
  * camera. Her tile is a constant so a layout change is one edit.
@@ -43,8 +41,6 @@ const RESERVED: readonly (readonly [number, number])[] = [
  */
 export const isPaaskeSolid = (x: number, y: number): boolean => x === FARMER_TILE.x && y === FARMER_TILE.y;
 
-// MARK: The farmer
-
 export const PAASKE_FARMER: FestiveNpc = {
   id: "paaske",
   name: "Farmer Gudrun",
@@ -63,8 +59,6 @@ export const PAASKE_FARMER: FestiveNpc = {
     "Bunny ears, a chick hat and a crown of påskeliljer are in the Clothes shop until a couple of days after Easter. Hens don't wear them, but you can.",
   ],
 };
-
-// MARK: The egg hunt
 
 /** Eggs hidden each day. */
 export const EGGS_PER_DAY = 8;
@@ -97,24 +91,26 @@ export interface Egg {
   colour: number;
 }
 
+const NEIGHBOURS = [
+  [1, 0],
+  [-1, 0],
+  [0, 1],
+  [0, -1],
+] as const;
+
 /** Grass tiles with room to stand on: not under the scenery, with a walkable neighbour. */
 function lawns(map: GameMap): [number, number][] {
   const out: [number, number][] = [];
-  for (let y = map.y0; y < map.y0 + map.height; y++)
+  for (let y = map.y0; y < map.y0 + map.height; y++) {
     for (let x = map.x0; x < map.x0 + map.width; x++) {
       if (map.at(x, y) !== ".") continue;
       if (RESERVED.some(([rx, ry]) => rx === x && ry === y)) continue;
-      if (
-        ![
-          [1, 0],
-          [-1, 0],
-          [0, 1],
-          [0, -1],
-        ].some(([dx, dy]) => map.walkable(x + dx!, y + dy!))
-      )
-        continue;
+
+      const hasWalkableNeighbour = NEIGHBOURS.some(([dx, dy]) => map.walkable(x + dx, y + dy));
+      if (!hasWalkableNeighbour) continue;
       out.push([x, y]);
     }
+  }
   return out;
 }
 
@@ -144,8 +140,6 @@ export function eggSpots(map: GameMap, day: string): Egg[] {
 /** The storage key of an egg found, which day: `x,y`. */
 export const eggKey = (e: Pick<Egg, "x" | "y">): string => `${e.x},${e.y}`;
 
-// MARK: Flowers
-
 export type FlowerKind = "narcissus" | "vintergaek" | "tulip";
 
 export interface Flower {
@@ -164,15 +158,16 @@ export const FLOWER_CLUMPS = 44;
 export function flowerSpots(map: GameMap): Flower[] {
   return scatter(lawns(map), 91, FLOWER_CLUMPS, 3).map(([x, y]) => {
     const k = noise(x, y, 5);
-    return { x, y, kind: k < 0.5 ? "narcissus" : k < 0.8 ? "vintergaek" : "tulip" };
+    if (k < 0.5) return { x, y, kind: "narcissus" };
+    return { x, y, kind: k < 0.8 ? "vintergaek" : "tulip" };
   });
 }
 
 /** How many of `total` things are out at this intensity (0..1): a few from the first day, all by the peak. */
-export const shown = (total: number, intensity: number): number =>
-  Math.min(total, Math.max(1, Math.ceil(total * Math.min(1, Math.max(0, intensity)))));
-
-// MARK: Bunting
+export function shown(total: number, intensity: number): number {
+  const clamped = Math.min(1, Math.max(0, intensity));
+  return Math.min(total, Math.max(1, Math.ceil(total * clamped)));
+}
 
 export interface Bunting {
   /** Tile coordinates of both ends (the lamps). */
@@ -187,10 +182,17 @@ export function buntingStrings(map: GameMap): Bunting[] {
   const lamps = map.find("L");
   const out: Bunting[] = [];
   for (const axis of [0, 1] as const) {
+    // A string joins lamps that share a row (axis 0) or a column (axis 1), and runs along the other one.
+    const lineOf = (l: [number, number]) => (axis === 0 ? l[1] : l[0]);
+    const alongOf = (l: [number, number]) => (axis === 0 ? l[0] : l[1]);
+
     const lines = new Map<number, [number, number][]>();
-    for (const l of lamps) lines.set(l[1 - axis]!, [...(lines.get(l[1 - axis]!) ?? []), l]);
+    for (const lamp of lamps) {
+      const line = lineOf(lamp);
+      lines.set(line, [...(lines.get(line) ?? []), lamp]);
+    }
     for (const group of lines.values()) {
-      group.sort((a, b) => a[axis]! - b[axis]!);
+      group.sort((a, b) => alongOf(a) - alongOf(b));
       for (let i = 0; i + 1 < group.length; i++) {
         const [a, b] = [group[i]!, group[i + 1]!];
         out.push({ ax: a[0], ay: a[1], bx: b[0], by: b[1] });
@@ -199,8 +201,6 @@ export function buntingStrings(map: GameMap): Bunting[] {
   }
   return out;
 }
-
-// MARK: Lambs, bunnies and chicks
 
 export type CritterKind = "lamb" | "bunny" | "chick";
 
@@ -236,14 +236,18 @@ export interface CritterPose {
   hop: number;
 }
 
+/** How fast each kind loops round its home, in radians a second. */
+const LOOP_SPEED: Record<CritterKind, number> = { lamb: 0.16, bunny: 0.24, chick: 0.3 };
+/** How fast each kind hops, in radians a second. */
+const HOP_RATE: Record<CritterKind, number> = { lamb: 2.5, bunny: 5, chick: 7 };
+
 /** Where `c` is at `ms`: a slow loop round its home. Pure, so both renderers agree. */
 export function critterAt(c: Critter, ms: number): CritterPose {
   const t = ms / 1000;
-  const w = c.kind === "lamb" ? 0.16 : c.kind === "bunny" ? 0.24 : 0.3;
-  const a = t * w + c.phase;
+  const speed = LOOP_SPEED[c.kind];
+  const a = t * speed + c.phase;
   const x = c.x + Math.sin(a) * c.r;
   const y = c.y + Math.sin(a * 1.7 + 1) * c.r * 0.6;
-  const dx = Math.cos(a) * c.r * w;
-  const rate = c.kind === "bunny" ? 5 : c.kind === "chick" ? 7 : 2.5;
-  return { x, y, right: dx >= 0, hop: Math.abs(Math.sin(t * rate + c.phase * 3)) };
+  const dx = Math.cos(a) * c.r * speed;
+  return { x, y, right: dx >= 0, hop: Math.abs(Math.sin(t * HOP_RATE[c.kind] + c.phase * 3)) };
 }

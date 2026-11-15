@@ -27,16 +27,13 @@ export const TIER_COLOR = {
 } as const;
 
 /** What a price says about how rare a thing is; the head pack's prices keep to these bands. */
-export const rarityForPrice = (price: number): Rarity =>
-  price >= 1500
-    ? "legendary"
-    : price >= 750
-      ? "epic"
-      : price >= 350
-        ? "rare"
-        : price >= 160
-          ? "uncommon"
-          : "common";
+export const rarityForPrice = (price: number): Rarity => {
+  if (price >= 1500) return "legendary";
+  if (price >= 750) return "epic";
+  if (price >= 350) return "rare";
+  if (price >= 160) return "uncommon";
+  return "common";
+};
 
 /** How rare an item is: its own word, or what its price says; a level reward without one is epic. */
 export const rarityOf = (item: Pick<Item, "rarity" | "price" | "level">): Rarity =>

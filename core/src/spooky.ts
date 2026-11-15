@@ -11,8 +11,6 @@ import type { FestiveNpc } from "./festive.ts";
 import { PATCH } from "./halloween.ts";
 import { worldWall } from "./range.ts";
 
-// MARK: Where things stand (town tiles, all on grass; core/test/spooky.test.ts checks)
-
 /**
  * Gerda's tile: on the lawn below the pond, at the foot of the path down from the square, so both cameras see her
  * (the graveyard itself hides behind the Tavern and the windmill in 3D). In the core, where no company can build
@@ -113,8 +111,6 @@ export const CANDY_SPOTS: readonly { x: number; y: number; c: number }[] = [
 /** The sweets' colours: pink, yellow, blue, chocolate. */
 export const CANDY_COLORS = ["#ff4fa3", "#ffe14a", "#4fd1ff", "#8a3b12"] as const;
 
-// MARK: Trick-or-treat
-
 /** What a doorstep gives: a sweet, a handful, a trick (harmless), or nobody home. */
 export type Treat = "candy" | "big" | "trick" | "nobody";
 
@@ -134,8 +130,11 @@ export function dayKey(ms: number): string {
 
 /** Deterministic: the same door on the same day gives the same thing to everyone. 55% candy, 15% a handful, 20% a trick, 10% nobody. */
 export function treatAt(door: string, day: string): Treat {
-  const h = hashOf(`${day}|${door}`) % 100;
-  return h < 55 ? "candy" : h < 70 ? "big" : h < 90 ? "trick" : "nobody";
+  const roll = hashOf(`${day}|${door}`) % 100;
+  if (roll < 55) return "candy";
+  if (roll < 70) return "big";
+  if (roll < 90) return "trick";
+  return "nobody";
 }
 
 const SAYS: Record<Treat, readonly string[]> = {
@@ -193,8 +192,6 @@ export const STIR_LINES = [
   "You stir three times widdershins. Nothing happens. You feel watched.",
   "It's a cauldron of green soup. Gerda says it is a vegan stew. Gerda lies.",
 ] as const;
-
-// MARK: Gerda
 
 /** The Halloween NPC (`FESTIVE_NPC.halloween`): the keeper of the model graveyard, in her good cloak. */
 export const GERDA: FestiveNpc = {

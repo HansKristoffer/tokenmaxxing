@@ -30,20 +30,15 @@ export function yearDay(ms: number): number {
 }
 
 /** Meteorological seasons on the town's Aarhus calendar. */
-export const seasonOfDay = (day: number): Season =>
-  day < MONTH_START[2]!
-    ? "winter"
-    : day < MONTH_START[5]!
-      ? "spring"
-      : day < MONTH_START[8]!
-        ? "summer"
-        : day < MONTH_START[11]!
-          ? "fall"
-          : "winter";
+export function seasonOfDay(day: number): Season {
+  if (day < MONTH_START[2]!) return "winter";
+  if (day < MONTH_START[5]!) return "spring";
+  if (day < MONTH_START[8]!) return "summer";
+  if (day < MONTH_START[11]!) return "fall";
+  return "winter";
+}
 
 export const seasonAt = (at: number): Season => seasonOfDay(yearDay(at));
-
-// MARK: The look
 
 /** How the town's plants look on a day: each 0..1, every one blending smoothly between the keyframes. */
 export interface SeasonLook {
@@ -99,6 +94,10 @@ const FRAMES = KEYFRAMES.map(([date, l]) => [monthDay(date)!, l] as const);
 const KEYS = Object.keys(KEYFRAMES[0]![1]) as (keyof SeasonLook)[];
 const smooth = (t: number) => t * t * (3 - 2 * t);
 
+/** A look built key by key: `value` gives each of its numbers. */
+const lookFrom = (value: (k: keyof SeasonLook) => number): SeasonLook =>
+  Object.fromEntries(KEYS.map((k) => [k, value(k)])) as Record<keyof SeasonLook, number>;
+
 /** The look on `day` (days since 1 January, as `yearDay` counts them). */
 export function seasonLook(day: number): SeasonLook {
   const d = ((day % YEAR_DAYS) + YEAR_DAYS) % YEAR_DAYS;
@@ -106,9 +105,12 @@ export function seasonLook(day: number): SeasonLook {
   while (i > 0 && FRAMES[i]![0] > d) i--;
   const [from, a] = FRAMES[i]!;
   const [next, b] = FRAMES[(i + 1) % FRAMES.length]!;
-  const span = (next - from + YEAR_DAYS) % YEAR_DAYS || YEAR_DAYS;
+
+  // The gap to the next keyframe, wrapping over New Year's Eve.
+  const gap = (next - from + YEAR_DAYS) % YEAR_DAYS;
+  const span = gap || YEAR_DAYS;
   const t = smooth(clamp((d - from) / span, 0, 1));
-  return Object.fromEntries(KEYS.map((k) => [k, lerp(a[k], b[k], t)])) as unknown as SeasonLook;
+  return lookFrom((k) => lerp(a[k], b[k], t));
 }
 
 /**
@@ -121,10 +123,7 @@ export const lookKey = (l: SeasonLook): string =>
     .join("");
 
 /** The look rounded as `lookKey` rounds it: what is baked, so a tree drawn for the key is the same every time. */
-export const bakedLook = (l: SeasonLook): SeasonLook =>
-  Object.fromEntries(KEYS.map((k) => [k, Math.round(l[k] * 8) / 8])) as unknown as SeasonLook;
-
-// MARK: Pinning
+export const bakedLook = (l: SeasonLook): SeasonLook => lookFrom((k) => Math.round(l[k] * 8) / 8);
 
 /** A day in each season that shows it best: blossom, full summer, peak colour with leaves falling, bare branches. */
 const PINS: Record<string, string> = {
