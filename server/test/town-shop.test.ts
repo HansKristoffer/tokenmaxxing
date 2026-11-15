@@ -206,7 +206,8 @@ describe("trades", () => {
     const offer = (await bo.town.trades()).incoming[0]!;
     expect(offer).toMatchObject({ from: ada.name, to: bo.name, want: coins(50) });
     // Both see the trades icon until it settles.
-    expect((await ada.town.wallet()).trading && (await bo.town.wallet()).trading).toBe(true);
+    expect((await ada.town.wallet()).trading).toBe(true);
+    expect((await bo.town.wallet()).trading).toBe(true);
     const after = await bo.town.acceptTrade(ada.userId, offer.at);
     expect(after).toMatchObject({ balance: 950, owned: ["hat.1"], trading: false });
     expect((await ada.town.me()).look.hat).toBe(0);
