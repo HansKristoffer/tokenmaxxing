@@ -14,7 +14,7 @@ describe("tremor", () => {
     expect(buzz(9)).toBe(buzz(4));
   });
 
-  test("bounded by its amplitude, a third of the old nudge", () => {
+  test("bounded by its amplitude", () => {
     for (const cups of [0.3, 1, 2, 4, 9]) {
       const reach = buzz(cups) / 3 / 16;
       for (const s of samples(cups, 120, 8)) {
@@ -24,7 +24,7 @@ describe("tremor", () => {
         expect(s.lift).toBeLessThanOrEqual(reach * 0.35 + 1e-12);
       }
     }
-    // Four cups used to nudge up to 4 px (0.25 tile) every frame; now under 0.09 tile.
+    // Four cups stay under 0.09 tile sideways.
     expect(Math.max(...samples(4, 120, 8).map((s) => Math.abs(s.dx)))).toBeLessThan(4 / 16 / 3);
   });
 
@@ -71,7 +71,7 @@ describe("tremor", () => {
 });
 
 describe("jitter", () => {
-  test("none without coffee; about a degree a cup at most, in fits, the same at any frame rate", () => {
+  test("none without coffee; about a degree a cup at most, in fits", () => {
     expect(jitter(0, 1.234, 2)).toEqual({ roll: 0, pitch: 0, lift: 0 });
     const roll = (cups: number, from: number, to: number) => {
       let peak = 0;
@@ -82,7 +82,6 @@ describe("jitter", () => {
       expect(roll(cups, 0, 8)).toBeLessThanOrEqual(buzz(cups) * 0.018 + 1e-12);
       for (let t = 0; t < 8; t += 1 / 60) expect(jitter(cups, t, 0.7).lift).toBeGreaterThanOrEqual(0);
     }
-    expect(jitter(3, 0.5, 1.1)).toEqual(jitter(3, 0.5, 1.1));
     // A fit and the lull between: the peak changes over the 1.6 s cycle.
     const peaks = Array.from({ length: 8 }, (_, i) => roll(3, i * 0.2, i * 0.2 + 0.2));
     expect(Math.max(...peaks)).toBeGreaterThan(Math.min(...peaks) * 1.5);

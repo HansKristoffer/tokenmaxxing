@@ -59,9 +59,8 @@ test("the directory says Møbelhuset sells furniture, wallpaper and floors, moni
     expect(sells).toContain(word);
 });
 
-test("the menus sell nothing: no panel in them buys, only the shop pages do", () => {
+test("the menu has a desk panel and no decor panel", () => {
   const kinds = MENU.map(([p]) => p.kind) as string[];
-  // The desk and decor panels are "My room" views: they apply what you own and point at Møbelhuset.
   expect(kinds).toContain("desk");
   expect(kinds).not.toContain("decor");
 });

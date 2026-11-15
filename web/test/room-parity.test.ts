@@ -15,7 +15,6 @@ type Room = InstanceType<typeof Room>;
 
 /** A room's picture is the map less its walls: x by 1, y by 2. */
 const DEFAULT_INSET = [1, 2] as const;
-const INSET = DEFAULT_INSET;
 
 /** The 3D pieces that are only an exit marker (the door, the stairs): they stand on or in front of a map portal. */
 const EXIT_ASSET = /^(tile:[xuS]$|stairs:|[a-z]+:door$)/u;
@@ -43,20 +42,20 @@ interface Opts {
   allow?: Record<string, string>;
   /** The room's exits are drawn outside its `Room` (a wall hanging, the skin), so `room.placed` has no marker for them. */
   exits?: false;
-  /** The map tile of room tile (0, 0); default `INSET`. */
+  /** The map tile of room tile (0, 0); default `DEFAULT_INSET`. */
   inset?: readonly [number, number];
 }
 
 /** Every tile where the map and the room disagree about blocking or sitting, as readable lines. */
 function diff(id: MapId, room: Room, opts: Opts = {}) {
   const out: string[] = [];
-  const INSET = opts.inset ?? DEFAULT_INSET;
+  const inset = opts.inset ?? DEFAULT_INSET;
   const map = MAPS[id];
   const allow = opts.allow ?? {};
   for (let z = 0; z < room.D; z++)
     for (let x = 0; x < room.W; x++) {
-      const mx = x + INSET[0];
-      const my = z + INSET[1];
+      const mx = x + inset[0];
+      const my = z + inset[1];
       if (allow[`${mx},${my}`]) continue;
       const ch = map.at(mx, my);
       const m = mapKind(ch);
@@ -74,8 +73,8 @@ function diff(id: MapId, room: Room, opts: Opts = {}) {
       const near = room.placed.some((p) => {
         if (!EXIT_ASSET.test(p.asset.id)) return false;
         const [w, d] = Room.footprint(p.asset, p.turn);
-        const cx = p.x + w / 2 + INSET[0];
-        const cy = p.z + d / 2 + INSET[1];
+        const cx = p.x + w / 2 + inset[0];
+        const cy = p.z + d / 2 + inset[1];
         return Math.abs(cx - 0.5 - px) <= 1.5 && Math.abs(cy - 0.5 - py) <= 1.5;
       });
       if (!near && !allow[`${px},${py}`]) out.push(`${id} map(${px},${py})='${ch}' has no exit marker in 3D`);
@@ -96,17 +95,18 @@ describe("room parity: the map and the 3D room are the same tiles", () => {
     const lines: string[] = [];
     for (const [k, ch] of layout) {
       const [x, z] = k.split(",").map(Number) as [number, number];
-      const m = MAPS.inn.at(x + INSET[0], z + INSET[1]);
+      const m = MAPS.inn.at(x + DEFAULT_INSET[0], z + DEFAULT_INSET[1]);
       // The tip jar `$` stands on the bar counter `a` (3D: a model on the counter, the layout keeps the counter).
       if (m === "$" && ch === "a") continue;
-      if (m !== ch) lines.push(`inn map(${x + INSET[0]},${z + INSET[1]})='${m}' vs layout '${ch}'`);
+      if (m !== ch)
+        lines.push(`inn map(${x + DEFAULT_INSET[0]},${z + DEFAULT_INSET[1]})='${m}' vs layout '${ch}'`);
     }
     // And the other way: a map tile that is not plain floor or wall has a piece in the 3D room.
     for (let z = -1; z <= TAVERN_D; z++)
       for (let x = 0; x < TAVERN_W; x++) {
-        const m = MAPS.inn.at(x + INSET[0], z + INSET[1]);
+        const m = MAPS.inn.at(x + DEFAULT_INSET[0], z + DEFAULT_INSET[1]);
         if (m !== "_" && m !== "W" && !layout.has(`${x},${z}`))
-          lines.push(`inn map(${x + INSET[0]},${z + INSET[1]})='${m}' has no 3D piece`);
+          lines.push(`inn map(${x + DEFAULT_INSET[0]},${z + DEFAULT_INSET[1]})='${m}' has no 3D piece`);
       }
     expect(lines).toEqual([]);
   });
@@ -133,7 +133,7 @@ describe("room parity: the map and the 3D room are the same tiles", () => {
       const allow = s === "pets" ? Object.fromEntries([3, 4, 5].map((x) => [`${x},11`, "pet bed"])) : {};
       // The shops' exit door is the room's `door` tile (not a placed marker): it is the map's `x`.
       expect(diff(SHOP_ROOM[s], shop.room, { exits: false, allow })).toEqual([]);
-      const door = `${shop.door[0] + INSET[0]},${shop.door[1] + INSET[1]}`;
+      const door = `${shop.door[0] + DEFAULT_INSET[0]},${shop.door[1] + DEFAULT_INSET[1]}`;
       expect(MAPS[SHOP_ROOM[s]].find("x").map(([x, y]) => `${x},${y}`)).toEqual([door]);
     });
 });
