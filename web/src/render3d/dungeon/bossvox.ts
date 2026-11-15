@@ -10,7 +10,7 @@ import { C } from "../../art/palette.ts";
 import type { V3 } from "../kit/kit.ts";
 import { type BakeOpts, bake, darken, Grid, hash, lighten, mix, type Paint, VOX } from "../pets/petvox.ts";
 
-export interface SculptState {
+interface SculptState {
   t: number;
   /** 1 on a hit, easing to 0. */
   hurt: number;
@@ -455,7 +455,10 @@ function mergeConflict(c: (k: string) => string): Sculpt {
   // The left half, then its mirror. `dark`, `base` and `light` are the half's own colours.
   const half = (base: string, dark: string, light: string, sign: "-" | "+") => {
     const body = new Grid();
-    const skin: Paint = (p) => (p.y > 26 && p.y < 29 ? dark : hash(p.x, p.y, p.z, 3) < 0.1 ? light : base);
+    const skin: Paint = (p) => {
+      if (p.y > 26 && p.y < 29) return dark;
+      return hash(p.x, p.y, p.z, 3) < 0.1 ? light : base;
+    };
     // Floor bars, boots, legs, belt, torso.
     body.box(-11, -2, 0, 1, -5, 8, c("belt"));
     body.box(-10, -3, 2, 4, -4, 6, dark);
@@ -517,22 +520,22 @@ function mergeConflict(c: (k: string) => string): Sculpt {
     if (sign === "-") arm.box(-18, -15, 12, 12, 9, 9, c("gold"));
     return { body, head, arm };
   };
-  const L = half(c("red"), c("redDark"), c("redLight"), "-");
-  const Rr = half(c("green"), c("greenDark"), c("greenLight"), "+");
-  // The right half's back wears a plus where the left has a minus.
-  const mir = (g: Grid) => mirror(g);
+  const left = half(c("red"), c("redDark"), c("redLight"), "-");
+  const right = half(c("green"), c("greenDark"), c("greenLight"), "+");
+  // The right half is the left one mirrored: only the left arm has the gold band (`sign` "-").
   const halves = [-1, 1].map((sx) => {
-    const src = sx < 0 ? L : Rr;
+    const src = sx < 0 ? left : right;
     const grp = new THREE.Group();
     rig.add(grp);
     const hip: V3 = [0, 11, 0];
-    const body = sx < 0 ? src.body : mir(src.body);
+    const body = sx < 0 ? src.body : mirror(src.body);
     if (sx > 0) {
+      // The green half's back gets a dark stripe.
       for (let y = 20; y <= 25; y++) body.set(6, y, -8, c("greenDark"));
     }
     grp.add(bake(body, { origin: hip, seed: sx }));
     grp.position.set(0, 11 * VOX, 0);
-    const headG = sx < 0 ? src.head : mir(src.head);
+    const headG = sx < 0 ? src.head : mirror(src.head);
     const hp: V3 = [sx < 0 ? -5 : 4, 33, 0];
     const head = part(grp, headG, hp, hip, { seed: 5 + sx });
     // Eye and pupil, looking at the other half.
@@ -540,7 +543,7 @@ function mergeConflict(c: (k: string) => string): Sculpt {
     const z0 = zTop(headG, ex, 39, 7);
     const eg = block(head, 4, 4, 2, c("eye"), [ex - hp[0], 39 - hp[1], z0]);
     const pup = block(eg, 2, 2, 1, c("pupil"), [-sx * 0.5, -0.4, 2]);
-    const armG = sx < 0 ? src.arm : mir(src.arm);
+    const armG = sx < 0 ? src.arm : mirror(src.arm);
     const sh: V3 = [sx < 0 ? -14 : 13, 28, 0];
     const arm = part(grp, armG, sh, hip, { seed: 9 + sx });
     return { grp, head, arm, eg, pup, sx };
@@ -574,6 +577,7 @@ function mergeConflict(c: (k: string) => string): Sculpt {
         h.eg.scale.y = 1 - down * 0.9;
       }
       sparks.forEach((s, i) => {
+        // The sparks re-roll nine times a second.
         const on = hash(Math.floor(t * 9), i, 3, 1) < 0.35 + w * 0.5 + hurt * 0.4;
         s.scale.setScalar(on ? 0.5 + hash(Math.floor(t * 9), i, 8, 2) : 0.001);
         s.position.x = (hash(Math.floor(t * 9), i, 5, 1) * 2 - 1) * 1.2 * VOX;
@@ -608,13 +612,15 @@ function hallucination(c: (k: string) => string): Sculpt {
   const skin: Paint = (p) => {
     const dx = p.x;
     const dy = p.y - 24;
-    const th = Math.atan2(dy, dx);
+    const turns = Math.atan2(dy, dx) / (Math.PI * 2);
     const r = Math.hypot(dx, dy);
     const face = p.z > 3 && Math.abs(p.x) < 10 && p.y > 13 && p.y < 31;
-    const band = ((((th / (Math.PI * 2)) * 2 + r / 5.5) % 1) + 1) % 1;
+    // A spiral: the angle and radius together give a band in 0 to 1, and the low end of it is a stripe.
+    const band = (((turns * 2 + r / 5.5) % 1) + 1) % 1;
     if (!face && band < 0.24) return c("swirl");
     if (p.y > 31 && hash(p.x, p.y, p.z, 8) < 0.25) return c("swirl");
-    return p.y < 12 || (p.z < -4 && p.y < 20) ? c("bodyDark") : c("body");
+    const isUnderside = p.y < 12 || (p.z < -4 && p.y < 20);
+    return isUnderside ? c("bodyDark") : c("body");
   };
   g.ell(0, 21, 0, 13.5, 14, 11.5, skin, 2.5);
   g.ell(0, 11, 0, 12, 6, 10, skin, 2.6);
@@ -635,11 +641,12 @@ function hallucination(c: (k: string) => string): Sculpt {
   for (const sx of [-1, 1]) {
     const ex = sx * 7;
     const zf = zTop(g, sx * 9, 27, 8);
-    const e = block(body, 5, 5, 3, c("eye"), [ex, 27, zf - 1], {});
-    e.position.set(ex * VOX, (27 - 10) * VOX, (zf - 1) * VOX);
+    // The body sits 10 up, so the eye's height in its frame is 27 - 10.
+    const e = block(body, 5, 5, 3, c("eye"), [ex, 27 - 10, zf - 1]);
     eyes.push(e);
     pupils.push(block(e, 3, 3, 1, c("pupil"), [0, 0, 3]));
   }
+  const arms: THREE.Group[] = [];
   for (const sx of [-1, 1]) {
     const a = new Grid();
     a.tube(
@@ -653,7 +660,7 @@ function hallucination(c: (k: string) => string): Sculpt {
       (p) => (p.u > 0.6 ? c("swirl") : c("body")),
     );
     a.ell(sx * 19, 14, 4, 3.4, 3.4, 3.4, c("swirl"), 2.4);
-    pupils.push(part(body, a, [sx * 13, 24, 0], [0, 10, 0]));
+    arms.push(part(body, a, [sx * 13, 24, 0], [0, 10, 0]));
   }
   const tail = new Grid();
   tail.tube(
@@ -669,6 +676,7 @@ function hallucination(c: (k: string) => string): Sculpt {
   );
   tail.ell(0, 18, -24, 2.4, 2.4, 2.4, c("tip"), 2.2);
   const tailPart = part(rig, tail, [0, 8, -9]);
+
   // Sparkles drifting round it.
   const stars = Array.from({ length: 7 }, (_, i) => {
     const s = new Grid();
@@ -692,7 +700,7 @@ function hallucination(c: (k: string) => string): Sculpt {
       rig.position.y = (3 + Math.sin(t * 1.6) * 1.2) * VOX * (1 - fall);
       body.scale.set(
         swell * (1 + fall * 0.35),
-        (swell + 0) * (1 - fall * 0.65) * (1 - hurt * 0.08),
+        swell * (1 - fall * 0.65) * (1 - hurt * 0.08),
         swell * (1 + fall * 0.35),
       );
       rig.rotation.z = Math.sin(t * 1.1) * 0.04 + hurt * 0.12 * Math.sin(t * 45);
@@ -700,10 +708,10 @@ function hallucination(c: (k: string) => string): Sculpt {
       tailPart.rotation.y = Math.sin(t * 2.3) * 0.5;
       tailPart.rotation.x = Math.sin(t * 1.7) * 0.12;
       for (const e of eyes) e.scale.set(1, (1 - fall * 0.9) * (1 - 0.1 * hurt), 1);
-      pupils.slice(0, 2).forEach((p, i) => {
+      pupils.forEach((p, i) => {
         p.position.set(Math.cos(t * 1.6 + i * 2.4) * 0.9 * VOX, Math.sin(t * 2.1 + i) * 0.9 * VOX, 3 * VOX);
       });
-      pupils.slice(2).forEach((p, i) => {
+      arms.forEach((p, i) => {
         p.rotation.z = (i === 0 ? 1 : -1) * (Math.sin(t * 2 + i * 3) * 0.2 + Math.max(0, w) * 0.7);
         p.rotation.x = -w * 0.8;
       });
@@ -750,7 +758,7 @@ function invoice(c: (k: string) => string): Sculpt {
   const sheet = new Grid();
   const paper: Paint = (p) => (p.y < 40 && hash(p.x, p.y, p.z, 6) < 0.12 ? c("paperDark") : c("paper"));
   for (let x = -11; x <= 11; x++) {
-    const hem = 4 + ((x + 11) % 4 < 2 ? 0 : 3);
+    const hem = (x + 11) % 4 < 2 ? 4 : 7;
     sheet.box(x, x, hem, 46, -1, 1, paper);
   }
   // Red header with a row of white letters.
@@ -782,7 +790,7 @@ function invoice(c: (k: string) => string): Sculpt {
   sheet.box(4, 8, 13, 13, 3, 3, c("red"));
   // Snarl: angry brows, a wide mouth of teeth.
   for (const sx of [-1, 1])
-    for (let i = 0; i < 6; i++) sheet.set(sx * (3 + i), 36 + Math.round(i * 0.7) * 1, 2, c("ink"));
+    for (let i = 0; i < 6; i++) sheet.set(sx * (3 + i), 36 + Math.round(i * 0.7), 2, c("ink"));
   for (let x = -6; x <= 6; x++)
     for (let y = 23; y <= 27; y++) {
       sheet.set(x, y, 2, c("mouth"));
@@ -791,8 +799,8 @@ function invoice(c: (k: string) => string): Sculpt {
   const body = part(rig, sheet, [0, 4, 0]);
   const eyes: THREE.Group[] = [];
   for (const sx of [-1, 1]) {
-    const e = block(body, 5, 5, 2, c("eye"), [sx * 5.5, 32, 1.5]);
-    e.position.set(sx * 5.5 * VOX, (32 - 4) * VOX, 2 * VOX);
+    // The body sits 4 up, so the eye's height in its frame is 32 - 4.
+    const e = block(body, 5, 5, 2, c("eye"), [sx * 5.5, 32 - 4, 2]);
     block(e, 3, 3, 1, c("pupil"), [-sx * 0.3, -0.2, 2]);
     eyes.push(e);
   }
@@ -885,7 +893,7 @@ const BOT = {
   muzzle: "*#9dff8a",
 };
 
-export interface Bot {
+interface Bot {
   root: THREE.Group;
   height: number;
   update(t: number): void;
@@ -919,18 +927,16 @@ export function buildMinion(): Bot {
   head.box(6, 6, 2, 4, -1, 1, BOT.ink);
   head.box(0, 0, 7, 8, 0, 0, BOT.ink);
   const headPart = local(rig, head, [0, 12, 0]);
-  const tip = [
-    block(headPart, 2, 2, 2, BOT.red, [0, 9.5, 0]),
-    block(headPart, 2, 2, 2, BOT.gold, [0, 9.5, 0]),
-  ];
+  const tipRed = block(headPart, 2, 2, 2, BOT.red, [0, 9.5, 0]);
+  const tipGold = block(headPart, 2, 2, 2, BOT.gold, [0, 9.5, 0]);
   const arm = new Grid();
   arm.box(-1, 1, -7, 0, -1, 1, BOT.metal);
   arm.box(-2, 2, -10, -7, -2, 2, BOT.ink);
   arm.box(-1, 1, -10, -10, -1, 1, BOT.metalLight);
   const armPart = local(rig, arm, [6.5, 10, 0]);
   const flashB = block(armPart, 3, 3, 3, BOT.muzzle, [0, -11.5, 0]);
-  const other = new Grid().box(-1, 1, -7, 0, -1, 1, BOT.metal);
-  const otherPart = local(rig, other, [-6.5, 10, 0]);
+  const stubArm = new Grid().box(-1, 1, -7, 0, -1, 1, BOT.metal);
+  const stubPart = local(rig, stubArm, [-6.5, 10, 0]);
   return {
     root,
     height: 22 * VOX * S,
@@ -939,11 +945,11 @@ export function buildMinion(): Bot {
       const fire = cyc < 0.45 ? ease(Math.min(1, cyc / 0.12)) : 1 - ease(Math.min(1, (cyc - 0.45) / 0.2));
       rig.position.y = Math.abs(Math.sin(t * 3)) * 0.9 * VOX;
       armPart.rotation.x = -fire * 1.45;
-      otherPart.rotation.x = Math.sin(t * 3) * 0.2;
+      stubPart.rotation.x = Math.sin(t * 3) * 0.2;
       headPart.rotation.y = Math.sin(t * 0.8) * 0.2;
       const blink = Math.floor(t * 2.5) % 2 === 0;
-      tip[0]!.visible = blink;
-      tip[1]!.visible = !blink;
+      tipRed.visible = blink;
+      tipGold.visible = !blink;
       flashB.visible = fire > 0.9 && cyc < 0.3;
     },
   };
@@ -966,10 +972,10 @@ export function buildTrophy(): THREE.Group {
     g,
     10,
     22,
-    (y) => [
-      3.2 + 5.6 * Math.sin(((y - 10) / 12) * 1.4 + 0.2),
-      3.2 + 5.6 * Math.sin(((y - 10) / 12) * 1.4 + 0.2),
-    ],
+    (y) => {
+      const r = 3.2 + 5.6 * Math.sin(((y - 10) / 12) * 1.4 + 0.2);
+      return [r, r];
+    },
     (p) => (p.x < -3 && p.y > 13 && p.y < 20 ? lighten(gold, 0.45) : gold),
   );
   for (const sx of [-1, 1])
@@ -992,7 +998,6 @@ export function buildTrophy(): THREE.Group {
         g.set(x, 20, z, darken(gold, 0.35));
       }
   g.ell(0, 17, 6.3, 2.2, 2.2, 1.5, mix(gold, "#c9971f", 0.5), 2.4);
-  const grp = part(root, g, [0, 0, 0]);
-  grp.rotation.y = 0;
+  part(root, g, [0, 0, 0]);
   return root;
 }

@@ -15,7 +15,9 @@ export interface TagSlot {
 
 export const TAG_W = 116;
 export const TAG_H = 22;
+/** How many lifts a tag may take to clear the ones below it. */
 const LIFTS = 3;
+/** Tags within NEAR tiles are fully opaque; they fade to 40% by FAR tiles. */
 const NEAR = 5;
 const FAR = 14;
 
@@ -69,5 +71,5 @@ export function declutterTags(items: TagSlot[], n: number, cap: number): void {
 }
 
 /** Most name tags at once, by tier. */
-export const tagCap = (tier: "low" | "medium" | "high" | "ultra"): number =>
-  tier === "ultra" ? 40 : tier === "high" ? 24 : 12;
+const TAG_CAPS = { low: 12, medium: 12, high: 24, ultra: 40 } as const;
+export const tagCap = (tier: keyof typeof TAG_CAPS): number => TAG_CAPS[tier];

@@ -1,6 +1,6 @@
 /**
  * A snapshot of the Tavern's 2D data for the 3D Tavern.
- * Sources: `core/src/tavern.ts` (SPECIALS, specialIndex, STRIDE, aarhusDay), `core/src/tunes.ts` (the six
+ * Sources: `core/src/tavern.ts` (SPECIALS, specialIndex, STRIDE, copenhagenDay), `core/src/tunes.ts` (the six
  * jukebox tracks), `core/src/regulars.ts` (LEFT_PLATES, REGULARS_TOP, tabLine), `core/src/barkeep.ts` (his lines).
  */
 
@@ -56,21 +56,27 @@ export const SPECIALS: readonly string[] = [
   "🐛 Bug-free brownies (we haven't looked very hard)",
 ];
 
+/** Through the whole list before a repeat: shares no factor with its length (checked in the tests). */
 export const STRIDE = 17;
 
-const AARHUS = new Intl.DateTimeFormat("en-CA", {
+const COPENHAGEN = new Intl.DateTimeFormat("en-CA", {
   timeZone: "Europe/Copenhagen",
   year: "numeric",
   month: "2-digit",
   day: "2-digit",
 });
 
-/** Aarhus's date at `at`, as days since 1970-01-01. */
+/** Copenhagen's date at `at` (the Tavern's clock), as days since 1970-01-01. */
 export const aarhusDay = (at: Date): number =>
-  Math.round(Date.parse(`${AARHUS.format(at)}T00:00:00Z`) / 86_400_000);
+  Math.round(Date.parse(`${COPENHAGEN.format(at)}T00:00:00Z`) / 86_400_000);
 
-/** The special on Aarhus's date at `at`. */
-export const specialOn = (at: Date): string => SPECIALS[(aarhusDay(at) * STRIDE) % SPECIALS.length]!;
+/** The special on Copenhagen's date at `at`. */
+export const specialOn = (at: Date): string => {
+  const index = (aarhusDay(at) * STRIDE) % SPECIALS.length;
+
+  // The modulo keeps the index inside the list.
+  return SPECIALS[index]!;
+};
 
 export const TUNES = [
   { id: "polka", name: "Merge Conflict Polka", emoji: "🪗" },

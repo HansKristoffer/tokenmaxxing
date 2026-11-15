@@ -38,6 +38,7 @@ function kept(o: THREE.Object3D, root: THREE.Object3D): boolean {
   return false;
 }
 
+/** Whether `o` and everything above it (up to `root`) is visible. */
 function visibleThroughout(o: THREE.Object3D, root: THREE.Object3D): boolean {
   for (let p: THREE.Object3D | null = o; p; p = p.parent) {
     if (!p.visible) return false;
@@ -58,6 +59,7 @@ function snapshot(m: THREE.Mesh, root: THREE.Object3D): Snapshot {
   };
 }
 
+// Matrices are compared to 1e-5, which is well under a visible move and above float noise.
 const same = (a: Snapshot, b: Snapshot): boolean => {
   if (a.visible !== b.visible || a.material !== b.material || a.colour !== b.colour) return false;
   if (a.opacity !== b.opacity || a.version !== b.version) return false;
@@ -80,27 +82,32 @@ export function batchStatic(root: THREE.Object3D, o: BatchOptions): BatchResult 
     if (isMesh(n)) all.push(n);
   });
   const candidates = all.filter((m) => {
-    const mat = m.material;
-    if (Array.isArray(mat) || (mat as THREE.Material).transparent) return false;
-    if (
+    if (Array.isArray(m.material) || (m.material as THREE.Material).transparent) return false;
+    const isInstancedOrSkinned =
       (m as unknown as THREE.InstancedMesh).isInstancedMesh ||
-      (m as unknown as THREE.SkinnedMesh).isSkinnedMesh
-    )
-      return false;
+      (m as unknown as THREE.SkinnedMesh).isSkinnedMesh;
+    if (isInstancedOrSkinned) return false;
     if (m.userData.nopick || m.userData.nobatch || o.keep?.(m) || kept(m, root)) return false;
+    // A mirrored mesh (negative determinant) would turn its faces inside out when merged.
     return m.matrixWorld.determinant() > 0 && m.geometry.attributes.position !== undefined;
   });
+
   // Which of them move: a snapshot in each of the room's states.
   const first = new Map(candidates.map((m) => [m, snapshot(m, root)]));
   const moving = new Set<THREE.Mesh>();
+  const markMoving = () => {
+    for (const m of candidates) {
+      if (!moving.has(m) && !same(first.get(m)!, snapshot(m, root))) moving.add(m);
+    }
+  };
   for (let i = 1; i < o.samples; i++) {
     o.probe(i);
     root.updateMatrixWorld(true);
-    for (const m of candidates) if (!moving.has(m) && !same(first.get(m)!, snapshot(m, root))) moving.add(m);
+    markMoving();
   }
   o.probe(0);
   root.updateMatrixWorld(true);
-  for (const m of candidates) if (!moving.has(m) && !same(first.get(m)!, snapshot(m, root))) moving.add(m);
+  markMoving();
 
   // Group the still ones by material, shadow flags and patch of floor.
   const groups = new Map<string, THREE.Mesh[]>();
@@ -110,7 +117,9 @@ export function batchStatic(root: THREE.Object3D, o: BatchOptions): BatchResult 
     const mat = m.material as THREE.Material;
     if (!m.geometry.boundingBox) m.geometry.computeBoundingBox();
     centre.copy(m.geometry.boundingBox!.getCenter(new THREE.Vector3())).applyMatrix4(m.matrixWorld);
-    const key = `${mat.uuid}|${+m.castShadow}${+m.receiveShadow}|${m.renderOrder}|${Math.floor(centre.x / o.chunk)},${Math.floor(centre.z / o.chunk)}`;
+    const shadows = `${+m.castShadow}${+m.receiveShadow}`;
+    const patch = `${Math.floor(centre.x / o.chunk)},${Math.floor(centre.z / o.chunk)}`;
+    const key = [mat.uuid, shadows, m.renderOrder, patch].join("|");
     const list = groups.get(key);
     if (list) list.push(m);
     else groups.set(key, [m]);
@@ -144,11 +153,11 @@ export function batchStatic(root: THREE.Object3D, o: BatchOptions): BatchResult 
     if (!merged) continue;
     merged.computeBoundingSphere();
     merged.computeBoundingBox();
-    const first = list[0]!;
-    const mesh = new THREE.Mesh(merged, first.material);
-    mesh.castShadow = first.castShadow;
-    mesh.receiveShadow = first.receiveShadow;
-    mesh.renderOrder = first.renderOrder;
+    const lead = list[0]!;
+    const mesh = new THREE.Mesh(merged, lead.material);
+    mesh.castShadow = lead.castShadow;
+    mesh.receiveShadow = lead.receiveShadow;
+    mesh.renderOrder = lead.renderOrder;
     mesh.userData.batched = list.length;
     out.add(mesh);
     for (const m of list) {
@@ -161,12 +170,6 @@ export function batchStatic(root: THREE.Object3D, o: BatchOptions): BatchResult 
     batches++;
   }
   root.add(out);
-  return {
-    before: all.length,
-    after:
-      all.length -
-      [...groups.values()].filter((l) => l.length > 1).reduce((a, l) => a + l.length, 0) +
-      batches,
-    batches,
-  };
+  const mergedMeshes = [...groups.values()].filter((l) => l.length > 1).reduce((a, l) => a + l.length, 0);
+  return { before: all.length, after: all.length - mergedMeshes + batches, batches };
 }

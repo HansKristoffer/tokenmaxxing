@@ -18,6 +18,7 @@ const point = new THREE.Vector3();
 const empty = new THREE.BufferGeometry();
 const material = new THREE.MeshBasicMaterial();
 const proxy: THREE.Mesh = new THREE.Mesh(empty, material);
+/** Triangles per chunk of a big mesh (three indices each): a ray tests the chunks whose boxes it crosses. */
 const CHUNK = 64 * 3;
 
 const versionOf = (a: THREE.BufferAttribute | THREE.InterleavedBufferAttribute): number =>
@@ -36,16 +37,15 @@ function measure(source: THREE.BufferGeometry): void {
   const indexVersion = source.index?.version ?? -1;
   const { start, count } = source.drawRange;
   const was = measured.get(source);
-  if (
-    was &&
+  const unchanged =
+    was !== undefined &&
     was.position === position &&
     was.index === source.index &&
     was.positionVersion === positionVersion &&
     was.indexVersion === indexVersion &&
     was.start === start &&
-    was.count === count
-  )
-    return;
+    was.count === count;
+  if (unchanged) return;
   source.computeBoundingBox();
   source.computeBoundingSphere();
   measured.set(source, { position, index: source.index, positionVersion, indexVersion, start, count });

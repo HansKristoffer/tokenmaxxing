@@ -5,6 +5,7 @@ export function pickable(root: THREE.Object3D, out: THREE.Object3D[] = []): THRE
   if (!root.visible || root.userData.nopick) return out;
   if ((root as THREE.Mesh).isMesh) {
     const m = (root as THREE.Mesh).material;
+    // Glass is skipped, so a click goes through it to what is behind.
     const glass = !Array.isArray(m) && m.transparent && m.opacity < 0.85;
     if (!glass) out.push(root);
   }
@@ -30,6 +31,7 @@ export function castAt(ray: THREE.Ray, room: THREE.Object3D, caster = new THREE.
   caster.ray.copy(ray);
   const hit = caster.intersectObjects(pickable(room), false)[0];
   let prop: THREE.Vector3 | null = null;
+  // Anything standing above the floor's skin (0.06 units) is a prop, not the floor.
   if (hit && hit.point.y > 0.06) prop = hit.point.clone().addScaledVector(ray.direction, 0.04);
   return { floor, prop };
 }
