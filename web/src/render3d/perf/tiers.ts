@@ -2,7 +2,7 @@ import type { GraphicsSettings } from "../../settings/graphics.ts";
 import type { Pipeline, PipelineOptions } from "../engine/pipeline.ts";
 import { setGeometryDetail, setTextureCap } from "../kit/kit.ts";
 
-/** Past this many device pixels per CSS pixel nobody sees the difference, and the fill cost keeps growing. */
+/** Past this many device pixels per CSS pixel, a picture costs more fill and looks about the same. */
 export const MAX_PIXEL_RATIO = 2;
 
 /**
@@ -11,9 +11,11 @@ export const MAX_PIXEL_RATIO = 2;
  * High caps density at 1.5 by default, with 12-sample AO, haze, grade, 2x MSAA and split 2K shadows; Ultra adds tilt-shift, 4x MSAA
  * and a 4K shadow map drawn every frame.
  */
+/** Medium and Low draw the classic look on lean geometry. */
+const isLeanTier = (s: GraphicsSettings): boolean => s.tier === "medium" || s.tier === "low";
+
 export function pipelineOptions(s: GraphicsSettings): Partial<PipelineOptions> {
-  const ratioCap = Math.min(s.dprCap, MAX_PIXEL_RATIO / Math.max(0.5, s.renderScale));
-  if (s.tier === "medium" || s.tier === "low") {
+  if (isLeanTier(s)) {
     return {
       style: "classic",
       pixelSize: 3 / s.renderScale,
@@ -28,6 +30,7 @@ export function pipelineOptions(s: GraphicsSettings): Partial<PipelineOptions> {
     };
   }
   const ultra = s.tier === "ultra";
+  const ratioCap = Math.min(s.dprCap, MAX_PIXEL_RATIO / Math.max(0.5, s.renderScale));
   return {
     style: "voxel",
     pixelSize: 1,
@@ -49,7 +52,7 @@ export function pipelineOptions(s: GraphicsSettings): Partial<PipelineOptions> {
 /** The renderer's `setQuality` in one line: `applyGraphics(pipe, settings)`. */
 export function applyGraphics(pipe: Pipeline, s: GraphicsSettings): void {
   // For rooms built from now on: plain boxes and 1024 px surfaces on Medium.
-  const lean = s.tier === "medium" || s.tier === "low";
+  const lean = isLeanTier(s);
   setGeometryDetail(lean ? 0 : 1);
   setTextureCap(lean ? 1024 : 2048);
   pipe.configure(pipelineOptions(s));

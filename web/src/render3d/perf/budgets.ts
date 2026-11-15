@@ -21,18 +21,9 @@ const room = (drawCalls: number, triangles: number, materials: number, textureMB
   textureMB,
 });
 
-// The office's shelf holds 42 trophies, up from 28 (the budget's shelf has most of them earned): the office now measures
-// 10,752 triangles on Medium and 13,962 on High. A shelf of mostly unearned trophies is flat dark boxes and costs less.
-// The dorm's stairs down are the shared exit kit's (`exits3d.ts`): the lit well and the lamp's pool add two batches.
-// Natmarked's three shelves now show the three cases on sale, not one (the Nusantara and Ragnarok Eve chests are
-// bigger models): 93 -> 121 draw calls, 53 -> 61 materials and 32.9k -> 42.5k triangles on High (25.9k on Medium).
-// The town carries the four shop fronts of the real game (+35 draw calls, +70k triangles, +2.8 MB of textures over the pass-2
-// measurement, which had bare houses there); the live layers (gate, tables, events) are budgeted apart. Natmarked's front
-// (its lanterns, windows and stall) is the fifth: +11 draw calls and +3 materials. Torvehallen's (its false front, awnings
-// and window displays) is the sixth: +1 material. The lamps and lit
-// The Julemarked gate (two brick huts, beam, sign, wreath, bunting and fairy lights) is the town's seventh front: about +10 draw calls
-// and +4 materials on High. The courtyard behind it is a room of its own (`julemarked`).
-// windows batch as day and night copies since the sampling of the hours stopped counting their swap as moving (353 -> 312).
+// The counts include the town's shop fronts and the Julemarked gate; the live layers (gate, tables, events) are budgeted
+// apart. The office's shelf is budgeted with most trophies earned, which is what the counts assume: a shelf of unearned
+// trophies is flat dark boxes and costs less.
 export const BUDGETS: Record<BudgetTier, Record<string, RoomBudget>> = {
   // Plain boxes and round things with fewer segments.
   medium: {
@@ -56,7 +47,7 @@ export const BUDGETS: Record<BudgetTier, Record<string, RoomBudget>> = {
     town: room(360, 445_000, 105, 17.5),
     hq: room(35, 24_000, 20, 1),
     office: room(35, 14_000, 25, 1),
-    // +500 for the request pile's board on the north wall (cork, four notes, a plank).
+    // Includes the request pile's board on the north wall (cork, four notes, a plank).
     inn: room(180, 56_500, 140, 2),
     upstairs: room(26, 9_000, 15, 1),
     basement: room(100, 50_000, 55, 1),

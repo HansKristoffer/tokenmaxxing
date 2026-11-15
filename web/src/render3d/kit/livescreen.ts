@@ -7,7 +7,6 @@
 import { ticks } from "./kit.ts";
 import { type Panel, panel } from "./panel.ts";
 
-// ——— LAN party ———
 let lan = false;
 const lanListeners = new Set<(on: boolean) => void>();
 
@@ -59,7 +58,6 @@ export function isLanPartyAt(ms: number = Date.now()): boolean {
   return (day === "Fri" || day === "Sat") && hour >= 18;
 }
 
-// ——— The feed ———
 /** One live match, as the world tells everyone (`WorldGame` plus the names). */
 export interface MatchRow {
   emoji: string;
@@ -101,6 +99,16 @@ export function cut(g: CanvasRenderingContext2D, text: string, maxW: number): st
 const ink = () => (lan ? "#ff7be0" : "#7be0ff");
 const rowFill = () => (lan ? "rgba(120, 30, 110, 0.45)" : "rgba(40, 90, 140, 0.4)");
 
+/** The big screen's background, and the stripe along its top. */
+function paintScreenBack(g: CanvasRenderingContext2D, w: number, h: number): void {
+  g.fillStyle = "#0e1420";
+  g.fillRect(0, 0, w, h);
+  g.fillStyle = lan ? "#3a1a44" : "#1d2a44";
+  g.fillRect(0, 0, w, 2);
+  g.textBaseline = "middle";
+  g.textAlign = "left";
+}
+
 /** The big screen's face: up to three live rows, a "+N more" strip, or the empty state. */
 export function paintFeed(
   g: CanvasRenderingContext2D,
@@ -109,12 +117,7 @@ export function paintFeed(
   feed: ScreenFeed,
   t: number,
 ): void {
-  g.fillStyle = "#0e1420";
-  g.fillRect(0, 0, w, h);
-  g.fillStyle = lan ? "#3a1a44" : "#1d2a44";
-  g.fillRect(0, 0, w, 2);
-  g.textBaseline = "middle";
-  g.textAlign = "left";
+  paintScreenBack(g, w, h);
   const more = (feed.total ?? feed.matches.length) - FEED_ROWS;
   const strip = more > 0 ? h * 0.16 : 0;
   const rowH = (h - strip) / FEED_ROWS;
@@ -165,12 +168,7 @@ export function paintFeed(
 
 /** The big screen while a bracket runs: the round being played and its matches. */
 export function paintBracketScreen(g: CanvasRenderingContext2D, w: number, h: number, b: BracketView): void {
-  g.fillStyle = "#0e1420";
-  g.fillRect(0, 0, w, h);
-  g.fillStyle = lan ? "#3a1a44" : "#1d2a44";
-  g.fillRect(0, 0, w, 2);
-  g.textBaseline = "middle";
-  g.textAlign = "left";
+  paintScreenBack(g, w, h);
   const rowH = h / (FEED_ROWS + 1);
   const pad = w * 0.02;
   g.font = `700 ${rowH * 0.55}px ${FONT}`;
@@ -204,7 +202,6 @@ export const paintScreen = (
   t: number,
 ): void => (feed.bracket ? paintBracketScreen(g, w, h, feed.bracket) : paintFeed(g, w, h, feed, t));
 
-// ——— Terminals ———
 export interface BoardRow {
   tokens: number;
 }
@@ -216,9 +213,7 @@ export function paintLeaderboard(
   rows: BoardRow[],
   t: number,
 ): void {
-  g.fillStyle = "#0e1f17";
-  g.fillRect(0, 0, w, h);
-  scanLines(g, w, h);
+  paintTerminalBack(g, w, h);
   const top = rows.filter((r) => r.tokens > 0).slice(0, 3);
   const best = top[0]?.tokens ?? 1;
   const bh = h * 0.16;
@@ -237,9 +232,7 @@ export function paintRaid(
   share: number | null,
   t: number,
 ): void {
-  g.fillStyle = "#0e1f17";
-  g.fillRect(0, 0, w, h);
-  scanLines(g, w, h);
+  paintTerminalBack(g, w, h);
   g.fillStyle = "#12301f";
   g.fillRect(w * 0.08, h * 0.32, w * 0.84, h * 0.36);
   if (share === null) {
@@ -248,6 +241,13 @@ export function paintRaid(
   }
   g.fillStyle = share > 0.5 ? "#3ddc84" : share > 0.2 ? "#f5d14a" : "#e8584f";
   g.fillRect(w * 0.08, h * 0.32, Math.max(2, share * w * 0.84), h * 0.36);
+}
+
+/** The terminals' background, with its scan lines. */
+function paintTerminalBack(g: CanvasRenderingContext2D, w: number, h: number): void {
+  g.fillStyle = "#0e1f17";
+  g.fillRect(0, 0, w, h);
+  scanLines(g, w, h);
 }
 
 function scanLines(g: CanvasRenderingContext2D, w: number, h: number): void {
@@ -262,7 +262,6 @@ function idleDot(g: CanvasRenderingContext2D, w: number, h: number, t: number): 
   g.fillRect(w * 0.08 + (Math.floor(t * 2) % n) * ((w * 0.84) / n), h * 0.46, (w * 0.84) / n, h * 0.08);
 }
 
-// ——— The helper ———
 export interface LiveScreen<S> extends Panel {
   state: S;
   /** Replace the state and repaint. */

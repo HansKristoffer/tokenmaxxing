@@ -107,27 +107,30 @@ export class IconQueue<V> {
   request(key: string): Request<V> {
     const hit = this.cache.get(key);
     if (hit !== undefined) return { promise: Promise.resolve(hit), cancel() {} };
-    let job = this.jobs.get(key);
-    if (!job) {
-      job = { key, refs: 0, resolve: [], reject: [] };
-      this.jobs.set(key, job);
-      this.kick();
-    }
+
+    const job = this.jobs.get(key) ?? this.startJob(key);
     job.refs++;
-    const j = job;
     const promise = new Promise<V>((res, rej) => {
-      j.resolve.push(res);
-      j.reject.push(rej);
+      job.resolve.push(res);
+      job.reject.push(rej);
     });
+
     let done = false;
     return {
       promise,
       cancel: () => {
         if (done) return;
         done = true;
-        if (--j.refs <= 0 && this.jobs.get(key) === j) this.jobs.delete(key);
+        if (--job.refs <= 0 && this.jobs.get(key) === job) this.jobs.delete(key);
       },
     };
+  }
+
+  private startJob(key: string): Job<V> {
+    const job: Job<V> = { key, refs: 0, resolve: [], reject: [] };
+    this.jobs.set(key, job);
+    this.kick();
+    return job;
   }
 
   /** Stops rendering (a lost GL context); what is queued waits. */
@@ -155,7 +158,9 @@ export class IconQueue<V> {
     const start = now();
     let spent = 0;
     while (this.jobs.size > 0 && (spent === 0 || spent < budgetMs)) {
-      const job = this.jobs.values().next().value as Job<V>;
+      const next = this.jobs.values().next();
+      if (next.done) break;
+      const job = next.value;
       this.jobs.delete(job.key);
       const t0 = now();
       try {

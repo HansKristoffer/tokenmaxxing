@@ -46,11 +46,10 @@ function blockOf(box: THREE.Box3, textured: boolean, bevel = BEVEL): THREE.Buffe
 function prism(top: number, bottom: number, h: number, sides: number): THREE.BufferGeometry {
   const g = new THREE.CylinderGeometry(top, bottom, h, sides, 1);
   g.rotateY(Math.PI / sides);
-  g.scale(
-    1 / Math.cos(Math.PI / sides) ** (sides === 4 ? 0.5 : 1),
-    1,
-    1 / Math.cos(Math.PI / sides) ** (sides === 4 ? 0.5 : 1),
-  );
+  // Stretch the flats out to the cylinder's radius, so the faces (not the corners) touch it. A square is stretched half as far.
+  const exponent = sides === 4 ? 0.5 : 1;
+  const stretch = 1 / Math.cos(Math.PI / sides) ** exponent;
+  g.scale(stretch, 1, stretch);
   const flat = g.toNonIndexed();
   flat.computeVertexNormals();
   g.dispose();
@@ -81,7 +80,7 @@ function ring(g: THREE.TorusGeometry): THREE.BufferGeometry {
     Math.max(2, Math.round((tubular * arc) / (Math.PI * 2))),
     arc,
   );
-  // Square section: rotate the tube's diamond a quarter-eighth turn.
+  // Square section: turn the tube's diamond by 45 degrees.
   const p = t.getAttribute("position");
   for (let i = 0; i < p.count; i++) {
     const u = Math.atan2(p.getY(i), p.getX(i));
@@ -157,9 +156,7 @@ function convert(mesh: THREE.Mesh, textured: boolean): THREE.BufferGeometry | nu
       const small = Math.min(p.radiusTop, p.radiusBottom);
       const taper = small / Math.max(big, 1e-6);
       if (big >= 0.18 && taper < 0.4 && p.height > big * 0.5) {
-        const flip = p.radiusTop > p.radiusBottom;
         const s = steps(p.radiusTop, p.radiusBottom, p.height, big > 0.5 ? 4 : 3);
-        if (flip) s.scale(1, 1, 1);
         return s.translate(0, p.height / 2, 0);
       }
       return prism(p.radiusTop, p.radiusBottom, p.height, big >= 0.12 ? 8 : 4).translate(0, p.height / 2, 0);
@@ -171,7 +168,8 @@ function convert(mesh: THREE.Mesh, textured: boolean): THREE.BufferGeometry | nu
   }
 }
 
-function standIn(mesh: THREE.Mesh): THREE.BufferGeometry | null {
+/** The block geometry a static mesh gets in the Voxel style, or null when it keeps its own. */
+export function blockStandIn(mesh: THREE.Mesh): THREE.BufferGeometry | null {
   const mat = mesh.material;
   if (Array.isArray(mat) || mesh.userData.noBlock) return null;
   const textured = !!(mat as THREE.MeshToonMaterial).map;
@@ -181,15 +179,16 @@ function standIn(mesh: THREE.Mesh): THREE.BufferGeometry | null {
     table.set(mesh.geometry, per);
   }
   const key = `${textured ? "t" : "p"}${mesh.userData.voxelHair ? "h" : ""}${mesh.userData.blockScale ?? ""}`;
-  if (!per.has(key)) {
-    const made = convert(mesh, textured);
-    // Its own middle for the see-through cut, as the smooth geometry it stands in for has (`markMiddle`).
-    if (made) markMiddle(made);
-    // A block made from a shared geometry is shared too: freeing one room's must not free the others'.
-    if (made && mesh.geometry.userData.shared) made.userData.shared = true;
-    per.set(key, made);
-  }
-  return per.get(key)!;
+  const known = per.get(key);
+  if (known !== undefined) return known;
+
+  const made = convert(mesh, textured);
+  // Its own middle for the see-through cut, as the smooth geometry it stands in for has (`markMiddle`).
+  if (made) markMiddle(made);
+  // A block made from a shared geometry is shared too: freeing one room's must not free the others'.
+  if (made && mesh.geometry.userData.shared) made.userData.shared = true;
+  per.set(key, made);
+  return made;
 }
 
 /** Swaps every smooth primitive in `scene` for its block (new meshes are picked up on later calls). */
@@ -197,12 +196,13 @@ export function blockify(scene: THREE.Object3D): void {
   scene.traverse((o) => {
     const m = o as THREE.Mesh;
     if (!m.isMesh || m.userData[SAVED] || m.userData.bakedSource) return;
-    const g = standIn(m);
+    const g = blockStandIn(m);
     if (!g) return;
     const saved: Saved = { geometry: m.geometry };
     if (g.type === "PlaneGeometry" || m.userData.voxelHair) {
       saved.rotX = m.rotation.x;
-      m.rotation.x = 0; // the face sits square on the block head
+      // The face sits square on the block head.
+      m.rotation.x = 0;
     }
     m.userData[SAVED] = saved;
     m.geometry = g;
@@ -232,9 +232,4 @@ export function blockMoves(mesh: THREE.Mesh): boolean {
   )
     return false;
   return (g as THREE.SphereGeometry).parameters.phiLength < Math.PI * 2;
-}
-
-/** The block geometry a static mesh gets in the Voxel style, or null when it keeps its own. */
-export function blockStandIn(mesh: THREE.Mesh): THREE.BufferGeometry | null {
-  return standIn(mesh);
 }
