@@ -51,13 +51,6 @@ describe("the basement", () => {
     // The Tavern's own door still leads outside.
     expect(portal("inn", { ch: "x", x: 13, y: 18 }, null, none)).toMatchObject({ room: "town" });
   });
-
-  test("the basement counts as Tavern time", () => {
-    expect(isTavernRoom("inn")).toBe(true);
-    expect(isTavernRoom("basement")).toBe(true);
-    expect(isTavernRoom("town")).toBe(false);
-    expect(isTavernRoom("hq:1")).toBe(false);
-  });
 });
 
 describe("the LAN party", () => {

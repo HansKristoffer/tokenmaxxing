@@ -20,6 +20,14 @@ const rooms = (): GameMap[] => [
   officeMap(2),
 ];
 
+/** The four tiles beside a tile, as `[dx, dy]`. */
+const AROUND = [
+  [0, 1],
+  [0, -1],
+  [1, 0],
+  [-1, 0],
+] as const;
+
 /** Where you arrive (`roomEntry`): just inside the exit `x`, which every room has. */
 const entry = (map: GameMap): [number, number] => {
   const [x, y] = map.find("x")[0]!;
@@ -42,28 +50,17 @@ describe("exits", () => {
 
     test(`${map.id}: every exit has a threshold, a walkable tile beside it for the mat and the marker`, () => {
       for (const d of doors) {
-        const beside = [
-          [0, 1],
-          [0, -1],
-          [1, 0],
-          [-1, 0],
-        ].some(([dx, dy]) => map.walkable(d.x + dx!, d.y + dy!));
+        const beside = AROUND.some(([dx, dy]) => map.walkable(d.x + dx, d.y + dy));
         expect(beside, `${map.id}: ${d.ch} at ${d.x},${d.y}`).toBe(true);
       }
     });
   }
 
   test("every stairs and door has a free approach: no plant or furniture on, or hard against, its way in", () => {
-    const around = [
-      [0, 1],
-      [0, -1],
-      [1, 0],
-      [-1, 0],
-    ] as const;
     for (const map of rooms()) {
       for (const d of layoutOf(map).doors) {
         // Each side of a portal is a wall, or a floor tile you can stand on: never a prop that closes it off.
-        for (const [dx, dy] of around) {
+        for (const [dx, dy] of AROUND) {
           const ch = map.at(d.x + dx, d.y + dy);
           const kind = map.kind(d.x + dx, d.y + dy);
           expect(
@@ -72,7 +69,7 @@ describe("exits", () => {
           ).toBe(true);
         }
         // The foot of a flight (the side opposite a wall) is a floor tile, reached from the entry.
-        const foot = around.filter(
+        const foot = AROUND.filter(
           ([dx, dy]) => map.walkable(d.x + dx, d.y + dy) && map.at(d.x - dx, d.y - dy) === "W",
         );
         expect(foot.length, `${map.id}: ${d.ch} at ${d.x},${d.y} has no way in straight on`).toBeGreaterThan(
@@ -90,12 +87,7 @@ describe("exits", () => {
     const town = MAPS.town;
     const spawn: [number, number] = [townSpawn().x, townSpawn().y];
     for (const d of layoutOf(town).doors) {
-      const beside = [
-        [0, 1],
-        [0, -1],
-        [1, 0],
-        [-1, 0],
-      ].some(([dx, dy]) => town.walkable(d.x + dx!, d.y + dy!));
+      const beside = AROUND.some(([dx, dy]) => town.walkable(d.x + dx, d.y + dy));
       expect(beside, `town: ${d.ch} at ${d.x},${d.y}`).toBe(true);
       expect(route(town, spawn, [d.x, d.y]), `town: ${d.ch} at ${d.x},${d.y}`).not.toBeNull();
     }

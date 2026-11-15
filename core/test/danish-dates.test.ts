@@ -51,7 +51,8 @@ test("the loot is fixed by the year and the player: some coins, now and then cat
   const ears = all.filter((l) => l.item).length;
   expect(ears).toBeGreaterThan(20);
   expect(ears).toBeLessThan(80);
-  expect(lootFor(2027, 7)).toEqual(lootFor(2027, 7));
+  // Player 7's loot is the seventh of the batch above, the same on a second call.
+  expect(lootFor(2027, 7)).toEqual(all[6]!);
   expect(itemById(CAT_EARS)?.name).toBe("Cat ears");
   // The crown is the kattekonge's: never sold, never traded.
   expect(itemById(CROWN)).toMatchObject({ name: "Kattekonge crown", tradeable: false, price: 0 });

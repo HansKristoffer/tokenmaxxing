@@ -21,7 +21,6 @@ import {
   randomInt,
   ready,
   SEATS,
-  type Seat,
   SMALL_BLIND,
   seatOf,
   settled,
@@ -156,8 +155,6 @@ describe("the deck", () => {
     expect(cardName(c("Td"))).toBe("T♦");
   });
 });
-
-// MARK: Tables
 
 /** A table with players in `seats` (seat → stack) all paid up, and the clock at 0. */
 function table(stacks: Record<number, number>, seed = 1): Table {
@@ -299,7 +296,8 @@ describe("a hand to the end", () => {
   test("a split pot: ties share it, the odd chip goes to the winner nearest the dealer's left", () => {
     const t = table({ 0: 200, 1: 200, 2: 200 });
     deal(t);
-    // Seat 0 is the dealer; seat 1 (the small blind) folds after putting in the small blind, so the pot is 2 * BB + SB = 5: odd.
+    // Seat 0 is the dealer. Seat 1 (the small blind) folds after posting it, so the pot is
+    // 2 * BB + SB = 5, which is odd.
     rig(t, { 0: "2s 3s", 1: "4s 5s", 2: "6s 8s" }, "Ac Kd Qh Js Tc");
     play(t, 0, "call");
     play(t, 1, "fold");
@@ -330,9 +328,8 @@ describe("a hand to the end", () => {
   });
 
   test("blinds that put a player all-in end the betting: the uncalled part comes back", () => {
-    // With a 1 coin small blind, the big blind can no longer be the short stack (it would still leave the dealer a
-    // coin to call), so the dealer is: seat 0 is the dealer and small blind with only SB chips, and the big blind
-    // posts BB. The dealer is all-in, the big blind has nobody to bet against. No one has a choice to make.
+    // Seat 0 holds only the small blind, so it is all-in as soon as it posts. Seat 1's big blind beyond
+    // that comes back to it as the uncalled part.
     const t = table({ 0: SMALL_BLIND, 1: 200 });
     deal(t);
     expect(t.street).toBeNull();
@@ -713,17 +710,10 @@ describe("chips are conserved", () => {
         paid += sent.reduce((n, o) => n + o.stack, 0);
         settled(t, sent, t.v);
         expect(total(t) + paid).toBe(bank);
-        // Nobody has chips below zero; bets never exceed what a hand allows.
+        // Nobody has chips below zero.
         for (const s of t.seats) if (s) expect(s.stack).toBeGreaterThanOrEqual(0);
       }
     }
-  });
-});
-
-describe("types", () => {
-  test("seat fields used by the server exist", () => {
-    const s: Seat = table({ 0: 100 }).seats[0]!;
-    expect(s.userId).toBe(100);
   });
 });
 

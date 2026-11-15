@@ -229,7 +229,7 @@ test("a pin beats the clock, off beats a theme, no pin follows the clock", () =>
   );
 });
 
-test("every def anchors on a holiday and ramps in (0, 1]", () => {
+test("every def's ramp starts above zero and ends at one", () => {
   for (const id of Object.keys(FESTIVE) as FestiveId[]) {
     const d = FESTIVE[id];
     expect(d.ramp(-1e9)).toBeGreaterThan(0);

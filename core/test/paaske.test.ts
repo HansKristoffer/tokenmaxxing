@@ -130,7 +130,7 @@ test("the costumes sit in the reserved range, are sold round Easter and not in O
     expect(onSale(c, cph("2026-04-08T12:00"))).toBe(false);
     expect(onSale(c, cph("2026-10-30T12:00"))).toBe(false);
   }
-  // The earlier ones are where they were.
+  // Costumes already on sale keep their ids.
   expect(COSTUMES[0]!.id).toBe("hat.200");
   expect(COSTUMES[1]!.id).toBe("hat.201");
 });

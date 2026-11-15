@@ -91,7 +91,7 @@ test("the time-gated fish bite only in their windows", () => {
     1 / 3,
     9,
   );
-  // Every gated fish has a hint, and a gated fish never bites at noon on a dry Tuesday.
+  // Every gated fish has a hint.
   for (const f of FISH.filter((f) => f.when)) expect(f.hint).toBeTruthy();
 });
 
