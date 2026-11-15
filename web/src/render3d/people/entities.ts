@@ -146,7 +146,7 @@ function show(el: HTMLElement, text: string | null): void {
   if (el.textContent !== text) el.textContent = text;
 }
 
-/** One number per tile, for looking up who shares it. */
+/** One number per tile, for looking up who shares it: both coordinates shifted into 0..8191 and packed together. */
 const tileKey = (x: number, y: number): number => (x + 4096) * 8192 + (y + 4096);
 const ascending = (a: number, b: number): number => a - b;
 /** Where someone alone on their tile stands: its middle. */
@@ -227,7 +227,9 @@ export class Entities {
     const hit = this.ray.intersectObjects(roots, true)[0];
     if (!hit) return null;
     for (const r of this.rigs.values()) {
-      for (let o: THREE.Object3D | null = hit.object; o; o = o.parent) if (o === r.avatar.root) return r.id;
+      for (let o: THREE.Object3D | null = hit.object; o; o = o.parent) {
+        if (o === r.avatar.root) return r.id;
+      }
     }
     return null;
   }
@@ -588,7 +590,8 @@ export class Entities {
       r.bedroll = null;
     }
 
-    // Off screen: positions keep up, but nothing is posed or labelled.
+    // Off screen: positions keep up, but nothing is posed or labelled. Projected coordinates run from -1 to 1 on
+    // screen; the margin past that keeps a body that reaches in from just outside the edge posed.
     this.v.set(r.x, 1, r.z).project(camera);
     const near = Math.abs(this.v.x) < 1.35 && Math.abs(this.v.y) < 1.35;
     r.root.visible = near && !this.keepers.has(r.id);
@@ -596,8 +599,9 @@ export class Entities {
     av.talking = bubbleOn;
     if (near) av.update(dtS, t, moved);
     this.cold(r, a, now, lying || pose === "sleep");
-    if (r.cop)
+    if (r.cop) {
       r.cop.gear.update(r.cop.watch.read(bubbleOn && a.bubble ? a.bubble.text : "", now), now, this.calm);
+    }
 
     this.pet(r, a, me, view, camera, dt, t, now, near);
     const close = !me || Math.hypot(a.x - me.x, a.y - me.y) <= NAME_RANGE;
@@ -675,7 +679,10 @@ export class Entities {
     pet.model.moving = pm;
     if (pm && speed > 0.25) pet.yaw = turnToward(pet.yaw, Math.atan2(ddx, ddz), dt, 90);
     else if (!spot.asleep) pet.yaw = turnToward(pet.yaw, Math.atan2(r.x - pet.x, r.z - pet.z), dt, 220);
-    pet.model.pose = spot.asleep ? "sleep" : a.state !== "idle" && !pm ? "sit" : "stand";
+    let petPose: Pet3D["pose"] = "stand";
+    if (spot.asleep) petPose = "sleep";
+    else if (a.state !== "idle" && !pm) petPose = "sit";
+    pet.model.pose = petPose;
     // A reaction (`petPlay`): it hops, a trick turns it right round, and the legs go while it's off the ground.
     const play = spot.asleep || !near ? null : reactionOf(a.info.id, now);
     if (play && play.pose.lift > 0.25) pet.model.moving = true;
@@ -775,12 +782,9 @@ export class Entities {
     }
     // Over their head, top to bottom: what they said, a sausage, the game they are in, the desk, the nap.
     // What they said, or else a sneeze.
-    const said =
-      bubbleOn && a.bubble && !resting
-        ? { text: a.bubble.text, left: a.bubble.until - now }
-        : r.sneeze !== null
-          ? { text: SNEEZE_TEXT, left: (1 - r.sneeze) * SNEEZE_MS }
-          : null;
+    let said: { text: string; left: number } | null = null;
+    if (bubbleOn && a.bubble && !resting) said = { text: a.bubble.text, left: a.bubble.until - now };
+    else if (r.sneeze !== null) said = { text: SNEEZE_TEXT, left: (1 - r.sneeze) * SNEEZE_MS };
     if (said) {
       if (r.bubbleText !== said.text) {
         r.bubbleText = said.text;
@@ -795,7 +799,7 @@ export class Entities {
     show(r.pills.work, a.state === "working" ? `💻 ×${Math.max(1, info.liveAgents)}` : null);
     show(r.pills.zzz, resting || info.dozing ? "z" : null);
     const lift = tagLift(info.level, pose);
-    this.v.set(r.x, y + lift - (pose === "sleep" ? 0 : 0) + 0.05, r.z);
+    this.v.set(r.x, y + lift + 0.05, r.z);
     if (this.overlay.place(r.stack, this.v, camera) && r.tag) {
       r.tagOn = true;
       r.tx = this.overlay.px;

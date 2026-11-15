@@ -134,10 +134,11 @@ export class Avatar {
   private frozenKey(): string | null {
     if (this.height * view.pxPerUnit < TINY_PX || this.root.userData.lod) return "tiny";
     if (!this.freezable || !gaitSettled(this.gait)) return null;
+
     // Typing moves the arms a few centimetres: not worth fifteen draw calls.
-    return this.pose === "stand" || this.pose === "sit" || this.pose === "sleep" || this.pose === "type"
-      ? this.pose
-      : null;
+    const restingPose =
+      this.pose === "stand" || this.pose === "sit" || this.pose === "sleep" || this.pose === "type";
+    return restingPose ? this.pose : null;
   }
 
   dispose(): void {
@@ -224,15 +225,17 @@ export class Avatar {
       case "sit":
       case "type":
         b.position.y = -HIP + 0.02;
-        legL.rotation.x = legR.rotation.x = -Math.PI / 2;
-        kneeL.rotation.x = kneeR.rotation.x = 1.35;
+        legL.rotation.x = -Math.PI / 2;
+        legR.rotation.x = -Math.PI / 2;
+        kneeL.rotation.x = 1.35;
+        kneeR.rotation.x = 1.35;
         if (this.pose === "type") {
-          armL.rotation.x = armR.rotation.x = -1.15;
-          armL.rotation.x += Math.sin(t * 22) * 0.07;
-          armR.rotation.x += Math.cos(t * 19) * 0.07;
+          armL.rotation.x = -1.15 + Math.sin(t * 22) * 0.07;
+          armR.rotation.x = -1.15 + Math.cos(t * 19) * 0.07;
           this.head.rotation.x = 0.08 + Math.sin(t * 1.3) * 0.03;
         } else {
-          armL.rotation.x = armR.rotation.x = -0.35;
+          armL.rotation.x = -0.35;
+          armR.rotation.x = -0.35;
           this.head.rotation.y = Math.sin(t * 0.5) * 0.25;
         }
         break;
@@ -393,6 +396,7 @@ export class Pet {
 
   /** `moved`: how far it came since the last frame, world units (left out: `nominalSpeed` while `moving`). */
   update(t: number, moved?: number): void {
+    // The first frame assumes 60 fps; a longer gap counts as 0.1 s, so a pause never makes one huge step.
     const dt = this.last < 0 ? 1 / 60 : Math.min(0.1, Math.max(0, t - this.last));
     this.last = t;
     stepGait(this.gait, moved ?? (this.moving ? this.nominalSpeed * dt : 0), dt, this.moving);
@@ -402,7 +406,9 @@ export class Pet {
       this.freezer.touch();
       return;
     }
-    const key = this.root.userData.lod ? "far" : this.moving || !gaitSettled(this.gait) ? null : "idle";
+    let key: string | null = "idle";
+    if (this.root.userData.lod) key = "far";
+    else if (this.moving || !gaitSettled(this.gait)) key = null;
     if (this.freezer.holds(key)) return;
     this.pose(t);
     this.freezer.settle(key);
