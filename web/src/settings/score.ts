@@ -25,12 +25,17 @@ export const BENCH_SLOW_MS = 10;
 export function classifyGpu(gpu: string | null, mobile: boolean, desktopApp = false): GpuClass {
   // The desktop app's webview hides the GPU's name; it runs on Macs, and the benchmark catches a weak one.
   if (!gpu || /^apple gpu$/i.test(gpu)) return desktopApp && !mobile ? "strong" : "unknown";
+  // Software renderers: SwiftShader, llvmpipe and Microsoft's basic adapter.
   if (/swiftshader|llvmpipe|software|basic render|microsoft basic/i.test(gpu)) return "weak";
+  // Phone and low-end integrated GPUs, and Intel's HD and UHD graphics.
   if (/mali|powervr|videocore|vivante|intel.*\b(hd|uhd)\b/i.test(gpu)) return "weak";
+  // Qualcomm Adreno by model number: the 700 series and up is mid-range.
   const adreno = /adreno.*?(\d{3})/i.exec(gpu)?.[1];
   if (adreno) return Number(adreno) >= 700 ? "mid" : "weak";
   if (/apple/i.test(gpu)) return mobile ? "mid" : "strong";
+  // Discrete GPUs: GeForce and Quadro, and Radeon RX and Pro.
   if (/nvidia|geforce|rtx|gtx|quadro|radeon (rx|pro)|radeon\(tm\) rx/i.test(gpu)) return "strong";
+  // Integrated graphics and mid-range cards.
   if (/iris|intel.*arc|radeon|amd|vega/i.test(gpu)) return "mid";
   return "unknown";
 }
