@@ -1,5 +1,7 @@
 /** A tab on the world for the world tests: its events, and steps at the pace the world allows. */
 import { expect } from "bun:test";
+import { GameMap, MAPS } from "@tokenmaxxing/core/maps.ts";
+import { isCart } from "@tokenmaxxing/core/street.ts";
 import {
   type ChatLine,
   DROPS,
@@ -7,9 +9,11 @@ import {
   MOVES_TEXT,
   type Moves,
   type MovesWire,
+  outsideDoor,
   type PlayerInfo,
   RUN_STEP_MS,
   readMoves,
+  route,
   type Snapshot,
   STEP_BURST,
   setDrops,
@@ -30,8 +34,16 @@ const REFILL_MS = RUN_STEP_MS * 0.8;
 /** One step at running pace: it waits only until the budget has a step. One at a time per player. */
 export async function step(conn: Conn, dir: string) {
   const b = budgets.get(tokenOf.get(conn)!)!;
-  if (b.budget < 1) await Bun.sleep(Math.max(0, b.at + (1 - b.budget) * REFILL_MS - Date.now()) + 2);
-  b.budget = Math.min(STEP_BURST, b.budget + (Date.now() - b.at) / REFILL_MS) - 1;
+
+  if (b.budget < 1) {
+    const readyAt = b.at + (1 - b.budget) * REFILL_MS;
+    await Bun.sleep(Math.max(0, readyAt - Date.now()) + 2);
+  }
+
+  // Refill for the time since the last answer, then spend one step on this one.
+  const refilled = Math.min(STEP_BURST, b.budget + (Date.now() - b.at) / REFILL_MS);
+  b.budget = refilled - 1;
+
   const result = await conn.step(dir);
   b.at = Date.now();
   return result;
@@ -58,7 +70,7 @@ export async function connect(token: string) {
   conn.on("chat", (l: ChatLine) => events.chat.push(l));
   conn.on("snapshot", (s: Snapshot) => events.snapshots.push(s));
   // A reconnect is a new connection the world doesn't know has joined: join again, as the game does
-  // (`web/src/net.ts`), or this tab hears nothing more of its room. Said, so a loaded CI run shows it.
+  // (`web/src/net.ts`), or this tab hears nothing more of its room. The warning shows it in a loaded CI run.
   let opened = false;
   conn.onOpen(() => {
     if (opened) {
@@ -76,6 +88,26 @@ export async function walk(conn: Conn, dirs: string[]) {
   const results = [];
   for (const d of dirs) results.push(await step(conn, d));
   return results;
+}
+
+/** The town's streets with the sausage cart walled off: a prop nobody walks through, so a route can pass. */
+export function streetsWithoutCart() {
+  const rows = MAPS.town.rows.map((r, y) =>
+    [...r].map((ch, x) => (isCart(x + MAPS.town.x0, y + MAPS.town.y0) ? "T" : ch)).join(""),
+  );
+  return new GameMap("town", "Town", rows, MAPS.town.x0, MAPS.town.y0);
+}
+
+/** Walks `c`'s player out of the Tavern, out of its door and along the streets to `door`; returns the steps. */
+export async function walkToDoor(
+  c: Awaited<ReturnType<typeof connect>>,
+  userId: number,
+  door: [number, number],
+) {
+  const me = c.snap.players.find((p) => p.id === userId)!;
+  await walk(c.conn, route(MAPS.inn, [me.x, me.y], MAPS.inn.find("x")[0]!)!);
+  const out = outsideDoor("inn");
+  return walk(c.conn, route(streetsWithoutCart(), [out.x, out.y], door)!);
 }
 
 /**

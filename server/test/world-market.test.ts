@@ -1,24 +1,15 @@
 import { describe, expect, test } from "bun:test";
-import { GameMap, MAPS } from "@tokenmaxxing/core/maps.ts";
+import { MAPS } from "@tokenmaxxing/core/maps.ts";
 import { SHOP_DOOR_CHAR, SHOP_ROOM, SHOPS } from "@tokenmaxxing/core/shoprooms.ts";
-import { isCart } from "@tokenmaxxing/core/street.ts";
-import { outsideDoor, route } from "@tokenmaxxing/core/world.ts";
 import { admin, eventually, rich, veteran } from "./rivet.ts";
-import { connect, walk } from "./world-client.ts";
+import { connect, walkToDoor } from "./world-client.ts";
 
 describe("Torvehallen", () => {
   /** From the Tavern's landing out through its door and along the streets to the hall's door. */
   async function toHall(user: { token: string; userId: number }) {
     const c = await connect(user.token);
-    const me = c.snap.players.find((p) => p.id === user.userId)!;
-    await walk(c.conn, route(MAPS.inn, [me.x, me.y], MAPS.inn.find("x")[0]!)!);
-    const out = outsideDoor("inn");
     const door = MAPS.town.find(SHOP_DOOR_CHAR.market)[0]!;
-    const rows = MAPS.town.rows.map((r, y) =>
-      [...r].map((ch, x) => (isCart(x + MAPS.town.x0, y + MAPS.town.y0) ? "T" : ch)).join(""),
-    );
-    const streets = new GameMap("town", "Town", rows, MAPS.town.x0, MAPS.town.y0);
-    const steps = await walk(c.conn, route(streets, [out.x, out.y], door)!);
+    const steps = await walkToDoor(c, user.userId, door);
     expect(steps.at(-1)).toMatchObject({ room: SHOP_ROOM.market });
     await eventually(() => expect(c.events.snapshots.at(-1)!.room).toBe(SHOP_ROOM.market));
     return c;

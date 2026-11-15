@@ -110,6 +110,7 @@ describe("the common room", () => {
     expect(await cb.conn.move(bag.id, 4, 10)).toEqual({ notice: "That's gone." });
     for (const c of [ca, cb]) await c.conn.dispose();
   });
+
   test("the building's pieces go to the storeroom in one action, and come out near you, or on a chosen tile", async () => {
     const a = await signUp("bulk");
     const co = await a.town.createCompany("Bulk");

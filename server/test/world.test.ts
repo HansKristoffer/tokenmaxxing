@@ -242,9 +242,10 @@ describe("world", () => {
     expect(until).toBeLessThanOrEqual(Date.now() + SPECIAL.ms);
     // Again while it lasts: a notice, and no new clock.
     expect(await conn.tavern(path.at(-1))).toEqual({ notice: expect.stringContaining("still got") });
-    expect(
-      events.infos.filter((x) => x.id === a.userId && x.specialUntil !== until && x.specialUntil),
-    ).toEqual([]);
+    const renewed = events.infos.filter(
+      (x) => x.id === a.userId && x.specialUntil !== until && x.specialUntil,
+    );
+    expect(renewed).toEqual([]);
     // Free: the wallet is as it was.
     expect((await a.town.wallet()).balance).toBe(before);
     await conn.dispose();
