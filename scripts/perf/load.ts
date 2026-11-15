@@ -125,6 +125,7 @@ function row(
   const avg = (k: keyof (typeof samples)[number]) => samples.reduce((a, s) => a + s[k], 0) / samples.length;
   const ticks = perf.flatMap((p) => p.tick);
   const lags = perf.flatMap((p) => p.lag);
+  const health = samples.map((s) => s.health);
   const events: Record<string, number> = {};
   for (const s of stats) for (const [k, v] of Object.entries(s.events)) events[k] = (events[k] ?? 0) + v;
   const top = Object.entries(events)
@@ -146,13 +147,8 @@ function row(
     "tick max": r1(Math.max(0, ...ticks)),
     "lag p99": r1(pct(lags, 99)),
     // Another actor's call meanwhile: `town` shares the engine's connection to this process.
-    "town p50": r1(
-      pct(
-        samples.map((s) => s.health),
-        50,
-      ),
-    ),
-    "town max": r1(Math.max(...samples.map((s) => s.health))),
+    "town p50": r1(pct(health, 50)),
+    "town max": r1(Math.max(...health)),
     "KB/s/cl": r1(sum("bytes") / secs / 1024 / sum("clients")),
     "msg/s/cl": r1(sum("messages") / secs / sum("clients")),
     err: sum("errors"),
@@ -186,7 +182,7 @@ async function start(profileDir: string | null) {
   const storage = join(dir, "rivet");
   if (profileDir) mkdirSync(profileDir, { recursive: true });
   const prof = profileDir ? ["--cpu-prof", "--cpu-prof-md", `--cpu-prof-dir=${profileDir}`] : [];
-  // Run from `server/` as `src/main.ts`: a `pkill -f server/src/main.ts` meant for a dev server misses it.
+  // Started as `src/main.ts` from `server/`, so a `pkill -f server/src/main.ts` aimed at a dev server misses it.
   const server = Bun.spawn(["bun", ...prof, "src/main.ts"], {
     cwd: join(import.meta.dir, "../../server"),
     env: {
@@ -242,7 +238,9 @@ async function start(profileDir: string | null) {
       server.kill("SIGKILL");
       try {
         if (engine) process.kill(engine, "SIGKILL");
-      } catch {} // gone already
+      } catch {
+        // The engine has already exited.
+      }
       rmSync(dir, { recursive: true, force: true, maxRetries: 3 });
       running.splice(running.indexOf(handle), 1);
     },
@@ -377,10 +375,9 @@ async function* lines(stream: ReadableStream<Uint8Array>) {
 }
 
 function spawnWorker(origin: string, tokens: string[]) {
-  const pass = [
-    ...["doors", "chat"].flatMap((k) => (process.argv.includes(`--${k}`) ? [`--${k}`, arg(k, "")] : [])),
-    ...(flag("direct") ? ["--direct"] : []),
-  ];
+  // The coordinator's own flags for the worker: each of these it was given, and --direct.
+  const forwarded = ["doors", "chat"].filter((k) => process.argv.includes(`--${k}`));
+  const pass = [...forwarded.flatMap((k) => [`--${k}`, arg(k, "")]), ...(flag("direct") ? ["--direct"] : [])];
   const proc = Bun.spawn(["bun", import.meta.path, "--worker", "--origin", origin, ...pass], {
     env: { ...process.env, LOAD_TOKENS: JSON.stringify(tokens) },
     stdin: "pipe",
@@ -441,9 +438,12 @@ async function worker() {
       super(...args);
       this.addEventListener("message", (e) => {
         if (!measuring) return;
+
         stats.messages++;
         const d = e.data as string | ArrayBuffer | Blob;
-        stats.bytes += typeof d === "string" ? d.length : d instanceof Blob ? d.size : d.byteLength;
+        if (typeof d === "string") stats.bytes += d.length;
+        else if (d instanceof Blob) stats.bytes += d.size;
+        else stats.bytes += d.byteLength;
       });
     }
   } as typeof WebSocket;
@@ -507,19 +507,21 @@ async function worker() {
     }
   })();
   const rand = (a: number, b: number) => a + Math.random() * (b - a);
-  const portals = (map: GameMap) =>
-    map.rows.flatMap((row, y) =>
-      [...row].flatMap((ch, x) =>
-        "xIuSG".includes(ch) ? [[x + map.x0, y + map.y0] as [number, number]] : [],
-      ),
-    );
-  const tiles = (map: GameMap) =>
-    map.rows.flatMap((row, y) =>
-      [...row].flatMap((_, x) =>
-        map.walkable(x + map.x0, y + map.y0) ? [[x + map.x0, y + map.y0] as [number, number]] : [],
-      ),
-    );
-  const lines = ["hej", "anyone up?", "shipping it", "coffee?", "my agents are on fire today", "lgtm"];
+  // The absolute [x, y] of every cell of `map` that `keep` accepts, given its character and position.
+  const cellsOf = (map: GameMap, keep: (ch: string, x: number, y: number) => boolean) => {
+    const cells: [number, number][] = [];
+    map.rows.forEach((row, rowIndex) => {
+      [...row].forEach((ch, col) => {
+        const x = col + map.x0;
+        const y = rowIndex + map.y0;
+        if (keep(ch, x, y)) cells.push([x, y]);
+      });
+    });
+    return cells;
+  };
+  const portals = (map: GameMap) => cellsOf(map, (ch) => "xIuSG".includes(ch));
+  const tiles = (map: GameMap) => cellsOf(map, (_, x, y) => map.walkable(x, y));
+  const chatLines = ["hej", "anyone up?", "shipping it", "coffee?", "my agents are on fire today", "lgtm"];
   await Promise.all(
     players.map(async ({ conn, me }) => {
       let sayAt = Date.now() + rand(5_000, 60_000);
@@ -558,7 +560,7 @@ async function worker() {
         }
         if (chat && Date.now() > sayAt) {
           sayAt = Date.now() + rand(20_000, 60_000);
-          conn.say(lines[Math.floor(Math.random() * lines.length)]).catch(() => {
+          conn.say(chatLines[Math.floor(Math.random() * chatLines.length)]).catch(() => {
             if (measuring) stats.errors++;
           });
         }
