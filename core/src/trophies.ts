@@ -9,7 +9,7 @@ import { sortBy } from "hanzio";
 import { addDays, dayKey, worldClock } from "./range.ts";
 
 /** One hour of a player's events: its start (ms, on the hour) and what happened in it. */
-export interface HourFacts {
+interface HourFacts {
   hour: number;
   tokens: number;
   prompts: number;
@@ -18,7 +18,7 @@ export interface HourFacts {
 }
 
 /** A PR they opened: when, and its message id (the sha256 of its URL, from the GitHub source). */
-export interface PrFacts {
+interface PrFacts {
   at: number;
   hash: string;
 }
@@ -127,15 +127,18 @@ function busyDay(rows: readonly { day: string }[], n: number): string | null {
   return null;
 }
 
-/** Whether a world day is a Friday (noon UTC is the same date everywhere, so its weekday is the day's). */
-const isFriday = (day: string): boolean => new Date(`${day}T12:00:00Z`).getUTCDay() === 5;
+/**
+ * A world day's weekday, 0 for Sunday. Noon UTC is the same date everywhere, so noon has the day's weekday.
+ */
+const weekdayOf = (day: string): number => new Date(`${day}T12:00:00Z`).getUTCDay();
+
+const isFriday = (day: string): boolean => weekdayOf(day) === 5;
 
 /** The Sunday that ended the first Monday-to-Sunday week with tokens on all seven days. */
 function perfectWeek(days: readonly DayFacts[]): string | null {
   const have = new Set(days.map((d) => d.day));
   for (const { day } of days) {
-    // Noon UTC is the same date everywhere, so its weekday is the day's.
-    if (new Date(`${day}T12:00:00Z`).getUTCDay() !== 1) continue;
+    if (weekdayOf(day) !== 1) continue;
     if ([1, 2, 3, 4, 5, 6].every((i) => have.has(addDays(day, i)))) return addDays(day, 6);
   }
   return null;
