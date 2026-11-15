@@ -63,7 +63,7 @@ export interface Bucket {
   version: number;
 }
 
-// Keep server-confirmed knocks separate from the old browser-only trick-or-treat progress.
+// A door knocked today, as the server confirmed it. The browser stores nothing the server did not confirm.
 const knockKey = (day: string, door: string): string => `halloween:server:${day}:${door}`;
 
 /** The bucket now. */
@@ -91,7 +91,10 @@ const changed = (): void => {
 
 let stirs = 0;
 
-/** E on (x, y), facing `facing`: knocks a doorstep (the server opens it), stirs the cauldron, reads a lawn stone. False when it's none of those (or the theme's off). */
+/**
+ * E on (x, y), facing `facing`: knocks a doorstep (the server opens it), stirs the cauldron or reads a lawn
+ * stone. False when it's none of those, or when the theme is off.
+ */
 export function spookyInteract(x: number, y: number, facing: Facing): boolean {
   if (!spookyOn()) return false;
   if (x === CAULDRON.x && y === CAULDRON.y) {
@@ -106,13 +109,16 @@ export function spookyInteract(x: number, y: number, facing: Facing): boolean {
   const step = doorSteps(world.map).find((d) => d.x === x && d.y === y);
   if (!step) return false;
   const day = dayKey(skyNow());
-  // The paper shares the Tavern step. Ask the server first: old local progress cannot prove this door counted.
+  // The Tavern's step also gets the paper. Ask the server first: local storage cannot prove a door counted.
   const tavern = world.map.at(step.door[0], step.door[1]) === "I";
   void conn
     .knock(facing)
     .then((r) => {
       if (!r) return;
-      if ("notice" in r) return void hud.set({ dialog: r.notice });
+      if ("notice" in r) {
+        hud.set({ dialog: r.notice });
+        return;
+      }
       knocked(r, day);
       if (tavern && r.treat === null) hud.set({ dialog: null, panel: { kind: "paper" } });
     })
@@ -125,17 +131,20 @@ function knocked(r: Knock, day: string): void {
   for (const door of r.knocked) storage.setItem(knockKey(day, door), "1");
   storage.setItem(CANDY_KEY, String(r.candy));
   changed();
-  if (r.treat === null)
-    return void hud.set({
-      dialog: "🎃 You've knocked here already today. Try another door, or come back tomorrow.",
-    });
+  if (r.treat === null) {
+    hud.set({ dialog: "🎃 You've knocked here already today. Try another door, or come back tomorrow." });
+    return;
+  }
   const got = TREAT_CANDY[r.treat];
   const tail = got ? ` +${got} 🍬` : "";
-  const all = r.king
-    ? " That was every door tonight: sugar king! 🍬 The Candy bucket hat is in your bag."
-    : r.knocked.length >= r.of && r.of > 0
-      ? " That was every door tonight: sugar king!"
-      : ` ${r.knocked.length}/${r.of} doors.`;
+  let all: string;
+  if (r.king) {
+    all = " That was every door tonight: sugar king! 🍬 The Candy bucket hat is in your bag.";
+  } else if (r.knocked.length >= r.of && r.of > 0) {
+    all = " That was every door tonight: sugar king!";
+  } else {
+    all = ` ${r.knocked.length}/${r.of} doors.`;
+  }
   hud.set({ dialog: `🎃 ${treatSays(r.treat, r.door, day)}${tail}${all}` });
 }
 
@@ -200,6 +209,7 @@ export function drawSpooky(f: Frame): void {
     const sprite = ghostSprite(h.hue, Math.floor(now / 420 + i) % 2);
     const [x, y] = [p.x * TILE + TILE / 2, (p.y + 1) * TILE - p.lift * TILE];
     const d = me ? Math.hypot(me.x + 0.5 - (p.x + 0.5), me.y + 0.5 - (p.y + 0.5)) : 9;
+    // A ghost fades out within a tile of you, and is solid again from 2.5 tiles off.
     const shy = Math.min(1, Math.max(0, (d - 1) / 1.5));
     if (!inView(f, x - 8, y - 20, 16, 24, TILE) || shy <= 0.02) continue;
     const w = sprite.width * h.size;
@@ -225,7 +235,10 @@ export function drawSpooky(f: Frame): void {
   }
 }
 
-/** The glows over the night's tint (`lightPumpkins`, `halloween.ts`), in world space: the brew, Gerda's lantern, the ghosts. */
+/**
+ * The glows over the night's tint (`lightPumpkins`, `halloween.ts`), in world space: the brew, Gerda's
+ * lantern and the ghosts.
+ */
 export function lightSpooky(g: CanvasRenderingContext2D, strength: number, now: number): void {
   if (!spookyOn()) return;
   const k = flicker(now, 3);

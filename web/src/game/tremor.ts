@@ -31,7 +31,10 @@ const smooth = (x: number) => {
 /** How strong the buzz is for `cups` still in their system: 0 with none, easing in and out around the last half cup. */
 export const buzz = (cups: number): number => Math.min(MAX_CUPS, Math.max(0, cups)) * smooth(cups / 0.5);
 
-/** A steady phase offset for someone, so two people with coffee don't shake in step. */
+/**
+ * A steady phase offset for someone, so two people with coffee don't shake in step. The step 2.399963 is not
+ * a whole number, so each id lands at a different point of the circle; only the fraction matters.
+ */
 export const tremorPhase = (id: number): number => ((Math.abs(id) * 2.399963) % 1) * Math.PI * 2;
 
 const wave = (
@@ -58,6 +61,7 @@ export function tremor(cups: number, tSec: number, phase = 0): Tremor {
   const b = buzz(cups);
   if (b <= 0) return { dx: 0, dz: 0, lift: 0 };
   const reach = b * REACH_PER_CUP;
+  // Each axis reads the phase at its own skew, so the sway is not a circle.
   return {
     dx: reach * wave(X_WAVES, tSec, phase, 1),
     dz: reach * 0.5 * wave(Z_WAVES, tSec, phase, 1.7),
@@ -112,6 +116,7 @@ export function tremor2d(cups: number, tMs: number, phase = 0): { dx: number; dy
   if (b <= 0) return { dx: 0, dy: 0 };
   const t = Math.floor((tMs / 1000) * TREMOR_2D_HZ) / TREMOR_2D_HZ;
   const amp = 0.6 + (b / MAX_CUPS) * 1.4; // 0.6 to 2.0 px, rounded to whole pixels below
+  // The epsilon keeps float rounding from missing the top of the buzz, where the cap is 2 px.
   const cap = b >= MAX_CUPS - 1e-9 ? 2 : 1;
   const px = (v: number) => Math.max(-cap, Math.min(cap, Math.round(v * amp)));
   return { dx: px(wave(X_WAVES, t, phase, 1)), dy: px(0.5 * wave(Z_WAVES, t, phase, 1.7)) };

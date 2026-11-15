@@ -97,7 +97,7 @@ import { drawPicnic } from "./picnic.ts";
 import { type Lap, racing } from "./race.ts";
 import { drawRaid } from "./raid.ts";
 import { drawBonfire, lightBonfire } from "./sankthans.ts";
-import { seasonalCanvas, seasonLookNow, treeVariant } from "./seasons.ts";
+import { type Plant, seasonalCanvas, seasonLookNow, treeVariant } from "./seasons.ts";
 import {
   drawLight,
   drawLights,
@@ -201,7 +201,7 @@ export function render(canvas: HTMLCanvasElement, now: number, dpr = window.devi
     else g.drawImage(c, x, y);
   };
   const snowy = (plain: HTMLCanvasElement, x: number, y: number, ch = "", ground = false) => {
-    const plant = ground ? "ground" : ch === "T" ? "tree" : ch === "^" ? "bush" : null;
+    const plant = ground ? "ground" : plantOf(ch);
     const src =
       season && plant
         ? seasonalCanvas(plain, plant, season, plant === "tree" ? treeVariant(x, y) : 0)
@@ -256,18 +256,16 @@ export function render(canvas: HTMLCanvasElement, now: number, dpr = window.devi
   const deskAt = (x: number, y: number): { tier: number; mode: ScreenMode } => {
     if (!seated) {
       seated = new Map();
-      for (const a of world.avatars.values())
+      for (const a of world.avatars.values()) {
         if (a.state === "working" || a.state === "sit") seated.set(map.index(a.x, a.y), a);
+      }
     }
     const a = map.at(x, y + 1) === "c" ? seated.get(map.index(x, y + 1)) : undefined;
     const tier = effectiveDesk(world.owner?.desk ?? a?.info.desk, fleet);
-    return {
-      tier,
-      mode: !a ? "off" : a.state === "working" ? (Math.floor(now / 180) % 2 ? "typingA" : "typingB") : "lit",
-    };
+    return { tier, mode: screenModeOf(a, now) };
   };
 
-  for (let y = y0; y < y1; y++)
+  for (let y = y0; y < y1; y++) {
     for (let x = x0; x < x1; x++) {
       const o = objectAt(map, x, y);
       const ch = map.at(x, y);
@@ -283,11 +281,14 @@ export function render(canvas: HTMLCanvasElement, now: number, dpr = window.devi
           draw: () => {
             if (mirrored) mirror(g, mirrored.x, mirrored.w);
             const desk = ch === "d" ? deskAt(x, y) : null;
-            if (desk && desk.tier > 0)
+            if (desk && desk.tier > 0) {
               g.drawImage(deskFrame(desk.tier, desk.mode), x * TILE, (y + 1) * TILE - 22);
-            // The company building's pieces are indoors, out of the snow.
-            else if (o.fancy) g.drawImage(fancyCanvas(o.fancy, now), x * TILE + o.dx, y * TILE + o.dy);
-            else snowy(o.canvas, x * TILE + o.dx, y * TILE + o.dy, ch);
+            } else if (o.fancy) {
+              // The company building's pieces are indoors, out of the snow.
+              g.drawImage(fancyCanvas(o.fancy, now), x * TILE + o.dx, y * TILE + o.dy);
+            } else {
+              snowy(o.canvas, x * TILE + o.dx, y * TILE + o.dy, ch);
+            }
             if (mirrored) g.restore();
           },
         });
@@ -301,6 +302,7 @@ export function render(canvas: HTMLCanvasElement, now: number, dpr = window.devi
         });
       }
     }
+  }
 
   drawTrophies(f);
 
@@ -336,7 +338,7 @@ export function render(canvas: HTMLCanvasElement, now: number, dpr = window.devi
     }
     if (outdoors) candleWindows(f, panes, { left, top, bottom });
     // At night each window shines: the people at home in it, or (for some empty rooms) just a lamp.
-    if (outdoors)
+    if (outdoors) {
       for (const [i, pane] of panes.entries()) {
         const p = faces[i];
         const activeOffice = company && world.officeLights.has(company.id) && i === 0;
@@ -344,6 +346,7 @@ export function render(canvas: HTMLCanvasElement, now: number, dpr = window.devi
         const [x, y] = [left + pane.x, top + pane.y];
         windows.push({ x, y, w: pane.w, h: pane.h, face: p ? () => drawFace(g, p, x, y, pane, now) : null });
       }
+    }
     items.push({
       y: bottom - 1,
       draw: () => {
@@ -355,9 +358,10 @@ export function render(canvas: HTMLCanvasElement, now: number, dpr = window.devi
           g.fillRect(left + pane.x, top + pane.y, pane.w, pane.h);
         }
         if (logo && plaque) drawLogo(g, logo, left + plaque.x, top + plaque.y, plaque.w, plaque.h);
-        for (const [i, p] of faces.entries())
+        for (const [i, p] of faces.entries()) {
           if (!(relit && p.state !== "away"))
             drawFace(g, p, left + panes[i]!.x, top + panes[i]!.y, panes[i]!, now);
+        }
       },
     });
     const [sx, sy] = toScreen(cx, top);
@@ -383,12 +387,13 @@ export function render(canvas: HTMLCanvasElement, now: number, dpr = window.devi
     const kind = itemById(d.item);
     if (!kind || kind.slot === "furniture") continue;
     const sprite = kind.slot === "pet" ? petFrame(kind.index, false, false) : itemFrame(kind);
-    if (sprite)
+    if (sprite) {
       items.push({
         y: d.y * TILE + TILE / 2,
         draw: () =>
           g.drawImage(sprite, d.x * TILE + (TILE - sprite.width) / 2, (d.y + 1) * TILE - sprite.height - 1),
       });
+    }
   }
 
   drawGames(f);
@@ -446,6 +451,7 @@ export function render(canvas: HTMLCanvasElement, now: number, dpr = window.devi
     const pos = lap ?? spots[i]!;
     const px = pos.x * TILE;
     const py = pos.y * TILE;
+    // A racer runs on the square's paving (the `:` tile).
     const tile = lap ? ":" : map.at(a.x, a.y);
     // The cop is always drawn: his siren works out whether he's on a case as he's drawn.
     const seen = isCop(a) || inView(f, px, py, TILE, TILE, reach);
@@ -455,8 +461,9 @@ export function render(canvas: HTMLCanvasElement, now: number, dpr = window.devi
         draw: () => drawAvatar(g, a, px, py, tile, now, lap, chill, weather),
       });
       // A legendary sparkles on whoever wears it.
-      if (wearsLegendary(a.info.look))
+      if (wearsLegendary(a.info.look)) {
         items.push({ y: py + TILE, draw: () => drawSparkle(g, px, py - 2, now, a.info.id) });
+      }
     }
     const pet = a.warp ? null : followPet(a, px, py, dt, owner === a.info.id ? bedAt : undefined);
     const rise = petRise(a);
@@ -479,7 +486,7 @@ export function render(canvas: HTMLCanvasElement, now: number, dpr = window.devi
           )
         : null;
       const frame = asleep ?? petFrame(worn.pet, left, hop, worn.petVariant, outfit, worn.petwear);
-      if (frame)
+      if (frame) {
         items.push({
           y: pet.y + PET_H,
           draw: () => {
@@ -495,13 +502,16 @@ export function render(canvas: HTMLCanvasElement, now: number, dpr = window.devi
             drawPetCrown(g, a, Math.round(pet.x), Math.round(pet.y) - lift, left, hop, now);
           },
         });
+      }
       // The hearts, treats or stars rise from it.
-      if (play)
+      if (play) {
         labels.push(() => burst(g, ...toScreen(pet.x + PET_W / 2, pet.y - lift), play.emojis, play.age, dpr));
+      }
     }
     // A pet's name shows for mine and for those within a few tiles of me.
     const petName = a.info.look.petName;
-    if (pet && petSeen && petName && (!me || Math.hypot(a.x - me.x, a.y - me.y) <= NAME_RANGE))
+    const inNameRange = !me || Math.hypot(a.x - me.x, a.y - me.y) <= NAME_RANGE;
+    if (pet && petSeen && petName && inNameRange)
       labels.push(() => petLabel(g, ...toScreen(pet.x + PET_W / 2, pet.y + PET_H + 1), petName, dpr));
     if (seen)
       labels.push(() =>
@@ -550,6 +560,20 @@ export function render(canvas: HTMLCanvasElement, now: number, dpr = window.devi
     drawWeather(g, w, h, dpr, now);
   }
   for (const l of labels) l();
+}
+
+/** The season's kind of a town sprite: a tree, a bush, or none (`seasons.ts`). */
+function plantOf(ch: string): Plant | null {
+  if (ch === "T") return "tree";
+  if (ch === "^") return "bush";
+  return null;
+}
+
+/** A desk's screens: off with nobody at it, typing while its person works, else lit. */
+function screenModeOf(a: Avatar | undefined, now: number): ScreenMode {
+  if (!a) return "off";
+  if (a.state !== "working") return "lit";
+  return Math.floor(now / 180) % 2 ? "typingA" : "typingB";
 }
 
 /** What a company's neon sign says: its name, or its initials when the name won't fit. Once per company. */
@@ -656,8 +680,8 @@ function drawAvatar(
     drawAura(g, a, px, py - 2 - lift, now);
     // A sneeze dips the whole figure a pixel.
     const sneeze = sneezeOf(a);
-    const top =
-      py - 2 - lift - (pose === "walkA" ? 1 : 0) + (sneeze !== null && sneezeJolt(sneeze) > 0.5 ? 1 : 0);
+    const sneezing = sneeze !== null && sneezeJolt(sneeze) > 0.5;
+    const top = py - 2 - lift - (pose === "walkA" ? 1 : 0) + (sneezing ? 1 : 0);
     if (isCop(a)) drawCop(g, a, pose, px, top, py, now);
     else if (moves) drawDancing(g, characterFrame(look, facing, pose), px, top, moves);
     else g.drawImage(characterFrame(look, facing, pose), px, top);

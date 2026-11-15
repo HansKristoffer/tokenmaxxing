@@ -21,7 +21,9 @@ export function askRegulars(): void {
       board.rows = r.top;
       board.last = r.last?.userId ?? null;
     })
-    .catch(() => {})
+    .catch(() => {
+      // A failed ask keeps the board as it was. `board.at` is already set, so the next ask is a minute on.
+    })
     .finally(() => {
       board.asking = false;
     });
@@ -43,8 +45,8 @@ export function drawRegulars({ g, items }: Frame): void {
     const last = i === 0 ? LEFT_PLATES : REGULARS_TOP;
     const names: string[] = [];
     for (let rank = first; rank <= last; rank++) {
-      const r = board.rows.find((r) => r.rank === rank && plaqueOf(r.rank) === Math.min(i, 1));
-      names.push(r ? plateText(r) : "");
+      const row = board.rows.find((r) => r.rank === rank && plaqueOf(r.rank) === Math.min(i, 1));
+      names.push(row ? plateText(row) : "");
     }
     const face = nameboard(names);
     // Over the plaque's own board (its post starts 7 pixels into the tile), inside its tile's width.

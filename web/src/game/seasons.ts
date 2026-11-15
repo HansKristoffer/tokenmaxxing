@@ -154,11 +154,17 @@ function paint(src: HTMLCanvasElement, plant: Plant, variant: number, l: SeasonL
       const y = Math.floor(i / 4 / w);
       const k = pack(d[i]!, d[i + 1]!, d[i + 2]!);
       const grass = grassIndex.get(k);
-      if (grass !== undefined) put(i, grassOf(grass, l));
-      // The meadows' flowers rest in winter, a few at a time.
-      else if (FLOWERS.has(k) && hash(x >> 2, y >> 2, 71) < l.dormant) put(i, grassOf(0, l));
+      if (grass !== undefined) {
+        put(i, grassOf(grass, l));
+      } else if (FLOWERS.has(k) && hash(x >> 2, y >> 2, 71) < l.dormant) {
+        // The meadows' flowers rest in winter, a few at a time.
+        put(i, grassOf(0, l));
+      }
+
       // Fallen leaves on the grass, and fewer on the paths (they get swept).
-      const litter = grass !== undefined ? 0.07 : PATHS.has(k) ? 0.025 : 0;
+      let litter = 0;
+      if (grass !== undefined) litter = 0.07;
+      else if (PATHS.has(k)) litter = 0.025;
       if (litter && hash(x, y, 73) < l.litter * litter)
         put(i, LITTER[Math.floor(hash(x, y, 74) * LITTER.length)]!);
     }
@@ -174,14 +180,16 @@ function paint(src: HTMLCanvasElement, plant: Plant, variant: number, l: SeasonL
         ? undefined
         : leafIndex.get(pack(was[(y * w + x) * 4]!, was[(y * w + x) * 4 + 1]!, was[(y * w + x) * 4 + 2]!));
     // Leaves fall two by two pixels: a clump stays while `leaf` is above its number.
+    // Clumps of two by two pixels stay or fall together. The hash maps to 0.03 to 0.97, so `leaf` is the share kept.
     const stays = (x: number, y: number) => hash(x >> 1, y >> 1, 75 + variant) * 0.94 + 0.03 < leaf;
-    if (tree && leaf < 1)
+    if (tree && leaf < 1) {
       for (const [x, y] of BRANCHES) {
         const i = (y * w + x) * 4;
         put(i, x < 8 ? BRANCH_DARK : BRANCH);
         d[i + 3] = 255;
       }
-    for (let y = 0; y < out.height; y++)
+    }
+    for (let y = 0; y < out.height; y++) {
       for (let x = 0; x < w; x++) {
         const s = shade(x, y);
         if (s === undefined) continue;
@@ -200,7 +208,8 @@ function paint(src: HTMLCanvasElement, plant: Plant, variant: number, l: SeasonL
             })
           : stays(x, y);
         if (!kept) {
-          if (!(tree && BRANCHES.some(([bx, by]) => bx === x && by === y))) d[i + 3] = 0;
+          const isBranch = tree && BRANCHES.some(([bx, by]) => bx === x && by === y);
+          if (!isBranch) d[i + 3] = 0;
           continue;
         }
         let c = mix(LEAVES[s]!, FRESH[s]!, l.fresh * 0.85);
@@ -215,6 +224,7 @@ function paint(src: HTMLCanvasElement, plant: Plant, variant: number, l: SeasonL
         if (bloom && hash(x, y, 79) < bloom * 0.5) c = BLOSSOM[variant]![Math.floor(hash(x, y, 80) * 3)]!;
         put(i, c);
       }
+    }
   }
   g.putImageData(image, 0, 0);
   return out;

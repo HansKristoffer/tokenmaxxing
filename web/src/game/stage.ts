@@ -33,19 +33,22 @@ export function takePhoto(pose?: () => void): void {
   let count = 3;
   const countdown = () => {
     hud.set({ banner: { text: `📷 Photo in ${count}…`, at: Date.now() } });
-    if (--count > 0) photoTimer = setTimeout(countdown, 1000);
-    else
-      photoTimer = setTimeout(() => {
-        hud.set({ banner: { text: "📷 Smile!", at: Date.now() } });
-        pose?.();
-        photoTimer = setTimeout(
-          () => {
-            photoRequested = true;
-            photoTimer = null;
-          },
-          pose ? 150 : 0,
-        );
-      }, 1000);
+    if (--count > 0) {
+      photoTimer = setTimeout(countdown, 1000);
+      return;
+    }
+    photoTimer = setTimeout(() => {
+      hud.set({ banner: { text: "📷 Smile!", at: Date.now() } });
+      pose?.();
+      // A pose gets 150 ms to land on screen before the frame is kept.
+      photoTimer = setTimeout(
+        () => {
+          photoRequested = true;
+          photoTimer = null;
+        },
+        pose ? 150 : 0,
+      );
+    }, 1000);
   };
   countdown();
 }
@@ -222,7 +225,9 @@ export function startStage(host: HTMLElement, tick: (now: number) => boolean): v
     perf.renderer = renderer.kind;
     perf.scale = settings.renderScale;
 
-    if (graphics.get().choice === "auto" && settings.tier !== "low" && !idle && gap < 500) {
+    // The governor only steers on its own: a player's pick, the low tier, an idle scene or a long gap are left alone.
+    const governable = graphics.get().choice === "auto" && settings.tier !== "low" && !idle && gap < 500;
+    if (governable) {
       // Judged against what the display can show (or the player's own cap), so a 120 Hz screen is held to 120.
       const step = governor.push(gap, settings.fpsCap === 0 ? refreshMs : 1000 / settings.fpsCap, now);
       if (step) apply(step);

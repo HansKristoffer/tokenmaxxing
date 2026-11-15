@@ -22,8 +22,11 @@ export function townAnimals(): { cat: [number, number]; birds: [number, number][
   const tiles = world.map
     .find(":")
     .filter(([x, y]) => x > PLAZA.left && x < PLAZA.right && y > PLAZA.top && y < PLAZA.bottom);
+  // Three birds take tiles 2, 5 and 8 of the plaza's list, so it needs at least nine.
   if (tiles.length < 9) return null;
+  // A small string hash of the day: everyone sees the cat on the same spot that day.
   const seed = [...day].reduce((n, c) => (n * 31 + c.charCodeAt(0)) >>> 0, 0);
+  // The birds' motion starts over whenever the cache is rebuilt, at each new day or map.
   birdMotion = [new PigeonMotion(), new PigeonMotion(), new PigeonMotion()];
   animalCache = {
     map: world.map,
@@ -57,7 +60,9 @@ export function interactAnimal(x: number, y: number): boolean {
 }
 export function animalMotion(index: number, x: number, y: number, now: number): PigeonPose {
   const me = self();
-  return birdMotion[index]!.sample(now, !!me && Math.hypot(me.x - x, me.y - y) < 1.3, index);
+  // A bird shies off when someone comes within 1.3 tiles of it.
+  const someoneNear = !!me && Math.hypot(me.x - x, me.y - y) < 1.3;
+  return birdMotion[index]!.sample(now, someoneNear, index);
 }
 export const catPetted = (now: number): boolean => now < petUntil;
 
@@ -70,18 +75,23 @@ export function interactTownProp(x: number, y: number): boolean {
   const key = `${x},${y}`;
   taps = key === lastProp ? taps + 1 : 1;
   lastProp = key;
-  const text =
-    ch === "T"
-      ? taps >= 3
-        ? "A tiny door in the trunk opens. A note reads: you found the tree's secret. 🌳"
-        : "The tree rustles. Something seems to be tucked inside."
-      : ch === "^"
-        ? taps >= 3
-          ? "A tiny paper crown lies inside the bush. You leave it for its owner. 👑"
-          : "The bush rustles suspiciously."
-        : "The lamp gives a cheerful little hum. ✨";
-  hud.set({ dialog: text });
+  hud.set({ dialog: propDialog(ch, taps >= 3) });
   return true;
+}
+
+/** What a tapped prop says. The third tap in a row finds something inside it. */
+function propDialog(ch: "T" | "^" | "L", thirdTap: boolean): string {
+  if (ch === "T") {
+    return thirdTap
+      ? "A tiny door in the trunk opens. A note reads: you found the tree's secret. 🌳"
+      : "The tree rustles. Something seems to be tucked inside.";
+  }
+  if (ch === "^") {
+    return thirdTap
+      ? "A tiny paper crown lies inside the bush. You leave it for its owner. 👑"
+      : "The bush rustles suspiciously.";
+  }
+  return "The lamp gives a cheerful little hum. ✨";
 }
 
 export function drawTownAnimals({ g, items, now }: Frame): void {
@@ -91,8 +101,8 @@ export function drawTownAnimals({ g, items, now }: Frame): void {
   items.push({
     y: (cy + 1) * TILE - 1,
     draw: () => {
-      const x = cx * TILE,
-        y = cy * TILE;
+      const x = cx * TILE;
+      const y = cy * TILE;
       // Orange tabby: pointed ears, cream muzzle and paws, two eyes and a pink nose.
       g.fillStyle = "#93512e";
       g.fillRect(x + 3, y + 13, 11, 2);
@@ -134,8 +144,8 @@ export function drawTownAnimals({ g, items, now }: Frame): void {
     items.push({
       y: groundY + 3,
       draw: () => {
-        const x = Math.round(groundX),
-          y = Math.round(groundY - pose.lift * TILE);
+        const x = Math.round(groundX);
+        const y = Math.round(groundY - pose.lift * TILE);
         // The shadow stays on the paving while the bird takes a short, flapping hop.
         g.fillStyle = "#00000025";
         g.fillRect(x - 3, Math.round(groundY + 2), 7, 2);

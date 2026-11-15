@@ -107,22 +107,26 @@ const moons = new Map<number, HTMLCanvasElement>();
 
 /** A pixel moon at its phase: the lit side bright with a few craters, the rest a faint disc. */
 function moonSprite(age: number): HTMLCanvasElement {
+  // The moon has 32 phases, and each one is drawn once and kept.
   const key = Math.round(age * 32) % 32;
   let c = moons.get(key);
   if (c) return c;
   const R = 9;
   c = document.createElement("canvas");
-  c.width = c.height = R * 2 + 1;
+  c.width = R * 2 + 1;
+  c.height = R * 2 + 1;
   const g = c.getContext("2d")!;
   const k = Math.cos(2 * Math.PI * (key / 32));
-  for (let y = -R; y <= R; y++)
+  for (let y = -R; y <= R; y++) {
     for (let x = -R; x <= R; x++) {
       if (x * x + y * y > R * R + 1) continue;
       const half = Math.sqrt(Math.max(0, R * R - y * y));
       const lit = key < 16 ? x > k * half : x < -k * half;
-      g.fillStyle = lit ? (hash(x, y, 7) < 0.12 ? "#d3d6c4" : "#f4f1dc") : "rgba(40,50,80,0.55)";
+      if (!lit) g.fillStyle = "rgba(40,50,80,0.55)";
+      else g.fillStyle = hash(x, y, 7) < 0.12 ? "#d3d6c4" : "#f4f1dc";
       g.fillRect(x + R, y + R, 1, 1);
     }
+  }
   moons.set(key, c);
   return c;
 }
@@ -233,6 +237,7 @@ export function drawNightSky(
     g.fillRect(Math.floor(s.x * w), Math.floor(s.y * h), size, size);
   }
   const moon = moonSprite(moonPhase(skyNow()).age);
+  // A whole-number scale, at least 2, keeps the moon's pixels square.
   const k = Math.max(2, Math.round(dpr * 2));
   g.globalAlpha = a;
   g.imageSmoothingEnabled = false;
@@ -278,6 +283,22 @@ const seed = (n: number, w: number, h: number, rain: boolean): Drop[] =>
     ph: Math.random() * 6.28,
   }));
 
+/** A rain streak's length in CSS pixels: short for drizzle, long in a storm. */
+function streakLength(kind: Weather["kind"]): number {
+  if (kind === "drizzle") return 8;
+  if (kind === "storm") return 18;
+  return 13;
+}
+
+/** The lightning's brightness `t` ms after a flash: a double flicker, then a fade out. */
+function flashAlpha(t: number): number {
+  if (t < 70) return 0.6;
+  if (t < 130) return 0.12;
+  if (t < 200) return 0.5;
+  if (t < 520) return 0.5 * (1 - (t - 200) / 320);
+  return 0;
+}
+
 /** Rain, snow, fog, lightning: in screen space, with the night's darkness folded into their colour. */
 export function drawWeather(
   g: CanvasRenderingContext2D,
@@ -307,9 +328,10 @@ export function drawWeather(
     g.globalAlpha = 0.5 * k;
     for (let i = 0; i < 7; i++) {
       const bw = (520 + hash(i, 0, 5) * 300) * dpr;
-      const x =
-        ((((hash(i, 1, 5) * (w + bw) + fogShift * (0.6 + hash(i, 2, 5))) % (w + bw)) + (w + bw)) % (w + bw)) -
-        bw;
+      // A positive modulo, so each bank wraps around at both edges as it drifts.
+      const span = w + bw;
+      const drift = hash(i, 1, 5) * span + fogShift * (0.6 + hash(i, 2, 5));
+      const x = (((drift % span) + span) % span) - bw;
       g.drawImage(blob, x, hash(i, 3, 5) * h - bw * 0.2, bw, bw * 0.5);
     }
     g.restore();
@@ -348,7 +370,7 @@ export function drawWeather(
     if (falls) {
       const slant = push * 0.55;
       const speed = (weather.kind === "drizzle" ? 520 : 820) * dpr;
-      const len = (weather.kind === "drizzle" ? 8 : weather.kind === "storm" ? 18 : 13) * dpr;
+      const len = streakLength(weather.kind) * dpr;
       g.beginPath();
       for (const d of drops) {
         d.y += speed * d.v * dt;
@@ -413,7 +435,7 @@ export function drawWeather(
       nextFlash = now + 5_000 + Math.random() * 9_000;
     }
     const t = now - flashAt;
-    const a = t < 70 ? 0.6 : t < 130 ? 0.12 : t < 200 ? 0.5 : t < 520 ? 0.5 * (1 - (t - 200) / 320) : 0;
+    const a = flashAlpha(t);
     if (a > 0.01) {
       g.fillStyle = `rgba(225,232,255,${a})`;
       g.fillRect(0, 0, w, h);
@@ -449,7 +471,10 @@ export function drawSway(
 ): void {
   const bands = SWAY[ch];
   const strength = Math.min(1, weather.windMs / 9);
-  if (!bands || strength < 0.2) return void g.drawImage(sprite, x, y);
+  if (!bands || strength < 0.2) {
+    g.drawImage(sprite, x, y);
+    return;
+  }
   const ph = hash(Math.round(x), Math.round(y), 3) * 6.28;
   const sign = windPush(weather) >= 0 ? 1 : -1;
   const lean = sign * strength * 2.6 * (0.6 + 0.4 * Math.sin(now / (420 - strength * 150) + ph));

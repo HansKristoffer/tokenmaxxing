@@ -225,6 +225,7 @@ export function applyMoves(m: Moves): void {
     if (pos[0] === world.selfId) reconcileSelf(a, pos);
     else {
       a.queue.push(pos);
+      // Past six queued steps the oldest go, so a remote player catches up instead of falling further behind.
       if (a.queue.length > 6) a.queue.splice(0, a.queue.length - 6);
     }
   }
@@ -254,6 +255,7 @@ export function showMyDance(index: number, since = Date.now()): void {
 
 export function applyChat(line: ChatLine): void {
   if (line.room !== world.room) return;
+  // The chat keeps its last 100 lines.
   hud.set((s) => ({ chat: [...s.chat.slice(-99), line] }));
   applyBubble(line);
 }
@@ -303,14 +305,12 @@ export function advanceRemotes(now: number): void {
     const [, x, y, facing, state] = next;
     a.facing = facing;
     a.state = state;
-    if (Math.abs(x - a.x) + Math.abs(y - a.y) === 1)
-      beginStep(
-        a,
-        x,
-        y,
-        (a.queue.length > 1 ? RUN_STEP_MS : WALK_STEP_MS) * stepPace(a.info.polseUntil, Date.now()),
-      );
-    else Object.assign(a, { x, y, from: null });
+    if (Math.abs(x - a.x) + Math.abs(y - a.y) === 1) {
+      const ms = (a.queue.length > 1 ? RUN_STEP_MS : WALK_STEP_MS) * stepPace(a.info.polseUntil, Date.now());
+      beginStep(a, x, y, ms);
+    } else {
+      Object.assign(a, { x, y, from: null });
+    }
   }
   if (world.leaving.length) world.leaving = world.leaving.filter((a) => now - a.warp!.at < WARP_MS);
 }
@@ -348,8 +348,11 @@ function showDrops(drops: Drop[]): void {
   for (const d of [...was.drops, ...drops]) {
     const piece = pieceOfDrop(d);
     if (!piece || (was.drops.includes(d) && drops.includes(d))) continue;
-    for (const [tx, ty] of dropTiles(d))
-      for (let y = ty - 1; y <= ty + 1; y++) for (let x = tx - 1; x <= tx + 1; x++) tiles.push([x, y]);
+    for (const [tx, ty] of dropTiles(d)) {
+      for (let y = ty - 1; y <= ty + 1; y++) {
+        for (let x = tx - 1; x <= tx + 1; x++) tiles.push([x, y]);
+      }
+    }
   }
   repaintGround(was.ground, world.map, tiles);
   // Patched in place: the old map's ground is gone (an empty office's map is every empty office's).
@@ -376,6 +379,7 @@ export function applyGameOver(id: number, winners: number[]): void {
     a.burst = { emojis: ["🪙"], at: performance.now() };
     if (race) {
       a.jump = performance.now();
+      // A second hop once the first one has landed, so the winner hops twice.
       setTimeout(() => {
         a.jump = performance.now();
       }, JUMP_MS + 60);
@@ -403,12 +407,13 @@ function gamesChanged(): void {
 export function gamesOf(userId: number): readonly WorldGame[] {
   if (!byPlayer) {
     byPlayer = new Map();
-    for (const g of world.games.values())
+    for (const g of world.games.values()) {
       for (const p of g.players) {
         const list = byPlayer.get(p);
         if (!list) byPlayer.set(p, [g]);
         else if (list.at(-1) !== g) list.push(g);
       }
+    }
   }
   return byPlayer.get(userId) ?? NO_GAMES;
 }
