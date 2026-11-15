@@ -35,7 +35,7 @@ export type Panel =
   | { kind: "shops" }
   /** Natmarked's counter and shelves: the cases on sale (`hud/CaseShop.tsx`). `shelf`: the one E was pressed on, whose case it opens on. */
   | { kind: "caseShop"; shelf?: number; shop?: CaseShopId }
-  /** Natmarked’s entrance board: available only while inside the hall. */
+  /** Natmarked's entrance board: available only while inside the hall. */
   | { kind: "caseLeaderboard" }
   /** Torvehallen's counter: what is on display (the default), or my own shelf and sales (`hud/Market.tsx`). */
   | { kind: "market"; tab?: "display" | "shelf" }
@@ -90,13 +90,16 @@ export interface JukeSettings {
 }
 export const JUKE_KEY = "tokenmaxxing.jukebox";
 
+const DEFAULT_VOLUME = 0.6;
+
 function loadJukeSettings(): JukeSettings {
   try {
     const s = JSON.parse(storage.getItem(JUKE_KEY) ?? "{}") as Partial<JukeSettings>;
-    const volume = typeof s.volume === "number" ? Math.min(1, Math.max(0, s.volume)) : 0.6;
+    const volume = typeof s.volume === "number" ? Math.min(1, Math.max(0, s.volume)) : DEFAULT_VOLUME;
     return { muted: s.muted === true, volume };
   } catch {
-    return { muted: false, volume: 0.6 };
+    // Saved settings that do not parse fall back to the defaults.
+    return { muted: false, volume: DEFAULT_VOLUME };
   }
 }
 
