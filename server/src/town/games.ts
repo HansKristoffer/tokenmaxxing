@@ -35,7 +35,7 @@ export async function recordMatch(
   now: number,
 ): Promise<void> {
   const pot = stake * players.length;
-  for (const p of players)
+  for (const p of players) {
     await sql.execute(
       `INSERT OR IGNORE INTO match_players (match_id, user_id, game, place, stake, won, pot, day, at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -49,6 +49,7 @@ export async function recordMatch(
       dayKey(now),
       now,
     );
+  }
 }
 
 const STATS = `COUNT(*) AS played, SUM(place = 1) AS wins, SUM(won - stake) AS net,

@@ -35,7 +35,8 @@ export async function rouletteBet(
   kept?: Kept,
 ): Promise<{ bets: Bet[]; total: number }> {
   let bets: Bet[] = [];
-  if (!(Array.isArray(rawBets) && rawBets.length === 0)) {
+  const clearing = Array.isArray(rawBets) && rawBets.length === 0;
+  if (!clearing) {
     const checked = checkBets(rawBets);
     if ("refused" in checked) throw new UserError(checked.refused, { code: "bad_bet" });
     bets = checked.bets;
@@ -43,15 +44,13 @@ export async function rouletteBet(
   const total = sum(bets);
   await sql.transaction(
     async (tx) => {
-      const had =
-        (
-          await one<{ total: number }>(
-            tx,
-            "SELECT total FROM roulette_bets WHERE round = ? AND user_id = ?",
-            round,
-            userId,
-          )
-        )?.total ?? 0;
+      const held = await one<{ total: number }>(
+        tx,
+        "SELECT total FROM roulette_bets WHERE round = ? AND user_id = ?",
+        round,
+        userId,
+      );
+      const had = held?.total ?? 0;
       const more = total - had;
       if (more > 0 && (await wallet(tx, userId, now, kept)).balance < more)
         throw new UserError("Not enough coins for that bet.", { code: "too_poor" });
@@ -111,7 +110,10 @@ export async function rouletteResolve(
   );
 }
 
-/** Gives `userId` their stakes for `round` back (the whole table's, if `userId` is omitted: any round). Returns the coins. */
+/**
+ * Gives `userId` their stakes for `round` back. Without `userId` the whole table's stakes go back, and
+ * without `round` the stakes of any round. Returns the coins.
+ */
 export async function rouletteRefund(
   sql: TxSql,
   now: number,

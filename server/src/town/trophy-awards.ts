@@ -3,10 +3,10 @@ import type { Trophy } from "@tokenmaxxing/core/trophies.ts";
 import { all, one, type Sql } from "../actors/shared.ts";
 
 /**
- * The trophies each player has earned, as the town saw them: they're worked out from a player's own events,
- * in their actor, so the town can't read them when it adds up a wallet. A sweep asks and writes them here
- * once each; the wallet pays from these rows (`trophyAwardCoins`), and a trophy lost to a later correction
- * of the events keeps its coins.
+ * The trophies each player has earned, as the town saw them. They are worked out from a player's own
+ * events, in their actor, so the town can't read them when it adds up a wallet. A sweep asks and writes
+ * them here once each. The wallet pays from these rows (`trophyAwardCoins`), and a trophy lost to a later
+ * correction of the events keeps its coins.
  */
 export async function migrateTrophyAwards(sql: Sql): Promise<void> {
   await sql.execute(`CREATE TABLE IF NOT EXISTS trophy_awards (
@@ -50,15 +50,20 @@ export async function trophyAwardCoins(sql: Sql, userId: number): Promise<number
 /** Every player's recorded trophies' coins, for the admin page. */
 export async function trophyAwardCoinsAll(sql: Sql): Promise<Map<number, number>> {
   const byUser = new Map<number, string[]>();
-  for (const r of await all<{ userId: number; trophy: string }>(
+  const rows = await all<{ userId: number; trophy: string }>(
     sql,
     "SELECT user_id AS userId, trophy FROM trophy_awards",
-  ))
+  );
+  for (const r of rows) {
     byUser.set(r.userId, [...(byUser.get(r.userId) ?? []), r.trophy]);
+  }
   return new Map([...byUser].map(([id, ids]) => [id, trophyCoins(ids)]));
 }
 
-/** Ends in a number so the backfill runs over everyone again when trophies are added (recording is idempotent). */
+/**
+ * The backfill's marker. Bump its number to run the backfill over everyone again when trophies are added:
+ * recording is idempotent, so a second run adds only what is new.
+ */
 const MARKER = "trophy_backfill_2";
 /** Players one sweep reads trophies for in the one-time backfill (each wakes a player's actor). */
 export const TROPHY_CHUNK = 10;
@@ -67,8 +72,8 @@ export const TROPHY_BATCH = 10;
 
 /**
  * One step of the sweep: first the backfill, a chunk of players in id order (the marker holds the last id
- * done, then "done"), then those who synced since (`dirty`). `trophiesOf` asks a player's actor; one it
- * can't reach is skipped and tried again on their next sync. Returns the coins' worth of new trophies per player.
+ * done, then "done"), then those who synced since (`dirty`). `trophiesOf` asks a player's actor. One it
+ * can't reach is skipped and tried again on their next sync. Returns the new trophies per player.
  */
 export async function trophyStep(
   sql: Sql,
@@ -85,8 +90,8 @@ export async function trophyStep(
       console.warn(`[trophies] ${id}: ${String(err)}`);
     }
   };
-  const marker = (await one<{ value: string }>(sql, "SELECT value FROM raid_meta WHERE key = ?", MARKER))
-    ?.value;
+  const markerRow = await one<{ value: string }>(sql, "SELECT value FROM raid_meta WHERE key = ?", MARKER);
+  const marker = markerRow?.value;
   if (marker !== "done") {
     const ids = await all<{ id: number }>(
       sql,

@@ -19,9 +19,9 @@ import { secureRandom } from "./cases.ts";
 import { giveItem } from "./coins.ts";
 
 /**
- * The pond, as the town keeps it: everyone's journal (a row per species, with the count and the best), how many
- * catches each has had today (the first `LUCKY_CASTS` can turn up a treasure), the record for each species, every
- * treasure found, and the one-off feats (a 42 cm catch).
+ * The pond, as the town keeps it: everyone's journal (a row per species, with the count and the best),
+ * how many catches each has had today (the first `LUCKY_CASTS` can turn up a treasure), the record for
+ * each species, every treasure found, and the one-off feats (a 42 cm catch).
  */
 export async function migrateFishing(sql: Sql): Promise<void> {
   await sql.execute(`CREATE TABLE IF NOT EXISTS fishing_journal (
@@ -101,10 +101,10 @@ export interface Landed {
 }
 
 /**
- * Called only by the world after an on-time reel. The journal keeps the count and the best; the day's catch
- * count decides whether the treasure rolls (`rand` is the server's own; tests pass a seeded one); a longer catch
- * than the pond's record takes it (a tie leaves it with whoever got there first). One transaction, so a treasure
- * is never given without its catch.
+ * Called only by the world after an on-time reel. The journal keeps the count and the best. The day's
+ * catch count decides whether the treasure rolls (`rand` is the server's own; tests pass a seeded one).
+ * A longer catch than the pond's record takes it; a tie leaves it with whoever got there first. One
+ * transaction, so a treasure is never given without its catch.
  */
 export async function recordFish(
   sql: TxSql,
@@ -148,18 +148,22 @@ export async function recordFish(
           record = true;
         }
       }
-      if (caught.cm === ANSWER_CM)
+      if (caught.cm === ANSWER_CM) {
         await tx.execute(
           "INSERT INTO fishing_feats (user_id, feat, at) VALUES (?, 'answer', ?) ON CONFLICT DO NOTHING",
           userId,
           now,
         );
-      const owned = new Set(
-        (await all<{ item: string }>(tx, "SELECT item FROM fishing_treasures WHERE user_id = ?", userId)).map(
-          (r) => r.item,
-        ),
+      }
+
+      const ownedRows = await all<{ item: string }>(
+        tx,
+        "SELECT item FROM fishing_treasures WHERE user_id = ?",
+        userId,
       );
-      const found = rollTreasure(catches <= LUCKY_CASTS, rand, owned);
+      const owned = new Set(ownedRows.map((r) => r.item));
+      const isLuckyCast = catches <= LUCKY_CASTS;
+      const found = rollTreasure(isLuckyCast, rand, owned);
       if (found) {
         await tx.execute(
           "INSERT INTO fishing_treasures (user_id, item, at) VALUES (?, ?, ?)",

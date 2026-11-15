@@ -84,11 +84,15 @@ export function lootNotice(drops: readonly LootDrop[]): string {
   const best = sorted[0]!;
   const boss = bossAt(best.rung, best.level);
   const name = lootById(best.item)?.name ?? best.item;
-  const star =
-    rarityOf(best.item) === "legendary" ? "🌟 LEGENDARY! " : rarityOf(best.item) === "epic" ? "💜 " : "";
+  const rarity = rarityOf(best.item);
+  let star = "";
+  if (rarity === "legendary") star = "🌟 LEGENDARY! ";
+  else if (rarity === "epic") star = "💜 ";
+
   if (sorted.length === 1) return `${star}✨ You got the ${name} (${oddsText(best.odds)}) from ${boss.name}!`;
   const rest = sorted.slice(1).map((d) => lootById(d.item)?.name ?? d.item);
-  return `${star}✨ ${sorted.length} raid drops for you: the ${name} (${oddsText(best.odds)}), ${rest.join(", ")}!`;
+  const restNames = rest.join(", ");
+  return `${star}✨ ${sorted.length} raid drops for you: the ${name} (${oddsText(best.odds)}), ${restNames}!`;
 }
 
 /** At most this many drops go out to the whole world at once. */
@@ -153,13 +157,11 @@ export async function raidLoot(
   boss: RungBoss,
   boost = lootBoost(),
 ): Promise<RaidLoot> {
-  const owned = new Set(
+  const ownedRows =
     userId === null
       ? []
-      : (await all<{ item: string }>(sql, "SELECT DISTINCT item FROM items WHERE owner_id = ?", userId)).map(
-          (r) => r.item,
-        ),
-  );
+      : await all<{ item: string }>(sql, "SELECT DISTINCT item FROM items WHERE owner_id = ?", userId);
+  const owned = new Set(ownedRows.map((r) => r.item));
   const drops = await all<RaidLoot["drops"][number]>(
     sql,
     `SELECT l.rung, l.user_id AS userId, u.name, l.item, l.odds FROM loot l JOIN users u ON u.id = l.user_id

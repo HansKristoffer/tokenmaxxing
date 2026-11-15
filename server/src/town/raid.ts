@@ -148,14 +148,14 @@ export async function raidStart(sql: Sql, now: number, env = process.env.RAID_ST
  * only days from each player's sign-up day, like coins, so a first sync's backfill doesn't.
  */
 async function raidDays(sql: Sql, start: string): Promise<RaidDay[]> {
-  const firstDay = JSON.stringify(await signupDays(sql));
+  const signupsJson = JSON.stringify(await signupDays(sql));
   const from = addDays(start, -7);
   const tokens = await all<{ userId: number; day: string; tokens: number }>(
     sql,
     `SELECT user_id AS userId, day, SUM(${TOKENS}) AS tokens
      FROM usage_daily JOIN json_each(?) s ON user_id = CAST(s.key AS INTEGER) AND day >= s.value
      WHERE day >= ? GROUP BY user_id, day`,
-    firstDay,
+    signupsJson,
     from,
   );
   const prs = await all<{ userId: number; day: string; prs: number }>(
@@ -163,7 +163,7 @@ async function raidDays(sql: Sql, start: string): Promise<RaidDay[]> {
     `SELECT user_id AS userId, day, prs
      FROM activity_daily JOIN json_each(?) s ON user_id = CAST(s.key AS INTEGER) AND day >= s.value
      WHERE day >= ? AND prs > 0`,
-    firstDay,
+    signupsJson,
     from,
   );
   const days = new Map<string, RaidDay>(tokens.map((t) => [`${t.userId} ${t.day}`, { ...t, prs: 0 }]));

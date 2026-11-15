@@ -26,8 +26,9 @@ import { levelOf } from "./users.ts";
  */
 export async function migrateOffices(sql: Sql): Promise<void> {
   const columns = (await sql.execute("PRAGMA table_info(offices)")) as { name: string }[];
-  for (const col of ["wall", "floor"])
+  for (const col of ["wall", "floor"]) {
     if (!columns.some((c) => c.name === col)) await sql.execute(`ALTER TABLE offices ADD COLUMN ${col} TEXT`);
+  }
   await sql.execute(`CREATE TABLE IF NOT EXISTS office_visits (
     owner_id INTEGER NOT NULL, visitor_id INTEGER NOT NULL, day TEXT NOT NULL,
     PRIMARY KEY (owner_id, visitor_id, day)) WITHOUT ROWID`);
@@ -92,10 +93,14 @@ function pick(kind: unknown, id: unknown): { kind: DecorKind; id: string } {
 
 /** What `userId` may use now, as `<kind>.<id>`, for the decor panel (plain ones and earned ones included). */
 export async function ownedDecor(sql: Sql, userId: number): Promise<string[]> {
-  const [level, had] = [await levelOf(sql, userId), await bought(sql, userId)];
+  const level = await levelOf(sql, userId);
+  const had = await bought(sql, userId);
   const out: string[] = [];
-  for (const kind of ["wall", "floor"] as const)
-    for (const d of DECORS[kind]) if (ownsDecor(kind, d, level, had)) out.push(`${kind}.${d.id}`);
+  for (const kind of ["wall", "floor"] as const) {
+    for (const d of DECORS[kind]) {
+      if (ownsDecor(kind, d, level, had)) out.push(`${kind}.${d.id}`);
+    }
+  }
   return out;
 }
 

@@ -127,11 +127,8 @@ export async function grantRewards(sql: Sql, userId: number, level: number, now:
   const due = levelItems(level);
   if (due.length === 0) return drops;
   // Every sync asks: one read, and a write only for what's new.
-  const had = new Set(
-    (await all<{ item: string }>(sql, "SELECT item FROM rewards WHERE user_id = ?", userId)).map(
-      (r) => r.item,
-    ),
-  );
+  const rewardRows = await all<{ item: string }>(sql, "SELECT item FROM rewards WHERE user_id = ?", userId);
+  const had = new Set(rewardRows.map((r) => r.item));
   for (const i of due) {
     if (had.has(i.id)) continue;
     const [fresh] = await all(
@@ -224,12 +221,11 @@ export async function wallet(
   const todayBase = coinsForTokens(todays.tokens, today) + (pay.daily.get(today) ?? 0);
   const greenToday = green?.get(today) ?? 0;
   const held = await bag(sql, userId);
+  const todayStreak =
+    today >= STREAK_FROM && todays.tokens > 0 ? streakExtra(todayBase, streakNow(active, today)) : 0;
   return {
     balance: earned - spent + (await ledgerSum(sql, userId)),
-    today:
-      todayBase +
-      greenToday +
-      (today >= STREAK_FROM && todays.tokens > 0 ? streakExtra(todayBase, streakNow(active, today)) : 0),
+    today: todayBase + greenToday + todayStreak,
     streak: streakNow(active, today),
     launches: launched.filter((l) => l.day >= addDays(today, -1)),
     raids: raided,
@@ -288,7 +284,7 @@ export async function podiums(sql: Sql, now: number): Promise<Podium[]> {
  */
 export async function balances(sql: Sql, now: number): Promise<Map<number, number>> {
   const signups = await signupDays(sql);
-  const firstDay = JSON.stringify(signups);
+  const signupsJson = JSON.stringify(signups);
   const out = new Map(Object.keys(signups).map((id) => [Number(id), 0]));
   const add = (userId: number, n: number) => {
     const had = out.get(userId);
@@ -299,7 +295,7 @@ export async function balances(sql: Sql, now: number): Promise<Map<number, numbe
     `SELECT user_id AS userId, day, SUM(${TOKENS}) AS tokens
      FROM usage_daily JOIN json_each(?) s ON user_id = CAST(s.key AS INTEGER) AND day >= s.value
      GROUP BY user_id, day`,
-    firstDay,
+    signupsJson,
   );
   const tokenDays = new Map<number, Map<string, number>>();
   for (const d of days) {
@@ -312,42 +308,53 @@ export async function balances(sql: Sql, now: number): Promise<Map<number, numbe
     add(userId, pay.total + pay.weekly);
     dailies.set(userId, pay.daily);
   }
-  for (const [userId, byDay] of await greenPay(sql, signups, (id, day) => tokenDays.get(id)?.get(day) ?? 0))
+  // Every source of coins, added to each player's total in turn.
+  const green = await greenPay(sql, signups, (id, day) => tokenDays.get(id)?.get(day) ?? 0);
+  for (const [userId, byDay] of green) {
     for (const n of byDay.values()) add(userId, n);
-  for (const [userId, byDay] of tokenDays)
-    add(
-      userId,
-      streakBonus(
-        [...byDay.keys()],
-        (day) => coinsForTokens(byDay.get(day) ?? 0, day) + (dailies.get(userId)?.get(day) ?? 0),
-      ),
+  }
+
+  for (const [userId, byDay] of tokenDays) {
+    const streak = streakBonus(
+      [...byDay.keys()],
+      (day) => coinsForTokens(byDay.get(day) ?? 0, day) + (dailies.get(userId)?.get(day) ?? 0),
     );
+    add(userId, streak);
+  }
+
   for (const p of await podiums(sql, now)) add(p.userId, PODIUM_COINS[p.place - 1]!);
+
   const lifetime = await tokensIn(sql, "all");
   for (const [userId, tokens] of lifetime) {
     const level = levelFor(tokens);
     add(userId, milestoneCoins(level) + levelUpCoins(level));
   }
   for (const [userId, n] of await prestigeCoinsAll(sql, lifetime)) add(userId, n);
-  for (const r of await all<{ userId: number; tier: number }>(
+
+  const badgeTiers = await all<{ userId: number; tier: number }>(
     sql,
     "SELECT user_id AS userId, tier FROM badge_awards WHERE badge != 'level'",
-  ))
-    add(r.userId, badgeCoins(r.tier) - badgeCoins(r.tier - 1));
+  );
+  for (const r of badgeTiers) add(r.userId, badgeCoins(r.tier) - badgeCoins(r.tier - 1));
+
   for (const [userId, n] of await trophyAwardCoinsAll(sql)) add(userId, n);
   for (const [userId, n] of await launchBonusAll(sql)) add(userId, n);
+
   const raids = await raidHistory(sql, now);
   for (const userId of out.keys()) add(userId, raidCoins(raids, userId));
-  for (const r of await all<{ userId: number; n: number }>(
+
+  // Purchases come off what was earned, and the ledger's moves between players go on top.
+  const purchases = await all<{ userId: number; n: number }>(
     sql,
     "SELECT user_id AS userId, -SUM(price) AS n FROM purchases GROUP BY user_id",
-  ))
-    add(r.userId, r.n);
-  for (const r of await all<{ userId: number; n: number }>(
+  );
+  for (const r of purchases) add(r.userId, r.n);
+
+  const ledgerTotals = await all<{ userId: number; n: number }>(
     sql,
     "SELECT user_id AS userId, SUM(amount) AS n FROM ledger GROUP BY user_id",
-  ))
-    add(r.userId, r.n);
+  );
+  for (const r of ledgerTotals) add(r.userId, r.n);
   return out;
 }
 
@@ -571,12 +578,11 @@ export async function hold(
     const limit = kind === "stake" ? Math.floor(balance / 2) : balance;
     if (e.amount > limit) {
       const who = names[e.userId] ?? "Someone";
-      throw new UserError(
+      const message =
         kind === "stake"
           ? `${who} can stake at most 🪙 ${limit} right now (half their coins).`
-          : `${who} only has 🪙 ${balance}.`,
-        { code: "too_poor" },
-      );
+          : `${who} only has 🪙 ${balance}.`;
+      throw new UserError(message, { code: "too_poor" });
     }
   }
   for (const e of paying) await ledgerAdd(sql, e.userId, -e.amount, kind, ref, now);
@@ -643,13 +649,18 @@ export async function tradesWhere(sql: Sql, where: string, ...args: unknown[]): 
   return rows.map((r) => ({ ...r, give: JSON.parse(r.give), want: JSON.parse(r.want) }));
 }
 
-/** Throws unless each side holds what it gives, out of its office (`not_owned`), and has the coins (`too_poor`). */
+/**
+ * Throws unless each side holds what it gives (`not_owned`) and has the coins (`too_poor`). Items are
+ * checked against the bag, not the office.
+ */
 export async function checkTrade(sql: Sql, t: Trade, now: number, kept?: Kept): Promise<void> {
   for (const d of directions(t)) {
     const has = await ownedItems(sql, d.giverId);
-    for (const id of d.side.items)
-      if (!has.includes(id))
+    for (const id of d.side.items) {
+      if (!has.includes(id)) {
         throw new UserError(`${d.giver} doesn't have ${itemById(id)?.name ?? id}.`, { code: "not_owned" });
+      }
+    }
     if (d.side.coins === 0) continue;
     // Not how many they have: that's theirs to know.
     if ((await wallet(sql, d.giverId, now, kept)).balance < d.side.coins)
@@ -667,11 +678,16 @@ export async function settleTrade(sql: TxSql, t: Trade, now: number, kept?: Kept
   await sql.transaction(
     async (tx) => {
       await checkTrade(tx, t, now, kept);
+
       // The offer goes with it, so it can't be settled twice; withdrawn or replaced meanwhile, it's gone.
-      if (
-        !(await one(tx, "DELETE FROM trades WHERE from_id = ? AND at = ? RETURNING from_id", t.fromId, t.at))
-      )
-        throw new UserError("That offer is gone.", { code: "not_found" });
+      const removed = await one(
+        tx,
+        "DELETE FROM trades WHERE from_id = ? AND at = ? RETURNING from_id",
+        t.fromId,
+        t.at,
+      );
+      if (!removed) throw new UserError("That offer is gone.", { code: "not_found" });
+
       const ref = `trade:${t.fromId}:${t.at}`;
       const entry = (userId: number, amount: number) => ledgerAdd(tx, userId, amount, "trade", ref, now);
       for (const d of directions(t)) {
@@ -680,7 +696,8 @@ export async function settleTrade(sql: TxSql, t: Trade, now: number, kept?: Kept
           await entry(d.receiverId, d.side.coins);
         }
         if (d.side.items.length === 0) continue;
-        for (const id of d.side.items)
+
+        for (const id of d.side.items) {
           await tx.execute(
             `UPDATE items SET owner_id = ? WHERE id =
              (SELECT id FROM items WHERE owner_id = ? AND item = ? ORDER BY id DESC LIMIT 1)`,
@@ -688,6 +705,7 @@ export async function settleTrade(sql: TxSql, t: Trade, now: number, kept?: Kept
             d.giverId,
             id,
           );
+        }
         await unwear(tx, d.giverId, d.side.items);
       }
     },
@@ -716,8 +734,10 @@ export async function unwear(sql: Sql, userId: number, items: string[]): Promise
 const DROPS_PER_PERSON = 5;
 
 /**
- * Takes one `item` out of `userId`'s bag for the floor (`owner_id` NULL, with who and when): not a
- * reward (an earned piece, Touched grass, can go: `world` lands it only in their own office), and not past `DROPS_PER_PERSON` (what's in their own office is furniture, not counted).
+ * Takes one `item` out of `userId`'s bag for the floor (`owner_id` NULL, with who and when). Only items
+ * that can be traded or kept go out: a reward can't, though an earned piece (Touched grass) can, since
+ * `world` lands it only in their own office. Past `DROPS_PER_PERSON` a person's drops are refused.
+ * What sits in their own office is furniture and is not counted.
  * Returns the row's id. Run it serialized, like `buy`.
  * ponytail: with five out elsewhere, furnishing waits too (the room isn't known yet). Count after
  * `placeDrop` answers if anyone minds.
@@ -731,10 +751,10 @@ export async function takeOut(sql: Sql, userId: number, item: unknown, now: numb
     userId,
     userId,
   );
-  if (n >= DROPS_PER_PERSON)
-    throw new UserError(`You have ${n} things on the floor already. Unclaimed, they come back in an hour.`, {
-      code: "too_many",
-    });
+  if (n >= DROPS_PER_PERSON) {
+    const message = `You have ${n} things on the floor already. Unclaimed, they come back in an hour.`;
+    throw new UserError(message, { code: "too_many" });
+  }
   const [row] = await all<{ id: number }>(
     sql,
     `UPDATE items SET owner_id = NULL, dropped_by = ?, dropped_at = ? WHERE id =
@@ -767,19 +787,22 @@ const OFF_FLOOR = "dropped_by = NULL, dropped_at = NULL, room = NULL, x = NULL, 
  * A drop on `room`'s floor into `userId`'s bag. False if it isn't there any more (the sweeper sent it
  * home, or it was dropped again elsewhere), or `userId` is gone.
  */
-export const pickUp = async (sql: Sql, id: number, userId: number, room: string): Promise<boolean> =>
-  (
-    await all(
-      sql,
-      `UPDATE items SET owner_id = ?, ${OFF_FLOOR} WHERE id = ? AND owner_id IS NULL AND (room IS NULL OR room = ?)
-         AND company_id IS NULL AND id NOT IN (SELECT item_row FROM market_listings)
-         AND ? IN (SELECT id FROM users) RETURNING id`,
-      userId,
-      id,
-      room,
-      userId,
-    )
-  ).length > 0 || (await store(sql, id, userId, room));
+export async function pickUp(sql: Sql, id: number, userId: number, room: string): Promise<boolean> {
+  const taken = await all(
+    sql,
+    `UPDATE items SET owner_id = ?, ${OFF_FLOOR} WHERE id = ? AND owner_id IS NULL AND (room IS NULL OR room = ?)
+       AND company_id IS NULL AND id NOT IN (SELECT item_row FROM market_listings)
+       AND ? IN (SELECT id FROM users) RETURNING id`,
+    userId,
+    id,
+    room,
+    userId,
+  );
+  if (taken.length > 0) return true;
+
+  // Company furniture is not a bag item: a member who takes it puts it in the storeroom instead.
+  return store(sql, id, userId, room);
+}
 
 /** Company furniture taken off its building's floor goes to the storeroom, if a member took it. */
 const store = async (sql: Sql, id: number, userId: number, room: string): Promise<boolean> =>
@@ -808,7 +831,10 @@ export async function giveBack(sql: Sql, ids: number[]): Promise<void> {
   await sql.execute(`UPDATE items SET owner_id = dropped_by, ${OFF_FLOOR} WHERE ${mine}`, list);
 }
 
-/** Drops on the floor since before `before`, for the sweeper: not furniture in its dropper's own office, nor a company's. */
+/**
+ * Drops on the floor since before `before`, for the sweeper: not furniture in its dropper's own office,
+ * nor a company's.
+ */
 export const unclaimed = async (sql: Sql, before: number): Promise<number[]> =>
   (
     await all<{ id: number }>(
@@ -827,8 +853,11 @@ export const floors = async (sql: Sql): Promise<Drop[]> =>
       `SELECT id, item, room, x, y, dropped_by AS "by", dropped_at AS at, company_id AS co, rot FROM items
        WHERE owner_id IS NULL AND room IS NOT NULL`,
     )
-  ).map(({ co, rot, ...d }) => ({
-    ...d,
-    ...(co !== null && { co }),
-    ...(rotOf(rot) && { rot: rotOf(rot) }),
-  }));
+  ).map(({ co, rot, ...d }) => {
+    const rotation = rotOf(rot);
+    return {
+      ...d,
+      ...(co !== null && { co }),
+      ...(rotation && { rot: rotation }),
+    };
+  });
