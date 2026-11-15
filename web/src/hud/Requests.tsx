@@ -22,7 +22,8 @@ export function Requests() {
   }, [load]);
   const { error, busy, run } = useRun();
   const [text, setText] = useState("");
-  const mine =
+  // The ones I have on the pile that are still waiting, which the cap counts.
+  const myWaiting =
     pile?.filter((r) => r.userId === world.selfId && (r.status === "open" || r.status === "planned"))
       .length ?? 0;
   const add = run(async () => {
@@ -58,13 +59,13 @@ export function Requests() {
         <button
           type="submit"
           className="primary"
-          disabled={busy || [...text.trim()].length < REQUEST_MIN || mine >= OPEN_CAP}
+          disabled={busy || [...text.trim()].length < REQUEST_MIN || myWaiting >= OPEN_CAP}
         >
           Pin it
         </button>
       </form>
       <p className="muted small">
-        {mine >= OPEN_CAP
+        {myWaiting >= OPEN_CAP
           ? `You have ${OPEN_CAP} on the pile: wait for one to be looked at, or take one back.`
           : `${[...text].length}/${REQUEST_MAX}. You can have ${OPEN_CAP} on the pile at once.`}
       </p>

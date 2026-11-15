@@ -31,6 +31,8 @@ export function PetMenu() {
     e.currentTarget.blur();
     lastTry[act] = Date.now();
     wait((n) => n + 1);
+    // The button's `disabled` reads the clock, not state, so re-render once the cooldown has passed.
+    // The 50 ms of slack keeps the timer from firing a hair before the clock says it is over.
     setTimeout(() => wait((n) => n + 1), PET_COOLDOWN_MS[act] + 50);
     try {
       setProblem(await conn.petPlay(act));

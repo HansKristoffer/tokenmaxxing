@@ -45,6 +45,13 @@ export const DeskPreview = ({ tier, mode = "lit" }: { tier: number; mode?: "lit"
 
 const SIZE_NAMES = ["Starter", "Roomy", "Spacious", "Grand"] as const;
 
+/** The office page's line about the size after this one: the shop's offer, or the note that there is none. */
+function nextSizeText(buy: boolean, tier: number, next: { w: number; h: number; price: number } | undefined) {
+  if (!next) return "It is as big as they come.";
+  if (buy) return "A bigger one takes more furniture and keeps what is in yours.";
+  return `The next size, ${SIZE_NAMES[tier + 1]} ${next.w}×${next.h}, is 🪙 ${next.price}.`;
+}
+
 /** How big my office is, and the next size up: bought once each, in order, and the room grows at once. */
 function OfficeSpace({ buy }: { buy: boolean }) {
   const wallet = useHud((s) => s.wallet);
@@ -64,12 +71,7 @@ function OfficeSpace({ buy }: { buy: boolean }) {
   return (
     <>
       <p className="muted small">
-        Your office is {SIZE_NAMES[tier]}, {size.w}×{size.h}.{" "}
-        {!next
-          ? "It is as big as they come."
-          : buy
-            ? "A bigger one takes more furniture and keeps what is in yours."
-            : `The next size, ${SIZE_NAMES[tier + 1]} ${next.w}×${next.h}, is 🪙 ${next.price}.`}
+        Your office is {SIZE_NAMES[tier]}, {size.w}×{size.h}. {nextSizeText(buy, tier, next)}
       </p>
       {next && buy && (
         <button type="button" className="primary" disabled={wallet.balance < next.price} onClick={purchase()}>

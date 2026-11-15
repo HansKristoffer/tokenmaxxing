@@ -24,14 +24,28 @@ function timeLeft(ms: number): string {
 
 const share = (r: Raid) => (r.hp > 0 ? left(r) / r.hp : 0);
 
+/** Green above half the HP, amber above a fifth, red below that. */
+function hpTone(s: number): "ok" | "low" | "dire" {
+  if (s > 0.5) return "ok";
+  if (s > 0.2) return "low";
+  return "dire";
+}
+
 function HpBar({ raid }: { raid: Raid }) {
   const s = share(raid);
   return (
     // The numbers are in the text beside it.
     <div className="hp" aria-hidden="true">
-      <span className={s > 0.5 ? "ok" : s > 0.2 ? "low" : "dire"} style={{ width: `${s * 100}%` }} />
+      <span className={hpTone(s)} style={{ width: `${s * 100}%` }} />
     </div>
   );
+}
+
+/** The line under the boss: how far the ladder has got, or that the week is over. */
+function rungText(raid: Raid): string {
+  if (raid.closed) return "week over";
+  if (raid.cleared) return "cleared";
+  return `rung ${raid.boss.rung} · ${Math.ceil(share(raid) * 100)}%`;
 }
 
 /** In the corner, under the games: the boss, its rung and HP, and how long the town has left. */
@@ -63,11 +77,7 @@ export function RaidBox() {
         </span>
         <small className="muted">
           {raid.kills.length > 0 && `🏆${raid.kills.length} · `}
-          {raid.closed
-            ? "week over"
-            : raid.cleared
-              ? "cleared"
-              : `rung ${raid.boss.rung} · ${Math.ceil(share(raid) * 100)}%`}
+          {rungText(raid)}
         </small>
       </div>
       <HpBar raid={raid} />

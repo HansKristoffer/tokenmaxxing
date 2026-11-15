@@ -77,10 +77,9 @@ function ShopPage({
   const [hello] = useState(() =>
     stall ? STALL_HELLO[stall] : greeting(shop!, Math.floor(Math.random() * 8)),
   );
+  const shelfTabs: readonly string[] = stall ? STALL_TABS[stall] : SHOP_TABS[shop!];
   const tabs = [
-    ...TABS.filter(([t]) =>
-      ((stall ? STALL_TABS[stall] : SHOP_TABS[shop!]) as readonly string[]).includes(t),
-    ),
+    ...TABS.filter(([t]) => shelfTabs.includes(t)),
     // Company supplies are for company members: the owner orders, the rest see what is stored.
     ...(!stall && shop === "furniture" && me?.company ? ([["company", "🏢 Company"]] as const) : []),
   ];
@@ -88,7 +87,7 @@ function ShopPage({
   const opened = useHud((s) => (s.panel?.kind === "shop" ? s.panel.tab : undefined));
   const wanted = first ?? opened;
   const [tab, setTab] = useState<ShopPageTab>(
-    tabs.some(([t]) => t === wanted) ? wanted! : (tabs[0]?.[0] ?? "outfit"),
+    wanted && tabs.some(([t]) => t === wanted) ? wanted : (tabs[0]?.[0] ?? "outfit"),
   );
   // Opening the page again on another tab (E on another display) while it is up switches to that tab.
   const known = tabs.some(([t]) => t === wanted);
@@ -97,6 +96,17 @@ function ShopPage({
   }, [known, wanted]);
   const [bag, setBag] = useState<BagRow[]>([]);
   const [failed, setFailed] = useState<string | null>(null);
+  // The goods this page lists: a stall's own, or a shop's, which never lists a stall's.
+  const goods = ITEMS.filter(
+    (i) =>
+      i.slot === tab &&
+      (stall ? i.stall === stall : !i.stall) &&
+      !editionById(i.id) &&
+      !i.earned &&
+      !i.company &&
+      !i.case &&
+      onSale(i, Date.now()),
+  );
   const { error, run } = useRun();
   useEffect(() => {
     const fail = (e: unknown) => setFailed(errorText(e));
@@ -145,17 +155,7 @@ function ShopPage({
         <DeskGoods buy />
       ) : (
         <ul className="shop">
-          {ITEMS.filter(
-            (i) =>
-              i.slot === tab &&
-              // A stall page lists that stall's goods; the shops never list a stall's.
-              (stall ? i.stall === stall : !i.stall) &&
-              !editionById(i.id) &&
-              !i.earned &&
-              !i.company &&
-              !i.case &&
-              onSale(i, Date.now()),
-          ).map((item) => {
+          {goods.map((item) => {
             const owned = wallet.owned.includes(item.id);
             const wearing = isWorn(item, me.look);
             const n = bag.find((b) => b.item === item.id)?.count ?? 0;
@@ -181,41 +181,7 @@ function ShopPage({
                   </span>
                 )}
                 {(owned || wearing) && <WearButton item={item} look={me.look} run={run} />}
-                {item.slot === "dance" ? (
-                  owned ? (
-                    <span className="muted small">✓ On your dance bar</span>
-                  ) : (
-                    <button
-                      type="button"
-                      className="primary"
-                      disabled={wallet.balance < item.price}
-                      onClick={buy(item)}
-                    >
-                      🪙 {item.price}
-                    </button>
-                  )
-                ) : item.loot ? (
-                  !owned && (
-                    <button type="button" disabled>
-                      ⚔️ Raid drop
-                    </button>
-                  )
-                ) : item.level !== undefined ? (
-                  !owned && (
-                    <button type="button" disabled>
-                      🔒 Lv {item.level}
-                    </button>
-                  )
-                ) : (
-                  <button
-                    type="button"
-                    className="primary"
-                    disabled={wallet.balance < item.price}
-                    onClick={buy(item)}
-                  >
-                    🪙 {item.price}
-                  </button>
-                )}
+                {rowAction(item, owned, wallet.balance, buy(item))}
               </li>
             );
           })}
@@ -253,6 +219,35 @@ export function WearButton({
       {on ? "Take off" : "Wear"}
     </button>
   );
+}
+
+/**
+ * The last cell of a shop row: a dance you own is a note, a dance you do not is a buy button, a raid drop and a
+ * level-locked item show their lock while unowned, and anything else is a buy button.
+ */
+function rowAction(item: Item, owned: boolean, balance: number, onBuy: () => Promise<void>) {
+  const buyButton = (
+    <button type="button" className="primary" disabled={balance < item.price} onClick={onBuy}>
+      🪙 {item.price}
+    </button>
+  );
+  if (item.slot === "dance")
+    return owned ? <span className="muted small">✓ On your dance bar</span> : buyButton;
+  if (item.loot) {
+    return owned ? null : (
+      <button type="button" disabled>
+        ⚔️ Raid drop
+      </button>
+    );
+  }
+  if (item.level !== undefined) {
+    return owned ? null : (
+      <button type="button" disabled>
+        🔒 Lv {item.level}
+      </button>
+    );
+  }
+  return buyButton;
 }
 
 /** The company a merch item belongs to, as its 3D prop wants it (a stand-in in its colours if it left town). */
@@ -351,11 +346,13 @@ function pieceSprite(ch: string): HTMLCanvasElement {
     return sprite;
   }
   // A personal office's frame or sign is hung on the office's top wall.
-  const row = (homePieceOf(ch) ?? casePieceOf(ch))?.wall ? 0 : 1;
+  const onWall = (homePieceOf(ch) ?? casePieceOf(ch))?.wall;
+  const row = onWall ? 0 : 1;
   sprite = objectAt(withPieces([{ ch, x: 1, y: row }], MAPS.office), 1, row)?.canvas;
   if (!sprite) {
     sprite = document.createElement("canvas");
-    sprite.width = sprite.height = 16;
+    sprite.width = 16;
+    sprite.height = 16;
     const g = sprite.getContext("2d")!;
     g.fillStyle = C.rug;
     g.fillRect(0, 0, 16, 14);

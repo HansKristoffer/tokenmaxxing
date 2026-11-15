@@ -91,9 +91,10 @@ export function ShelfPicker({
   if (!options) return <p className="muted">{loadError ?? "Loading…"}</p>;
   const toggle = (id: string) => {
     setShown(id);
-    setIds((now) =>
-      now.includes(id) ? now.filter((x) => x !== id) : now.length < PIN_MAX ? [...now, id] : now,
-    );
+    setIds((now) => {
+      if (now.includes(id)) return now.filter((x) => x !== id);
+      return now.length < PIN_MAX ? [...now, id] : now;
+    });
   };
   const named = options.find((o) => o.id === (shown ?? ids.at(-1)));
   const save = run(async () => onSaved(await town.setShowcase(ids)));
