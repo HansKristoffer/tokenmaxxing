@@ -32,8 +32,7 @@ function roundAt(m: Model, a: number, r: number): [number, number] {
 function prismaticCrown(m: Model, c: Ctx): void {
   const vox = isVox(m);
   // Clear the voxel character's taller hair.
-  const up = vox ? 0.1 : 0;
-  const y = 0.16 + up;
+  const y = 0.16 + (vox ? 0.1 : 0);
   band(m, PEARL, 0.235, 0.07, y, 0.24);
   band(m, PEARL_SHADE, 0.241, 0.014, y);
   band(m, PINK, 0.243, 0.01, y + 0.06);

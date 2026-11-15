@@ -40,26 +40,15 @@ const PAIRS: [string, string][] = [
 ];
 
 export function merchColours(c: MerchCompany): MerchColours {
-  if (c.merch)
-    return {
-      main: c.merch.main,
-      shade: tint(c.merch.main, -0.25),
-      accent: c.merch.accent,
-      glow: tint(c.merch.main, 0.6),
-      initials: initialsOf(c.name),
-      design: c.merch.rows,
-    };
+  const initials = initialsOf(c.name);
+  if (c.merch) {
+    const { main, accent, rows } = c.merch;
+    return { main, shade: tint(main, -0.25), accent, glow: tint(main, 0.6), initials, design: rows };
+  }
   const [main, accent] = c.brand ? [c.brand.roof, c.brand.plaque] : PAIRS[c.id % PAIRS.length]!;
   // A plaque the colour of the roof would leave the logo invisible.
   const logo = accent.toLowerCase() === main.toLowerCase() ? C.white : accent;
-  return {
-    main,
-    shade: tint(main, -0.25),
-    accent: logo,
-    glow: tint(main, 0.6),
-    initials: initialsOf(c.name),
-    design: null,
-  };
+  return { main, shade: tint(main, -0.25), accent: logo, glow: tint(main, 0.6), initials, design: null };
 }
 
 /** The print: the drawing where there is one, else the initials in the accent. Transparent around it. */
@@ -114,7 +103,7 @@ export function merchProp(c: MerchCompany, kind: MerchKind): Model {
           0.025,
         );
         sleeve.rotation.z = s * -0.5;
-        out.box([0.2, 0.03, 0.06], m.shade, [s * 0.3, hood ? 0.0 : 0.22, 0], 0.01).rotation.z = s * -0.5;
+        out.box([0.2, 0.03, 0.06], m.shade, [s * 0.3, hood ? 0 : 0.22, 0], 0.01).rotation.z = s * -0.5;
       }
       out.box([0.14, 0.03, 0.065], m.shade, [0, 0.4, 0], 0.012);
       if (hood) {
@@ -128,7 +117,7 @@ export function merchProp(c: MerchCompany, kind: MerchKind): Model {
     }
     case "cap": {
       out.ball(0.17, m.main, [0, 0.1, 0], [1, 0.8, 1], 16);
-      out.cyl(0.18, 0.04, m.shade, [0, 0.0, 0], 0.18, 16);
+      out.cyl(0.18, 0.04, m.shade, [0, 0, 0], 0.18, 16);
       out.box([0.26, 0.025, 0.2], m.shade, [0, 0.02, 0.2], 0.012);
       out.box([0.025, 0.03, 0.01], C.ink, [0, 0.27, 0]);
       decal(0.14, 0.1, [0, 0.14, 0.158]).rotation.x = -0.2;

@@ -46,17 +46,24 @@ class Voxels {
   /** Fills the `w`×`h`×`d` box from (x, y, z). */
   fill(x: number, y: number, z: number, w: number, h: number, d: number, color: string): this {
     const c = new THREE.Color(color);
-    for (let i = x; i < x + w; i++)
-      for (let j = y; j < y + h; j++) for (let k = z; k < z + d; k++) this.cells.set(`${i},${j},${k}`, c);
+    for (let i = x; i < x + w; i++) {
+      for (let j = y; j < y + h; j++) {
+        for (let k = z; k < z + d; k++) this.cells.set(`${i},${j},${k}`, c);
+      }
+    }
     return this;
   }
 
   /** Recolours the cubes already in the box. */
   paint(x: number, y: number, z: number, w: number, h: number, d: number, color: string): this {
     const c = new THREE.Color(color);
-    for (let i = x; i < x + w; i++)
-      for (let j = y; j < y + h; j++)
-        for (let k = z; k < z + d; k++) if (this.has(i, j, k)) this.cells.set(`${i},${j},${k}`, c);
+    for (let i = x; i < x + w; i++) {
+      for (let j = y; j < y + h; j++) {
+        for (let k = z; k < z + d; k++) {
+          if (this.has(i, j, k)) this.cells.set(`${i},${j},${k}`, c);
+        }
+      }
+    }
     return this;
   }
 
@@ -81,14 +88,15 @@ class Voxels {
           position.push((p[0] - origin[0]) * V, (p[1] - origin[1]) * V, (p[2] - origin[2]) * V);
           normal.push(...side.normal);
           // A corner is darker for each cube beside it in the layer the face looks into.
-          const a: V3 = [...out];
-          a[side.u] += du ? 1 : -1;
-          const b: V3 = [...out];
-          b[side.w] += dw ? 1 : -1;
-          const ab: V3 = [...a];
-          ab[side.w] += dw ? 1 : -1;
-          const [sa, sb] = [this.has(...a), this.has(...b)];
-          const open = sa && sb ? 0 : 3 - Number(sa) - Number(sb) - Number(this.has(...ab));
+          const alongU: V3 = [...out];
+          alongU[side.u] += du ? 1 : -1;
+          const alongW: V3 = [...out];
+          alongW[side.w] += dw ? 1 : -1;
+          const diagonal: V3 = [...alongU];
+          diagonal[side.w] += dw ? 1 : -1;
+          const [blockU, blockW] = [this.has(...alongU), this.has(...alongW)];
+          const open =
+            blockU && blockW ? 0 : 3 - Number(blockU) - Number(blockW) - Number(this.has(...diagonal));
           const f = 0.7 + (0.3 * open) / 3;
           color.push(c.r * f, c.g * f, c.b * f);
         }
@@ -117,7 +125,11 @@ function face(head: Model, kind: FaceKind, faces: Rig["faces"], z: number): void
   head.add(m);
 }
 
-// ——— The body ———
+// MARK: The body
+
+/** The officer's uniform, also on the hat and the sleeves. */
+const NAVY = "#2c3e6b";
+
 function torso(look: Look, skin: string): Voxels {
   const [main, dark] = look.outfit;
   const t = new Voxels().fill(-3, 0, -2, 7, BODY, 4, main);
@@ -131,8 +143,7 @@ function torso(look: Look, skin: string): Voxels {
       front(-1, 7, 3, 1, "#e25d5d");
       return t;
     case "officer": {
-      const navy = "#2c3e6b";
-      t.paint(-3, 1, -2, 7, BODY - 1, 4, navy);
+      t.paint(-3, 1, -2, 7, BODY - 1, 4, NAVY);
       t.paint(-3, 0, -2, 7, 1, 4, INK);
       for (const y of [2, 4, 6]) front(0, y, 1, 1, "#e9b73d");
       front(-2, 5, 1, 1, "#e9b73d");
@@ -186,10 +197,12 @@ function torso(look: Look, skin: string): Voxels {
 /** Long sleeves end in hands; a tee's stop short of the elbow. */
 function arm(look: Look, skin: string, cane: boolean): Voxels {
   const [main] = look.outfit;
-  const sleeve = look.job === "chef" ? WHITE : look.job === "officer" ? "#2c3e6b" : main;
-  const short = !look.job && look.top === "tee";
+  let sleeve = main;
+  if (look.job === "chef") sleeve = WHITE;
+  else if (look.job === "officer") sleeve = NAVY;
+  const shortSleeves = !look.job && look.top === "tee";
   const a = new Voxels().fill(-1, -8, -1, 2, 8, 2, skin);
-  a.paint(-1, short ? -3 : -6, -1, 2, short ? 3 : 6, 2, sleeve);
+  a.paint(-1, shortSleeves ? -3 : -6, -1, 2, shortSleeves ? 3 : 6, 2, sleeve);
   // A walking stick, from the hand to the floor.
   if (cane) a.fill(-1, -17, 1, 1, 10, 1, "#7a4a2a").fill(-1, -7, 1, 1, 1, 1, "#7a4a2a");
   return a;
@@ -215,7 +228,7 @@ function tail(t: Voxels, k: Kind, fur: string): void {
   }
 }
 
-// ——— Heads: the cube is x and z from -3 to 3, y from 0 to 6; the face is the z = 3 layer ———
+// MARK: Heads, the cube is x and z from -3 to 3, y from 0 to 6; the face is the z = 3 layer
 function hair(h: Voxels, look: Look, c: string, recede: boolean, hatted: boolean): void {
   if (recede) {
     h.paint(-3, 2, -3, 7, 4, 1, c);
@@ -259,7 +272,7 @@ function hat(h: Voxels, look: Look): void {
       return;
     }
     case "officer":
-      h.fill(-3, 7, -3, 7, 2, 7, "#2c3e6b").fill(-3, 7, 4, 7, 1, 1, INK).paint(0, 8, 3, 1, 1, 1, "#e9b73d");
+      h.fill(-3, 7, -3, 7, 2, 7, NAVY).fill(-3, 7, 4, 7, 1, 1, INK).paint(0, 8, 3, 1, 1, 1, "#e9b73d");
       return;
     case undefined:
       break;

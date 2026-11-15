@@ -83,13 +83,17 @@ function diadem(m: Model, c: Ctx): void {
   const dim = m.part([0, y + 0.115, 0]);
   ring(dim, lit(GOLD_LIGHT), 0.265, 0.006);
   for (let i = 0; i < 12; i++) {
-    const [x, z] = roundAt(m, (i / 12) * Math.PI * 2, 0.265);
-    dim.box(
-      [0.012, 0.014, i % 3 === 0 ? 0.045 : 0.026],
-      i % 3 === 0 ? lit(GLOW) : GOLD,
+    const angle = (i / 12) * Math.PI * 2;
+    const [x, z] = roundAt(m, angle, 0.265);
+    const long = i % 3 === 0;
+    const tick = dim.box(
+      [0.012, 0.014, long ? 0.045 : 0.026],
+      long ? lit(GLOW) : GOLD,
       [x, -0.007, z],
       0.002,
-    ).rotation.y = isVox(m) ? 0 : (i / 12) * Math.PI * 2;
+    );
+    // A smooth head turns each tick to lie along its radius; a voxel head is cubic, so its ticks stay square.
+    if (!vox) tick.rotation.y = angle;
   }
 
   c.tick((t) => {
