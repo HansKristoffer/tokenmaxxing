@@ -5,7 +5,7 @@ import { C } from "./palette.ts";
 import { bake, cached } from "./pixels.ts";
 
 /** Who Pak Budi is under the peci: a white kemeja (shirt), grey hair, a black songkok (`hat.270`). */
-export const PAK_BUDI_LOOK: Look = {
+const PAK_BUDI_LOOK: Look = {
   style: 0,
   skin: 2,
   hair: 4,

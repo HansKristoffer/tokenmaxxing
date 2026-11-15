@@ -158,10 +158,13 @@ const ART: Record<string, BossArt> = {
 
 export const BOSS_SIZE = 22;
 
+/** The art for a boss id; an id with no art falls back to the first boss, the hourglass. */
+const artOf = (id: string): BossArt => ART[id] ?? ART["rate-limit"]!;
+
 export const bossSprite = cached(
   (id: string, hurt: boolean) => `${id} ${hurt}`,
   (id: string, hurt: boolean) => {
-    const art = ART[id] ?? ART["rate-limit"]!;
+    const art = artOf(id);
     const pal = hurt ? recolour(art.pal, (k) => (k === "o" ? C.ink : C.white)) : art.pal;
     return bake(BOSS_SIZE, BOSS_SIZE, (p) => p.grid(art.rows, pal));
   },
@@ -171,7 +174,7 @@ export const bossSprite = cached(
 export const bossSilhouette = cached(
   (id: string) => `silhouette ${id}`,
   (id: string) => {
-    const art = ART[id] ?? ART["rate-limit"]!;
+    const art = artOf(id);
     const pal = recolour(art.pal, (k) => (k === "e" ? "#c9a2ff" : "#0b0a10"));
     return bake(BOSS_SIZE, BOSS_SIZE, (p) => p.grid(art.rows, pal));
   },

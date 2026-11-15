@@ -2,8 +2,8 @@ import { JULEMARKED_BASE } from "@tokenmaxxing/core/case-julemarked.ts";
 import type { Pen } from "./pixels.ts";
 
 /**
- * The Julemarked case's four legendary auras in 2D (`core/src/case-julemarked.ts`, slot "aura"): the draws
- * `case-aura.ts` files under `JULEMARKED_BASE + n`, on the same 28×28 frame with the 16×16 character at (6, 6),
+ * The Julemarked case's four legendary auras in 2D (`core/src/case-julemarked.ts`, slot "aura"): the draws that
+ * `case-aura.ts` registers under `JULEMARKED_BASE + n`, on the same 28×28 frame with the 16×16 character at (6, 6),
  * eight frames to a loop (every motion below is periodic in 8 frames). They use the whole canvas, edge to edge,
  * in several layers (glow, body, trails, sparkle) and out-shine the coin stalls' plain items.
  */
@@ -50,6 +50,7 @@ const STAR_7 = ["...a...", "..aba..", ".abbba.", "abbcbba", ".abbba.", "..aba.."
 const STAR_5 = ["..a..", ".aba.", "abcba", ".aba.", "..a.."];
 // prettier-ignore
 const STAR_3 = [".a.", "aba", ".a."];
+const STAR_GRIDS = [STAR_7, STAR_5, STAR_3];
 const STAR_COLS: [string, string, string][] = [
   ["#c8102e", "#f4ecd8", "#fff3c0"],
   ["#f4ecd8", "#c8102e", "#f2c14e"],
@@ -82,7 +83,7 @@ const stars: Draw = (raw, f) => {
   p.disc(CX, CY - 1, 12, rgba(255, 200, 90, 0.04));
   for (const s of list.sort((u, v) => Number(v.back) - Number(u.back))) {
     const o = orbits[s.i % 3]!;
-    const grid = s.i % 3 === 0 ? STAR_7 : s.i % 3 === 1 ? STAR_5 : STAR_3;
+    const grid = STAR_GRIDS[s.i % 3]!;
     const h = (grid.length - 1) / 2;
     const [c1, c2, c3] = STAR_COLS[s.i % 3]!;
     const dim = s.back ? 0.55 : 1;
@@ -101,12 +102,13 @@ const stars: Draw = (raw, f) => {
     const tw = (f + s.i * 3) % 4;
     const x0 = Math.round(s.x) - h;
     const y0 = Math.round(s.y) - h;
-    for (const [dy, row] of grid.entries())
+    for (const [dy, row] of grid.entries()) {
       for (const [dx, c] of [...row].entries()) {
         if (c === ".") continue;
         const col = c === "a" ? (tw === 0 ? c3 : c1) : c === "b" ? c2 : c3;
         p.px(x0 + dx, y0 + dy, s.back ? rgba(255, 244, 220, 0.5) : col);
       }
+    }
     // The twinkle: for one frame in four the star throws a bright cross past its tips.
     if (tw === 0 && !s.back) {
       p.px(s.x - h - 2, s.y, "#ffffff");
@@ -150,7 +152,8 @@ const wreath: Draw = (raw, f) => {
   const drawWreath = (front: boolean) => {
     for (let i = 0; i < 90; i++) {
       const a = (i / 90) * TAU;
-      if (Math.sin(a) >= 0 !== front) continue;
+      const isFrontHalf = Math.sin(a) >= 0;
+      if (isFrontHalf !== front) continue;
       for (const dr of [-1, 0, 1]) {
         const [x, y] = pos(a, dr * 0.9);
         const j = (i * 7 + dr * 3 + 99) % 5;
@@ -186,18 +189,22 @@ const wreath: Draw = (raw, f) => {
       p.px(x, y - 7, fl === 2 ? "#ffb84a" : "#f2a233");
       p.px(x, y - 8, fl === 1 ? "#ffd36a" : "#ffe08a");
       p.px(x, y - 9, fl === 3 ? "#fff3c0" : "#ffe9a8");
-      if (fl !== 0) p.px(x + (fl === 1 ? 1 : fl === 3 ? -1 : 0), y - 10, "#fff3c0");
+      // The top flame flickers sideways on the frames it is not straight up.
+      const flickerX = fl === 1 ? 1 : fl === 3 ? -1 : 0;
+      if (fl !== 0) p.px(x + flickerX, y - 10, "#fff3c0");
       p.px(x - 1, y - 8, rgba(255, 190, 80, 0.55));
       p.px(x + 1, y - 8, rgba(255, 190, 80, 0.55));
-      if (fresh)
+      if (fresh) {
         for (const [dx, dy] of [
           [-2, -9],
           [2, -9],
           [0, -12],
           [-2, -7],
           [2, -7],
-        ] as const)
+        ] as const) {
           p.px(x + dx, y + dy, "#fff3c0");
+        }
+      }
       // Embers: three per candle, rising and drifting, fading out as they climb.
       for (let e = 0; e < 3; e++) {
         const k = ((f + e * 3 + i * 2) % 8) / 8;
@@ -270,13 +277,16 @@ const snow: Draw = (raw, f) => {
     const h = big ? 2 : 1;
     const spark = (f + i * 2) % 4 === 0;
     p.disc(x, y, h + 1, rgba(190, 224, 246, 0.1));
-    for (const [dy, row] of grid.entries())
+    const swap = (f + i) % 2 === 0;
+    for (const [dy, row] of grid.entries()) {
       for (const [dx, c] of [...row].entries()) {
         if (c === ".") continue;
-        const swap = (f + i) % 2 === 0;
-        const col = c === "c" ? "#ffffff" : (c === "a") !== swap ? "#e8f6ff" : "#a8d0ea";
+        // The arms swap their shade every other frame, so the crystal turns.
+        const isBrightArm = (c === "a") !== swap;
+        const col = c === "c" ? "#ffffff" : isBrightArm ? "#e8f6ff" : "#a8d0ea";
         p.px(x - h + dx, y - h + dy, col);
       }
+    }
     if (spark) {
       p.px(x, y - h - 2, "#ffffff");
       p.px(x, y + h + 2, rgba(255, 255, 255, 0.7));
@@ -292,7 +302,7 @@ const snow: Draw = (raw, f) => {
 const nordlys: Draw = (raw, f) => {
   const p = safe(raw);
   const t = (f / FRAMES) * TAU;
-  // Each curtain: a base height, a wave phase, and its hue from the top (violet) to the hem (green).
+  // Each curtain: a base height, a wave phase and a strength (`k`) that dims the back ones.
   const curtains = [
     { top: 2, len: 19, ph: 0, dir: 1, k: 1.0 },
     { top: 5, len: 17, ph: 2.1, dir: -1, k: 0.8 },
@@ -300,8 +310,11 @@ const nordlys: Draw = (raw, f) => {
     { top: 7, len: 18, ph: 5.3, dir: -1, k: 0.55 },
   ];
   // A deep teal sky tint at the top.
-  for (let y = 0; y < 8; y++)
-    for (let x = 0; x < SIZE; x++) if ((x + y) % 2 === 0) p.px(x, y, rgba(60, 40, 120, 0.06));
+  for (let y = 0; y < 8; y++) {
+    for (let x = 0; x < SIZE; x++) {
+      if ((x + y) % 2 === 0) p.px(x, y, rgba(60, 40, 120, 0.06));
+    }
+  }
   for (const [ci, c] of curtains.entries()) {
     for (let x = 0; x < SIZE; x++) {
       const wave =

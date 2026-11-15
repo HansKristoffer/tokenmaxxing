@@ -1,3 +1,4 @@
+import type { CaseBoxKind } from "./case-box.ts";
 import { C } from "./palette.ts";
 import { bake, once, type Pen } from "./pixels.ts";
 
@@ -101,8 +102,6 @@ function drawClosed(p: Pen): void {
   // The lid: a low dome of planks with an iron band each side.
   p.rect(2, 7, 20, 1, C.ink);
   p.rect(0, 8, 24, 7, C.ink);
-  p.px(0, 8, "rgba(0,0,0,0)");
-  p.px(23, 8, "rgba(0,0,0,0)");
   p.rect(1, 8, 22, 6, R.oak);
   p.rect(2, 8, 20, 1, R.oakLight);
   p.rect(1, 10, 22, 1, R.oakDark);
@@ -230,7 +229,7 @@ function drawKey(p: Pen): void {
 }
 
 /** Draws Ragnarok Eve's `kind` into `p` (the same canvas sizes as the Night Market's). */
-export function drawRagnarokBox(p: Pen, kind: "closed" | "open" | "key", frame: number): void {
+export function drawRagnarokBox(p: Pen, kind: CaseBoxKind, frame: number): void {
   if (kind === "closed") drawClosed(p);
   else if (kind === "open") drawOpen(p, frame);
   else drawKey(p);

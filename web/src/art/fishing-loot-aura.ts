@@ -2,8 +2,8 @@ import { FISHING_BASE } from "@tokenmaxxing/core/fishing-loot.ts";
 import type { Pen } from "./pixels.ts";
 
 /**
- * The pond treasures' legendary aura in 2D (`core/src/fishing-loot.ts`, slot "aura"): the draw `case-aura.ts` files
- * under `FISHING_BASE + n`, on the same 28×28 frame with the 16×16 character at (6, 6), eight frames to a loop.
+ * The pond treasures' legendary aura in 2D (`core/src/fishing-loot.ts`, slot "aura"): the draw that `case-aura.ts`
+ * registers under `FISHING_BASE + n`, on the same 28×28 frame with the 16×16 character at (6, 6), eight frames to a loop.
  */
 
 const CX = 14;
@@ -34,13 +34,18 @@ function bubble(p: Pen, x: number, y: number, size: number): void {
       [i, e],
       [0, i],
       [e, i],
-    ] as const)
-      if (!(corner && (bx === 0 || bx === e) && (by === 0 || by === e))) p.px(x + bx, y + by, RIM);
+    ] as const) {
+      const isCornerPixel = (bx === 0 || bx === e) && (by === 0 || by === e);
+      if (corner && isCornerPixel) continue;
+      p.px(x + bx, y + by, RIM);
+    }
   }
-  for (let j = 1; j < e; j++) for (let i = 1; i < e; i++) p.px(x + i, y + j, FILL);
+  for (let j = 1; j < e; j++) {
+    for (let i = 1; i < e; i++) p.px(x + i, y + j, FILL);
+  }
   // The glint sits on the rim of a small bubble and just inside a big one.
-  const g = size > 3 ? 1 : 0;
-  p.px(x + g, y + g, GLINT);
+  const glintInset = size > 3 ? 1 : 0;
+  p.px(x + glintInset, y + glintInset, GLINT);
 }
 
 /** The pop: four specks flung out of where a bubble of `size` was. */
@@ -55,16 +60,19 @@ function pop(p: Pen, x: number, y: number, size: number): void {
 // Bubble stream: bubbles lift off round the feet, wobble up past the shoulders in three sizes, and pop at different
 // heights, some above the head. Each one is on its own lap of the loop, so the stream never bunches.
 const SIZES = [3, 2, 4, 2, 3, 4, 2, 3, 2];
+// A bubble rises for the first 7/8 of its lap and pops in the last 1/8.
+const POP_AT = 0.875;
 const stream: Draw = (p, f) => {
   for (const [i, size] of SIZES.entries()) {
     const k = (f / FRAMES + i / SIZES.length) % 1;
     const side = i % 2 ? 1 : -1;
     const reach = 6 + ((i * 7) % 6);
     const wobble = Math.sin(k * TAU * 1.5 + i * 2.2) * 1.6;
-    const x = Math.max(1, Math.min(27 - size, Math.round(CX + side * reach + wobble) - 1));
+    const centre = Math.round(CX + side * reach + wobble);
+    const x = Math.max(1, Math.min(27 - size, centre - 1));
     const top = 3 + ((i * 5) % 9);
-    const y = Math.round(24 - Math.min(k, 0.875) * ((24 - top) / 0.875));
-    if (k >= 0.875) pop(p, x, y, size);
+    const y = Math.round(24 - Math.min(k, POP_AT) * ((24 - top) / POP_AT));
+    if (k >= POP_AT) pop(p, x, y, size);
     else bubble(p, x, y, size);
   }
 };

@@ -113,13 +113,13 @@ function espressoBar(p: Pen, f: number): void {
   p.rect(6, 9, 2, 1, C.white);
   for (const x of [5, 9, 13]) p.rect(x, 0, 2, 1, C.white);
   // Steam from the wand, drifting.
-  const s = f === 0 ? 0 : 1;
+  const drift = f === 0 ? 0 : 1;
   dots(
     p,
     [
-      [18 + s, 3],
-      [19 - s, 1],
-      [18 + s, -1 + 1],
+      [18 + drift, 3],
+      [19 - drift, 1],
+      [18 + drift, 0],
     ],
     withAlpha(C.white, 0.8),
   );
@@ -183,8 +183,9 @@ function aquarium(p: Pen, f: number): void {
     [6, 6],
     [26, 9],
     [28, 5],
-  ] as const)
+  ] as const) {
     for (let y = 0; y < h; y++) p.px(x + ((y + f) % 3 === 0 ? 1 : 0), 12 - y, y % 2 ? C.leaf : C.leafDark);
+  }
   p.disc(20, 12, 2, C.stoneDark);
   p.rect(18, 12, 5, 1, C.stone);
   // Fish: an orange one and two blue tetras.
@@ -243,15 +244,17 @@ function neon(p: Pen, f: number, t: string, text: string, flicker: number): void
     x >= flicker * 4,
   ]);
   const on = (late: boolean) => f === 0 || !late;
-  for (const [x, y, late] of lit)
-    if (on(late))
-      for (const [dx, dy] of [
-        [-1, 0],
-        [1, 0],
-        [0, -1],
-        [0, 1],
-      ] as const)
-        p.px(x + dx, y + dy, withAlpha(t, 0.35));
+  for (const [x, y, late] of lit) {
+    if (!on(late)) continue;
+    for (const [dx, dy] of [
+      [-1, 0],
+      [1, 0],
+      [0, -1],
+      [0, 1],
+    ] as const) {
+      p.px(x + dx, y + dy, withAlpha(t, 0.35));
+    }
+  }
   for (const [x, y, late] of lit) p.px(x, y, on(late) ? shade(t, 0.55) : shade(t, -0.45));
   p.rect(6, 0, 1, 2, C.metal);
   p.rect(25, 0, 1, 2, C.metal);
@@ -386,13 +389,16 @@ function plantWall(p: Pen): void {
   box(p, 0, 0, 32, 31, C.woodDark);
   p.rect(1, 1, 30, 24, C.leafInk);
   // Clusters of leaves, packed and overlapping.
+  const leafShades = [C.leafDark, C.leaf, C.leafLight, C.leaf];
   let k = 0;
-  for (let row = 0; row < 6; row++)
+  for (let row = 0; row < 6; row++) {
     for (let x = 3 + (row % 2) * 2, y = 3 + row * 4; x < 30; x += 5) {
-      const c = [C.leafDark, C.leaf, C.leafLight, C.leaf][k++ % 4]!;
+      const c = leafShades[k % leafShades.length]!;
+      k++;
       p.disc(x, y, 2, c);
       p.px(x - 1, y - 1, shade(c, 0.2));
     }
+  }
   dots(
     p,
     [
@@ -414,7 +420,9 @@ function plantWall(p: Pen): void {
     C.flowerRed,
   );
   // Trailing vines over the planter.
-  for (const x of [5, 14, 24]) for (let y = 23; y < 27; y++) p.px(x + (y % 2), y, C.leaf);
+  for (const x of [5, 14, 24]) {
+    for (let y = 23; y < 27; y++) p.px(x + (y % 2), y, C.leaf);
+  }
   p.rect(1, 25, 30, 5, C.wood);
   p.rect(1, 25, 30, 1, C.woodLight);
   p.rect(1, 29, 30, 1, C.woodDark);
@@ -431,7 +439,7 @@ function trophyCase(p: Pen): void {
     p.rect(x, y, 1, s, K.brassLight);
     p.px(x - 1, y, K.brass);
     p.px(x + s * 2 + 1, y, K.brass);
-    p.rect(x + s - (s > 2 ? 0 : 0), y + s, 1, 1, K.brassDark);
+    p.rect(x + s, y + s, 1, 1, K.brassDark);
     p.rect(x + s - 1, y + s + 1, 3, 1, K.brassDark);
   };
   cup(13, 3, 3);
@@ -676,8 +684,9 @@ function monstera(p: Pen): void {
     [8, 11],
     [8, 8],
     [9, 13],
-  ] as const)
+  ] as const) {
     for (let y = 22; y > 12; y--) p.px(Math.round(x0 + ((x1 - x0) * (22 - y)) / 10), y, C.leafDark);
+  }
   // Big split leaves: wide ovals with a midrib and the slits monsteras are named for.
   const leaf = (cx: number, cy: number, r: number, side: number) => {
     oval(p, cx, cy, r + 1, r, C.leafInk);
@@ -853,14 +862,16 @@ function gong(p: Pen, f: number): void {
   p.disc(15, 15, 1, K.brassLight);
   p.px(11, 12, K.brassLight);
   p.px(12, 11, K.brassLight);
-  if (f)
+  if (f) {
     for (const [x, y] of [
       [6, 9],
       [26, 10],
       [7, 22],
       [25, 21],
-    ] as const)
+    ] as const) {
       p.px(x, y, C.lamp);
+    }
+  }
   // The mallet leaning on the right post.
   p.rect(29, 14, 1, 13, K.teakLight);
   p.rect(28, 12, 3, 3, C.ink);
@@ -878,21 +889,21 @@ function duckStatue(p: Pen): void {
   p.rect(0, 14, 16, 2, C.ink);
   p.rect(1, 14, 14, 1, K.marble);
   // The duck.
-  const y = "#f5d14a";
-  const yd = "#d9a92a";
+  const yellow = "#f5d14a";
+  const yellowDark = "#d9a92a";
   oval(p, 8, 10, 6, 4, C.ink);
-  oval(p, 8, 10, 5, 3, yd);
-  oval(p, 7, 9, 4, 2, y);
+  oval(p, 8, 10, 5, 3, yellowDark);
+  oval(p, 7, 9, 4, 2, yellow);
   p.rect(12, 6, 3, 2, C.ink);
   p.rect(3, 9, 2, 1, C.ink);
   p.px(2, 8, C.ink);
   p.disc(6, 5, 4, C.ink);
-  p.disc(6, 5, 3, y);
+  p.disc(6, 5, 3, yellow);
   p.px(5, 3, C.white);
   p.px(7, 4, C.ink);
   p.rect(9, 5, 3, 2, K.orange);
   p.rect(9, 6, 3, 1, shade(K.orange, -0.2));
-  p.rect(8, 9, 3, 1, yd);
+  p.rect(8, 9, 3, 1, yellowDark);
 }
 
 function vending(p: Pen, f: number, t: string): void {

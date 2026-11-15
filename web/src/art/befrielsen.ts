@@ -35,7 +35,7 @@ function flag(p: Pen, x: number, y: number): void {
   p.rect(x, y + 2, 7, 1, WHITE);
 }
 
-/** The memorial with `lit` of its 14 candles burning: the town's from the left, then yours from the right. */
+/** The memorial with `town` candles lit from the left and `mine` from the right, out of the 14 slots. */
 export const memorialSprite = cached(
   (town: number, mine: number) => `${town}.${mine}`,
   (town: number, mine: number) =>
@@ -119,7 +119,9 @@ export const flagpoleSprite = cached(
       // The flag, a column at a time so it can ripple.
       const W = 11;
       for (let x = 0; x < W; x++) {
-        const dy = frame === 0 ? (x > 6 ? 1 : 0) : x > 3 && x < 9 ? 1 : 0;
+        // Each frame bends a different band of the flag down by a pixel.
+        const isBent = frame === 0 ? x > 6 : x > 3 && x < 9;
+        const dy = isBent ? 1 : 0;
         const left = 5 + x;
         p.rect(left, 3 + dy, 1, 8, RED);
         if (x === 3 || x === 4) p.rect(left, 3 + dy, 1, 8, WHITE);
@@ -195,7 +197,8 @@ export const henningFrame = cached(
         p.grid(GREY_HAIR[view], { g: "#d8d6d0", h: "#b8b6b0", w: "#e8e6e0" }, 0, 0, flip);
         p.grid(SCARF[view], { r: "#a8202c", w: WHITE }, 0, 0, flip);
       }
-      p.grid(FLAT_CAP[facing === "up" ? "up" : view === "down" ? "down" : "side"]!, FLAT_CAP.pal, 0, 0, flip);
+      const capView = facing === "up" ? "up" : view;
+      p.grid(FLAT_CAP[capView]!, FLAT_CAP.pal, 0, 0, flip);
       // The cane, in the hand on the far side from where he looks.
       const cx = view === "down" ? 13 : flip ? 3 : 12;
       p.rect(cx, 10, 1, 5, "#6e4a2a");
