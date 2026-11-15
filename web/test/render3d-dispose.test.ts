@@ -46,7 +46,7 @@ test("the blocky stand-in a voxel mesh keeps beside its geometry is freed too", 
   expect(n.v).toBe(1);
 });
 
-test("lights free their shadow maps and instanced meshes their buffers", () => {
+test("disposing a shadow-casting light and an instanced mesh does not throw", () => {
   const sun = new THREE.DirectionalLight();
   sun.castShadow = true;
   const inst = new THREE.InstancedMesh(new THREE.BoxGeometry(), new THREE.MeshBasicMaterial(), 4);

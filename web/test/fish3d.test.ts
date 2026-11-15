@@ -7,7 +7,7 @@ test("every fish in the pond has a sculpture, and nothing else does", () => {
   expect(sculpted().sort()).toEqual(FISH.map((f) => f.id).sort());
 });
 
-test("each catch builds solid, roughly centred, a fish-sized model; the fish have tails that swing", () => {
+test("each catch builds solid, roughly centred, a fish-sized model; only the odd ones lack a tail", () => {
   const odd = new Set(["duck", "bug", "boot", "spaghetti", "kraken", "notfound", "eel"]);
   for (const f of FISH) {
     const rig = buildFish(f.id);

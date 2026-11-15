@@ -38,17 +38,15 @@ test("each rank has a trophy with its catalogue name and width, found by rank", 
   expect(prestigeTrophy(99)).toBeUndefined();
 });
 
-test("every frame of every trophy paints inside its canvas, on whole pixels, and frames differ", () => {
+test("every frame of every trophy paints inside its canvas, on whole pixels", () => {
   for (const art of PRESTIGE_TROPHIES) {
     expect(art.frames).toBeGreaterThan(1);
-    const sigs = new Set<string>();
     for (let f = 0; f < art.frames; f++) {
       const r = recorder(art.w * 16, art.height);
       art.draw(r.pen, f, "#ffffff");
       expect(r.bad, `${art.name} frame ${f}`).toEqual([]);
       expect(r.painted()).toBeGreaterThan(100);
       expect(r.colors.size).toBeGreaterThan(5);
-      sigs.add([...r.colors].join());
     }
   }
 });
