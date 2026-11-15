@@ -12,9 +12,7 @@ import { FURNITURE_SHOP_ROWS } from "./data/furniture.ts";
 import { CATALOG_PETS, SHOP_PETWEAR } from "./data/pets.ts";
 import { done, type Outcome } from "./purchase.ts";
 
-export const RARITY_COLOUR: Record<string, string> = {
-  ...RARITY_HEX,
-};
+export const RARITY_COLOUR: Record<string, string> = RARITY_HEX;
 
 /** What the buy panel needs of the world (`ShopWorld`, `world.ts`): showing a look for now, and the render style of its 3D preview. */
 export interface PanelHooks {

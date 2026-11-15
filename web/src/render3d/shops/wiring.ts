@@ -1,5 +1,4 @@
 /** The real connection and HUD store, as the `GameBackend` wants them. */
-import { itemById } from "@tokenmaxxing/core/shop.ts";
 import { world as gameWorld } from "../../game/world.ts";
 import { refreshMe, refreshWallet, town } from "../../net.ts";
 import { hud } from "../../store.ts";
@@ -31,6 +30,3 @@ export const realStore = (): GameStore => ({
   setMe: (me) => hud.set({ me }),
   subscribe: (f) => hud.subscribe(f),
 });
-
-/** Item names for toasts about things the shop specs do not know. */
-export const nameOf = (id: string): string => itemById(id)?.name ?? id;
