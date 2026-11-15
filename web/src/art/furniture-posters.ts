@@ -49,8 +49,6 @@ const dots = (p: Pen, pts: readonly (readonly [number, number])[], color: string
   for (const [x, y] of pts) p.px(x, y, color);
 };
 
-// MARK: The pictures
-
 /** A tactical team shooter: a masked operator, a crate, and a bomb that shows ERR. */
 function counterCi(p: Pen): void {
   p.rect(2, 2, 28, 6, "#f2d9a0");
@@ -116,7 +114,10 @@ function deployLeague(p: Pen): void {
   p.rect(24, 4, 1, 8, C.white);
   p.rect(24, 4, 6, 1, C.white);
   p.rect(25, 5, 5, 6, "#2c3d78");
-  for (let y = 5; y < 11; y++) for (let x = 25 + (y % 2); x < 30; x += 2) p.px(x, y, "#8aa2d6");
+  // The net: every other pixel, offset on each row.
+  for (let y = 5; y < 11; y++) {
+    for (let x = 25 + (y % 2); x < 30; x += 2) p.px(x, y, "#8aa2d6");
+  }
   // The ball, hit hard.
   p.disc(19, 6, 3, C.ink);
   p.disc(19, 6, 2, "#eef0fa");
@@ -179,9 +180,11 @@ function leagueLinters(p: Pen): void {
     [21, K.red],
     [26, K.red],
   ] as const) {
+    // A blue minion faces right, so its visor and its blade sit on the right; a red one mirrors it.
+    const facesRight = c === K.blue;
     box(p, x, 10, 4, 4, c);
-    p.px(x + (c === K.blue ? 2 : 1), 11, C.white);
-    p.rect(x + (c === K.blue ? 4 : -1), 9, 1, 5, C.ink);
+    p.px(x + (facesRight ? 2 : 1), 11, C.white);
+    p.rect(x + (facesRight ? 4 : -1), 9, 1, 5, C.ink);
   }
   // A lint warning.
   p.rect(10, 3, 1, 1, K.yellow);
@@ -430,8 +433,6 @@ function lastDev(p: Pen): void {
   p.px(7, 9, "#f2c9a0");
 }
 
-// MARK: Catalog
-
 const art = (
   id: string,
   w: number,
@@ -457,7 +458,7 @@ export const POSTER_ART: readonly PosterArt[] = [
 
 export const posterArt = (id: string): PosterArt | undefined => POSTER_ART.find((a) => a.id === id);
 
-/** The frame, the picture and the title in its band, baked once. */
+/** Draws the frame, the picture and the title in its band onto `p`, `POSTER_H` tall. */
 export function drawPoster(p: Pen, a: PosterArt): void {
   const w = a.w * TILE;
   p.rect(0, 0, w, POSTER_H, C.ink);

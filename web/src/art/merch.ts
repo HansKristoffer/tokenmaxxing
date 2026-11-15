@@ -130,11 +130,12 @@ export function drawTop(
     down: () => {
       if (m.design) {
         // The 4×3 thumbnail's middle two columns on the chest (one row with a hoodie's pouch below).
-        const rows = thumb(m.design)
-          .slice(0, hoodie ? 1 : 3)
-          .map((r) => r.slice(1, 3));
+        const thumbRows = thumb(m.design);
+        const rows = thumbRows.slice(0, hoodie ? 1 : 3).map((r) => r.slice(1, 3));
         p.grid(rows, designPalette(m), 7, 10);
-      } else p.rect(7, 10, 2, hoodie ? 1 : 2, m.accent);
+      } else {
+        p.rect(7, 10, 2, hoodie ? 1 : 2, m.accent);
+      }
       if (hoodie) {
         p.px(6, 9, C.white);
         p.px(9, 9, C.white);
@@ -168,13 +169,16 @@ export const merchFrame = cached(
   (companyId: number, bit: number) => `${companyId}:${bit}:${merchKey(companyId)}`,
   (companyId: number, bit: number) => {
     const m = coloursOf(companyId);
-    return bake(16, 16, (p) => {
-      if (bit === 4) return cap(p, m);
-      if (bit === 8) return mug(p, m);
-      shirt(p, m, bit === 2);
-    });
+    return bake(16, 16, (p) => drawPiece(p, m, bit));
   },
 );
+
+/** One piece by its bit: 4 is the cap, 8 the mug, and 2 the hoodie (any other bit is a tee). */
+function drawPiece(p: Pen, m: MerchColours, bit: number): void {
+  if (bit === 4) cap(p, m);
+  else if (bit === 8) mug(p, m);
+  else shirt(p, m, bit === 2);
+}
 
 const designPalette = (m: MerchColours): Palette => ({ a: m.accent, w: C.white, k: C.ink });
 
@@ -183,10 +187,10 @@ function thumb(d: MerchDesign): string[] {
   const out: string[] = [];
   for (let y = 0; y < MERCH_PRINT_H; y += 2) {
     let row = "";
-    for (let x = 0; x < MERCH_PRINT_W; x += 2)
-      row +=
-        [d.rows[y]![x], d.rows[y]![x + 1], d.rows[y + 1]![x], d.rows[y + 1]![x + 1]].find((c) => c !== ".") ??
-        ".";
+    for (let x = 0; x < MERCH_PRINT_W; x += 2) {
+      const block = [d.rows[y]![x], d.rows[y]![x + 1], d.rows[y + 1]![x], d.rows[y + 1]![x + 1]];
+      row += block.find((c) => c !== ".") ?? ".";
+    }
     out.push(row);
   }
   return out;
@@ -205,11 +209,7 @@ function print(p: Pen, m: MerchColours, cx: number, y: number, color = m.accent,
 /** A piece of merch drawn from a design that isn't saved yet, for the editor. */
 export const merchPreview = (company: MerchCompany, bit: number): HTMLCanvasElement => {
   const m = merchColours(company);
-  return bake(16, 16, (p) => {
-    if (bit === 4) return cap(p, m);
-    if (bit === 8) return mug(p, m);
-    shirt(p, m, bit === 2);
-  });
+  return bake(16, 16, (p) => drawPiece(p, m, bit));
 };
 
 function shirt(p: Pen, m: MerchColours, hoodie: boolean) {
@@ -221,6 +221,7 @@ function shirt(p: Pen, m: MerchColours, hoodie: boolean) {
   p.rect(1, 7, 3, 1, m.shade);
   p.rect(12, 7, 3, 1, m.shade);
   p.rect(5, 13, 6, 1, m.shade);
+
   if (hoodie) {
     // The hood behind the neck, strings, the pouch.
     p.rect(5, 0, 6, 3, C.ink);
@@ -230,11 +231,11 @@ function shirt(p: Pen, m: MerchColours, hoodie: boolean) {
     p.px(7, 4, C.white);
     p.px(8, 4, C.white);
     p.rect(5, 12, 6, 1, m.shade);
-    print(p, m, 8, 6);
   } else {
     p.rect(7, 3, 2, 1, m.shade);
-    print(p, m, 8, 6);
   }
+
+  print(p, m, 8, 6);
 }
 
 function cap(p: Pen, m: MerchColours) {

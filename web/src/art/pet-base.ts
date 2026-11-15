@@ -211,29 +211,24 @@ export const PETS: (Pet | null)[] = [
   ...LOOT_PETS,
 ];
 
-// The cases' pets live at `CASE_BASE`, `NUSANTARA_BASE` and up, far from the shop's and the loot's and from each other.
-CASE_PETS.forEach((pet, i) => {
-  PETS[CASE_BASE + i] = pet;
-});
-NUSANTARA_PETS.forEach((pet, i) => {
-  PETS[NUSANTARA_BASE + i] = pet;
-});
-// Every other case files its pets the same way, at its own base (Ragnarok Eve: 500 up).
-RAGNAROK_PETS.forEach((pet, i) => {
-  PETS[RAGNAROK_BASE + i] = pet;
-});
-// And the pond treasures' (`fishing-loot-pets.ts`, 600 up).
-FISHING_PETS.forEach((pet, i) => {
-  PETS[FISHING_BASE + i] = pet;
-});
+/** Files a list of pets from `base` on, so each one's index is its base plus its place in the list. */
+function placePets(base: number, pets: Pet[]) {
+  pets.forEach((pet, i) => {
+    PETS[base + i] = pet;
+  });
+}
 
-JULEMARKED_PETS.forEach((pet, i) => {
-  PETS[JULEMARKED_BASE + i] = pet;
-});
+// The cases' pets live at `CASE_BASE`, `NUSANTARA_BASE` and up, far from the shop's and the loot's and from each other.
+placePets(CASE_BASE, CASE_PETS);
+placePets(NUSANTARA_BASE, NUSANTARA_PETS);
+// Every other case files its pets the same way, at its own base (Ragnarok Eve: 500 up).
+placePets(RAGNAROK_BASE, RAGNAROK_PETS);
+// And the pond treasures' (`fishing-loot-pets.ts`, 600 up).
+placePets(FISHING_BASE, FISHING_PETS);
+
+placePets(JULEMARKED_BASE, JULEMARKED_PETS);
 // The Julemarked coin stalls' two (900 up).
-STALL_PETS.forEach((pet, i) => {
-  PETS[STALL_BASE + i] = pet;
-});
+placePets(STALL_BASE, STALL_PETS);
 
 export const PET_W = 12;
 export const PET_H = 10;

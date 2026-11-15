@@ -9,8 +9,11 @@ import type { Pet } from "./pet-base.ts";
 
 const BLANK = "............";
 
-/** Frame 1: everything one row up (the top row must be empty), the feet row replaced by `feet`. */
-function hop(f0: string[], feet: string): string[] {
+/**
+ * Frame 1: frame 0 one row up, its top row dropped. The feet (frame 0's bottom row unless `feet` says
+ * otherwise) are redrawn on row 8, the row they land on.
+ */
+function hop(f0: string[], feet = f0[9]!): string[] {
   const rows = [...f0.slice(1), BLANK];
   rows[8] = feet;
   return rows;
@@ -95,7 +98,7 @@ const SEAL: string[] = [
 // prettier-ignore
 export const STALL_PETS: Pet[] = [
   {
-    frames: [SPARROW, hop(SPARROW, "....l..l....")],
+    frames: [SPARROW, hop(SPARROW)],
     pal: { o: C.ink, g: "#9aa0aa", G: "#b8bcc4", B: "#6b4426", b: "#a8703c", w: "#f4ecd8", k: "#3a3036", e: C.ink, y: "#e8a83c", r: "#c8302c", R: "#9a2024", l: "#6b4a30" },
   },
   {
@@ -103,15 +106,15 @@ export const STALL_PETS: Pet[] = [
     pal: { o: C.ink, w: "#f8f6f0", s: "#cfdce8", p: "#e8a0a8", n: "#d98a94", e: C.ink },
   },
   {
-    frames: [HEDGEHOG, hop(HEDGEHOG, "..l.l..l.l..")],
+    frames: [HEDGEHOG, hop(HEDGEHOG)],
     pal: { o: C.ink, S: "#8a5a32", s: "#5e3c22", f: "#f0d8b0", w: "#f8ecd0", e: C.ink, n: "#3a3036", l: "#6b4a30" },
   },
   {
-    frames: [SQUIRREL, hop(SQUIRREL, "....oo.oo...")],
+    frames: [SQUIRREL, hop(SQUIRREL)],
     pal: { o: C.ink, R: "#c8602c", r: "#e08a48", w: "#f4e4c8", e: C.ink, n: "#5a3020" },
   },
   {
-    frames: [SEAL, hop(SEAL, "..ooo..oo.oo")],
+    frames: [SEAL, hop(SEAL)],
     pal: { o: C.ink, g: "#9aa4b0", G: "#b8c2cc", w: "#eef0f2", h: "#ffffff", e: C.ink, n: "#2a2430" },
   },
 ];

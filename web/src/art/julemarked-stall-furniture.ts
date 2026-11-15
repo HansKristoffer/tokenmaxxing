@@ -33,8 +33,6 @@ function box(p: Pen, x: number, y: number, w: number, h: number, fill: string): 
   p.rect(x + 1, y + 1, w - 2, h - 2, fill);
 }
 
-// MARK: Adventsstjerne (wall, two frames)
-
 // A five-pointed paper star, 15 wide; "Y" is the lit centre ridge.
 // prettier-ignore
 const STAR = [
@@ -65,8 +63,6 @@ function star(p: Pen, frame: number): void {
   p.px(7, frame === 0 ? 6 : 7, "#ffffff");
 }
 
-// MARK: Julekalender (wall)
-
 function kalender(p: Pen): void {
   // A nail, a red wooden board, and 24 little doors (2 px dashes) in 4 columns by 6 rows, a few open.
   p.px(8, 0, C.ink);
@@ -80,13 +76,13 @@ function kalender(p: Pen): void {
     if (open.has(i)) {
       p.rect(x, y, 2, 1, "#2a0c0c");
       p.px(x, y, J.glow);
-    } else p.rect(x, y, 2, 1, tone[(i + Math.floor(i / 4)) % 4]!);
+    } else {
+      p.rect(x, y, 2, 1, tone[(i + Math.floor(i / 4)) % 4]!);
+    }
   }
   // The odd one is a little off: tomorrow's, already open.
   p.rect(11, 12, 2, 1, J.glow);
 }
-
-// MARK: Nissedør (wall)
 
 // A tiny arched door with a red and white curtain in its window, and a step at the foot of the wall.
 // prettier-ignore
@@ -120,15 +116,11 @@ function nissedoer(p: Pen): void {
   p.rect(11, 14, 1, 1, J.stoneDark);
 }
 
-// MARK: Bordjuletræ (floor, two frames)
-
+/** One tier of the tree: each row is an ink outline one pixel wider than its fill, with an edge pixel on the left. */
 function tier(p: Pen, cx: number, top: number, h: number, half: number, fill: string, edge: string): void {
   for (let i = 0; i < h; i++) {
     const w = Math.max(1, Math.round((half * (i + 1)) / h));
     p.rect(cx - w - 1, top + i, w * 2 + 3, 1, C.ink);
-  }
-  for (let i = 0; i < h; i++) {
-    const w = Math.max(1, Math.round((half * (i + 1)) / h));
     p.rect(cx - w, top + i, w * 2 + 1, 1, fill);
     p.px(cx - w, top + i, edge);
   }
@@ -173,8 +165,6 @@ function bordtree(p: Pen, frame: number): void {
   for (const [i, [x, y]] of lights.entries()) p.px(x, y, (i + frame) % 2 === 0 ? J.glow : J.gold);
 }
 
-// MARK: Gavestabel (floor)
-
 function gaver(p: Pen): void {
   p.rect(0, 14, 16, 2, C.shadow);
   // The big red one, a cream ribbon.
@@ -200,8 +190,6 @@ function gaver(p: Pen): void {
   p.rect(11, 6, 1, 3, J.green);
   p.rect(10, 7, 3, 1, J.green);
 }
-
-// MARK: Catalog
 
 const piece = (
   id: string,

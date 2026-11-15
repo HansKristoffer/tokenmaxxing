@@ -3,9 +3,6 @@ import { characterFrame } from "./characters.ts";
 import type { NpcSprite } from "./festive-npc.ts";
 import { DANNEBROG } from "./midsommer-hats.ts";
 import { C } from "./palette.ts";
-
-const o = C.ink;
-
 import { bake, cached, once } from "./pixels.ts";
 
 /**
@@ -13,9 +10,7 @@ import { bake, cached, once } from "./pixels.ts";
  * blanket, the door wreath, the straw heks on her broom, the three hats and the båltaler. All drawn in code.
  */
 
-// MARK: Hats
-
-// MARK: Scenery
+const o = C.ink;
 
 /** The flag pole's size in pixels: the pole stands in the middle of its tile, feet at the bottom. */
 export const FLAG_PX = { w: 16, h: 34 } as const;
@@ -80,12 +75,17 @@ export const wreathSprite = once(() =>
 export const blanketSprite = once(() =>
   bake(32, 14, (p) => {
     p.rect(0, 12, 32, 2, C.shadow);
-    for (let y = 0; y < 12; y++)
+    for (let y = 0; y < 12; y++) {
       for (let x = 0; x < 32; x++) {
         const a = Math.floor(x / 4) % 2;
         const b = Math.floor(y / 4) % 2;
-        p.px(x, y, a === b ? "#fbf7ef" : a ? "#e0a8a0" : DANNEBROG);
+        // A checker of 4 pixel squares: white where the two square indices match, otherwise pink or red.
+        let color = DANNEBROG;
+        if (a === b) color = "#fbf7ef";
+        else if (a) color = "#e0a8a0";
+        p.px(x, y, color);
       }
+    }
     p.rect(0, 0, 32, 1, "#8e0c20");
     p.rect(0, 11, 32, 1, "#8e0c20");
     // The basket: wicker, a handle, a loaf poking out and a napkin.
@@ -128,8 +128,6 @@ export const heksSprite = cached(
       p.px(10, 4, o);
     }),
 );
-
-// MARK: The båltaler
 
 /** Birgit's look: a woman in her fifties with a flower wreath in her blonde-grey bun, a long green dress. */
 export const BALTALER_LOOK: Look = {

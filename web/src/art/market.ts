@@ -113,8 +113,11 @@ export const marketFront = once(() =>
 type Part = "l" | "m" | "r" | "s";
 
 /** A glass case is a run of tiles; this is which piece of the run a tile is. */
-export const casePart = (left: boolean, right: boolean): Part =>
-  left && right ? "s" : left ? "l" : right ? "r" : "m";
+export const casePart = (left: boolean, right: boolean): Part => {
+  if (left && right) return "s";
+  if (left) return "l";
+  return right ? "r" : "m";
+};
 
 /**
  * Where an item stands in each kind of display, in pixels down from the tile's top: the line it stands on, the
@@ -133,13 +136,18 @@ export const marketCase = cached(
     bake(TILE, TILE, (p) => {
       const l = part === "l" || part === "s";
       const r = part === "r" || part === "s";
+      // A run's joins are open, so the panel and the base stop one pixel short of each join.
+      const insetL = l ? 1 : 0;
+      const insetR = r ? 1 : 0;
       p.rect(1, 15, 14, 1, C.shadow);
+
       // The wooden base with a green panel and a gold edge.
       p.rect(0, 8, TILE, 8, C.ink);
-      p.rect(l ? 1 : 0, 9, TILE - (l ? 1 : 0) - (r ? 1 : 0), 6, C.wood);
-      p.rect(l ? 2 : 0, 10, TILE - (l ? 2 : 0) - (r ? 2 : 0), 4, GREEN);
-      p.rect(l ? 2 : 0, 10, TILE - (l ? 2 : 0) - (r ? 2 : 0), 1, GREEN_D);
+      p.rect(insetL, 9, TILE - insetL - insetR, 6, C.wood);
+      p.rect(insetL * 2, 10, TILE - insetL * 2 - insetR * 2, 4, GREEN);
+      p.rect(insetL * 2, 10, TILE - insetL * 2 - insetR * 2, 1, GREEN_D);
       p.rect(0, 9, TILE, 1, GOLD);
+
       // The felt bed, and the hood over it: glass in a steel frame, open at the joins of a run.
       p.rect(0, 7, TILE, 2, FELT);
       p.rect(0, 0, TILE, 1, STEEL_L);
@@ -150,12 +158,15 @@ export const marketCase = cached(
 );
 
 /** The shine over what is in a case, drawn after it: a pale stripe or two across the glass. */
+/** Where the glint sits on the glass, by the tile's place in its run. */
+const GLINT_X = { l: 4, m: 6, r: 9, s: 6 } as const satisfies Record<Part, number>;
+
 export const caseGlass = cached(
   (part: Part) => part,
   (part: Part) =>
     bake(TILE, 8, (p) => {
       p.rect(0, 0, TILE, 1, "rgba(255, 255, 255, 0.7)");
-      const at = part === "l" ? 4 : part === "r" ? 9 : 6;
+      const at = GLINT_X[part];
       p.rect(at, 1, 1, 5, "rgba(255, 255, 255, 0.35)");
       p.rect(at + 2, 1, 1, 3, "rgba(255, 255, 255, 0.25)");
     }),

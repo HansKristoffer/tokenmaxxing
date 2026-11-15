@@ -1,6 +1,6 @@
 import type { Look } from "@tokenmaxxing/core/world.ts";
 import { characterFrame } from "./characters.ts";
-import { C } from "./palette.ts";
+import { C, shade } from "./palette.ts";
 import { bake, cached } from "./pixels.ts";
 
 /** The launch stand (`game/launch.ts`): a striped awning in the provider's colour (or a rainbow, for several) over a counter. */
@@ -28,16 +28,6 @@ const PRESENTER: Look = {
   merchWorn: 0,
 };
 
-/** `#rrggbb` mixed towards black (`k` below 1) or white (above 1), for the awning's shade and light. */
-function shade(hex: string, k: number): string {
-  const n = Number.parseInt(hex.slice(1), 16);
-  const ch = (s: number) => {
-    const v = (n >> s) & 255;
-    return Math.max(0, Math.min(255, Math.round(k <= 1 ? v * k : v + (255 - v) * (k - 1))));
-  };
-  return `rgb(${ch(16)}, ${ch(8)}, ${ch(0)})`;
-}
-
 /**
  * The stand with its feet on the bottom row, two tiles wide, in `accent` or (null) a rainbow. `lit`
  * makes the board's star blink.
@@ -61,11 +51,16 @@ export const standSprite = cached(
       p.rect(0, 1, 32, 1, C.ink);
       for (let x = 0; x < 32; x++) {
         const k = Math.floor((x + 2) / 4);
-        const col = accent ? (k % 2 === 0 ? accent : C.white) : stripe(k);
+        let col = stripe(k);
+        if (accent) col = k % 2 === 0 ? accent : C.white;
+
         const top = x < 3 || x > 28 ? 2 : 1;
         p.rect(x, top, 1, 7 - top, col);
-        p.px(x, 7, x % 4 !== 3 ? col : col === C.white ? C.plazaDark : shade(col, 0.75));
-        if (top === 1) p.px(x, 2, col === C.white ? col : shade(col, 1.3));
+
+        // Every fourth pixel of the hem is the shaded one, and a white stripe's shade is the plaza's grey.
+        const hemShade = col === C.white ? C.plazaDark : shade(col, -0.25);
+        p.px(x, 7, x % 4 === 3 ? hemShade : col);
+        if (top === 1) p.px(x, 2, col === C.white ? col : shade(col, 0.3));
       }
       p.rect(0, 2, 1, 5, C.ink);
       p.rect(31, 2, 1, 5, C.ink);
@@ -76,8 +71,10 @@ export const standSprite = cached(
       // The front: wood with an accent band, and a white board on it.
       p.rect(1, 21, 30, 10, C.ink);
       p.rect(2, 21, 28, 9, C.wood);
-      for (let x = 2; x < 30; x++)
-        p.rect(x, 21, 1, 2, accent ?? stripe(Math.floor(((x - 2) * RAINBOW.length) / 28)));
+      for (let x = 2; x < 30; x++) {
+        const band = Math.floor(((x - 2) * RAINBOW.length) / 28);
+        p.rect(x, 21, 1, 2, accent ?? stripe(band));
+      }
       p.rect(2, 28, 28, 2, C.woodDark);
       p.rect(7, 22, 18, 8, C.ink);
       p.rect(8, 23, 16, 6, C.white);

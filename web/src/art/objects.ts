@@ -80,14 +80,16 @@ const tree = once(() =>
       [11, 11],
       [8, 13],
       [12, 8],
-    ] as const)
+    ] as const) {
       p.px(x, y, C.leafDark);
+    }
     for (const [x, y] of [
       [9, 3],
       [3, 7],
       [6, 11],
-    ] as const)
+    ] as const) {
       p.px(x, y, C.leafLight);
+    }
   }),
 );
 
@@ -161,7 +163,9 @@ const starBoard = once(() =>
     p.rect(1, 2, 14, 13, "#2f3650");
     p.rect(2, 3, 12, 11, "#1f2433");
     STAR.forEach((row, y) => {
-      for (let x = 0; x < row.length; x++) if (row[x] === "#") p.px(4 + x, 5 + y, C.flowerYellow);
+      for (let x = 0; x < row.length; x++) {
+        if (row[x] === "#") p.px(4 + x, 5 + y, C.flowerYellow);
+      }
     });
     p.px(8, 6, C.white);
     p.px(7, 7, C.white);
@@ -170,8 +174,9 @@ const starBoard = once(() =>
       [3, 4],
       [12, 4],
       [12, 12],
-    ] as const)
+    ] as const) {
       p.px(x, y, C.white);
+    }
   }),
 );
 
@@ -265,8 +270,9 @@ const gate = once(() =>
       [20, 15],
       [3, 21],
       [19, 22],
-    ] as const)
+    ] as const) {
       p.rect(x, y, 3, 1, C.stoneLight);
+    }
     // The way down: dark, a violet glow at the bottom, and steps.
     p.disc(12, 12, 6, "#1c1924");
     p.rect(6, 12, 13, 16, "#1c1924");
@@ -292,7 +298,7 @@ export const boardedGate = once(() =>
     for (const [y, tilt] of [
       [7, 1],
       [19, -1],
-    ] as const)
+    ] as const) {
       for (let x = 4; x < 21; x++) {
         const dy = y + Math.round(((x - 12) * tilt) / 9);
         p.px(x, dy - 1, C.ink);
@@ -302,10 +308,15 @@ export const boardedGate = once(() =>
         p.px(x, dy + 3, C.ink);
         if (x === 6 || x === 18) p.px(x, dy + 1, C.metalLight);
       }
+    }
+
     // Caution tape across the bottom step.
     p.rect(3, 24, 19, 1, C.ink);
     p.rect(3, 27, 19, 1, C.ink);
-    for (let x = 3; x < 22; x++) p.rect(x, 25, 1, 2, Math.floor((x + 1) / 2) % 2 === 0 ? "#f5d14a" : C.ink);
+    for (let x = 3; x < 22; x++) {
+      const stripe = Math.floor((x + 1) / 2) % 2 === 0 ? "#f5d14a" : C.ink;
+      p.rect(x, 25, 1, 2, stripe);
+    }
   }),
 );
 
@@ -492,7 +503,8 @@ const touchedGrass = once(() =>
     ] as const;
     const shades = [C.leafDark, C.leaf, C.leafLight, C.grass, C.leaf, C.grassLight];
     for (let x = 2; x < 30; x++) {
-      const h = Math.min(6, Math.max(2, ...tufts.map(([cx, top]) => top - Math.abs(x - cx) + ((x * 7) % 3))));
+      const heights = tufts.map(([cx, top]) => top - Math.abs(x - cx) + ((x * 7) % 3));
+      const h = Math.min(6, Math.max(2, ...heights));
       const color = shades[(x * 5) % shades.length]!;
       const lean = x % 4 === 1 ? 1 : x % 4 === 3 ? -1 : 0;
       for (let k = 0; k < h; k++) p.px(x + (k >= h - 2 ? lean : 0), 20 - k, k < 2 ? C.leafDark : color);
@@ -569,13 +581,18 @@ export function objectAt(map: GameMap, x: number, y: number): Placed | null {
   return cells[i];
 }
 
+/** How many tiles of the letter `ch` lie directly left of (x, y). */
+function tilesLeft(map: GameMap, x: number, y: number, ch: string): number {
+  let n = 0;
+  while (map.at(x - n - 1, y) === ch) n++;
+  return n;
+}
+
 /** The tiles of the same letter to the left of (x, y): none for the top tile of a piece lying down its column. */
 function runLeft(map: GameMap, x: number, y: number, ch: string): number {
   const turn = turnAt(map, x, y);
   if (turn && sideways(turn.rot)) return 0;
-  let n = 0;
-  while (map.at(x - n - 1, y) === ch) n++;
-  return n;
+  return tilesLeft(map, x, y, ch);
 }
 
 function placeObject(map: GameMap, x: number, y: number): Placed | null {
@@ -591,11 +608,8 @@ function placeObject(map: GameMap, x: number, y: number): Placed | null {
     // The common room: windows and the wall of wins in the wall's face, the kitchen counter on the floor.
     case "Ψ":
       return at(windowPane(), 0, 0);
-    case "Θ": {
-      let n = 0;
-      while (map.at(x - n - 1, y) === ch) n++;
-      return at(winsTile(n), 0, 0);
-    }
+    case "Θ":
+      return at(winsTile(tilesLeft(map, x, y, ch)), 0, 0);
     case "π":
       return at(counter(map.at(x - 1, y) !== "π"));
     // The shops: a front is one picture from its top-left tile, the tiles inside draw one each.
@@ -617,9 +631,14 @@ function placeObject(map: GameMap, x: number, y: number): Placed | null {
     case CASE_BOARD_TILE:
       return map.at(x - 1, y) === ch ? null : at(natCaseBoard());
     case "¢": {
-      let n = 0;
-      while (map.at(x - n - 1, y) === ch) n++;
-      if (map.id === "shop-market") return at(marketCounter(n === 1 ? "till" : n === 4 ? "scale" : "plain"));
+      const n = tilesLeft(map, x, y, ch);
+      if (map.id === "shop-market") {
+        // The till sits on the first counter of a run, the scale on the fourth.
+        let kind: "plain" | "till" | "scale" = "plain";
+        if (n === 1) kind = "till";
+        else if (n === 4) kind = "scale";
+        return at(marketCounter(kind));
+      }
       return at(map.id === "shop-natmarked" ? natCounter(n === 3) : shopCounter(n % 3 === 1));
     }
     // Torvehallen's slots, empty: a shelf against the back wall, else one piece of a glass case (`game/market.ts` fills them).
@@ -642,8 +661,11 @@ function placeObject(map: GameMap, x: number, y: number): Placed | null {
       if (map.id !== "shop-natmarked") return at(fixture());
       // Natmarked's fixtures: a stall's counter (a run of them), a tea table between two stools, else a lantern post.
       const run = map.at(x - 1, y) === ch || map.at(x + 1, y) === ch;
-      const table = map.at(x - 1, y) === "c" && map.at(x + 1, y) === "c";
-      return at(natFixture(run ? "stall" : table ? "table" : "post", x > map.width / 2));
+      const betweenStools = map.at(x - 1, y) === "c" && map.at(x + 1, y) === "c";
+      let kind: "stall" | "table" | "post" = "post";
+      if (run) kind = "stall";
+      else if (betweenStools) kind = "table";
+      return at(natFixture(kind, x > map.width / 2));
     }
     case STALL_CHAR.nissen:
     case STALL_CHAR.godter:
@@ -735,24 +757,15 @@ function placeObject(map: GameMap, x: number, y: number): Placed | null {
     case "♣":
       return at(chair());
     // The roulette table: 3 wide, 2 tall; the spots below it are small floor mats.
-    case "♦": {
-      let col = 0;
-      while (map.at(x - col - 1, y) === ch) col++;
-      return at(rouletteTable(Math.min(col, 2), map.at(x, y - 1) === ch ? 1 : 0));
-    }
+    case "♦":
+      return at(rouletteTable(Math.min(tilesLeft(map, x, y, ch), 2), map.at(x, y - 1) === ch ? 1 : 0));
     case "♥":
       return at(rouletteSpot());
-    case "A": {
-      let n = 0;
-      while (map.at(x - n - 1, y) === ch) n++;
-      return at(hallWall(n % 2 === 0));
-    }
+    case "A":
+      return at(hallWall(tilesLeft(map, x, y, ch) % 2 === 0));
     // The basement: the big screen is a run of six, the cabinet is the office arcade machine.
-    case "E": {
-      let n = 0;
-      while (map.at(x - n - 1, y) === ch) n++;
-      return n % SCREEN_TILES === 0 ? at(bigScreen(), 0, TILE - SCREEN_H) : null;
-    }
+    case "E":
+      return tilesLeft(map, x, y, ch) % SCREEN_TILES === 0 ? at(bigScreen(), 0, TILE - SCREEN_H) : null;
     case "M":
       return at(wallTerminal(), 0, 0);
     case "i":
@@ -762,18 +775,14 @@ function placeObject(map: GameMap, x: number, y: number): Placed | null {
       return { canvas: fancySprite(art.id), dx: 0, dy: TILE - art.height, fancy: art };
     }
     case "f":
-    case "m": {
-      let n = 0;
-      while (map.at(x - n - 1, y) === ch) n++;
-      return n % 2 === 0 ? at(ch === "f" ? hearth() : questBoard()) : null;
-    }
+    case "m":
+      return tilesLeft(map, x, y, ch) % 2 === 0 ? at(ch === "f" ? hearth() : questBoard()) : null;
     default: {
       // A poster: a run of its own character is one picture, from the run's left tile, over the wall.
       if (isPoster(ch)) {
-        const w = posterOf(ch)!.w ?? 1;
-        let n = 0;
-        while (map.at(x - n - 1, y) === ch) n++;
-        return n % w === 0 ? at(posterSprite(posterOf(ch)!.art), 0, TILE - POSTER_H) : null;
+        const poster = posterOf(ch)!;
+        const w = poster.w ?? 1;
+        return tilesLeft(map, x, y, ch) % w === 0 ? at(posterSprite(poster.art), 0, TILE - POSTER_H) : null;
       }
       const fancy = FANCY.get(ch);
       // The raid's trophies (art/loot.ts).
@@ -793,10 +802,14 @@ export const sortY = (ch: string): number => {
   if (isPoster(ch)) return -TILE;
   const placement = FANCY.get(ch)?.art.placement;
   // A rug lies under everyone, a chandelier hangs over them; a personal office's wall pieces hang behind.
-  if (placement === "flat" || (placement === "wall" && (isHomePiece(ch) || isCasePiece(ch)))) return -TILE;
+  const hangsBehind = placement === "wall" && (isHomePiece(ch) || isCasePiece(ch));
+  if (placement === "flat" || hangsBehind) return -TILE;
   if (placement === "ceiling") return TILE * 4;
   if (ch === JULE_GATE_BODY || ch === JULE_GATE_DOOR || STALL_IDS.some((id) => STALL_CHAR[id] === ch))
     return TILE * 3 - 2;
   if (ch === JULE_TREE) return TILE * 2 - 2;
-  return ch === "F" || ch === WINDMILL ? TILE * 2 - 2 : ch === "b" || ch === "s" || ch === "Q" ? 0 : TILE - 1;
+  if (ch === "F" || ch === WINDMILL) return TILE * 2 - 2;
+  // Beds and sofas sit on the floor; everything else stands on its tile's bottom edge.
+  if (ch === "b" || ch === "s" || ch === "Q") return 0;
+  return TILE - 1;
 };
