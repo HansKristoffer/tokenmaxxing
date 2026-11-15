@@ -10,6 +10,7 @@ export function coalesceBattleUpdates() {
       try {
         while (again) {
           again = false;
+          // Runs on a microtask: the caller's call returns before the update starts.
           await Promise.resolve().then(update);
         }
       } finally {
@@ -26,11 +27,11 @@ export async function reportUsageDays(
   days: string[],
   report: (days: string[]) => Promise<void>,
 ): Promise<void> {
+  // Forgotten only once the report has gone through, so a failed report leaves the days to retry.
   await report(days);
-  await sql.execute(
-    `DELETE FROM pending_usage_days WHERE day IN (${days.map(() => "?").join(",")})`,
-    ...days,
-  );
+
+  const placeholders = days.map(() => "?").join(",");
+  await sql.execute(`DELETE FROM pending_usage_days WHERE day IN (${placeholders})`, ...days);
 }
 
 /** Reports the oldest pending days, a week at most; false once none are left. */
@@ -39,11 +40,9 @@ async function flushUsageBatch(sql: Sql, report: (days: string[]) => Promise<voi
     day: string;
   }[];
   if (!rows.length) return false;
-  await reportUsageDays(
-    sql,
-    rows.map((r) => r.day),
-    report,
-  );
+
+  const days = rows.map((r) => r.day);
+  await reportUsageDays(sql, days, report);
   return true;
 }
 

@@ -54,7 +54,8 @@ export function failureWindow({ failures, windowMs }: Pick<WatchdogConfig, "fail
         count = 0;
         return false;
       }
-      if (count++ === 0) first = now;
+      count += 1;
+      if (count === 1) first = now;
       return count >= failures && now - first >= windowMs;
     },
     get streak() {
@@ -65,15 +66,19 @@ export function failureWindow({ failures, windowMs }: Pick<WatchdogConfig, "fail
 
 export type ProbeResult = { ok: boolean; ms: number; reason: "ok" | "timeout" | "error"; error?: string };
 
+// A second of lag is well past what a loop that is keeping up shows, so it marks a busy machine.
+const LOOP_LAG_MS = 1_000;
+
 /**
  * What a failed probe most likely means, for the log: with the event loop itself lagging, the
  * probe was starved with everything else (a busy machine); with the loop fine, the engine or the
  * actor isn't answering.
  */
-export function diagnose(result: ProbeResult, loopLagMs: number, lagThresholdMs = 1_000): string {
+export function diagnose(result: ProbeResult, loopLagMs: number): string {
   if (result.ok) return "ok";
+
   const where =
-    loopLagMs >= lagThresholdMs
+    loopLagMs >= LOOP_LAG_MS
       ? `event loop lagging ${Math.round(loopLagMs)} ms (busy machine?)`
       : "event loop fine";
   const what =

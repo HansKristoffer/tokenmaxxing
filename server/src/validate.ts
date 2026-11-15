@@ -19,14 +19,20 @@ const CONTROL = /[\u0000-\u001f\u007f-\u009f\u2028\u2029]/g;
 const LINKISH =
   /(?:[a-z][a-z0-9+.-]*:\/\/|\bwww\.|\b[a-z0-9-]+\.(?:com|net|org|io|dev|app|co|me|ai|xyz|gg|ly|sh|tv|info|biz|us|uk|de|dk|ru|cn|fr|nl|se|no|eu|ch|gl|to|cc|link|site|online|store|tech)\b)/i;
 
+/** One line of plain text: no control, zero-width or bidi characters, single spaces. */
+const oneLine = (raw: unknown): string =>
+  typeof raw === "string" ? raw.replace(INVISIBLE, "").replace(CONTROL, " ").replace(/\s+/g, " ").trim() : "";
+
 /**
  * A bio as stored: one line (newlines and runs of space become one space), no control, zero-width or
  * bidi characters, at most `BIO_MAX_LENGTH` code points, no links. Empty is `"clear"`; null is
  * refused. There is deliberately no word list: moderation is escaped text, reports and the admin page.
  */
 export function parseBio(raw: unknown): string | null | "clear" {
+  // Refused before the regexes scan it: 8 raw characters per allowed one bounds that work on a huge paste.
   if (typeof raw !== "string" || raw.length > BIO_MAX_LENGTH * 8) return null;
-  const text = raw.replace(INVISIBLE, "").replace(CONTROL, " ").replace(/\s+/g, " ").trim();
+
+  const text = oneLine(raw);
   if (text === "") return "clear";
   if ([...text].length > BIO_MAX_LENGTH || LINKISH.test(text)) return null;
   return text;
@@ -37,15 +43,13 @@ export function parseBio(raw: unknown): string | null | "clear" {
  * `REQUEST_MIN` and `REQUEST_MAX` code points, no links. Null is refused.
  */
 export function parseRequest(raw: unknown): string | null {
+  // The same bound as `parseBio`, for the same reason.
   if (typeof raw !== "string" || raw.length > REQUEST_MAX * 8) return null;
-  const text = raw.replace(INVISIBLE, "").replace(CONTROL, " ").replace(/\s+/g, " ").trim();
+
+  const text = oneLine(raw);
   const n = [...text].length;
   return n < REQUEST_MIN || n > REQUEST_MAX || LINKISH.test(text) ? null : text;
 }
-
-/** One line of plain text: no control, zero-width or bidi characters, single spaces. */
-const oneLine = (raw: unknown): string =>
-  typeof raw === "string" ? raw.replace(INVISIBLE, "").replace(CONTROL, " ").replace(/\s+/g, " ").trim() : "";
 
 /** An https link to somewhere with a dot in its name, or null. */
 function httpsUrl(raw: unknown): string | null {
@@ -124,10 +128,13 @@ export function parseChatText(raw: unknown): string | null {
   return text.length >= 1 && text.length <= CHAT_MAX_LENGTH ? text : null;
 }
 
+/** Events per sync request. The client sends batches of this size (`core/src/sync/sync.ts`): keep the two equal. */
 export const MAX_EVENTS_PER_REQUEST = 1000;
 /** Clock-skew headroom for events stamped slightly in the future. */
 const MAX_FUTURE_MS = 3_600_000;
 const MAX_ID_LENGTH = 256;
+/** A sanity cap in cents, a million dollars: a real event's cost is far below it, so only bad data reaches it. */
+const MAX_COST_CENTS = 100_000_000;
 /**
  * No real turn comes near this (a whole context window is a few million), and it keeps sums far
  * from SQLite's 64-bit limit: `SUM` throws past it, which would break every leaderboard at once.
@@ -148,6 +155,7 @@ const isId = (v: unknown): v is string => typeof v === "string" && v.length > 0 
 export function parseEvent(raw: unknown, now: number): TokenEvent | string {
   if (!raw || typeof raw !== "object") return "not an object";
   const e = raw as Record<string, unknown>;
+
   if (!isOneOf(SOURCES, e.source)) return "source";
   if (!isId(e.sessionId)) return "sessionId";
   if (e.agentId !== null && e.agentId !== undefined && !isId(e.agentId)) return "agentId";
@@ -156,22 +164,25 @@ export function parseEvent(raw: unknown, now: number): TokenEvent | string {
   if (!isNonNegInt(e.timestamp) || e.timestamp > now + MAX_FUTURE_MS) return "timestamp";
   if (e.messageType !== "user" && e.messageType !== "assistant" && e.messageType !== "pr")
     return "messageType";
+
   if (typeof e.model !== "string" || e.model.length > MAX_ID_LENGTH) return "model";
   if (e.messageType === "assistant" && e.model.length === 0) return "model";
+
   for (const k of ["inputTokens", "outputTokens", "cacheCreationTokens", "cacheReadTokens"] as const) {
     if (!isTokens(e[k])) return k;
   }
   if (e.reasoningTokens !== null && !isTokens(e.reasoningTokens)) return "reasoningTokens";
-  if (
-    e.costCents !== undefined &&
-    e.costCents !== null &&
-    ((e.source !== "cursor_local" && e.source !== "grok_bot") ||
-      typeof e.costCents !== "number" ||
-      !Number.isFinite(e.costCents) ||
-      e.costCents < 0 ||
-      e.costCents > 100_000_000)
-  )
-    return "costCents";
+
+  // Only these two sources may send a cost, and then it must be a sane number.
+  const hasCost = e.costCents !== undefined && e.costCents !== null;
+  const sourceCanCost = e.source === "cursor_local" || e.source === "grok_bot";
+  const costIsSane =
+    typeof e.costCents === "number" &&
+    Number.isFinite(e.costCents) &&
+    e.costCents >= 0 &&
+    e.costCents <= MAX_COST_CENTS;
+  if (hasCost && (!sourceCanCost || !costIsSane)) return "costCents";
+
   return {
     ...(e.costCents !== undefined ? { costCents: e.costCents as number | null } : {}),
     source: e.source as Source,
