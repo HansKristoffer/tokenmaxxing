@@ -133,7 +133,7 @@ Night Market: a plum-to-crimson lacquered crate with a lantern emblem, gold stra
 - **Ticks.** Reel ticks step up a five-note scale (slendro-like, bamboo/angklung timbre) using the existing `tone` helper; the final tick is a low gong.
 - Respect `prefers-reduced-motion` as the current opening does.
 
-## 7. Pelabuhan (the shop) and Budi (the keeper) -- LATER STEP, NOT BUILT
+## 7. Pelabuhan (the shop) and Budi (the keeper): later step, not built
 
 For now the case is sold in Natmarked. When the building is made:
 

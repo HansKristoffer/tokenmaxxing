@@ -1,6 +1,6 @@
 # Case 4: Julemarked (design brief)
 
-Status: stage 1 (data, tests, this brief) is done; art (2D, then 3D) is the next step. No new shop: it is sold ONLY at the
+Status: stage 1 (data, tests, this brief) is done; art (2D, then 3D) is the next step. No new shop: it is sold only at the
 Julemarked's Nissens bod (see "The market"), never at Natmarked: `CaseDef.shop` is `"julemarked"`, `casesOfShop` /
 `NATMARKED_CASES` list what each place sells, and the server's `openCase` refuses it anywhere but the market room (and the
 other cases there).

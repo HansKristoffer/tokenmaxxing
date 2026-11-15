@@ -55,7 +55,7 @@ Per-slot index is `500 + n`. "Draw" notes are for 2D pixel art and the 3D model 
 | held    | Round shield       | common    | 501 | Painted in quarters. Good for blocking, better for sledding.                           | Disc with a four-colour quartered face (red, bone, woad, gold) and a grey iron boss.                                          |
 | held    | Tafl board         | common    | 502 | The king in the middle, and a lot of opinions around him.                              | Small 7x7 checker board, a gold king dot, dark and light pegs.                                                                |
 | held    | Bearded axe        | common    | 503 | Chops firewood. Mostly firewood.                                                       | Oak handle, crescent iron head. Cartoony, no blood.                                                                           |
-| held    | Squeaky Mjölnir    | uncommon  | 504 | Foam, squeaks on impact, and returns to your hand roughly never.                       | Stubby hammer, grey foam head, leather-wrapped handle, a pale squeak star. ALWAYS a held toy (see rules).                     |
+| held    | Squeaky Mjölnir    | uncommon  | 504 | Foam, squeaks on impact, and returns to your hand roughly never.                       | Stubby hammer, grey foam head, leather-wrapped handle, a pale squeak star. Always a held toy (see rules).                     |
 | glasses | Warpaint stripes   | common    | 500 | Two blue stripes across the eyes. Washes off. Mostly.                                  | Two diagonal woad-blue bars across the eye line.                                                                              |
 | glasses | Frosted specs      | common    | 501 | Rimed with ice because you left them on the porch.                                     | Round lenses, pale frost-white rim, a few white sparkle pixels.                                                               |
 | glasses | Mimir's lens       | uncommon  | 502 | Drawn from the well of wisdom. The price was one eye, and you kept both.               | Single round lens on a leather strap with a faint blue water shimmer.                                                         |
@@ -64,7 +64,7 @@ Per-slot index is `500 + n`. "Draw" notes are for 2D pixel art and the 3D model 
 | outfit  | Yoke sweater       | uncommon  | 502 | A Nordic knit with a snowflake yoke. Warm enough for the end of the world.             | Cream and navy jumper with a pixel snowflake band across the shoulders (mid-20th-century Icelandic: a cozy joke, not Viking). |
 | outfit  | Byrnie             | uncommon  | 503 | Ten thousand little rings, and at least one of them is yours.                          | Grey mail shirt in a fine dot hatch, iron belt, leather collar.                                                               |
 | outfit  | Berserker bearskin | rare      | 504 | Growls on its own. Do not feed it after midnight.                                      | Brown bear pelt, the head on the shoulder, visible claws.                                                                     |
-| outfit  | Valkyrie plate     | epic      | 505 | Silver plate that throws light across the whole sky and pours a decent horn of mead.   | Silver breastplate, blue sash, a spear. NO wings (see rules).                                                                 |
+| outfit  | Valkyrie plate     | epic      | 505 | Silver plate that throws light across the whole sky and pours a decent horn of mead.   | Silver breastplate, blue sash, a spear. No wings (see rules).                                                                 |
 | back    | Fur mantle         | uncommon  | 500 | A shaggy shoulder cape that sheds a bit every time you sneeze.                         | Grey fur cape pinned with a brooch; a tinted take on the Cape model.                                                          |
 | back    | Skíðblaðnir        | epic      | 501 | The best of ships, folded like a handkerchief on your back and ready to unfold.        | Small folded-sail ship on the back, a striped sail that flaps; fold lines visible.                                            |
 | pet     | Huginn and Muninn  | rare      | 500 | Thought and Memory, back from the day's flight with news you didn't want.              | Two black ravens (violet sheen) hopping in alternation. 12x10, two frames.                                                    |
@@ -75,7 +75,7 @@ Per-slot index is `500 + n`. "Draw" notes are for 2D pixel art and the 3D model 
 | pet     | Fenrir pup         | epic      | 505 | A wolf pup on a ribbon too thin to hold anything. It will hold, for now.               | Grey-black pup, white chest, a thin silver thread leash (Gleipnir). No wolf-hook marks anywhere.                              |
 | aura    | Bifröst            | legendary | 500 | The burning bridge between worlds, curled round your shoulders.                        | Rainbow ribbon arc orbiting on a tilt, 4 or 5 segments, shimmering.                                                           |
 | aura    | Valkyrie Lights    | legendary | 501 | They say the flicker is valkyrie armour catching the light.                            | Aurora curtains, green and violet, rippling up behind and round.                                                              |
-| aura    | Rune Gale          | legendary | 502 | Odin hung nine nights to learn them. They've been following you since.                 | Single glowing glyphs (safe set only) circling the body in an amber and white wind. NEVER a wheel or a ring of 12.            |
+| aura    | Rune Gale          | legendary | 502 | Odin hung nine nights to learn them. They've been following you since.                 | Single glowing glyphs (safe set only) circling the body in an amber and white wind. Never a wheel or a ring of 12.            |
 | aura    | Ginnungagap        | legendary | 503 | Where the ice met the embers and the world began.                                      | Left half pale snow specks drifting down, right half orange embers rising, meeting at the head in a spiral.                   |
 
 Auras: 2D frame is 28x28 with the 16x16 character at (6,6), 8 frames, `CA_MS` 170 (as `case-aura.ts`). Pets: 12x10 facing
@@ -112,7 +112,7 @@ test (`case-ragnarok.test.ts`) checks no map, legend, catalog or Night Market pi
   Gjallarhorn.
 - Legendary adds thunder shaking the strip, a frost vignette, and a Bifröst-coloured beam over the winning tile.
 
-## Mjødhallen and Gudrun (a LATER step, not built)
+## Mjødhallen and Gudrun (a later step, not built)
 
 The first draft sells the case in Natmarked. The later step is a second case shop, "Mjødhallen" ("the mead hall").
 

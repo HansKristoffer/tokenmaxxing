@@ -49,8 +49,8 @@ star counter on the square. Nothing about players is sent.
 
 **The statue of the #1 model.** Four times a day the server reads the top of
 [LMArena's published leaderboard](https://huggingface.co/datasets/lmarena-ai/leaderboard-dataset) (its
-Hugging Face dataset, CC BY 4.0, no key) and puts the Text Arena's #1 on the plinth. It's the one source of the
-lot that is official, public and machine-readable: lmarena.ai itself is behind Cloudflare, Artificial Analysis
-needs an API key, OpenRouter's rankings measure tokens spent rather than quality, and SWE-bench ranks agent
-systems. If a read fails the last leader stays up, and the admin page can pin another model over it. Nothing
-about you is sent.
+Hugging Face dataset, CC BY 4.0, no key) and puts the Text Arena's #1 on the plinth. It is the only one of the
+candidates that is official, public and machine-readable. lmarena.ai itself is behind Cloudflare, Artificial
+Analysis needs an API key, OpenRouter's rankings measure tokens spent rather than quality, and SWE-bench ranks
+agent systems. If a read fails, the last leader stays up, and the admin page can pin another model over it.
+Nothing about you is sent.
