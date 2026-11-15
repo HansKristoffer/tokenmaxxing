@@ -111,7 +111,7 @@ test("every ladder climbs, has a frame for each tier and a coin price for each",
   expect(badgeCoins(6)).toBe(3740);
 });
 
-test("the crazy ladders", () => {
+test("the long ladders reach their top tiers", () => {
   const tier = (id: string, f: Partial<BadgeFacts>) =>
     badgesFor({ ...none, ...f }).find((b) => b.id === id)?.tier ?? 0;
   // Big day: 3B, 5B, 10B, 20B, then 50B and 100B.
@@ -139,7 +139,7 @@ test("progress: where they stand, the next tier and the bar", () => {
   expect(progressOf({ value: 9999, next: null, prev: 10 })).toBe(1);
 });
 
-test("the new badges", () => {
+test("the activity and raid ladders climb their tiers", () => {
   const tier = (id: string, f: Partial<BadgeFacts>) =>
     badgesFor({ ...none, ...f }).find((b) => b.id === id)?.tier ?? 0;
   expect([9, 10, 30, 100].map((shipDays) => tier("shipdays", { shipDays }))).toEqual([0, 1, 2, 3]);

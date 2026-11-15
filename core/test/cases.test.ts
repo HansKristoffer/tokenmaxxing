@@ -145,7 +145,7 @@ describe("the Nusantara case", () => {
     expect(nus.items.every((i) => i.case)).toBe(true);
   });
 
-  test("the Night Market's pool is exactly what it was: 30 cosmetics and 6 pieces, none of the Nusantara's", () => {
+  test("the Night Market's pool is 30 cosmetics and 6 pieces, none of the Nusantara's", () => {
     expect(night.items).toHaveLength(CASE_ITEMS.length + CASE_PIECES.length);
     expect(night.items).toHaveLength(36);
     const ids = new Set(night.items.map((i) => i.id));

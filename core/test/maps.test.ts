@@ -195,7 +195,7 @@ describe("maps", () => {
       }
     });
 
-    test("the bar is sealed: the barkeep's cell can't be reached, and isn't floor to sleep on", () => {
+    test("the bar is sealed: the barkeep's cell can't be reached from the room", () => {
       expect(map.walkable(BARKEEP_HOME.x, BARKEEP_HOME.y)).toBe(true);
       expect(seen.has(`${BARKEEP_HOME.x},${BARKEEP_HOME.y}`)).toBe(false);
       expect(BARKEEP.home).toEqual(BARKEEP_HOME);
@@ -351,7 +351,7 @@ describe("the shops", () => {
       expect(town.find("D")).toHaveLength(plots.length);
     });
 
-    test("the shops still have blocks when the houses reach far past where the search used to stop", () => {
+    test("the shops still find blocks when the houses reach far out", () => {
       const far: number[] = [];
       for (let by = -12; by <= 13; by++)
         for (let bx = -12; bx <= 13; bx++) if (!corner.has(plotId(bx, by))) far.push(plotId(bx, by));
@@ -369,7 +369,7 @@ describe("the shops", () => {
   });
 
   describe("a town with every block round the square taken", () => {
-    // A house on every block a company could hold, the shops' own included: they started before the shops.
+    // A company can hold any block, the shops' included, so this is the worst case for the shops.
     const full: number[] = [];
     for (let by = -4; by <= 5; by++)
       for (let bx = -4; bx <= 5; bx++) if (!corner.has(plotId(bx, by))) full.push(plotId(bx, by));

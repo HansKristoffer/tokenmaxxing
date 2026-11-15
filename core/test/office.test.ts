@@ -42,7 +42,7 @@ describe("offices", () => {
   test("slots: a door keeps its place when another owner goes, a newcomer takes the lowest free one", () => {
     const ids = [1, 2, 3, 4, 5, 6, 7, 8];
     const first = assignSlots(ids, new Map());
-    // The migration: nothing stored packs by id, which is where every door stood before.
+    // With no slots stored yet, doors pack by id.
     expect(ids.map((id) => first.get(id))).toEqual([0, 1, 2, 3, 4, 5, 6, 7]);
     const owner = (id: number, slot: number) => ({ userId: id, name: `u${id}`, slot });
     const before = doorsFor(ids.map((id) => owner(id, first.get(id)!)));
@@ -103,7 +103,7 @@ describe("offices", () => {
     expect(map.find("R")).toEqual(three.map((d) => [d.x, d.y]));
     for (const d of three)
       expect([map.at(d.x, d.y - 1), map.at(d.x, d.y + 1), map.at(d.x, d.y + 2)]).toEqual(["W", "_", "_"]);
-    expect(map.rows.slice(2 - map.y0)).toEqual(MAPS.hq.rows.slice(2)); // the floor, where it was
+    expect(map.rows.slice(2 - map.y0)).toEqual(MAPS.hq.rows.slice(2)); // the floor rows are the template's
     const tower = hqMap(doorsFor(withSlots(Array.from({ length: 25 }, (_, i) => ({ userId: i, name: "" })))));
     const [ex, ey] = tower.find("x")[0]!;
     for (const [x, y] of tower.find("R")) expect(route(tower, [ex, ey - 1], [x, y])).not.toBeNull();
@@ -231,7 +231,7 @@ describe("offices", () => {
     }
   });
 
-  test("tier 0 is the template every office starts with, about 20% bigger than the old 12 x 9", () => {
+  test("tier 0 is the template every office starts with, at least 20% bigger than 12 x 9", () => {
     expect(officeMap(0).rows).toEqual([
       "WWWWWWWWWWWWWW",
       "W____UUUU____W",

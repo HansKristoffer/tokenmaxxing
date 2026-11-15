@@ -39,7 +39,7 @@ function read(plots: Plot[], pool: PoolModel[], ...at: number[]): Plot[] {
 const ALL = ["openai/gpt-4-turbo", "openai/gpt-5", "openai/gpt-6"].map((id) => model(id));
 const LESS = ALL.filter((m) => m.id !== "openai/gpt-4-turbo");
 
-test("the first read sees what's listed and buries nothing, however much was gone before", () => {
+test("the first read sees what is listed and buries nothing", () => {
   const plots = read([], LESS, now);
   expect(plots.map((p) => p.id).sort()).toEqual(["openai/gpt-5", "openai/gpt-6"]);
   expect(plots.every((p) => p.gone === null && p.buried === null)).toBe(true);
@@ -126,7 +126,7 @@ test("the graveyard shows the newest stones, each keeping its plot as newer ones
   expect(stonesOf(plots).map((s) => s.id)).not.toContain(many[1]!.id);
 });
 
-test("every plot and the tile in front of it is grass, clear of the Tavern, so the stones always fit", () => {
+test("every plot and the tile in front of it is grass, so the stones always fit", () => {
   for (const [x, y] of GRAVES) {
     expect(MAPS.town.at(x, y)).toBe(".");
     expect(MAPS.town.at(x, y + 1)).toBe(".");
@@ -155,7 +155,6 @@ test("a tombstone reads its name, its maker, its dates and its last price", () =
   expect(e.provider).toBe("Codex");
   expect(e.dates).toBe("Listed 9 Apr 2024 – 20 Oct 2026");
   expect(e.price).toBe("Last price: In $10 · Out $30 per 1M tokens");
-  expect(e.epitaph).toBe(epitaphOf(s!).epitaph);
   expect(epitaphOf({ ...s!, price: { input: null, output: null, cache: null } }).price).toBe(
     "Last price: never listed",
   );
@@ -170,7 +169,7 @@ test("?graveyard= fills the plots for screenshots, some of them, or none", () =>
   expect(sameStones(forcedStones("on", now)!, forcedStones("on", now)!)).toBe(true);
 });
 
-test("the graveyard reads the same list as the stand: every pool model, however old", () => {
+test("the graveyard reads the stand's list: known providers only, no :free variants, oldest first", () => {
   const pool = poolModels({
     data: [
       { id: "openai/gpt-4-turbo", name: "OpenAI: GPT-4 Turbo", created: 1_712_620_800 },

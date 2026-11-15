@@ -191,7 +191,7 @@ describe("the Ragnarok Eve case", () => {
     for (const i of night.items) expect(caseOfItem(i.id)).toBe(night);
   });
 
-  test("Night Market's pool is unchanged", () => {
+  test("Night Market's pool is its base wearables and pieces, in the base index range", () => {
     expect(night.items).toHaveLength(CASE_ITEMS.length + CASE_PIECES.length);
     expect(night.items.every((i) => (i.slot === "furniture" ? true : i.index < CASE_BASE + 100))).toBe(true);
   });

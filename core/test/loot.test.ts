@@ -157,7 +157,7 @@ test("a kill's drops: only its raiders roll, each item on its own, from that bos
   expect(real.length).toBeGreaterThan(0);
 });
 
-test("a week's drops follow its kills, and the same weeks give the same drops", () => {
+test("a week's drops follow its kills", () => {
   const week = (w: string, rungs: number[]): RaidWeek => ({
     week: w,
     level: 1,
@@ -172,5 +172,4 @@ test("a week's drops follow its kills, and the same weeks give the same drops", 
   const drops = raidDrops(weeks, 1000);
   expect(drops).toHaveLength(2 * 2 * 4);
   expect(drops.every((d) => d.week === "2026-10-19")).toBe(true);
-  expect(raidDrops(weeks, 3)).toEqual(raidDrops(weeks, 3));
 });

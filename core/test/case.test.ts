@@ -45,7 +45,7 @@ test("the four auras are legendary, tradeable, and in the aura slot", () => {
   ]);
 });
 
-test("a look wears an aura 200..203, an old look without the field still parses, 999 is refused", () => {
+test("a look wears an aura 300..303, an old look without the field still parses, 999 is refused", () => {
   const look = defaultLook(1);
   for (const aura of [300, 301, 302, 303]) expect(parseLook({ ...look, aura })?.aura).toBe(aura);
   const old = { ...look };
