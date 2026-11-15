@@ -297,21 +297,23 @@ export class Nytar3d {
       root.add(holder);
       stills.push(m);
     };
+    const clockAt = toWorld(NYTAR_CLOCK.x, NYTAR_CLOCK.y);
+    const chairAt = toWorld(NYTAR_CHAIR.x, NYTAR_CHAIR.y);
+    const npcAt = toWorld(NYTAR_NPC_TILE.x, NYTAR_NPC_TILE.y);
     // The clock (rebuilt at midnight, for the new year's plate).
     const { model: clock, hands } = clockModel(year);
-    place(clock, toWorld(NYTAR_CLOCK.x, NYTAR_CLOCK.y), CLOCK_SCALE);
+    place(clock, clockAt, CLOCK_SCALE);
     const [t0x, t0z] = toWorld(NYTAR_TABLE[0]!.x, NYTAR_TABLE[0]!.y);
     const [t1x] = toWorld(NYTAR_TABLE[1]!.x, NYTAR_TABLE[1]!.y);
     place(tableModel(), [(t0x + t1x) / 2, t0z]);
-    place(chairModel(), toWorld(NYTAR_CHAIR.x, NYTAR_CHAIR.y));
+    place(chairModel(), chairAt);
     // The watchman's lantern on a staff beside his tile.
     const lantern = new Model();
     lantern.cyl(0.025, 1.5, "#6b4a2e", [0, 0, 0], 0.025, 6);
     lantern.box([0.2, 0.26, 0.2], glow("#ffd37a"), [0, 1.4, 0], 0.03);
     lantern.cyl(0.14, 0.06, "#2b2433", [0, 1.66, 0], 0.01, 4).rotation.y = Math.PI / 4;
     lantern.box([0.24, 0.04, 0.24], "#2b2433", [0, 1.36, 0], 0.01);
-    const [nx, nz] = toWorld(NYTAR_NPC_TILE.x, NYTAR_NPC_TILE.y);
-    place(lantern, [nx + 0.32, nz + 0.42]);
+    place(lantern, [npcAt[0] + 0.32, npcAt[1] + 0.42]);
     for (const m of stills) {
       m.position.set(50, 0, 50);
       mergeStill(m);
@@ -322,9 +324,9 @@ export class Nytar3d {
       balloons(["#f4c95d", "#ff5d73", "#5ee0ff"]),
       balloons(["#b18cff", "#fbf7ef", "#f4c95d"]),
     ];
-    const [cx, cz] = toWorld(NYTAR_CLOCK.x, NYTAR_CLOCK.y);
+    const [cx, cz] = clockAt;
     bunches[0]!.position.set(cx + 0.85, 0, cz + 0.9);
-    bunches[1]!.position.set(toWorld(NYTAR_CHAIR.x, NYTAR_CHAIR.y)[0] - 0.1, 0, t0z + 1.0);
+    bunches[1]!.position.set(chairAt[0] - 0.1, 0, t0z + 1.0);
     root.add(...bunches);
     // The party lights.
     const strung = lights(toWorld);
@@ -353,8 +355,8 @@ export class Nytar3d {
       bulbs: strung.bulbs,
       bunches,
       confetti: flakes,
-      clockAt: toWorld(NYTAR_CLOCK.x, NYTAR_CLOCK.y),
-      npcAt: toWorld(NYTAR_NPC_TILE.x, NYTAR_NPC_TILE.y),
+      clockAt,
+      npcAt,
     };
   }
 
@@ -450,8 +452,6 @@ export class Nytar3d {
     this.clear();
   }
 }
-
-// MARK: The watchman
 
 /** The registry entry (`NPC_MODELS.nytar`): Nattevagt Niels in a navy coat, the Midnight top hat, a gold scarf. */
 export function nytarNpcModel(_npc: FestiveNpc): THREE.Object3D {

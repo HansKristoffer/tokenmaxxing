@@ -117,14 +117,13 @@ export class Midsommer3d {
 
   private build(): void {
     const s = spotsNow();
-    const at = (tx: number, ty: number) => this.toWorld(tx, ty);
     // Tier 0 stands the whole window; 1 and 2 are added as it nears the bonfire.
     for (let tier = 0; tier < 3; tier++) {
       const g = new THREE.Group();
       const still = new Model();
       for (const [i, [x, y]] of s.flags.entries()) {
         if (Math.floor(i / 2) !== tier) continue;
-        const [wx, wz] = at(x, y);
+        const [wx, wz] = this.toWorld(x, y);
         const p = pole();
         p.position.set(wx, 0, wz);
         still.add(p);
@@ -134,7 +133,7 @@ export class Midsommer3d {
       }
       const blanket = s.blankets[tier];
       if (blanket) {
-        const [wx, wz] = at(blanket[0], blanket[1]);
+        const [wx, wz] = this.toWorld(blanket[0], blanket[1]);
         const b = blanketModel(2, 1, 0);
         b.position.set(wx + 0.5, 0.02, wz);
         still.add(b);
@@ -145,7 +144,7 @@ export class Midsommer3d {
       }
       if (tier === 0)
         for (const [x, y] of s.wreaths) {
-          const [wx, wz] = at(x, y);
+          const [wx, wz] = this.toWorld(x, y);
           const w = wreath();
           w.position.set(wx, 1.95, wz + 0.2);
           still.add(w);
@@ -155,6 +154,7 @@ export class Midsommer3d {
       this.tiers.push(g);
       this.group.add(g);
     }
+
     for (let i = 0; i < 14; i++) {
       const m = dot(i % 2 ? "#ffb43a" : "#ffe27a");
       this.sparks.push(m);
@@ -171,6 +171,7 @@ export class Midsommer3d {
       this.tail.push(m);
       this.group.add(m);
     }
+
     this.heks = new THREE.Sprite(new THREE.SpriteMaterial({ map: heksFrames()[0], fog: false }));
     this.heks.userData.live = true;
     this.heks.visible = false;
@@ -251,7 +252,7 @@ export class Midsommer3d {
       this.heks.visible = flight !== null;
       if (flight !== null) {
         this.heks.position.copy(this.heksAt(flight));
-        (this.heks.material as THREE.SpriteMaterial).map = heksFrames()[Math.floor(t * 6) % 2]!;
+        this.heks.material.map = heksFrames()[Math.floor(t * 6) % 2]!;
         for (const [i, m] of this.tail.entries()) {
           const back = Math.max(0, flight - (i + 1) * 0.012);
           m.visible = true;
@@ -260,7 +261,9 @@ export class Midsommer3d {
           m.position.y += Math.cos(i * 5.3 + t * 9) * 0.12;
           m.scale.setScalar(0.2 * Math.max(0.2, 1 - i / this.tail.length));
         }
-      } else for (const m of this.tail) m.visible = false;
+      } else {
+        for (const m of this.tail) m.visible = false;
+      }
     }
   }
 

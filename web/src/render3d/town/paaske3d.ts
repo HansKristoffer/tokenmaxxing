@@ -109,8 +109,6 @@ function eggModel(colour: number): THREE.Object3D {
   return m;
 }
 
-// MARK: Still props
-
 /** The påskeris: birch twigs in a blue-and-white vase, hung with feathers and painted eggs. */
 function treeModel(): Model {
   const m = new Model();
@@ -158,14 +156,15 @@ function stallModel(): Model {
   for (const x of [-0.38, 0.38])
     for (const z of [-0.2, 0.2]) m.box([0.06, 0.62, 0.06], "#8c5c36", [x, 0, z], 0.01);
   m.box([0.7, 0.04, 0.04], "#8c5c36", [0, 0.2, 0.2], 0.01);
-  [
+  const pots: [string, number][] = [
     ["#e8584f", -0.3],
     ["#f5d14a", -0.14],
     ["#5fa8e0", 0.02],
-  ].forEach(([c, x]) => {
-    m.cyl(0.055, 0.1, c as string, [x as number, 0.68, -0.08], 0.05, 8);
-    m.cyl(0.05, 0.012, WHITE, [x as number, 0.775, -0.08], 0.05, 8);
-  });
+  ];
+  for (const [colour, x] of pots) {
+    m.cyl(0.055, 0.1, colour, [x, 0.68, -0.08], 0.05, 8);
+    m.cyl(0.05, 0.012, WHITE, [x, 0.775, -0.08], 0.05, 8);
+  }
   m.cyl(0.008, 0.2, "#8c5c36", [0.1, 0.68, -0.05], 0.008, 4).rotation.z = 1.1;
   [0, 3, 1, 4].forEach((c, i) => {
     const [base, stripe] = EGG_COLOURS[c]!;
@@ -222,7 +221,7 @@ function frokostModel(): Model {
   return m;
 }
 
-/** Strings of pastel bunting: a cord that sags and a pennant on it every third of a unit, one mesh each. */
+/** Strings of pastel bunting: a cord that sags, and a pennant on it about every 0.34 units. One mesh per kind. */
 function buntingModel(strings: { a: THREE.Vector3; b: THREE.Vector3; sag: number }[]): THREE.Group {
   const cords: THREE.BufferGeometry[] = [];
   const flags: THREE.BufferGeometry[] = [];
@@ -292,8 +291,6 @@ function buntingModel(strings: { a: THREE.Vector3; b: THREE.Vector3; sag: number
   return group;
 }
 
-// MARK: Critters
-
 const CHICK = "#ffe36a";
 
 /** A chick, 0.25 high, facing +z. */
@@ -355,10 +352,7 @@ interface Walker {
   root: THREE.Group;
 }
 
-// MARK: The scene
-
 interface Built {
-  map: GameMap;
   group: THREE.Group;
   waves: { from: number; model: Model }[];
   total: number;
@@ -391,8 +385,8 @@ export class Paaske3d {
       this.group.visible = false;
       return;
     }
-    if (!this.built) this.build();
-    const b = this.built!;
+    this.built ??= this.build();
+    const b = this.built;
     this.group.visible = true;
     paaskeTick();
     // Flowers come up wave by wave.
@@ -437,7 +431,8 @@ export class Paaske3d {
 
   /** The day's eggs still in the grass: rebuilt when the world day turns, hidden as they are found. */
   private eggs(b: Built): void {
-    const day = paaskeLayout().day;
+    const layout = paaskeLayout();
+    const day = layout.day;
     if (b.eggs?.day !== day) {
       if (b.eggs) {
         this.group.remove(b.eggs.root);
@@ -445,7 +440,7 @@ export class Paaske3d {
       }
       const root = new THREE.Group();
       const items = new Map<string, THREE.Object3D>();
-      for (const e of paaskeLayout().eggs) {
+      for (const e of layout.eggs) {
         const m = eggModel(e.colour);
         m.userData.egg = true;
         // Bigger than an egg: the town is seen from far off, and they are meant to be found.
@@ -463,17 +458,16 @@ export class Paaske3d {
     for (const [k, o] of b.eggs.items) o.visible = left.has(k);
   }
 
-  private build(): void {
+  private build(): Built {
     const { map, toWorld } = this;
     const group = new THREE.Group();
     group.name = "paaske-scene";
-    const at = (x: number, y: number) => toWorld(x, y);
     // Flowers, in waves of the order they come up.
     const flowers = flowerSpots(map);
     const per = Math.ceil(flowers.length / WAVES);
     const waves: Built["waves"] = [];
     for (let i = 0; i < flowers.length; i += per) {
-      const model = flowerWave(flowers.slice(i, i + per), at);
+      const model = flowerWave(flowers.slice(i, i + per), toWorld);
       group.add(model);
       waves.push({ from: i, model });
     }
@@ -519,8 +513,7 @@ export class Paaske3d {
       o.userData.noBlock = true;
     });
     this.group.add(group);
-    this.built = {
-      map,
+    return {
       group,
       waves,
       total: flowers.length,

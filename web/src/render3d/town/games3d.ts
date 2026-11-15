@@ -154,7 +154,7 @@ export class GamesLayer {
     if (spot.kind === "table") {
       const [tx, ty] = propTilesOf(spot)[0]!;
       const [x, z] = this.toWorld(tx, ty);
-      const table = gameTable(game.game as never, false)();
+      const table = gameTable(game.game, false)();
       table.position.set(x, 0, z);
       s.group.add(table);
       s.table = table;
@@ -216,7 +216,7 @@ export class GamesLayer {
           s.board.removeFromParent();
           disposeObject(s.board);
         }
-        s.board = liveScreen<ScoreLine[]>(w, h, lines, (g, cw, ch, st) => paintScore(g, cw, ch, st), {
+        s.board = liveScreen<ScoreLine[]>(w, h, lines, paintScore, {
           px: 64,
           frame: "#e9b73d",
           lift: 1.1,
@@ -283,9 +283,11 @@ export class GamesLayer {
       );
       const head = Math.min(...game.seats.map((q) => q.y));
       const [, hz] = this.toWorld(0, head);
+      const isArena = game.spot.kind === "arena";
+      const anchor: [number, number, number] = [cx, isArena ? 2.3 : 2.5, isArena ? cz - 0.2 : hz];
       list.push({
         key: `game:${game.id}`,
-        at: [cx, game.spot.kind === "arena" ? 2.3 : 2.5, game.spot.kind === "arena" ? cz - 0.2 : hz],
+        at: anchor,
         kind: "label",
         text: banner(game, at),
         cls: "gold",
@@ -295,7 +297,7 @@ export class GamesLayer {
       if (said && now < said.until)
         list.push({
           key: `say:${game.id}`,
-          at: [cx, game.spot.kind === "arena" ? 2.3 : 2.5, game.spot.kind === "arena" ? cz - 0.2 : hz],
+          at: anchor,
           kind: "label",
           text: said.text,
           cls: "bubble",
