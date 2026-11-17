@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import { caseById, VENDOR_COINS } from "@tokenmaxxing/core/cases.ts";
+import { caseById, MAX_OPEN, VENDOR_COINS } from "@tokenmaxxing/core/cases.ts";
 import { rarityOf } from "@tokenmaxxing/core/rarity.ts";
 import { UserError } from "rivetkit";
-import { caseLeaderboard, openCase, sellDuplicates, sellItem } from "../src/town/cases.ts";
+import { caseLeaderboard, openCase, openCases, sellDuplicates, sellItem } from "../src/town/cases.ts";
 import { bag, wallet } from "../src/town/coins.ts";
 import { migrate } from "../src/town/schema.ts";
 import { memorySql } from "./memory-sql.ts";
@@ -86,6 +86,55 @@ describe("openCase", () => {
     expect(["rare", "epic", "legendary"]).toContain(rarityOf(tenth.item));
     // And it starts over.
     expect(rarityOf((await openCase(sql, 7, "night-market", now, undefined, rand)).item)).toBe("common");
+  });
+});
+
+describe("openCases", () => {
+  test("opens up to five at once: every key charged, every item granted", async () => {
+    const sql = await setup(jul.keyPrice * MAX_OPEN);
+    const out = await openCases(sql, 7, "julemarked", MAX_OPEN, now, undefined, seededRand(3));
+    expect(out.items).toHaveLength(MAX_OPEN);
+    expect(out.items.every((it) => jul.items.some((i) => i.id === it.id))).toBe(true);
+    expect(out.wallet.balance).toBe(0);
+    const held = (await bag(sql, 7)).reduce((a, r) => a + r.count, 0);
+    expect(held).toBe(MAX_OPEN);
+    const [row] = await sql.execute("SELECT COUNT(*) AS n FROM ledger WHERE kind = 'case'");
+    expect((row as { n: number }).n).toBe(MAX_OPEN);
+  });
+
+  test("rolls exactly like the same number of single openings", async () => {
+    const a = await setup(night.keyPrice * 20);
+    const b = await setup(night.keyPrice * 20);
+    const batched: string[] = [];
+    const single: string[] = [];
+    const ra = seededRand(11);
+    const rb = seededRand(11);
+    for (let i = 0; i < 4; i++)
+      batched.push(...(await openCases(a, 7, "night-market", 5, now, undefined, ra)).items.map((x) => x.id));
+    for (let i = 0; i < 20; i++) single.push((await openCase(b, 7, "night-market", now, undefined, rb)).item.id);
+    expect(batched).toEqual(single);
+  });
+
+  test("the dry counter carries across a batch", async () => {
+    const sql = await setup(night.keyPrice * 10);
+    const rand = () => 0;
+    const items = [
+      ...(await openCases(sql, 7, "night-market", 5, now, undefined, rand)).items,
+      ...(await openCases(sql, 7, "night-market", 5, now, undefined, rand)).items,
+    ];
+    expect(items.slice(0, 9).every((i) => rarityOf(i) === "common")).toBe(true);
+    expect(["rare", "epic", "legendary"]).toContain(rarityOf(items[9]!));
+  });
+
+  test("not enough for all of them opens none; a bad count is refused", async () => {
+    const sql = await setup(night.keyPrice * 3 - 1);
+    const before = await balance(sql);
+    await rejects(openCases(sql, 7, "night-market", 3, now), "too_poor");
+    for (const n of [0, MAX_OPEN + 1, 2.5, "3", null]) await rejects(openCases(sql, 7, "night-market", n, now), "bad_count");
+    await rejects(openCases(sql, 7, "nope", 2, now), "not_found");
+    expect(await balance(sql)).toBe(before);
+    expect(await bag(sql, 7)).toEqual([]);
+    expect((await openCases(sql, 7, "night-market", 2, now)).items).toHaveLength(2);
   });
 });
 

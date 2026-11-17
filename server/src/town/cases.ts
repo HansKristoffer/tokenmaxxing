@@ -2,6 +2,7 @@ import {
   type CaseDef,
   caseById,
   caseOfItem,
+  MAX_OPEN,
   nextDry,
   rollCase,
   VENDOR_COINS,
@@ -55,30 +56,41 @@ export function secureRandom(): number {
 }
 
 /**
- * `userId` opens one `caseId`: the key's coins out, the roll, the item in the bag and the dry counter,
- * all in one transaction. Run it serialized, like `buy`. `rand` is the server's own; tests pass a seeded one.
+ * `userId` opens `count` (1 to `MAX_OPEN`) of `caseId` at once: every key's coins out, each roll, the items
+ * in the bag and the dry counter, all in one transaction. Too few coins for all of them opens none. Each roll
+ * sees the ones before it (the dry counter and the dupe rerolls), exactly as if they were opened one by one.
+ * Run it serialized, like `buy`. `rand` is the server's own; tests pass a seeded one.
  */
-export async function openCase(
+export async function openCases(
   sql: TxSql,
   userId: number,
   caseId: unknown,
+  count: unknown,
   now: number,
   kept?: Kept,
   rand: () => number = secureRandom,
-): Promise<{ item: Item; wallet: Wallet }> {
+): Promise<{ items: Item[]; wallet: Wallet }> {
   const def = caseById(caseId);
   if (!def) throw new UserError("There's no such case.", { code: "not_found" });
+  if (typeof count !== "number" || !Number.isInteger(count) || count < 1 || count > MAX_OPEN)
+    throw new UserError(`Open 1 to ${MAX_OPEN} cases at a time.`, { code: "bad_count" });
+  const cost = def.keyPrice * count;
   const won = await sql.transaction(
     async (tx) => {
-      if ((await wallet(tx, userId, now, kept)).balance < def.keyPrice)
-        throw new UserError(`A key is ${def.keyPrice} coins. Not enough coins yet.`, { code: "too_poor" });
+      if ((await wallet(tx, userId, now, kept)).balance < cost)
+        throw new UserError(
+          count === 1
+            ? `A key is ${def.keyPrice} coins. Not enough coins yet.`
+            : `${count} keys are ${cost} coins. Not enough coins yet.`,
+          { code: "too_poor" },
+        );
       await tx.execute(
         "INSERT INTO case_dry (user_id, case_id) VALUES (?, ?) ON CONFLICT DO NOTHING",
         userId,
         def.id,
       );
       // The insert above makes the row when it is missing, so the select always finds it.
-      const dry = (await one<{ dry: number }>(
+      let dry = (await one<{ dry: number }>(
         tx,
         "SELECT dry FROM case_dry WHERE user_id = ? AND case_id = ?",
         userId,
@@ -91,20 +103,34 @@ export async function openCase(
         userId,
       );
       const owned = new Set(ownedRows.map((r) => r.item));
-      const { item, tier } = rollCase(def, rand, owned, dry);
-      await ledgerAdd(tx, userId, -def.keyPrice, "case", `case:${def.id}`, now);
-      await giveItem(tx, userId, item.id, now);
-      await tx.execute(
-        "UPDATE case_dry SET dry = ? WHERE user_id = ? AND case_id = ?",
-        nextDry(dry, tier),
-        userId,
-        def.id,
-      );
-      return item;
+      const items: Item[] = [];
+      for (let n = 0; n < count; n++) {
+        const { item, tier } = rollCase(def, rand, owned, dry);
+        await ledgerAdd(tx, userId, -def.keyPrice, "case", `case:${def.id}`, now);
+        await giveItem(tx, userId, item.id, now);
+        owned.add(item.id);
+        dry = nextDry(dry, tier);
+        items.push(item);
+      }
+      await tx.execute("UPDATE case_dry SET dry = ? WHERE user_id = ? AND case_id = ?", dry, userId, def.id);
+      return items;
     },
     { name: "case-open" },
   );
-  return { item: won, wallet: await wallet(sql, userId, now, kept) };
+  return { items: won, wallet: await wallet(sql, userId, now, kept) };
+}
+
+/** One opening of `caseId`: `openCases` with a count of one. */
+export async function openCase(
+  sql: TxSql,
+  userId: number,
+  caseId: unknown,
+  now: number,
+  kept?: Kept,
+  rand: () => number = secureRandom,
+): Promise<{ item: Item; wallet: Wallet }> {
+  const { items, wallet } = await openCases(sql, userId, caseId, 1, now, kept, rand);
+  return { item: items[0]!, wallet };
 }
 
 /** Takes one row of `itemId` out of `userId`'s bag; false if none. A worn one comes off with the last copy. */

@@ -40,6 +40,9 @@ export interface CaseDef {
   items: readonly Item[];
 }
 
+/** The most cases of one kind opened in a single go (the opening screen's 1-5 picker, the server's `openCases`). */
+export const MAX_OPEN = 5;
+
 /** What the vendor pays for one case item, by rarity. */
 export const VENDOR_COINS: Record<Rarity, number> = {
   common: 10,

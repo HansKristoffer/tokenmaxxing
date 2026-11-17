@@ -101,7 +101,7 @@ import {
   weeklyRegulars,
   writeActivity,
 } from "../town/card.ts";
-import { caseLeaderboard, openCase, sellDuplicates, sellItem } from "../town/cases.ts";
+import { caseLeaderboard, openCase, openCases, sellDuplicates, sellItem } from "../town/cases.ts";
 import {
   type BagRow,
   bag,
@@ -695,6 +695,16 @@ export const town = actor({
       await inCaseShop(c, userId, def);
       const k = await kept(c, Date.now());
       return c.vars.serial(() => openCase(c.db, userId, caseId, Date.now(), k));
+    },
+
+    /** `count` (1 to `MAX_OPEN`) openings of `caseId` at once, in the case shop: all the keys or none. */
+    openCases: async (c, caseId: unknown, count: unknown): Promise<{ items: Item[]; wallet: Wallet }> => {
+      const userId = requireUser(callerOf(c));
+      const def = caseById(caseId);
+      if (!def) throw new UserError("There's no such case.", { code: "not_found" });
+      await inCaseShop(c, userId, def);
+      const k = await kept(c, Date.now());
+      return c.vars.serial(() => openCases(c.db, userId, caseId, count, Date.now(), k));
     },
 
     /** From `world`: sets `userId`'s bets for `round` (stakes out of the wallet now). Refused once the round is closed. */
