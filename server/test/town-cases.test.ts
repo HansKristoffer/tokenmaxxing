@@ -111,7 +111,8 @@ describe("openCases", () => {
     const rb = seededRand(11);
     for (let i = 0; i < 4; i++)
       batched.push(...(await openCases(a, 7, "night-market", 5, now, undefined, ra)).items.map((x) => x.id));
-    for (let i = 0; i < 20; i++) single.push((await openCase(b, 7, "night-market", now, undefined, rb)).item.id);
+    for (let i = 0; i < 20; i++)
+      single.push((await openCase(b, 7, "night-market", now, undefined, rb)).item.id);
     expect(batched).toEqual(single);
   });
 
@@ -130,7 +131,8 @@ describe("openCases", () => {
     const sql = await setup(night.keyPrice * 3 - 1);
     const before = await balance(sql);
     await rejects(openCases(sql, 7, "night-market", 3, now), "too_poor");
-    for (const n of [0, MAX_OPEN + 1, 2.5, "3", null]) await rejects(openCases(sql, 7, "night-market", n, now), "bad_count");
+    for (const n of [0, MAX_OPEN + 1, 2.5, "3", null])
+      await rejects(openCases(sql, 7, "night-market", n, now), "bad_count");
     await rejects(openCases(sql, 7, "nope", 2, now), "not_found");
     expect(await balance(sql)).toBe(before);
     expect(await bag(sql, 7)).toEqual([]);

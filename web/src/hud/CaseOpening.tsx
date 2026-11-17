@@ -424,7 +424,9 @@ export function CaseOpening({
             </ul>
             <span className="cs-marker" aria-hidden="true" />
             {def?.id === "ragnarok-eve" && <PerchedPointer sprite={ravenPointer} className="cs-raven" />}
-            {def?.id === "julemarked" && <PerchedPointer sprite={nissePointer} className="cs-raven cs-nisse" />}
+            {def?.id === "julemarked" && (
+              <PerchedPointer sprite={nissePointer} className="cs-raven cs-nisse" />
+            )}
             {def?.id === "julemarked" && reel.won && rarityIn(reel.won) === "legendary" && (
               <span aria-hidden="true" className="cs-snowfall" />
             )}
