@@ -44,7 +44,8 @@ export const BUDGETS: Record<BudgetTier, Record<string, RoomBudget>> = {
   },
   // Chamfered boxes: High, and Ultra, which only differs in post and shadows.
   high: {
-    town: room(360, 445_000, 105, 17.5),
+    // The company logos across the roofs are 0.2 MB a branded house, at 96 pixels a unit.
+    town: room(360, 445_000, 105, 18.5),
     hq: room(35, 24_000, 20, 1),
     office: room(35, 14_000, 25, 1),
     // Includes the request pile's board on the north wall (cork, four notes, a plank).
