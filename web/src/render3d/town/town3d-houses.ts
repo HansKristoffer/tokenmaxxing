@@ -1,6 +1,6 @@
 /**
  * The buildings of the town: a company's house by tier (basement hatch to mansion, in the company's own
- * colours, with its name on a sign and its logo on a plaque) and the Tavern. Faithful to
+ * colours, with its name on a sign and its logo across the roof) and the Tavern. Faithful to
  * `web/src/art/buildings.ts`. Every model faces +z with its origin on the ground at the middle of its
  * front wall, the door in the middle: the door tile lies just in front of it.
  */
@@ -8,8 +8,7 @@ import * as THREE from "three";
 import { C } from "../../art/palette.ts";
 import { type Brand, HOUSE_TIER_NAMES } from "../data/town.ts";
 import { light } from "../furniture/furniture.ts";
-import { canvasTexture, glow, Model, ticks, tint, toon } from "../kit/kit.ts";
-import { type Panel, panel } from "../kit/panel.ts";
+import { canvasTexture, glow, Model, painted, ticks, tint, toon } from "../kit/kit.ts";
 import { bush, hedge, mailbox, nightGlow } from "./props.ts";
 
 interface Style {
@@ -33,36 +32,92 @@ const PLINTH = 0.2;
 
 // MARK: Logos
 
-const logos = new Map<string, HTMLImageElement | null>();
+/** Each logo once it has loaded, or the redraws waiting for it. */
+const logos = new Map<string, HTMLImageElement | (() => void)[]>();
+
 /** A company logo fitted into a box, smoothly; `again` runs once it has loaded. */
 function drawLogo(g: CanvasRenderingContext2D, src: string, w: number, h: number, again: () => void): void {
-  if (!logos.has(src)) {
-    logos.set(src, null);
+  const known = logos.get(src);
+  if (known === undefined) {
+    const waiting = [again];
+    logos.set(src, waiting);
     const img = new Image();
     img.onload = () => {
       logos.set(src, img);
-      again();
+      for (const redraw of waiting) redraw();
     };
     img.src = src;
+    return;
   }
-  const img = logos.get(src);
-  if (!img) return;
-  const s = Math.min(w / (img.naturalWidth || w), h / (img.naturalHeight || h));
-  const iw = (img.naturalWidth || w) * s;
-  const ih = (img.naturalHeight || h) * s;
+  // Every board built while it loads repaints, not just the first: a town rebuilt meanwhile would keep a blank one.
+  if (Array.isArray(known)) {
+    known.push(again);
+    return;
+  }
+  const s = Math.min(w / (known.naturalWidth || w), h / (known.naturalHeight || h));
+  const iw = (known.naturalWidth || w) * s;
+  const ih = (known.naturalHeight || h) * s;
   g.imageSmoothingEnabled = true;
-  g.drawImage(img, (w - iw) / 2, (h - ih) / 2, iw, ih);
+  g.drawImage(known, (w - iw) / 2, (h - ih) / 2, iw, ih);
 }
 
-/** The logo plaque, `w`×`h`, standing on the floor of its own model. */
-function plaque(brand: Brand, w: number, h: number, frame: string): Panel {
-  const draw = (g: CanvasRenderingContext2D, cw: number, ch: number) => {
+/**
+ * A board with the company's logo, `w`×`h` inside a frame, standing on the floor of its own model and facing +z.
+ * The logo sits in a margin on the brand's plaque colour, and the board lights up at night so it reads after dark.
+ */
+function logoBoard(brand: Brand, w: number, h: number, frame: string): Model {
+  const m = new Model();
+  m.box([w + 0.12, h + 0.12, 0.08], frame, [0, 0, 0], 0.02);
+  const cw = Math.round(w * 160);
+  const ch = Math.round(h * 160);
+  const pad = Math.round(Math.min(cw, ch) * 0.1);
+  const draw = (g: CanvasRenderingContext2D) => {
     g.fillStyle = brand.plaque;
     g.fillRect(0, 0, cw, ch);
-    if (brand.logo) drawLogo(g, brand.logo, cw, ch, () => p.redraw(draw));
+    if (!brand.logo) return;
+    g.save();
+    g.translate(pad, pad);
+    drawLogo(g, brand.logo, cw - 2 * pad, ch - 2 * pad, () => {
+      draw(g);
+      tex.needsUpdate = true;
+    });
+    g.restore();
   };
-  const p: Panel = panel(w, h, draw, { frame, px: 64, smooth: true });
-  return p;
+  const tex = canvasTexture(cw, ch, draw, true);
+  const face = m.plane(w, h, painted(tex), [0, (h + 0.12) / 2, 0.045]);
+  nightGlow(face, glow("#fff", tex));
+  return m;
+}
+
+/**
+ * The logo as big as the roof takes it, flat on the front slope of a `gableRoof` (eaves at `y`) in `roof`'s
+ * frame. The front slope faces the camera, so this is what you see of a house from across the town.
+ */
+function roofLogo(
+  roof: Model,
+  brand: Brand,
+  w: number,
+  d: number,
+  y: number,
+  rise: number,
+  frame: string,
+): void {
+  const half = d / 2 + 0.2;
+  const slope = Math.atan2(rise, half);
+  const length = Math.hypot(half, rise);
+  const h = Math.min(1.3, length * 0.6);
+  const bw = Math.min(w - 0.8, h * (w >= 7 ? 2.6 : 2.2));
+  // The board's bottom edge, along the slope up from the eave, centring it; lifted clear of the shingle courses.
+  const up = (length - (h + 0.12)) / 2;
+  const lift = 0.08;
+  const board = logoBoard(brand, bw, h, frame);
+  board.position.set(
+    0,
+    y + up * Math.sin(slope) + lift * Math.cos(slope),
+    half - up * Math.cos(slope) + lift * Math.sin(slope),
+  );
+  board.rotation.x = slope - Math.PI / 2;
+  roof.add(board);
 }
 
 // MARK: Pieces
@@ -351,18 +406,10 @@ export function companyHouse(tier: number, name: string, brand: Brand | null): M
     m.add(placed(bush(9 + t), w / 2 + 0.2, 0.3));
   }
 
-  // The name on its sign; the logo on the roof, or the tower.
+  // The name on its sign; the logo across the roof.
   if (floors >= 2) nameBoard(m, name, PLINTH + (wide ? 0.96 : 1.02), s.trim);
   else nameSign(m, name, [1.5, 0.35], s.trim);
-  if (brand?.logo != null && t !== 5) {
-    const half = d / 2 + 0.2;
-    const slope = Math.atan(rise / half);
-    const f = 0.42;
-    const p = plaque(brand, 0.9, 0.5, s.trim);
-    p.position.set(0, eave + rise * f - 0.3, -d / 2 + half - f * half + 0.05);
-    p.rotation.x = -slope;
-    m.add(p);
-  }
+  if (brand?.logo != null) roofLogo(roofGroup, brand, w, d, eave, rise, s.trim);
 
   if (t === 5) tower(m, d, h, rise, s, brand);
 
@@ -379,7 +426,7 @@ function placed<T extends THREE.Object3D>(o: T, x: number, z: number): T {
   return o;
 }
 
-/** The mansion's tower: three windows high with a pointed roof, a flag in the plaque colour, and the logo. */
+/** The mansion's tower: two windows high with a pointed roof and a flag in the plaque colour. */
 function tower(m: Model, d: number, h: number, rise: number, s: Style, brand: Brand | null): void {
   const tw = 1.7;
   const th = 1.9;
@@ -399,14 +446,10 @@ function tower(m: Model, d: number, h: number, rise: number, s: Style, brand: Br
   ticks.push((time) => (flag.rotation.y = Math.sin(time * 3) * 0.18));
   const face = t.part([0, 0, tw / 2]);
   windowOn(face, 0, top - 0.3, s.trim);
-  if (brand?.logo != null) {
-    const p = plaque(brand, 0.85, 0.55, s.trim);
-    p.position.set(0, top + 0.55, tw / 2 - 0.02);
-    t.add(p);
-  } else windowOn(face, 0, top + 0.6, s.trim);
+  windowOn(face, 0, top + 0.6, s.trim);
 }
 
-/** The cellar of the lowest tier: a hatch with its doors swung open, a barred window and a signpost. */
+/** The cellar of the lowest tier: a hatch with its doors swung open, a barred window, a signpost and the logo's billboard. */
 function basement(m: Model, name: string, s: Style, brand: Brand | null): Model {
   yard(m);
   m.box([2.3, 0.2, 1.5], C.stoneDark, [0, 0, -0.35], 0.03);
@@ -432,10 +475,11 @@ function basement(m: Model, name: string, s: Style, brand: Brand | null): Model 
   m.add(placed(bush(4), 3.0, 0.1));
   nameSign(m, name, [-1.7, 0.35], s.trim);
   if (brand?.logo != null) {
-    m.box([0.07, 1.2, 0.07], C.woodDark, [2.7, 0, -0.3], 0.02);
-    const p = plaque(brand, 0.8, 0.4, s.trim);
-    p.position.set(2.7, 0.95, -0.25);
-    m.add(p);
+    // No roof to carry it: a billboard on two posts behind the hatch, facing the street.
+    for (const x of [-0.9, 0.9]) m.box([0.09, 0.85, 0.09], C.woodDark, [x, 0, -2.75], 0.02);
+    const board = logoBoard(brand, 2.4, 1.1, s.trim);
+    board.position.set(0, 0.75, -2.65);
+    m.add(board);
   }
   const mb = mailbox(brand?.roof ?? s.roof);
   mb.position.set(-1.0, 0, 0.5);
