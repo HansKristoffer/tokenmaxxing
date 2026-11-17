@@ -68,8 +68,8 @@ function drawLogo(g: CanvasRenderingContext2D, src: string, w: number, h: number
 function logoBoard(brand: Brand, w: number, h: number, frame: string): Model {
   const m = new Model();
   m.box([w + 0.12, h + 0.12, 0.08], frame, [0, 0, 0], 0.02);
-  const cw = Math.round(w * 160);
-  const ch = Math.round(h * 160);
+  const cw = Math.round(w * 96);
+  const ch = Math.round(h * 96);
   const pad = Math.round(Math.min(cw, ch) * 0.1);
   const draw = (g: CanvasRenderingContext2D) => {
     g.fillStyle = brand.plaque;
