@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.22.0](https://github.com/HansKristoffer/tokenmaxxing/compare/v1.21.0...v1.22.0) (2026-11-18)
+
+
+### Features
+
+* **cases:** open up to 5 cases at once ([167969d](https://github.com/HansKristoffer/tokenmaxxing/commit/167969db231aa664832db8e2e5524ea3f31c77a7))
+* **cases:** open up to 5 cases at once ([a64e1ba](https://github.com/HansKristoffer/tokenmaxxing/commit/a64e1bac337a12e5802d332eedaa567293e68aa6))
+
 ## [1.21.0](https://github.com/HansKristoffer/tokenmaxxing/compare/v1.20.0...v1.21.0) (2026-11-17)
 
 
