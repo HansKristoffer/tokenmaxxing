@@ -14,6 +14,97 @@
   display: flex;
   gap: 8px;
 }
+/* How many at once: 1x to 5x, a small segmented row above the open button. */
+.cs-count {
+  display: flex;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+.cs-count button {
+  min-width: 40px;
+  padding: 4px 8px;
+  font-variant-numeric: tabular-nums;
+}
+.cs-count button.on {
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent);
+  color: var(--accent);
+}
+
+/* One reel per case opened, stacked. With several, each is shorter: the picture and the name, no slot line. */
+.cs-reels {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.cs-reels.multi .cs-roulette {
+  height: 116px;
+}
+.cs-reels.multi .cs-strip {
+  padding: 6px 0;
+}
+.cs-reels.multi .cs-pic {
+  height: 56px;
+}
+.cs-reels.multi .cs-slot {
+  display: none;
+}
+.cs-reels.multi .cs-tile.won {
+  animation-name: cs-pop-small;
+}
+@keyframes cs-pop-small {
+  55% {
+    transform: scale(1.06);
+  }
+  100% {
+    transform: scale(1.03);
+  }
+}
+
+/* Several cases at once: everything won, best first. */
+.cs-reveal-all {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.cs-reveal-all-head {
+  margin: 0;
+}
+.cs-reveal-all ul {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.cs-reveal-all li {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 10px 8px;
+  border-radius: 10px;
+  border: 2px solid var(--r);
+  text-align: center;
+  background:
+    radial-gradient(circle at 50% 30%, color-mix(in srgb, var(--r) 30%, transparent), transparent 70%),
+    rgba(0, 0, 0, 0.25);
+  box-shadow: 0 0 14px color-mix(in srgb, var(--r) 45%, transparent);
+  animation: cs-in 0.4s ease-out both;
+}
+.cs-reveal-all li strong {
+  font-size: 14px;
+}
+.cs-reveal-all .cs-rarity {
+  font-size: 10px;
+}
+
 .cs-roulette {
   position: relative;
   flex: none;
@@ -289,7 +380,8 @@
 
 @media (prefers-reduced-motion: reduce) {
   .cs-tile.won,
-  .cs-reveal {
+  .cs-reveal,
+  .cs-reveal-all li {
     animation: none;
   }
   .cs-strip .cs-tile {

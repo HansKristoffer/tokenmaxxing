@@ -1,6 +1,6 @@
 import { CASE_ITEMS } from "@tokenmaxxing/core/case.ts";
 import { CASE_PIECES } from "@tokenmaxxing/core/case-furniture.ts";
-import type { CaseDef } from "@tokenmaxxing/core/cases.ts";
+import { type CaseDef, MAX_OPEN } from "@tokenmaxxing/core/cases.ts";
 import { RARITIES, RARITY_COLOR, type Rarity } from "@tokenmaxxing/core/rarity.ts";
 import type { Item } from "@tokenmaxxing/core/shop.ts";
 import { defaultLook } from "@tokenmaxxing/core/world.ts";
@@ -98,6 +98,8 @@ const TILES = 60;
 const WINNER_AT = 50;
 /** Seconds of spin. */
 const SPIN_S = 6.5;
+/** With several cases at once, each reel lands this much after the one above it. */
+const STAGGER_S = 0.3;
 /** The same, when motion is reduced: a short slide, then the reveal. */
 const REDUCED_S = 0.35;
 /** Position 0..1 of the way there at time 0..1: cubic ease-out, so it starts at ~3x the average speed and ends in a crawl. */
@@ -181,11 +183,25 @@ const BELL_RISE = { rare: 0, epic: 1, legendary: 2 } as const;
 
 type Phase = "idle" | "waiting" | "spinning" | "reveal";
 
+/** The best rarity among `items` (common for none). */
+const bestOf = (items: readonly Item[]): Rarity =>
+  items.reduce<Rarity>(
+    (best, it) => (RARITIES.indexOf(rarityIn(it)) > RARITIES.indexOf(best) ? rarityIn(it) : best),
+    "common",
+  );
+
+/** The open button's words: one case or several, the first time or again. */
+const openLabel = (n: number, again: boolean): string => {
+  if (n === 1) return again ? "Open another" : "Open case";
+  return again ? `Open ${n} more` : `Open ${n} cases`;
+};
+
 /**
- * The case-opening screen. No server calls of its own: `roll` decides the winner BEFORE the strip is built.
- * `roll()` resolves to the `Item` (shop item, id like `hat.203` / `furn.Ж`) the server has already granted
- * (the case shop passes the real `openCase`). It may reject (shown as an error, nothing spins). `keyPrice` is
- * what the button shows. The spin is cosmetic; the result never depends on it.
+ * The case-opening screen. No server calls of its own: `roll` decides the winners BEFORE the strips are built.
+ * `roll(count)` resolves to the `count` `Item`s (shop items, ids like `hat.203` / `furn.Ж`) the server has already
+ * granted (the case shop passes the real `openCases`). It may reject (shown as an error, nothing spins). The player
+ * picks 1 to `MAX_OPEN` at a time; each gets its own reel. `keyPrice` is one key, what the button multiplies.
+ * The spin is cosmetic; the result never depends on it.
  *
  * With no `roll` it is the dev preview: the mock roll on the placeholder pool and odds, no coins spent. `def`
  * is the case being opened (its name, items and odds); `onClose` takes the Close button somewhere other than
@@ -197,7 +213,7 @@ export function CaseOpening({
   def,
   onClose,
 }: {
-  roll?: () => Item | Promise<Item>;
+  roll?: (count: number) => Item[] | Promise<Item[]>;
   keyPrice?: number;
   def?: CaseDef;
   onClose?: () => void;
@@ -211,10 +227,11 @@ export function CaseOpening({
   );
   const wallet = useHud((s) => s.wallet);
   const [phase, setPhase] = useState<Phase>("idle");
-  const [run, setRun] = useState<Run | null>(null);
+  const [count, setCount] = useState(1);
+  const [runs, setRuns] = useState<Run[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const viewport = useRef<HTMLDivElement>(null);
-  const strip = useRef<HTMLUListElement>(null);
+  const viewports = useRef<(HTMLDivElement | null)[]>([]);
+  const strips = useRef<(HTMLUListElement | null)[]>([]);
   const raf = useRef(0);
   const live = useRef(true);
   useEffect(
@@ -225,7 +242,10 @@ export function CaseOpening({
     [],
   );
 
-  const idle = useMemo(() => Array.from({ length: 12 }, filler), [filler]);
+  const idle = useMemo(
+    () => Array.from({ length: MAX_OPEN }, () => Array.from({ length: 12 }, filler)),
+    [filler],
+  );
   const byRarity = useMemo(
     () => [...RARITIES].reverse().map((r) => ({ r, items: pool.filter((i) => rarityIn(i) === r) })),
     [pool],
@@ -238,52 +258,63 @@ export function CaseOpening({
     tone(c, c.currentTime, 0.04, 1500 + Math.random() * 80, "square", 0.25);
   }, []);
 
-  // Runs the animation once the strip for `run` is on screen.
+  // Runs the animation once the strips for `runs` are on screen: one frame loop for every reel, each with its own
+  // landing spot and (with several) a little later than the one above. Only the top reel ticks.
   useEffect(() => {
-    if (phase !== "spinning" || !run || !strip.current || !viewport.current) return;
-    const el = strip.current;
-    const vw = viewport.current.clientWidth;
-    const target = WINNER_AT * PITCH + TILE / 2 + run.jitter * TILE - vw / 2;
-    const ms = (reducedMotion() ? REDUCED_S : SPIN_S) * 1000;
-    const fx = !reducedMotion();
+    if (phase !== "spinning" || !runs.length) return;
+    const els = runs.map((_, i) => ({ el: strips.current[i], vp: viewports.current[i] }));
+    if (els.some((r) => !r.el || !r.vp)) return;
+    const reduced = reducedMotion();
     const t0 = performance.now();
-    let lastIdx = -1;
-    let lastX = 0;
-    let lastT = t0;
+    const reels = runs.map((run, i) => {
+      const vw = els[i]!.vp!.clientWidth;
+      return {
+        el: els[i]!.el!,
+        vw,
+        target: WINNER_AT * PITCH + TILE / 2 + run.jitter * TILE - vw / 2,
+        ms: (reduced ? REDUCED_S : SPIN_S + i * STAGGER_S) * 1000,
+        lastIdx: -1,
+        lastX: 0,
+        lastT: t0,
+      };
+    });
     const frame = (now: number) => {
-      const t = Math.min(1, (now - t0) / ms);
-      const x = target * ease(t);
-      el.style.transform = `translate3d(${-x}px,0,0)`;
-      const idx = Math.floor((x + vw / 2) / PITCH);
-      if (idx !== lastIdx) {
-        if (lastIdx >= 0 && fx) tick();
-        lastIdx = idx;
-      }
-      const dt = now - lastT;
-      if (dt > 0) {
-        const v = ((x - lastX) / dt) * 1000;
-        el.dataset.speed = speedClass(v);
-        lastX = x;
-        lastT = now;
-      }
-      if (t < 1) raf.current = requestAnimationFrame(frame);
-      else {
-        el.dataset.speed = "slow";
-        if (live.current) setPhase("reveal");
-      }
+      let done = true;
+      reels.forEach((r, i) => {
+        const t = Math.min(1, (now - t0) / r.ms);
+        const x = r.target * ease(t);
+        r.el.style.transform = `translate3d(${-x}px,0,0)`;
+        const idx = Math.floor((x + r.vw / 2) / PITCH);
+        if (idx !== r.lastIdx) {
+          if (i === 0 && r.lastIdx >= 0 && !reduced) tick();
+          r.lastIdx = idx;
+        }
+        const dt = now - r.lastT;
+        if (dt > 0) {
+          r.el.dataset.speed = t < 1 ? speedClass(((x - r.lastX) / dt) * 1000) : "slow";
+          r.lastX = x;
+          r.lastT = now;
+        }
+        if (t < 1) done = false;
+      });
+      if (!done) raf.current = requestAnimationFrame(frame);
+      else if (live.current) setPhase("reveal");
     };
     raf.current = requestAnimationFrame(frame);
     return () => cancelAnimationFrame(raf.current);
-  }, [phase, run, tick]);
+  }, [phase, runs, tick]);
+
+  const affordable = (n: number) => preview || !wallet || wallet.balance >= keyPrice * n;
 
   const open = async () => {
     if (phase === "waiting" || phase === "spinning") return;
     setError(null);
     setPhase("waiting");
     audio(); // wakes the audio inside the click that asked for it
-    let winner: Item;
+    for (const el of strips.current) if (el) el.style.transform = "translate3d(0,0,0)";
+    let winners: Item[];
     try {
-      winner = await (roll ?? mockRoll)();
+      winners = roll ? await roll(count) : Array.from({ length: count }, mockRoll);
     } catch (e) {
       if (live.current) {
         let message = "Couldn't open the case.";
@@ -295,17 +326,22 @@ export function CaseOpening({
       return;
     }
     if (!live.current) return;
-    if (strip.current) strip.current.style.transform = "translate3d(0,0,0)";
-    setRun(buildRun(winner, filler));
+    setRuns(winners.map((w) => buildRun(w, filler)));
     setPhase("spinning");
   };
 
   const busy = phase === "waiting" || phase === "spinning";
-  const shown = run && phase !== "idle" && phase !== "waiting" ? run.tiles : null;
-  const won = phase === "reveal" ? run?.winner : undefined;
+  const spun = runs.length > 0 && phase !== "idle" && phase !== "waiting";
+  // The reels on screen: the last spin's, or (before one, or while asking) as many idle ones as are picked.
+  const reels: { tiles: Item[]; won?: Item }[] = spun
+    ? runs.map((r) => ({ tiles: r.tiles, won: phase === "reveal" ? r.winner : undefined }))
+    : idle.slice(0, count).map((tiles) => ({ tiles }));
+  const wins = phase === "reveal" ? runs.map((r) => r.winner) : [];
+  const wonIds = new Set(wins.map((w) => w.id));
+  const multi = reels.length > 1;
 
   // Julemarked: a soft bell triad when a rare or better item lands (a higher bell for each tier above rare).
-  const bellFor = won && def?.id === "julemarked" ? rarityIn(won) : undefined;
+  const bellFor = wins.length && def?.id === "julemarked" ? bestOf(wins) : undefined;
   useEffect(() => {
     if (!bellFor || bellFor === "common" || bellFor === "uncommon") return;
     if (hud.get().jukeSettings.muted) return;
@@ -332,9 +368,24 @@ export function CaseOpening({
               You have <strong>{coins(wallet.balance)}</strong>
             </p>
           )}
+          <fieldset className="cs-count" aria-label="How many cases to open">
+            {Array.from({ length: MAX_OPEN }, (_, i) => i + 1).map((n) => (
+              <button
+                key={n}
+                type="button"
+                aria-pressed={count === n}
+                className={count === n ? "on" : undefined}
+                disabled={busy || !affordable(n)}
+                title={affordable(n) ? `Open ${n} at once` : `${n} keys are ${coins(keyPrice * n)}`}
+                onClick={() => setCount(n)}
+              >
+                {n}×
+              </button>
+            ))}
+          </fieldset>
           <div className="cs-actions">
             <button type="button" className="primary" disabled={busy} onClick={() => void open()}>
-              {phase === "reveal" ? "Open another" : "Open case"} · {coins(keyPrice)}
+              {openLabel(count, phase === "reveal")} · {coins(keyPrice * count)}
             </button>
             {!busy && (phase === "reveal" || onClose) && (
               <button type="button" onClick={onClose ?? (() => hud.set({ panel: null }))}>
@@ -346,29 +397,47 @@ export function CaseOpening({
         </div>
       </div>
 
-      <div
-        className={`cs-roulette${busy ? " live" : ""}${phase === "reveal" ? " landed" : ""}`}
-        data-case={def?.id}
-        data-win={won ? rarityIn(won) : undefined}
-        ref={viewport}
-      >
-        <ul className="cs-strip" ref={strip} data-speed="slow" aria-hidden={busy}>
-          {(shown ?? idle).map((it, i) => (
-            // biome-ignore lint/suspicious/noArrayIndexKey: the strip is positional; a winner repeats items
-            <Tile key={i} item={it} won={!!won && i === WINNER_AT} />
-          ))}
-        </ul>
-        <span className="cs-marker" aria-hidden="true" />
-        {def?.id === "ragnarok-eve" && <PerchedPointer sprite={ravenPointer} className="cs-raven" />}
-        {def?.id === "julemarked" && <PerchedPointer sprite={nissePointer} className="cs-raven cs-nisse" />}
-        {def?.id === "julemarked" && won && rarityIn(won) === "legendary" && (
-          <span aria-hidden="true" className="cs-snowfall" />
-        )}
-        <span className="cs-fade l" />
-        <span className="cs-fade r" />
+      <div className={`cs-reels${multi ? " multi" : ""}`}>
+        {reels.map((reel, r) => (
+          <div
+            // biome-ignore lint/suspicious/noArrayIndexKey: one reel per case opened, in order
+            key={r}
+            className={`cs-roulette${busy ? " live" : ""}${reel.won ? " landed" : ""}`}
+            data-case={def?.id}
+            data-win={reel.won ? rarityIn(reel.won) : undefined}
+            ref={(el) => {
+              viewports.current[r] = el;
+            }}
+          >
+            <ul
+              className="cs-strip"
+              ref={(el) => {
+                strips.current[r] = el;
+              }}
+              data-speed="slow"
+              aria-hidden={busy}
+            >
+              {reel.tiles.map((it, i) => (
+                // biome-ignore lint/suspicious/noArrayIndexKey: the strip is positional; a winner repeats items
+                <Tile key={i} item={it} won={!!reel.won && i === WINNER_AT} />
+              ))}
+            </ul>
+            <span className="cs-marker" aria-hidden="true" />
+            {def?.id === "ragnarok-eve" && <PerchedPointer sprite={ravenPointer} className="cs-raven" />}
+            {def?.id === "julemarked" && (
+              <PerchedPointer sprite={nissePointer} className="cs-raven cs-nisse" />
+            )}
+            {def?.id === "julemarked" && reel.won && rarityIn(reel.won) === "legendary" && (
+              <span aria-hidden="true" className="cs-snowfall" />
+            )}
+            <span className="cs-fade l" />
+            <span className="cs-fade r" />
+          </div>
+        ))}
       </div>
 
-      {won && <Reveal item={won} />}
+      {wins.length === 1 && <Reveal item={wins[0]!} />}
+      {wins.length > 1 && <RevealAll items={wins} />}
 
       <h3>Contains</h3>
       <div className="cs-contains">
@@ -383,7 +452,7 @@ export function CaseOpening({
                 // Like a CS knife: it says there is one in here, never which. You see it when you win it.
                 <li
                   title="Something rarer than the rest. You find out when you open it."
-                  className={`mystery${won && rarityIn(won) === "legendary" ? " got" : ""}`}
+                  className={`mystery${wins.some((w) => rarityIn(w) === "legendary") ? " got" : ""}`}
                 >
                   <span className="cs-q">???</span>
                   <span className="cs-name">Legendary Item!</span>
@@ -395,7 +464,7 @@ export function CaseOpening({
                 </li>
               ) : (
                 items.map((it) => (
-                  <li key={it.id} title={it.blurb} className={won?.id === it.id ? "got" : undefined}>
+                  <li key={it.id} title={it.blurb} className={wonIds.has(it.id) ? "got" : undefined}>
                     <ItemImage item={it} look={LOOK} bare />
                     <span className="cs-name">{it.name}</span>
                     <span className="cs-slot">
@@ -440,6 +509,44 @@ function PerchedPointer({ sprite, className }: { sprite: () => CanvasImageSource
 function PlayerHint() {
   const me = useHud((s) => s.me);
   return me ? null : <p className="muted small">Preview: no coins are spent.</p>;
+}
+
+/** Several cases at once: everything won, best first, each card in its rarity's colour. */
+function RevealAll({ items }: { items: readonly Item[] }) {
+  const sorted = [...items].sort((a, b) => RARITIES.indexOf(rarityIn(b)) - RARITIES.indexOf(rarityIn(a)));
+  const best = bestOf(items);
+  return (
+    <div className="cs-reveal-all" role="status">
+      <p className="cs-reveal-all-head">
+        You got {items.length} items. Best:{" "}
+        <span className="cs-rarity" style={{ color: RARITY_COLOR[best] }}>
+          {best}
+        </span>
+      </p>
+      <ul>
+        {sorted.map((item, i) => {
+          const rarity = rarityIn(item);
+          return (
+            <li
+              // biome-ignore lint/suspicious/noArrayIndexKey: the same item can be won twice
+              key={i}
+              title={item.blurb}
+              style={{ "--r": RARITY_COLOR[rarity], animationDelay: `${i * 70}ms` } as CSSProperties}
+            >
+              <span className="cs-pic">
+                <ItemImage item={item} look={LOOK} bare />
+              </span>
+              <strong>{item.name}</strong>
+              <span className="cs-rarity" style={{ color: RARITY_COLOR[rarity] }}>
+                {rarity} · {item.slot}
+              </span>
+            </li>
+          );
+        })}
+      </ul>
+      <span className="muted small">Tradeable right away</span>
+    </div>
+  );
 }
 
 function Reveal({ item }: { item: Item }) {

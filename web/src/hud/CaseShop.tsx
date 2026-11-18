@@ -86,7 +86,7 @@ function pagerKey(e: KeyboardEvent): 1 | -1 | 0 {
 /**
  * Natmarked's counter and shelves: the cases on sale, one at a time (left and right, the arrow keys or the dots),
  * then a locked "Coming soon" while a shelf is still empty. Each card has the case's art, what it costs, "Open case"
- * (the opening screen, wired to the server's `openCase`), the odds of everything inside and a button that sells
+ * (the opening screen, 1 to 5 at a time, wired to the server's `openCases`), the odds of everything inside and a button that sells
  * the spare copies back to the vendor. The server rolls and charges; this only asks and shows.
  */
 export function CaseShop({ shelf, shop = "natmarked" }: { shelf?: number; shop?: CaseShopId }) {
@@ -148,10 +148,10 @@ export function CaseShop({ shelf, shop = "natmarked" }: { shelf?: number; shop?:
         def={opening}
         keyPrice={opening.keyPrice}
         onClose={() => setOpening(null)}
-        roll={async () => {
-          const r = await town.openCase(opening.id);
+        roll={async (count) => {
+          const r = await town.openCases(opening.id, count);
           hud.set({ wallet: r.wallet });
-          return r.item;
+          return r.items;
         }}
       />
     );
