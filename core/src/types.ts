@@ -14,6 +14,7 @@ export const SOURCES = [
   "cursor_local",
   "grok_bot",
   "opencode",
+  "antigravity",
   "github",
 ] as const;
 export type Source = (typeof SOURCES)[number];
