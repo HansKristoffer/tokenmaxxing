@@ -20,6 +20,8 @@ beforeEach(async () => {
   process.env.POSTHOG_DESKTOP_DIR = join(dir, "posthog");
   // OpenCode's database is under $XDG_DATA_HOME/opencode.
   process.env.XDG_DATA_HOME = join(dir, "data");
+  // Antigravity's conversations, and the language server it asks about older ones.
+  process.env.ANTIGRAVITY_DATA_DIR = join(dir, "antigravity");
   await mkdir(join(dir, "claude", "projects", "p"), { recursive: true });
   await writeFile(
     join(dir, "claude", "projects", "p", "s1.jsonl"),
@@ -44,6 +46,7 @@ afterEach(async () => {
     "CLAUDE_COWORK_DIR",
     "POSTHOG_DESKTOP_DIR",
     "XDG_DATA_HOME",
+    "ANTIGRAVITY_DATA_DIR",
   ]) {
     delete process.env[k];
   }
