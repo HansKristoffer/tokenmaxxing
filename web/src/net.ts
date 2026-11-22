@@ -99,7 +99,9 @@ let session = "";
 export async function redeem(code: string): Promise<void> {
   const userId = parsePhoneCode(code)?.userId ?? code.split(".")[0]!;
   const player = client.player.get([String(userId)]).connect();
-  storage.setItem(TOKEN_KEY, await player.redeemLoginCode(code).finally(() => player.dispose()));
+
+  const token = await player.redeemLoginCode(code).finally(() => player.dispose());
+  storage.setItem(TOKEN_KEY, token);
 }
 
 /**
@@ -407,7 +409,9 @@ async function refreshStats(force = false): Promise<void> {
 let gateAt = 0;
 /** A shut gate (the launch, or Monday 08:00) is asked about again the moment it opens, not up to 30 s later. */
 function gateTimer(raid: Raid): void {
-  const at = raid.prelaunch ? raid.launchAt : raid.closed ? raid.endsAt : 0;
+  let at = 0;
+  if (raid.prelaunch) at = raid.launchAt;
+  else if (raid.closed) at = raid.endsAt;
   if (!at || at === gateAt || at <= Date.now()) return;
   gateAt = at;
   // A moment after the gate's time, so the server has opened it by the time it is asked.
@@ -423,19 +427,20 @@ function gateTimer(raid: Raid): void {
 function applyLobby(lobby: Lobby): void {
   const before = hud.get().lobby;
   const me = hud.get().me?.userId;
-  const invite = lobby.tables.find(
-    (t) =>
-      t.invited.some((i) => i.userId === me) &&
-      !before?.tables.some((b) => b.id === t.id && b.invited.some((i) => i.userId === me)),
-  );
+  const invite = lobby.tables.find((t) => {
+    const invitedNow = t.invited.some((i) => i.userId === me);
+    const invitedBefore = before?.tables.some((b) => b.id === t.id && b.invited.some((i) => i.userId === me));
+    return invitedNow && !invitedBefore;
+  });
   hud.set({ lobby, ...(invite ? { inviteTable: invite.id } : {}) });
+
   // Stakes, bets and payouts move coins: my place in the lobby changes, or a game I played or bet on ends.
-  const paid = lobby.matches.some(
-    (m) =>
-      m.outcome &&
-      !before?.matches.some((b) => b.id === m.id && b.outcome) &&
-      (m.players.some((p) => p.userId === me) || (before?.me.bets[m.id] ?? lobby.me.bets[m.id])),
-  );
+  const paid = lobby.matches.some((m) => {
+    const settledNow = m.outcome && !before?.matches.some((b) => b.id === m.id && b.outcome);
+    const involvesMe =
+      m.players.some((p) => p.userId === me) || (before?.me.bets[m.id] ?? lobby.me.bets[m.id]);
+    return settledNow && involvesMe;
+  });
   if (paid || JSON.stringify(lobby.me) !== JSON.stringify(before?.me)) void refreshWallet();
   const playing = lobby.me.match;
   if (playing !== null && playing !== before?.me.match) {

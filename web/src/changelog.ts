@@ -15,8 +15,11 @@ export interface Release {
   sections: { title: string; changes: Change[] }[];
 }
 
+/** A release heading: "## [1.2.0](compare link) (2026-01-31)", with the version and the date. */
 const RELEASE = /^## \[?([^\]\s]+)\]?(?:\([^)]*\))? \((\d{4}-\d{2}-\d{2})\)/;
+/** A bolded scope at the start of a line: "**web:** ". */
 const SCOPE = /^\*\*(.+?):\*\* /;
+/** A credit link to a GitHub login, as server/scripts/changelog-authors.ts writes it. */
 const AUTHOR = /\[@([\w-]+)\]\(https:\/\/github\.com\/[\w-]+\)/g;
 /** A trailing link to an issue or commit: "([#44](…))", "([7d5d1b2](…))". */
 const REF = / \(\[[^\]]+\]\([^)]+\)\)$/;
@@ -59,6 +62,9 @@ export const releases = parseChangelog(changelog);
  */
 export function unseenReleases(all: Release[], seen: string | null, returning: boolean): Release[] {
   if (seen === null) return returning ? all.slice(0, 1) : [];
-  const at = all.findIndex((r) => r.version === seen);
-  return all.slice(0, at === -1 ? 1 : Math.min(at, 5));
+
+  // A version the changelog no longer lists shows only the latest release.
+  const seenAt = all.findIndex((r) => r.version === seen);
+  const count = seenAt === -1 ? 1 : Math.min(seenAt, 5);
+  return all.slice(0, count);
 }
