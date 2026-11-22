@@ -189,7 +189,6 @@ export class Avatar {
     const [legL, legR] = this.rig.legs;
     const [armL, armR] = this.rig.arms;
     const [kneeL, kneeR] = this.knees;
-    const HIP = this.rig.hip;
     const b = this.body;
     b.position.set(0, 0, 0);
     b.rotation.set(0, 0, 0);
@@ -224,7 +223,7 @@ export class Avatar {
         break;
       case "sit":
       case "type":
-        b.position.y = -HIP + 0.02;
+        b.position.y = -this.hip + 0.02;
         legL.rotation.x = -Math.PI / 2;
         legR.rotation.x = -Math.PI / 2;
         kneeL.rotation.x = 1.35;
@@ -254,7 +253,7 @@ export class Avatar {
       case "dance": {
         if (this.move) {
           // On the clock, not offset: two people doing the same dance are in step.
-          const d = dancePose(this.move, t, HIP, this.height, this.moves);
+          const d = dancePose(this.move, t, this.hip, this.height, this.moves);
           b.position.set(d.slide, d.lift, d.step);
           b.rotation.set(d.lean, d.turn, d.tilt);
           const put = (o: THREE.Object3D, v: V3) => o.rotation.set(v[0], v[1], v[2]);

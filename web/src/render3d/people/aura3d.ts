@@ -7,8 +7,9 @@ import { disposeObject } from "../engine/dispose.ts";
  * picture are shared by every aura; each one has its own materials, for its colour and strength.
  */
 
-let shapes: { inner: THREE.BufferGeometry; outer: THREE.BufferGeometry; ring: THREE.BufferGeometry } | null =
-  null;
+type Shapes = { inner: THREE.BufferGeometry; outer: THREE.BufferGeometry; ring: THREE.BufferGeometry };
+
+let shapes: Shapes | null = null;
 let streaks: THREE.Texture | null = null;
 
 const shared = <T extends { userData: Record<string, unknown> }>(thing: T): T => {

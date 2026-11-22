@@ -94,8 +94,9 @@ function crouch(p: DancePose, a: number, hip: number): void {
 }
 
 /**
- * Writes the pose for `move`, `t` seconds in (plus `offset`, so a crowd isn't in step), into `p`. `hip` and `height`
- * are the dancer's, so a crouch keeps their feet down and a headspin puts their head on the floor.
+ * Writes the pose for `move`, `t` seconds in, into `p`. `t` is the shared clock, so two dancers doing the same move
+ * stay in step. `hip` and `height` are the dancer's, so a crouch keeps their feet down and a headspin puts their head
+ * on the floor.
  */
 export function dancePose(
   move: DanceMove,
@@ -145,14 +146,13 @@ export function dancePose(
     }
     // Both arms swing across together, in front one way and behind the other; the hips go the opposite way.
     case "floss": {
-      const k = Math.sin(b * Math.PI);
       const front = Math.cos(b * Math.PI);
-      set(p.armR, -0.6 * front, 0, 0.75 * k);
-      set(p.armL, 0.6 * front, 0, 0.75 * k);
-      p.slide = -0.08 * k;
-      p.tilt = 0.14 * k;
-      p.turn = -0.15 * k;
-      p.head[2] = 0.06 * k;
+      set(p.armR, -0.6 * front, 0, 0.75 * s);
+      set(p.armL, 0.6 * front, 0, 0.75 * s);
+      p.slide = -0.08 * s;
+      p.tilt = 0.14 * s;
+      p.turn = -0.15 * s;
+      p.head[2] = 0.06 * s;
       break;
     }
     // Snap into a dab, hold it, snap into the other side.
