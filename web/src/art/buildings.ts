@@ -337,7 +337,6 @@ const PLANS = [
     if (logo) plaque(MID - 11, towerTop + 6, 22, 12);
     else pane(MID - 6, towerTop + 8);
     pane(MID - 6, towerTop + 26);
-    p.rect(MID, -2, 1, 2, C.ink);
     p.rect(0, H - (3 * 18 + 10), LOT_W, 2, s.trim);
     portico(p, H, s.trim);
     bush(p, 6, H - 6, 5);
