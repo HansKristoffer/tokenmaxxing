@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.22.0](https://github.com/HansKristoffer/tokenmaxxing/compare/v1.21.0...v1.22.0) (2026-11-22)
+
+
+### Features
+
+* **antigravity:** track local Antigravity usage ([1e9d997](https://github.com/HansKristoffer/tokenmaxxing/commit/1e9d997ad44d1a6726b4f4e0b60f1b4661e8dfa1))
+* **antigravity:** track local Antigravity usage ([6c4de69](https://github.com/HansKristoffer/tokenmaxxing/commit/6c4de699eccf4aee1e4615414e00df684d9b1955))
+* **cases:** open up to 5 cases at once ([167969d](https://github.com/HansKristoffer/tokenmaxxing/commit/167969db231aa664832db8e2e5524ea3f31c77a7))
+* **cases:** open up to 5 cases at once ([a64e1ba](https://github.com/HansKristoffer/tokenmaxxing/commit/a64e1bac337a12e5802d332eedaa567293e68aa6))
+
+
+### Performance Improvements
+
+* speed up world updates and rendering ([#195](https://github.com/HansKristoffer/tokenmaxxing/issues/195)) ([7b30d7c](https://github.com/HansKristoffer/tokenmaxxing/commit/7b30d7c55ae8c6ca65c09d7470ed708671452ca5))
+
 ## [1.21.0](https://github.com/HansKristoffer/tokenmaxxing/compare/v1.20.0...v1.21.0) (2026-11-17)
 
 
