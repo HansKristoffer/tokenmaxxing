@@ -374,10 +374,11 @@ export const player = actor({
         throw new UserError("That code has expired. Make a new one in the app: Link a computer.", {
           code: "expired",
         });
-      if (c.vars.state.devices.length >= MAX_DEVICES)
-        throw new UserError(`At most ${MAX_DEVICES} computers. Remove one in the game first.`, {
-          code: "too_many_devices",
-        });
+      if (c.vars.state.devices.length >= MAX_DEVICES) {
+        const message = `At most ${MAX_DEVICES} computers. Remove one in the game first.`;
+        throw new UserError(message, { code: "too_many_devices" });
+      }
+
       c.vars.state.linkCodes = codes.filter((x) => x.hash !== hash);
       const device = makeToken(c.vars.state.userId);
       const id = c.vars.state.nextDeviceId++;
@@ -467,18 +468,22 @@ export const player = actor({
       const now = Date.now();
       if (!c.vars.ingests.take("sync", now))
         throw new UserError("Syncing too often. Try again in a minute.", { code: "rate_limited" });
+
+      // Malformed events are dropped here and counted as `skipped` in the response.
       const valid: TokenEvent[] = [];
       for (const raw of events) {
         const e = parseEvent(raw, now);
         if (typeof e !== "string") valid.push(e);
       }
+
       const ingested = c.vars.serial(async () => {
         const today = dayKey(now);
         const stored = c.vars.state.stored?.day === today ? c.vars.state.stored.events : 0;
-        if (stored >= EVENTS_PER_DAY)
-          throw new UserError("That's a lot of events for one day. The rest syncs tomorrow.", {
-            code: "rate_limited",
-          });
+        if (stored >= EVENTS_PER_DAY) {
+          const message = "That's a lot of events for one day. The rest syncs tomorrow.";
+          throw new UserError(message, { code: "rate_limited" });
+        }
+
         const days = [...new Set(valid.map((e) => dayKey(e.timestamp)))];
         const inserted = await c.db.transaction(
           async (tx) => {
@@ -705,7 +710,7 @@ const EVENT_TOKENS = "input_tokens + output_tokens + cache_creation_tokens + cac
 export async function tokensBetween(sql: Sql, from: number, to: number): Promise<Usage> {
   const [r] = (await sql.execute(
     `SELECT COALESCE(SUM(MIN(t, ?)), 0) AS tokens, COALESCE(MAX(t > ?), 0) AS flagged FROM (
-       SELECT SUM(input_tokens + output_tokens + cache_creation_tokens + cache_read_tokens) AS t
+       SELECT SUM(${EVENT_TOKENS}) AS t
        FROM events WHERE message_type = 'assistant' AND timestamp >= ? AND timestamp < ?
        GROUP BY timestamp / 60000)`,
     MINUTE_CAP,

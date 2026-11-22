@@ -186,23 +186,24 @@ export const arcade = actor({
         const o: Record<string, unknown> = isRecord(raw) ? raw : {};
         const stake = parseStake(o.stake ?? 0);
         const seats = o.seats ?? game.players.max;
-        if (
-          !Number.isInteger(seats) ||
-          (seats as number) < game.players.min ||
-          (seats as number) > game.players.max
-        )
-          throw new UserError(`${game.name} is for ${game.players.min}–${game.players.max} players.`, {
-            code: "invalid_seats",
-          });
+        const seatCount = seats as number;
+        const seatsFit =
+          Number.isInteger(seats) && seatCount >= game.players.min && seatCount <= game.players.max;
+        if (!seatsFit) {
+          const message = `${game.name} is for ${game.players.min}–${game.players.max} players.`;
+          throw new UserError(message, { code: "invalid_seats" });
+        }
+
         const split = typeof o.split === "string" && o.split in SPLITS ? (o.split as Split) : "all";
         busy(c.vars.state, userId);
+
         const id = c.vars.state.nextId++;
         const table: Table = {
           id,
           game: game.id,
           host: userId,
           stake,
-          seats: seats as number,
+          seats: seatCount,
           split,
           open: o.open !== false,
           options: parseOptions(game, o.options),
@@ -345,12 +346,19 @@ export const arcade = actor({
           throw new UserError("You can't bet on your own game.", { code: "own_game" });
         if (live.bets.some((b) => b.userId === userId))
           throw new UserError("You've already bet on this one.", { code: "already" });
-        if (!live.players.includes(on as number))
+
+        const backed = on as number;
+        const wager = amount as number;
+        if (!live.players.includes(backed))
           throw new UserError("They're not playing.", { code: "not_found" });
-        if (!Number.isInteger(amount) || (amount as number) < 1 || (amount as number) > MAX_SIDE_BET)
-          throw new UserError(`A side bet is 1 to ${MAX_SIDE_BET} coins.`, { code: "invalid_bet" });
-        await main(c.client()).town.hold(betsRef(live.id), "bet", [{ userId, amount: amount as number }]);
-        live.bets.push({ userId, on: on as number, amount: amount as number });
+        if (!Number.isInteger(wager) || wager < 1 || wager > MAX_SIDE_BET) {
+          const message = `A side bet is 1 to ${MAX_SIDE_BET} coins.`;
+          throw new UserError(message, { code: "invalid_bet" });
+        }
+
+        await main(c.client()).town.hold(betsRef(live.id), "bet", [{ userId, amount: wager }]);
+        live.bets.push({ userId, on: backed, amount: wager });
+
         // The match shows these pools in its frame. Each bet sends all of them, so a missed send is corrected by the next.
         await matchOf(c.client(), live.id)
           .bets(betPools(live))
@@ -363,10 +371,12 @@ export const arcade = actor({
       c.vars.serial(async () => {
         const userId = requireUser(callerOf(c));
         const live = c.vars.state.matches[String(matchId)];
+        // Only a finished one-on-one match that the caller played in has a rematch.
         if (!live?.outcome || !live.endedAt || live.players.length !== 2 || !live.players.includes(userId))
           throw new UserError("There's no rematch to ask for.", { code: "not_found" });
         if (Date.now() > live.endedAt + REMATCH_MS)
           throw new UserError("The rematch offer ran out.", { code: "expired" });
+
         if (!live.rematch.includes(userId)) live.rematch.push(userId);
         const other = live.players.find((p) => p !== userId)!;
         const client = c.client();
@@ -375,8 +385,10 @@ export const arcade = actor({
           push(c);
           return;
         }
+
         live.rematch = [];
         for (const p of live.players) busy(c.vars.state, p);
+
         const id = c.vars.state.nextId++;
         const table: Table = {
           id,
@@ -465,9 +477,12 @@ const winnersOf = (outcome: Outcome | null): number[] =>
   outcome && "places" in outcome ? (outcome.places[0] ?? []) : [];
 
 function parseStake(raw: unknown): number {
-  if (!Number.isInteger(raw) || (raw as number) < 0 || (raw as number) > MAX_STAKE)
-    throw new UserError(`A stake is 0 to ${MAX_STAKE} coins.`, { code: "invalid_stake" });
-  return raw as number;
+  const stake = raw as number;
+  if (!Number.isInteger(raw) || stake < 0 || stake > MAX_STAKE) {
+    const message = `A stake is 0 to ${MAX_STAKE} coins.`;
+    throw new UserError(message, { code: "invalid_stake" });
+  }
+  return stake;
 }
 
 function tableOf(s: ArcadeState, id: unknown): Table {
@@ -482,10 +497,11 @@ function hostedTable(s: ArcadeState, userId: number, id: unknown): Table {
 
 /** One game at a time: not at another table, not in a match. */
 function busy(s: ArcadeState, userId: number): void {
+  const name = nameOf(s, userId);
   if (Object.values(s.tables).some((t) => t.seated.includes(userId)))
-    throw new UserError(`${nameOf(s, userId)} is already at a table.`, { code: "busy" });
+    throw new UserError(`${name} is already at a table.`, { code: "busy" });
   if (Object.values(s.matches).some((m) => !m.outcome && m.players.includes(userId)))
-    throw new UserError(`${nameOf(s, userId)} is in a game.`, { code: "busy" });
+    throw new UserError(`${name} is in a game.`, { code: "busy" });
 }
 
 /** Fresh names for people sitting down or being invited (so renames show up). */
@@ -546,6 +562,7 @@ async function startMatch(c: ArcadeCtx, table: Table): Promise<void> {
   const game = GAMES[table.game]!;
   const players = table.seated.map((userId) => ({ userId, name: nameOf(c.vars.state, userId) }));
   const split = effectiveSplit(table.split, players.length);
+
   await client.match.create([String(table.id)], {
     input: {
       id: table.id,
@@ -559,6 +576,7 @@ async function startMatch(c: ArcadeCtx, table: Table): Promise<void> {
     },
   });
   const info = await matchOf(client, table.id).info();
+
   delete c.vars.state.tables[String(table.id)];
   c.vars.state.matches[String(table.id)] = {
     id: table.id,
@@ -597,30 +615,28 @@ async function settle(c: ArcadeCtx, live: Live, outcome: Outcome): Promise<void>
     line = `${gameName(live)} was called off: everyone got their coins back.`;
   } else {
     const shares = potShares(outcome.places, pot, live.split);
-    if ((await town.held(ref)) > 0)
-      await town.pay(
-        ref,
-        "payout",
-        [...shares].map(([userId, amount]) => ({ userId, amount })),
-      );
     const side = sideBetShares(live.bets, winners);
-    if ((await town.held(betsRef(live.id))) > 0)
-      await town.pay(
-        betsRef(live.id),
-        side.refund ? "refund" : "winnings",
-        [...side.shares].map(([userId, amount]) => ({ userId, amount })),
-      );
-    await town.recordMatch(
-      live.id,
-      live.game,
-      live.stake,
-      outcome.places.flatMap((group, i) =>
-        group.map((userId) => ({ userId, place: i + 1, won: shares.get(userId) ?? 0 })),
-      ),
+
+    if ((await town.held(ref)) > 0) {
+      const payouts = [...shares].map(([userId, amount]) => ({ userId, amount }));
+      await town.pay(ref, "payout", payouts);
+    }
+
+    // When no bet backed a winner, every bet comes back instead of being paid out.
+    if ((await town.held(betsRef(live.id))) > 0) {
+      const sidePayouts = [...side.shares].map(([userId, amount]) => ({ userId, amount }));
+      await town.pay(betsRef(live.id), side.refund ? "refund" : "winnings", sidePayouts);
+    }
+
+    const places = outcome.places.flatMap((group, i) =>
+      group.map((userId) => ({ userId, place: i + 1, won: shares.get(userId) ?? 0 })),
     );
+    await town.recordMatch(live.id, live.game, live.stake, places);
+
     const names = winners.map((id) => nameOf(c.vars.state, id)).join(" & ");
-    line = pot > 0 ? `${names} won 🪙 ${pot} at ${gameName(live)}!` : `${names} won ${gameName(live)}!`;
-    if (pot >= BIG_POT) line = `💰 Big pot! ${line}`;
+    const potLine =
+      pot > 0 ? `${names} won 🪙 ${pot} at ${gameName(live)}!` : `${names} won ${gameName(live)}!`;
+    line = pot >= BIG_POT ? `💰 Big pot! ${potLine}` : potLine;
     for (const [userId, amount] of side.refund ? [] : side.shares)
       line += ` ${nameOf(c.vars.state, userId)} won 🪙 ${amount} backing ${names}.`;
   }
