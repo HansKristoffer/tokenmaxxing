@@ -74,7 +74,7 @@ button:disabled {
 button.primary {
   background: var(--accent);
   border-color: var(--accent);
-  color: #1b1f2a;
+  color: var(--bg);
   font-weight: 600;
 }
 
