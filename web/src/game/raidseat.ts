@@ -56,7 +56,10 @@ export function sit(x: number, y: number): boolean {
   if (!me || !seat || !sitsAt(x, y)) return false;
   const dx = seat[0] - me.x;
   const dy = seat[1] - me.y;
-  const dir: Facing = dx < 0 ? "left" : dx > 0 ? "right" : dy < 0 ? "up" : "down";
+  let dir: Facing = "down";
+  if (dx < 0) dir = "left";
+  else if (dx > 0) dir = "right";
+  else if (dy < 0) dir = "up";
   apply(conn.sit(dir));
   return true;
 }

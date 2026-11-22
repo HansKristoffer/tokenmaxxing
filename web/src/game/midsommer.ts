@@ -61,8 +61,6 @@ export function spotsNow(): Spots {
 /** The fire's heart in world pixels, for sparks, glow and the heks's take-off. */
 const fireHeart = (): [number, number] => [(BONFIRE.x + BONFIRE.w / 2) * TILE, (BONFIRE.y + 1) * TILE - 18];
 
-// MARK: The heks
-
 let flight: { at: number } | null = null;
 /** How long her flight takes: 9 s, or `?heksms=` (QA on a slow machine). */
 const FLIGHT = Number(new URLSearchParams(location.search).get("heksms")) || FLIGHT_MS;
@@ -105,8 +103,6 @@ export function sendHeks(state: "pile" | "lit"): string | null {
     : "🧙🔥 Whoosh! Off she goes to Bloksbjerg, one more heks for the witches' night. Glædelig Sankt Hans!";
 }
 
-// MARK: Drawing
-
 export function drawMidsommer({ g, items, now }: Frame): void {
   const k = midsommerNow();
   if (k === 0) return;
@@ -145,15 +141,17 @@ export function lightMidsommer(g: CanvasRenderingContext2D, strength: number, no
   const k = midsommerNow();
   if (k === 0) return;
   const [fx, fy] = fireHeart();
-  if (bonfireNow() === "lit")
+  if (bonfireNow() === "lit") {
     for (let i = 0; i < 14; i++) {
       const p = (now / 2200 + i / 14) % 1;
       const x = fx + Math.sin(i * 12.9 + p * 5) * (4 + 10 * p);
       const y = fy - 6 - p * 58;
+      const size = i % 3 === 0 ? 2 : 1;
       g.globalAlpha = Math.min(1, (1 - p) * 1.4);
       g.fillStyle = SPARK[i % 4]!;
-      g.fillRect(Math.round(x), Math.round(y), i % 3 === 0 ? 2 : 1, i % 3 === 0 ? 2 : 1);
+      g.fillRect(Math.round(x), Math.round(y), size, size);
     }
+  }
   g.globalAlpha = 1;
   const t = heksFlight();
   if (t !== null) {

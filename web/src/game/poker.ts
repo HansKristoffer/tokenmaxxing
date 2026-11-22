@@ -75,13 +75,18 @@ export function drawPoker(f: Frame): void {
       const mine = seat.userId === world.selfId;
       const [sx, sy] = f.toScreen(chair.x * TILE + TILE / 2, chair.y * TILE + TILE + 2);
       const turn = state.toAct === i;
+      // The later lines win: a seat whose turn it is shows that over folded, and folded over yours.
+      let ink = "#fff3c4";
+      if (mine) ink = "#8fe3ff";
+      if (seat.folded) ink = "#a7adbb";
+      if (turn) ink = "#ffd35c";
       pill(
         g,
         `${state.button === i ? "D " : ""}${seat.stack}${seat.last ? ` · ${seat.last}` : ""}`,
         sx,
         sy,
         f.scale,
-        turn ? "#ffd35c" : seat.folded ? "#a7adbb" : mine ? "#8fe3ff" : "#fff3c4",
+        ink,
       );
     }
     g.restore();

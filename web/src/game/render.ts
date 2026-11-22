@@ -359,8 +359,9 @@ export function render(canvas: HTMLCanvasElement, now: number, dpr = window.devi
         }
         if (logo && plaque) drawLogo(g, logo, left + plaque.x, top + plaque.y, plaque.w, plaque.h);
         for (const [i, p] of faces.entries()) {
-          if (!(relit && p.state !== "away"))
-            drawFace(g, p, left + panes[i]!.x, top + panes[i]!.y, panes[i]!, now);
+          // Lit faces were drawn again over the tint (see `relit`), so only the rest are drawn here.
+          const drawnAgainLater = relit && p.state !== "away";
+          if (!drawnAgainLater) drawFace(g, p, left + panes[i]!.x, top + panes[i]!.y, panes[i]!, now);
         }
       },
     });
@@ -513,7 +514,7 @@ export function render(canvas: HTMLCanvasElement, now: number, dpr = window.devi
     const inNameRange = !me || Math.hypot(a.x - me.x, a.y - me.y) <= NAME_RANGE;
     if (pet && petSeen && petName && inNameRange)
       labels.push(() => petLabel(g, ...toScreen(pet.x + PET_W / 2, pet.y + PET_H + 1), petName, dpr));
-    if (seen)
+    if (seen) {
       labels.push(() =>
         avatarLabels(
           g,
@@ -525,6 +526,7 @@ export function render(canvas: HTMLCanvasElement, now: number, dpr = window.devi
           fights.has(a.info.id),
         ),
       );
+    }
   }
 
   items.sort((a, b) => a.y - b.y);

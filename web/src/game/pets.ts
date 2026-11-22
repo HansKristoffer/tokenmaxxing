@@ -61,6 +61,7 @@ export function followPet(a: Avatar, px: number, py: number, dt: number, bed?: r
     pets.set(a.info.id, pet);
   }
   pet.asleep = false;
+  // Eases toward the spot with a time constant of 140 ms.
   const k = 1 - Math.exp(-dt / 140);
   const dx = (tx - pet.x) * k;
   pet.x += dx;

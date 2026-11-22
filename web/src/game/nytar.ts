@@ -59,8 +59,6 @@ export function motion(now: number): { calm: boolean; density: number } {
   return calmed;
 }
 
-// MARK: Blocking and E
-
 /** Whether a tile is one of the theme's (the watchman, the clock, the buffet, the chair): nothing walks onto it. */
 export const nytarBlocks = (x: number, y: number): boolean =>
   nytarOn() && NYTAR_BLOCKS.some((b) => b.x === x && b.y === y);
@@ -82,8 +80,6 @@ export function nytarInteract(x: number, y: number): boolean {
   hud.set({ dialog: text });
   return true;
 }
-
-// MARK: Confetti
 
 export const CONFETTI_MAX = 240;
 export const CONFETTI_COLOURS: readonly string[] = [
@@ -225,8 +221,6 @@ export function nytarTick(now: number): void {
   }
 }
 
-// MARK: The evening's shows
-
 // The small shows every half hour on the evening of the 31st (and, pinned with `?sky=`, the midnight one too).
 addFireworks((now) => {
   if (festiveNow()?.id !== "nytar" || motion(performance.now()).calm) return null;
@@ -234,8 +228,6 @@ addFireworks((now) => {
   const show = nytarShow(sky, Math.abs(sky - Date.now()) > 120_000);
   return show && { ...show, at: show.at - (sky - now) };
 });
-
-// MARK: The party lights
 
 const BULB_RGB = ["255,200,90", "255,110,130", "110,220,255", "190,150,255", "150,255,160"] as const;
 const BULB_HEX = ["#ffd35a", "#ff6e82", "#6edcff", "#be96ff", "#96ffa0"] as const;
@@ -269,8 +261,6 @@ const STRINGS: Bulb[][] = STRING_DEFS.map((def) => {
 const twinkle = (now: number, i: number, k: number): number =>
   0.55 + 0.45 * Math.sin(now / 260 + i * 1.3 + k);
 
-// MARK: Drawing
-
 /** The clock's centre in world pixels, and its sprite's top-left. */
 const clockBox = () => {
   const left = NYTAR_CLOCK.x * TILE + TILE / 2 - CLOCK_PX.w / 2;
@@ -288,8 +278,9 @@ function hand(
   colour: string,
 ) {
   g.fillStyle = colour;
-  for (let d = 0; d <= len; d++)
+  for (let d = 0; d <= len; d++) {
     g.fillRect(Math.round(cx + Math.sin(angle) * d), Math.round(cy - Math.cos(angle) * d), 1, 1);
+  }
 }
 
 export function drawNytar(f: Frame): void {
@@ -356,8 +347,9 @@ export function drawNytar(f: Frame): void {
       for (const [s, bulbs] of STRINGS.entries()) {
         // The cord, a pixel every step, then the bulbs hanging from it.
         g.fillStyle = "#2b2433";
-        for (let x = STRING_X0; x <= STRING_X1; x++)
+        for (let x = STRING_X0; x <= STRING_X1; x++) {
           g.fillRect(x, Math.round(sagAt(STRING_DEFS[s]!, (x - STRING_X0) / (STRING_X1 - STRING_X0))), 1, 1);
+        }
         for (const [i, b] of bulbs.entries()) {
           g.fillStyle = BULB_HEX[b.k]!;
           g.globalAlpha = twinkle(now, i, s);
@@ -375,7 +367,7 @@ export function drawNytar(f: Frame): void {
     const text = nytarCaption(sky) + (hopped ? " · ✓ hoppet" : "");
     pill(g, sx, sy - 2 * dpr, text, dpr, "rgba(26, 37, 82, 0.88)", "#f4c95d");
   });
-  if (confetti.n > 0)
+  if (confetti.n > 0) {
     labels.push(() => {
       const size = Math.max(2, Math.round(1.6 * scale));
       const c = confetti;
@@ -390,6 +382,7 @@ export function drawNytar(f: Frame): void {
       }
       g.globalAlpha = 1;
     });
+  }
 }
 
 /** The lights' glow, over the night's tint (in `drawLight`'s world space), at `strength` (the lamps'). */
@@ -400,12 +393,15 @@ export function lightNytar(g: CanvasRenderingContext2D, strength: number, now: n
   drawGlow(g, clock.cx, clock.cy, 22, "255,226,150", strength * 0.9);
   const t0 = NYTAR_TABLE[0]!;
   drawGlow(g, (t0.x + 1) * TILE, (t0.y + 1) * TILE - 14, 22, "255,214,150", strength * 0.55);
-  for (const [s, bulbs] of STRINGS.entries())
-    for (const [i, b] of bulbs.entries())
-      if (i % 2 === 0) drawGlow(g, b.x + 1, b.y + 2, 9, BULB_RGB[b.k]!, strength * 0.7 * twinkle(now, i, s));
+  for (const [s, bulbs] of STRINGS.entries()) {
+    for (const [i, b] of bulbs.entries()) {
+      if (i % 2 !== 0) continue;
+      drawGlow(g, b.x + 1, b.y + 2, 9, BULB_RGB[b.k]!, strength * 0.7 * twinkle(now, i, s));
+    }
+  }
 }
 
-// For `scripts/qa/festive-nytar.mjs`: the QA handle (`game/qa.ts`) is on when `tokenmaxxing.qa` is set.
+// The QA handle for `scripts/qa/festive-nytar.mjs`, on when `tokenmaxxing.qa` is set, as in `qa.ts`.
 if (typeof window !== "undefined" && storage.getItem("tokenmaxxing.qa"))
   Object.assign(window, {
     __nytar: {

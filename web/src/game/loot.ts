@@ -60,11 +60,14 @@ export function noteLoot(news: readonly LootNews[]): void {
   const sorted = sortBy(news, { by: (n) => RANK[rarityOf(n.item)], order: "desc" });
   const room = MAX_FLYING - fx.flying.length;
   sorted.slice(0, Math.max(0, room)).forEach((n, i) => {
+    // Pops alternate sides and spread out, so they do not stack on one spot.
+    const side = i % 2 ? 1 : -1;
+    const spread = 10 + ((i * 7) % 18);
     fx.flying.push({
       news: n,
       rarity: rarityOf(n.item),
       at: now + DELAY_MS + i * STAGGER_MS,
-      dx: (i % 2 ? 1 : -1) * (10 + ((i * 7) % 18)),
+      dx: side * spread,
       to: null,
     });
   });
@@ -94,8 +97,11 @@ export function drawLoot(frame: Frame): void {
   const { now } = frame;
   if (fx.flying.length) {
     fx.flying = fx.flying.filter((f) => now - f.at < POP_MS + FLY_MS + LAND_MS);
-    if (world.room === "dungeon") for (const f of fx.flying) drawOne(frame, f);
-    else fx.flying = fx.flying.filter((f) => f.at > now);
+    if (world.room === "dungeon") {
+      for (const f of fx.flying) drawOne(frame, f);
+    } else {
+      fx.flying = fx.flying.filter((f) => f.at > now);
+    }
   }
   drawBig(frame);
 }
@@ -255,7 +261,7 @@ function drawBig({ g, labels, now, dpr }: Frame): void {
     if (sprite) {
       const s = 3 * dpr;
       const bob = Math.sin(t / 200) * 2 * dpr;
-      for (const side of [-1, 1])
+      for (const side of [-1, 1]) {
         g.drawImage(
           sprite,
           w / 2 + side * (bw / 2 - 4 * dpr) - (sprite.width * s) / 2,
@@ -263,6 +269,7 @@ function drawBig({ g, labels, now, dpr }: Frame): void {
           sprite.width * s,
           sprite.height * s,
         );
+      }
     }
     g.globalAlpha = 1;
   });

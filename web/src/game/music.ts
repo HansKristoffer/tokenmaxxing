@@ -1,8 +1,8 @@
 import { THEME_STEPS, type Theme, themeOf } from "@tokenmaxxing/core/themes.ts";
-import { drumHits, type Note, notes } from "@tokenmaxxing/core/tunes.ts";
+import { drumHits, notes } from "@tokenmaxxing/core/tunes.ts";
 import type { RoomId } from "@tokenmaxxing/core/world.ts";
 import { festiveNow } from "./festive.ts";
-import { audio, drum, musicOut, tone, wakeOnInput } from "./jukebox.ts";
+import { audio, byStep, drum, musicOut, tone, wakeOnInput } from "./jukebox.ts";
 import { tavernNow } from "./tavern-clock.ts";
 
 /**
@@ -12,8 +12,6 @@ import { tavernNow } from "./tavern-clock.ts";
 
 const AHEAD_MS = 400;
 const EVERY_MS = 100;
-
-const byStep = (list: Note[]) => new Map(list.map((n) => [n.step, n]));
 
 let watcher: ReturnType<typeof setInterval> | null = null;
 let voice: GainNode | null = null;

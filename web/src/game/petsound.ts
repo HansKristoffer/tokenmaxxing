@@ -36,6 +36,7 @@ export function petSound(act: PetAct, soft: boolean): void {
     return;
   }
   const now = c.currentTime;
-  for (const [hz, at, secs] of CHIRPS[act])
+  for (const [hz, at, secs] of CHIRPS[act]) {
     tone(c, now + at, secs, hz, act === "treat" && hz < 400 ? "square" : "triangle", soft ? 0.12 : 0.4);
+  }
 }
