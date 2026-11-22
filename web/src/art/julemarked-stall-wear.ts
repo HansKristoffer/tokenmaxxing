@@ -1,6 +1,7 @@
 import { STALL_BASE } from "@tokenmaxxing/core/julemarked-shop.ts";
 import type { Art } from "./editions.ts";
 import { C } from "./palette.ts";
+import { frameAt } from "./prestige-types.ts";
 import type { Back, Held, Outfit } from "./wardrobe.ts";
 
 /**
@@ -218,9 +219,6 @@ export const STALL_GLASSES: Record<string, Art> = {
     pal: { t: "#6b3a1c", T: "#c98a3a", L: "#e4f1f4", W: "#ffffff", k: "#6b3a1c" },
   },
 };
-
-/** An empty 16x16 frame, then `rows` dropped in at row `y`. */
-const frameAt = (rows: string[], y: number): string[] => [...Array<string>(y).fill(""), ...rows];
 
 // Pixel art reads as a grid.
 // prettier-ignore

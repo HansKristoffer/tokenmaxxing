@@ -2,9 +2,10 @@ import { C } from "./palette.ts";
 import type { Pet } from "./pet-base.ts";
 
 /**
- * The Julemarked coin stalls' five pets (core/src/julemarked-shop.ts, pet.900 Gråspurv, 901 Snehare, 902 Pindsvin, 903 Rødt egern, 904 Sælunge), 12×10
- * facing right with two hop frames, like the case's (`case-julemarked-pets.ts`). `pet-base.ts` files them at
- * `STALL_BASE + n`. Frame 1 is the same drawing one pixel up with the feet redone.
+ * The Julemarked coin stalls' five pets (core/src/julemarked-shop.ts, pet.900 Gråspurv, 901 Snehare, 902 Pindsvin,
+ * 903 Rødt egern, 904 Sælunge), 12×10 facing right with two hop frames, like the case's
+ * (`case-julemarked-pets.ts`). `pet-base.ts` files them at `STALL_BASE + n`. Frame 1 is the same drawing one pixel
+ * up with the feet redone.
  */
 
 const BLANK = "............";

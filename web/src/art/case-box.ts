@@ -83,8 +83,10 @@ function body(p: Pen, y0: number, lit: boolean): void {
   p.rect(2, y0 + 1, 20, 1, P.plumDark); // the shadow under the lid
   p.rect(2, y0 + 2, 20, 1, P.crimson);
   p.rect(2, y0 + 9, 20, 1, P.plumDark);
+
   // Lacquer highlight.
   p.rect(3, y0 + 3, 2, 1, P.crimsonLight);
+
   // Gold straps and their rivets.
   for (const x of [3, 19]) {
     p.rect(x, y0 + 1, 2, 9, P.gold);
@@ -92,11 +94,13 @@ function body(p: Pen, y0: number, lit: boolean): void {
     p.px(x + 1, y0 + 3, P.goldDark);
     p.px(x + 1, y0 + 7, P.goldDark);
   }
+
   // The lantern plate and the lantern.
   p.rect(7, y0 + 1, 10, 9, P.lacquer);
   p.rect(7, y0 + 1, 10, 1, P.gold);
   p.grid(LANTERN, LANTERN_PAL, 9, y0 + 2);
   if (lit) p.px(8, y0 + 4, P.orange);
+
   // The hanging tag: a cord from the strap, a paper tag with a red seal.
   p.px(18, y0 + 5, P.goldDark);
   p.rect(16, y0 + 6, 4, 4, C.ink);
@@ -108,6 +112,7 @@ function drawClosed(p: Pen): void {
   // Shadow on the floor.
   p.rect(2, 25, 20, 2, C.shadow);
   body(p, 14, false);
+
   // The lid: a domed crimson top over the body, a gold band along its edge.
   p.rect(0, 8, 24, 7, C.ink);
   p.rect(1, 9, 22, 5, P.wine);
@@ -119,6 +124,7 @@ function drawClosed(p: Pen): void {
     p.rect(x, 9, 2, 5, P.gold);
     p.rect(x, 9, 1, 5, P.goldLight);
   }
+
   // Clasp: a gold plate over the seam with a lantern-red bead.
   p.rect(10, 11, 4, 4, C.ink);
   p.rect(11, 11, 2, 3, P.gold);
@@ -130,6 +136,7 @@ function drawOpen(p: Pen, frame: number): void {
   // Warm light on the floor.
   p.rect(2, 25, 20, 2, C.shadow);
   p.rect(5, 26, 14, 1, "rgba(255, 211, 106, 0.45)");
+
   // The lid, standing up behind: its inside lit from below.
   p.rect(1, 0, 22, 12, C.ink);
   p.rect(2, 1, 20, 10, P.wine);
@@ -145,12 +152,14 @@ function drawOpen(p: Pen, frame: number): void {
   }
   p.rect(7, 5, 10, 4, "#d8662f");
   p.rect(9, 7, 6, 2, "#f6b24a");
+
   // The body, its mouth full of light.
   body(p, 14, true);
   p.rect(0, 11, 24, 3, C.ink);
   p.rect(1, 12, 22, 2, P.glow);
   p.rect(4, 12, 16, 1, P.paper);
   p.rect(1, 11, 22, 1, P.gold);
+
   // The beam rising out of the mouth and the motes in it.
   p.rect(5, 9, 14, 2, "rgba(255, 233, 160, 0.75)");
   p.rect(8, 8, 8, 1, "rgba(255, 233, 160, 0.6)");
@@ -179,6 +188,7 @@ function drawKey(p: Pen): void {
   p.rect(10, 1, 1, 3, C.ink);
   p.rect(6, 1, 1, 3, P.red);
   p.rect(9, 1, 1, 3, P.red);
+
   // The coin: ink ring, gold face, a darker inner ring, a highlight and a shaded edge.
   p.disc(8, 9, 7, C.ink);
   p.disc(8, 9, 6, P.gold);
@@ -190,11 +200,14 @@ function drawKey(p: Pen): void {
   p.px(3, 8, P.goldLight);
   p.px(12, 13, P.goldDark);
   p.px(11, 14, P.goldDark);
+
   // The square hole.
   p.rect(7, 5, 2, 2, C.ink);
   p.px(7, 5, P.plumDark);
+
   // The lantern stamp below it.
   p.grid(STAMP, { d: P.goldDark, L: P.red }, 6, 8);
+
   // The tassel: a gold bead on the cord, a red skirt.
   p.rect(7, 16, 2, 1, C.ink);
   p.rect(6, 17, 4, 3, C.ink);
@@ -263,6 +276,7 @@ function chestBody(p: Pen, y0: number, lit: boolean): void {
   for (const x of [8, 15]) p.px(x, y0 + 3, T.teakDark);
   rattanPost(p, 3, y0 + 1, 9);
   rattanPost(p, 19, y0 + 1, 9);
+
   // Turquoise rope handles, a loop on each side.
   for (const [x, dir] of [
     [0, 1],
@@ -275,6 +289,7 @@ function chestBody(p: Pen, y0: number, lit: boolean): void {
     p.px(x + (right ? 1 : 0), y0 + 7, T.sea);
     p.px(x + (right ? 0 : 1), y0 + 5, T.seaDark);
   }
+
   // The sail emblem on a dark indigo plate: a white sail on a teak mast over a turquoise hull.
   p.rect(8, y0 + 2, 8, 8, C.ink);
   p.rect(9, y0 + 3, 6, 6, T.indigoDark);
@@ -292,6 +307,7 @@ function chestBody(p: Pen, y0: number, lit: boolean): void {
 function drawNusClosed(p: Pen): void {
   p.rect(3, 25, 18, 2, C.shadow);
   chestBody(p, 14, false);
+
   // The lid: a domed teak top with a kawung band across it, rattan-wrapped corners and a brass clasp.
   p.rect(1, 8, 22, 7, C.ink);
   p.rect(2, 9, 20, 5, T.teak);
@@ -301,6 +317,7 @@ function drawNusClosed(p: Pen): void {
   kawungBand(p, 2, 10, 20);
   rattanPost(p, 2, 9, 5);
   rattanPost(p, 19, 9, 5);
+
   // The clasp: a brass plate over the seam with a keyhole.
   p.rect(10, 12, 4, 5, C.ink);
   p.rect(11, 12, 2, 4, T.brass);
@@ -311,6 +328,7 @@ function drawNusClosed(p: Pen): void {
 function drawNusOpen(p: Pen, frame: number): void {
   p.rect(3, 25, 18, 2, C.shadow);
   p.rect(5, 26, 14, 1, "rgba(255, 246, 216, 0.55)");
+
   // The lid standing open behind, its lining flooded with daylight: cream-white at the hinge, gold at the top.
   p.rect(1, 0, 22, 12, C.ink);
   p.rect(2, 1, 20, 10, T.teak);
@@ -320,15 +338,18 @@ function drawNusOpen(p: Pen, frame: number): void {
   p.rect(3, 9, 18, 2, T.daylight);
   rattanPost(p, 2, 1, 10);
   rattanPost(p, 19, 1, 10);
+
   // The body, its mouth full of light.
   chestBody(p, 14, true);
   p.rect(1, 11, 22, 3, C.ink);
   p.rect(2, 12, 20, 2, T.daylight);
   p.rect(4, 12, 16, 1, T.white);
   p.rect(2, 11, 20, 1, T.saffron);
+
   // The beam of daylight rising out of the mouth.
   p.rect(5, 9, 14, 2, "rgba(255, 246, 216, 0.8)");
   p.rect(8, 8, 8, 1, "rgba(255, 246, 216, 0.6)");
+
   // Jasmine petals rising: a white petal with a gold heart, each a pair of pixels.
   const petals: [number, number][] =
     frame === 0
@@ -355,6 +376,7 @@ function drawNusOpen(p: Pen, frame: number): void {
 
 function drawNusKey(p: Pen): void {
   const blue = "#3b5da8";
+
   // The batik ribbon: two tails falling either side of the anchor, tied above the ring in a cream and blue knot.
   for (const [x, dir] of [
     [2, -1],
@@ -378,6 +400,7 @@ function drawNusKey(p: Pen): void {
   p.rect(6, 1, 4, 2, blue);
   p.rect(7, 1, 2, 2, T.cream);
   p.px(7, 2, T.soga);
+
   // The anchor bow: a ring, a stock, a shank, two curved arms with flukes, and the shaft below with its bit.
   p.disc(8, 7, 3, C.ink);
   p.disc(8, 7, 2, T.brass);
@@ -400,6 +423,7 @@ function drawNusKey(p: Pen): void {
     [3, 17],
     [3, 16],
   ] as const;
+
   // Each arm is drawn on both sides, mirrored: its ink outline first, then the brass on top.
   for (const side of [0, 1]) {
     for (const ink of [true, false]) {

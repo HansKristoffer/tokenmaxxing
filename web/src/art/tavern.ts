@@ -93,7 +93,7 @@ const BARREL: { rows: string[]; pal: Palette } = {
 export const barrel = once(() => bake(10, 12, (p) => p.grid(BARREL.rows, BARREL.pal)));
 
 /** The hearth, two tiles wide: a stone surround, the dark opening, and logs. Its flames are `hearthFlame`. */
-export const HEARTH_W = 32;
+const HEARTH_W = 32;
 export const HEARTH_H = 24;
 /** Where the flames sit in it. */
 export const FLAME_AT = { x: 8, y: 9, w: 16, h: 11 } as const;
@@ -254,7 +254,7 @@ export const plaque = once(() =>
  * The face of a regular's plaque: a brass board one tile wide with a 3-letter name a row (the 3×5 font
  * is 4 pixels a letter), the best first. `names` is one string per row; an empty one is a dash.
  */
-export const NAMEBOARD_ROW = 6;
+const NAMEBOARD_ROW = 6;
 export const nameboard = cached(
   (names: string[]) => names.join("|"),
   (names: string[]) => {

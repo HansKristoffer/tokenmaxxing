@@ -139,7 +139,10 @@ export const natmarkedFront = once(() =>
   }),
 );
 
-/** The lacquered counter, one tile of a run: black top over a red front with gold bands; every third has the case's stand. */
+/**
+ * The lacquered counter, one tile of a run: black top over a red front with gold bands. Every third has the
+ * case's stand.
+ */
 export const natCounter = cached(
   (till: boolean) => `${till}`,
   (till: boolean) =>
@@ -164,12 +167,15 @@ export const natCounter = cached(
     }),
 );
 
-/** A shelf tile (against the back wall): a cabinet under a glowing niche; the first holds the case, the rest a locked silhouette. */
+/**
+ * A shelf tile (against the back wall): a cabinet under a glowing niche. The first shelf holds the case; the
+ * rest hold a locked silhouette.
+ */
 export const natShelf = cached(
   (x: number) => `${x}`,
   (x: number) =>
     bake(TILE, 20, (p) => {
-      // Six shelves of two tiles each, from x = 2 (the first holds the case on sale).
+      // Shelves three tiles wide, from x = 2; the first one holds the case on sale.
       const shelf = Math.floor((x - 2) / 3);
       const glow = ["#ffb347", "#5fd7ff", "#ff6fb5", "#9b7bff", "#6bffb0", "#ffd36a"][shelf % 6]!;
       p.rect(1, 18, 14, 2, C.shadow);
@@ -184,7 +190,7 @@ export const natShelf = cached(
       p.px(8, 14, GOLD);
       if (shelf === 0) {
         if (x !== 2) {
-          // The other half of the first shelf: a paper plaque with a red top edge, and no case.
+          // The rest of the first shelf: a paper plaque with a red top edge, and no case.
           p.rect(4, 5, 8, 3, PAPER);
           p.rect(4, 5, 8, 1, RED_D);
           return;

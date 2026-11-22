@@ -7,7 +7,7 @@ import { bake, glyphPixels, once } from "./pixels.ts";
  */
 
 export const TRUCK_PX = { w: 64, h: 28 } as const;
-/** Where its headlight and the middle of its lights are, from its top left, for the night's glow. */
+/** The headlight's pixel and the row of the fairy lights, both from the top left, for the night's glow. */
 export const HEADLIGHT: readonly [number, number] = [62, 18];
 export const BULBS_Y = 1;
 

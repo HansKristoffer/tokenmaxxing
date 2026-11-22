@@ -99,6 +99,7 @@ function ravenBanner(p: Pen, frame: number): void {
       p.rect(x0 + dx, y, x1 - x0 + 1, 1, col);
     }
   }
+
   // Folds in the cloth, and its gold hem band.
   for (let y = 5; y < 13; y++) {
     const dx = sway(frame, y);
@@ -124,12 +125,14 @@ function bearskinRug(p: Pen): void {
   lobe(19, 4, 4, 3);
   lobe(19, 19, 4, 3);
   blob(p, 14, 12, 12, 7, N.bear);
+
   // Cover the seams where the lobes meet the body.
   oval(p, 14, 12, 11, 6, N.bear);
   oval(p, 6, 6, 3, 2, N.bear);
   oval(p, 6, 17, 3, 2, N.bear);
   oval(p, 19, 5, 3, 2, N.bear);
   oval(p, 19, 18, 3, 2, N.bear);
+
   // Fur: a lighter back, darker tufts.
   oval(p, 13, 11, 8, 4, N.bearLight);
   oval(p, 13, 10, 5, 2, N.bear);
@@ -146,6 +149,7 @@ function bearskinRug(p: Pen): void {
     p.px(x, y, N.bearDark);
     p.px(x + 1, y + 1, N.bearDark);
   }
+
   // Claws, bone-white, at the end of each paw.
   for (const [x, y] of [
     [2, 4],
@@ -159,6 +163,7 @@ function bearskinRug(p: Pen): void {
   ] as const) {
     p.px(x, y, N.bone);
   }
+
   // The head: ears, a round skull, a pale snout, a black nose and a face that has seen things.
   blob(p, 24, 6, 2, 2, N.bear);
   blob(p, 24, 18, 2, 2, N.bear);
@@ -168,6 +173,7 @@ function bearskinRug(p: Pen): void {
   oval(p, 25, 12, 4, 5, N.bear);
   oval(p, 28, 12, 2, 3, "#b8946a");
   p.rect(29, 11, 2, 2, C.ink);
+
   // Half-lidded eyes, a faint crooked grin and one tooth.
   p.rect(24, 9, 3, 1, C.ink);
   p.rect(24, 15, 3, 1, C.ink);
@@ -179,6 +185,7 @@ function bearskinRug(p: Pen): void {
 
 function meadStump(p: Pen): void {
   shadow(p, 2, 16, 12);
+
   // Roots and the trunk's bark, grooved.
   p.rect(2, 14, 12, 2, C.ink);
   p.rect(3, 14, 3, 1, N.oakDark);
@@ -197,6 +204,7 @@ function meadStump(p: Pen): void {
     ],
     N.oakDark,
   );
+
   // The cut top: pale wood with rings, and a ring of foam where a horn stood.
   oval(p, 8, 5, 6, 3, C.ink);
   oval(p, 8, 5, 5, 2, "#d9b27c");
@@ -210,6 +218,7 @@ function meadStump(p: Pen): void {
     ],
     "#fff3c4",
   );
+
   // The horn lying across it: curved bone, a gold cap, spilled foam.
   p.rect(4, 3, 7, 3, C.ink);
   p.rect(5, 4, 5, 1, N.bone);
@@ -225,6 +234,7 @@ function meadStump(p: Pen): void {
 
 function feastTable(p: Pen, frame: number): void {
   shadow(p, 1, 26, 30);
+
   // Trestle legs under a long plank top.
   for (const x of [3, 25]) {
     box(p, x, 20, 4, 7, N.oakDark);
@@ -243,11 +253,13 @@ function feastTable(p: Pen, frame: number): void {
     ],
     N.oakDark,
   );
+
   // The top surface in perspective.
   box(p, 0, 12, 32, 6, N.oakLight);
   p.rect(1, 13, 30, 1, "#a07848");
   p.rect(1, 15, 30, 1, "#a07848");
   p.rect(1, 17, 30, 1, N.oak);
+
   // The boar: a whole roast on a board, glazed brown, an apple in its mouth, sprigs round it.
   oval(p, 16, 11, 9, 4, C.ink);
   p.rect(7, 13, 18, 1, C.ink);
@@ -264,6 +276,7 @@ function feastTable(p: Pen, frame: number): void {
     ],
     N.oakDark,
   );
+
   // Head to the right, with a tusk and an apple.
   oval(p, 24, 10, 3, 3, C.ink);
   oval(p, 24, 10, 2, 2, N.boar);
@@ -272,6 +285,7 @@ function feastTable(p: Pen, frame: number): void {
   p.rect(27, 10, 3, 3, C.ink);
   p.rect(28, 10, 1, 2, N.red);
   p.px(28, 10, N.redLight);
+
   // Parsley.
   dots(
     p,
@@ -284,16 +298,19 @@ function feastTable(p: Pen, frame: number): void {
     ],
     "#4f9b3d",
   );
+
   // Bread on the left.
   blob(p, 3, 14, 2, 1, N.bread);
   p.px(3, 13, "#f0c07a");
   blob(p, 6, 15, 2, 1, N.bread);
+
   // Two tankards on the right, foam spilling.
   for (const x of [26, 29]) {
     box(p, x, 11, 3, 4, N.steel);
     p.rect(x, 10, 3, 1, "#fff3c4");
     p.px(x + 1, 13, N.goldDark);
   }
+
   // Steam rising off the roast, a wisp or two, drifting.
   const wisps: [number, number][] =
     frame === 0
@@ -325,6 +342,7 @@ const STONE_GLYPHS = [
 
 function runestone(p: Pen): void {
   shadow(p, 2, 29, 12);
+
   // The standing stone: a tall slab with a rounded top, ink outlined, lit from the left.
   p.rect(5, 1, 6, 1, C.ink);
   p.rect(3, 2, 10, 1, C.ink);
@@ -335,6 +353,7 @@ function runestone(p: Pen): void {
   p.rect(3, 4, 2, 23, N.stoneLight);
   p.rect(11, 4, 2, 23, N.stoneDark);
   p.rect(3, 26, 10, 1, N.stoneDark);
+
   // The painted band round the top: red, with woad dots.
   p.rect(5, 5, 6, 1, N.red);
   p.px(4, 6, N.red);
@@ -346,6 +365,7 @@ function runestone(p: Pen): void {
     p.px(5, y, N.woad);
     p.px(10, y, N.woad);
   }
+
   // The inscription, painted in loud colours: three glyphs, red with a woad dot between.
   for (const [i, glyph] of STONE_GLYPHS.entries()) {
     for (const [dy, row] of glyph.entries()) {
@@ -356,6 +376,7 @@ function runestone(p: Pen): void {
   }
   p.px(8, 12, N.woad);
   p.px(8, 18, N.woad);
+
   // Moss and a rime of snow at the foot.
   p.rect(3, 27, 4, 1, N.moss);
   p.px(9, 27, N.moss);
@@ -394,6 +415,7 @@ function yggdrasil(p: Pen, frame: number): void {
     ],
     N.boneDark,
   );
+
   // The trunk, banded with pale bark, bright on the left.
   p.rect(19, 24, 10, 25, C.ink);
   p.rect(20, 24, 8, 25, N.oak);

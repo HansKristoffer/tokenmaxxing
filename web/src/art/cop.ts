@@ -129,6 +129,7 @@ const sirenHot = (red: boolean) => (red ? "#ff4a4a" : "#4a9bff");
  */
 export function drawSirenGlow(g: CanvasRenderingContext2D, px: number, py: number, now: number): void {
   const red = sirenRed(now);
+
   // The gradient is cached per colour and drawn at the origin; the translate moves it to him.
   g.save();
   g.translate(px, py);

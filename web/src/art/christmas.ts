@@ -346,6 +346,7 @@ function knudFront(p: Pen, breath: 0 | 1, back: boolean): void {
   p.rect(9, 17, 3, 3, C.ink);
   p.rect(5, 17, 1, 2, "#4a3f56");
   p.rect(10, 17, 1, 2, "#4a3f56");
+
   // The coat: broad, dark grey, a belt and a gold buckle.
   p.rect(2, 8, 12, 10, C.ink);
   p.rect(3, 9, 10, 8, GREY);
@@ -353,6 +354,7 @@ function knudFront(p: Pen, breath: 0 | 1, back: boolean): void {
   p.rect(3, 14, 10, 1, "#2b2433");
   p.rect(7, 14, 2, 1, GOLD);
   p.rect(3, 16, 10, 1, GREY_DARK);
+
   // Arms, ending in dark mittens.
   p.rect(1, 10, 2, 6, C.ink);
   p.rect(13, 10, 2, 6, C.ink);
@@ -379,6 +381,7 @@ function knudFront(p: Pen, breath: 0 | 1, back: boolean): void {
     p.rect(4, 7, 8, 6, CREAM);
     p.rect(4, 11, 8, 1, "#d6cfbd");
   }
+
   // The cap: a cone, down over the eyes, its tip drooping to the side with a pompom.
   p.rect(3, 4, 10, 4, C.ink);
   p.rect(4, 5, 8, 2, RED);
@@ -398,6 +401,7 @@ function knudSide(p: Pen, breath: 0 | 1): void {
   p.rect(4, 9, 7, 8, GREY);
   p.rect(4, 15, 7, 1, "#2b2433");
   p.rect(4, 9, 2, 7, GREY_DARK);
+
   // The bowl held out in front (to the right).
   p.rect(10, 11 - breath, 5, 5, C.ink);
   p.rect(11, 12 - breath, 3, 3, CREAM);

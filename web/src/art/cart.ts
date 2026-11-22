@@ -17,6 +17,7 @@ function wheel(p: Pen, cx: number, cy: number): void {
   p.disc(cx, cy, 5, C.woodDark);
   p.disc(cx, cy, 3, C.ink);
   p.disc(cx, cy, 2, C.wood);
+
   // Spokes, then the hub.
   for (const [dx, dy] of [
     [0, -4],

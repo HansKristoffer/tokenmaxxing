@@ -11,7 +11,7 @@ export const TROPHY_H = 8;
 
 /** One trophy's sprite; an unearned one is its dim outline, so the gaps on the shelf have a shape. */
 export const trophySprite = cached(
-  (id: string, earned: boolean) => `${id}${+earned}`,
+  (id: string, earned: boolean) => `${id}${earned}`,
   (id: string, earned: boolean) =>
     bake(TROPHY_W, TROPHY_H, (p) => {
       const art = TROPHY_ART[id];

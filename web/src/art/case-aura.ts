@@ -212,6 +212,7 @@ const padi: Draw = (p, f) => {
     p.px(hx + 1, y - h + 2, "#e0a020");
     p.px(hx - 1, y - h + 1, "#ffd36a");
   }
+
   // Grains drift up from the stalks and fade as they go.
   for (let i = 0; i < 9; i++) {
     const t = (f / FRAMES + i / 9) % 1;

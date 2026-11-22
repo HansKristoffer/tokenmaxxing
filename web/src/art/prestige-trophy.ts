@@ -65,24 +65,29 @@ const VEIN_BRANCH: readonly (readonly [number, number])[] = [
 /** Violet-veined stone that hums: light climbs the veins to a silver cap, a feather of light rises and fades. */
 function obelisk(p: Pen, frame: number): void {
   shadow(p, 1, 38, 14);
+
   // The silver plinth, two steps.
   box(p, 1, 34, 14, 5, V.silver);
   p.rect(2, 35, 12, 1, V.silverLight);
   p.rect(2, 37, 12, 1, V.silverDark);
   box(p, 3, 31, 10, 4, V.silver);
   p.rect(4, 32, 8, 1, V.silverLight);
+
   // The shaft: dark violet stone, lit on its left.
   column(p, 8, 12, 31, 7, 9, V.stoneMid);
   p.rect(4, 20, 1, 11, V.stoneLight);
   p.rect(5, 12, 1, 8, V.stoneLight);
   p.rect(11, 20, 1, 11, V.stone);
   p.rect(10, 12, 1, 8, V.stone);
+
   // Carved courses.
   for (const y of [18, 24, 29]) p.rect(5, y, 6, 1, V.stone);
+
   // The pyramidion in silver.
   column(p, 8, 4, 11, 2, 6, V.silver);
   p.rect(7, 6, 1, 5, V.silverLight);
   p.rect(9, 8, 1, 3, V.silverDark);
+
   // The veins glow, and a bead of light climbs them, five pixels a frame.
   const beat = [V.deep, V.violet, V.glow, V.violet][frame % 4]!;
   for (const [x, y] of VEIN) p.px(x, y, V.deep);
@@ -94,8 +99,10 @@ function obelisk(p: Pen, frame: number): void {
   VEIN_BRANCH.forEach(([x, y], i) => {
     if ((i + frame) % 4 === 0) p.px(x, y, V.violet);
   });
+
   // The tip catches the hum.
   p.px(8, 5, frame % 2 ? V.glow : V.silverLight);
+
   // A feather of light rising off the tip, bobbing and fading.
   const lift = (frame * 2) % 8;
   const fy = 3 - Math.min(lift, 3);
@@ -136,11 +143,13 @@ function orrery(p: Pen, frame: number): void {
   const cx = 16;
   const cy = 18;
   shadow(p, 6, 30, 20);
+
   // The brass pedestal and foot.
   column(p, cx, 24, 28, 8, 11, O.brass);
   p.rect(cx - 3, 25, 1, 4, O.brassLight);
   box(p, 8, 28, 16, 3, O.brassDark);
   p.rect(9, 29, 14, 1, O.brass);
+
   // The plate: a brass rim round midnight with a few fixed stars.
   blob(p, cx, cy, 14, 6, O.brass);
   oval(p, cx, cy + 1, 13, 5, O.brassDark);
@@ -155,6 +164,7 @@ function orrery(p: Pen, frame: number): void {
     [12, 14],
   ] as const)
     p.px(x, y, (x + y + frame) % 3 === 0 ? O.white : O.glow);
+
   // The orbits, as dotted ellipses.
   for (const w of WORLDS) {
     for (let i = 0; i < 40; i += 2) {
@@ -183,10 +193,14 @@ function orrery(p: Pen, frame: number): void {
       p.px(x, y, w.lit);
     }
   };
+
   // Worlds behind the star first, then the post and the star, then the ones in front.
-  for (const w of WORLDS) if (at(w).back) world(w);
+  for (const w of WORLDS) {
+    if (at(w).back) world(w);
+  }
   box(p, cx - 1, 11, 3, 8, O.brass);
   p.rect(cx - 1, 12, 1, 6, O.brassLight);
+
   // The star pulses.
   const pulse = frame % 2;
   oval(p, cx, 9, 5 + pulse, 5 + pulse, "#1c5f80");
@@ -195,7 +209,10 @@ function orrery(p: Pen, frame: number): void {
   p.px(cx - 1, 8, O.white);
   p.px(cx, 8, O.white);
   sparkle(p, cx, 9, O.white, pulse === 1);
-  for (const w of WORLDS) if (!at(w).back) world(w);
+  for (const w of WORLDS) {
+    if (!at(w).back) world(w);
+  }
+
   // Saturn's ring, on the big gold world: a band of ink and gold.
   const gold = at(WORLDS[4]!);
   p.rect(gold.x - 3, gold.y, 7, 1, O.brassLight);
@@ -230,11 +247,13 @@ const ringAt = (i: number, rx: number, ry: number, cx = 8, cy = 14) => {
 /** A glass cell on a black plinth round a hole: a ring of magenta fire turning, stray light spiralling in. */
 function blackHole(p: Pen, frame: number): void {
   shadow(p, 1, 30, 14);
+
   // The plinth with its hazard stripe.
   box(p, 1, 25, 14, 6, B.voidMid);
   p.rect(2, 26, 12, 1, B.steel);
   for (let x = 2; x < 14; x += 2) p.rect(x, 28, 1, 2, B.magenta);
   for (let x = 3; x < 14; x += 2) p.rect(x, 28, 1, 2, B.voidLight);
+
   // The cell: a dark void behind glass, with a steel cap and foot.
   box(p, 2, 3, 12, 22, B.void);
   p.rect(3, 4, 10, 20, B.void);
@@ -243,6 +262,7 @@ function blackHole(p: Pen, frame: number): void {
   p.rect(2, 2, 12, 1, B.steelLight);
   box(p, 1, 22, 14, 3, B.steel);
   p.rect(2, 23, 12, 1, B.steelLight);
+
   // Stars in the void.
   for (const [x, y] of [
     [4, 7],
@@ -252,11 +272,13 @@ function blackHole(p: Pen, frame: number): void {
     [11, 5],
   ] as const)
     p.px(x, y, (x + y + frame) % 4 === 0 ? B.hot : B.magentaDark);
+
   // Lensed light from behind the hole, bent over its top and under its bottom.
   for (let i = 0; i < 24; i++) {
     const a = (i / 24) * Math.PI * 2;
     p.px(Math.round(8 + Math.cos(a) * 3.6), Math.round(14 - Math.abs(Math.sin(a)) * 4.4), B.magentaDark);
   }
+
   // The back half of the ring, then the hole, then the front half: the ring turns one place a frame.
   const shade = (i: number) => {
     const k = (i + frame * 3) % 24;
@@ -282,6 +304,7 @@ function blackHole(p: Pen, frame: number): void {
     const lower = shade(i + 8) === B.magentaDark ? B.magentaDark : B.magenta;
     p.px(r.x, r.y + 1, lower);
   }
+
   // Three motes falling in along spirals, each a third of the cycle behind the last.
   for (let k = 0; k < 3; k++) {
     const t = ((frame + k * 2.67) % 8) / 8;
@@ -289,6 +312,7 @@ function blackHole(p: Pen, frame: number): void {
     const a = k * 2.1 + t * 5;
     if (r > 2.5) p.px(Math.round(8 + Math.cos(a) * r), Math.round(14 + Math.sin(a) * r * 0.9), B.hot);
   }
+
   // The glass: edge highlights down both sides and a glint that slides.
   p.rect(2, 4, 1, 18, B.glass);
   p.rect(13, 4, 1, 18, B.glass);
@@ -331,10 +355,12 @@ function holoBlock(
 /** The town in blueprint gold over a projector: citizens blink along the streets, a scan line sweeps up it. */
 function holoTown(p: Pen, frame: number): void {
   shadow(p, 2, 30, 28);
+
   // The projector slab and its gold light strip.
   box(p, 2, 25, 28, 6, H.slab);
   p.rect(3, 26, 26, 1, H.slabLight);
   for (let x = 4; x < 28; x += 2) p.px(x, 29, (x / 2 + frame) % 4 === 0 ? H.cream : H.gold);
+
   // The emitter ring and the town's plate: a diamond of lit ground.
   blob(p, 16, 23, 13, 4, H.slab);
   oval(p, 16, 23, 12, 3, H.deep);
@@ -342,27 +368,33 @@ function holoTown(p: Pen, frame: number): void {
     const a = (i / 48) * Math.PI * 2;
     p.px(Math.round(16 + Math.cos(a) * 12), Math.round(23 + Math.sin(a) * 3), H.gold);
   }
+
   // The streets, in gold lines on the plate.
   p.rect(6, 23, 20, 1, H.dim);
   p.rect(16, 21, 1, 5, H.dim);
+
   // The town, back to front: a dome, a tower, two houses, a block, a spire.
   holoBlock(p, 6, 22, 4, 5, frame, 1);
   holoBlock(p, 21, 21, 5, 7, frame, 2);
+
   // A dome.
   oval(p, 13, 20, 3, 2, H.gold);
   oval(p, 13, 20, 2, 1, H.deep);
   p.rect(10, 20, 7, 1, H.deep);
   p.px(13, 17, H.cream);
+
   // The tall tower with a spire and a lit crown.
   holoBlock(p, 15, 22, 5, 13, frame, 0);
   p.rect(17, 6, 1, 3, H.cream);
   p.px(17, 5, frame % 2 ? H.glow : H.cream);
+
   // Front houses with pitched roofs.
   holoBlock(p, 8, 25, 5, 4, frame, 1);
   p.rect(9, 20, 3, 1, H.cream);
   holoBlock(p, 22, 26, 6, 5, frame, 2);
   p.rect(23, 20, 4, 1, H.cream);
   p.rect(24, 19, 2, 1, H.cream);
+
   // A tree or two, as lit dots.
   for (const [x, y] of [
     [5, 25],
@@ -372,6 +404,7 @@ function holoTown(p: Pen, frame: number): void {
     p.px(x, y, H.glow);
     p.px(x, y + 1, H.gold);
   }
+
   // Citizens: single lit pixels pacing the streets, blinking in time.
   const walk = frame % 4;
   const citizens: [number, number][] = [
@@ -383,6 +416,7 @@ function holoTown(p: Pen, frame: number): void {
   citizens.forEach(([x, y], i) => {
     if ((i + frame) % 4 !== 3) p.px(x, y, H.cream);
   });
+
   // The scan line, sweeping up through the whole town and starting again.
   const sy = 24 - ((frame * 4) % 20);
   p.rect(6, sy, 20, 1, H.cream);
@@ -407,6 +441,7 @@ function monument(p: Pen, frame: number): void {
   const cx = 16;
   const cy = 19;
   shadow(p, 4, 45, 24);
+
   // The plinth: two pearl steps, a pink inlay line, and the cradle the token stands in.
   box(p, 4, 41, 24, 5, R.pearl);
   p.rect(5, 42, 22, 1, R.pearlLight);
@@ -416,9 +451,11 @@ function monument(p: Pen, frame: number): void {
   p.rect(9, 40, 14, 1, R.pink);
   box(p, 12, 33, 8, 5, R.pearlDark);
   p.rect(13, 34, 6, 1, R.pearl);
+
   // The token: a pearl rim, a groove of colour that travels round, a midnight face.
   blob(p, cx, cy, 13, 13, R.pearl);
   oval(p, cx, cy, 12, 12, R.pearl);
+
   // Shading on the lower right of the rim.
   for (let a = 0.2; a < 1.5; a += 0.04) {
     p.px(Math.round(cx + Math.cos(a) * 12), Math.round(cy + Math.sin(a) * 12), R.pearlDark);
@@ -426,6 +463,7 @@ function monument(p: Pen, frame: number): void {
   }
   for (let a = 3.4; a < 4.6; a += 0.04)
     p.px(Math.round(cx + Math.cos(a) * 11), Math.round(cy + Math.sin(a) * 11), R.pearlLight);
+
   // The groove: rainbow hues sliding round it, 60 steps, eight frames to a full turn.
   for (let i = 0; i < 72; i++) {
     const a = (i / 72) * Math.PI * 2;
@@ -434,6 +472,7 @@ function monument(p: Pen, frame: number): void {
   }
   blob(p, cx, cy, 8, 8, R.night);
   oval(p, cx - 2, cy - 2, 5, 5, R.nightMid);
+
   // Stars in the face.
   for (const [x, y] of [
     [11, 14],
@@ -443,6 +482,7 @@ function monument(p: Pen, frame: number): void {
     [19, 27],
   ] as const)
     p.px(x, y, (x + y + frame) % 3 === 0 ? R.pearlLight : R.pearlShade);
+
   // The prism: a white triangle, with the white beam in and a fan of colour out.
   const rows = ["..#..", ".###.", ".###.", "#####"];
   rows.forEach((row, dy) => {
@@ -462,6 +502,7 @@ function monument(p: Pen, frame: number): void {
       p.px(x, y, c);
     }
   });
+
   // Light thrown beyond the token on both sides, in coloured streaks that shimmer.
   RAINBOW.forEach((c, i) => {
     const on = (i + frame) % 3;
@@ -473,6 +514,7 @@ function monument(p: Pen, frame: number): void {
       p.px(29, 12 + i * 3, c);
     }
   });
+
   // Sparkles that come and go round the crown.
   sparkle(p, 4 + ((frame * 5) % 24), 2 + ((frame * 3) % 5), R.pearlLight, frame % 2 === 0);
   sparkle(p, 27 - ((frame * 3) % 12), 4 + ((frame * 2) % 6), R.ice);

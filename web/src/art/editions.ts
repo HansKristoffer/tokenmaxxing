@@ -225,6 +225,7 @@ const artOf = (slot: "hat" | "glasses", index: number): Art | undefined => {
   if (!entry) return undefined;
 
   const ownArt = slot === "hat" ? HATS : GLASSES;
+
   // The cases' hats and glasses (the Night Market's and the Nusantara's) are drawn in `case.ts`.
   const caseArt = slot === "hat" ? CASE_HATS : CASE_GLASSES;
   return ownArt[entry.id] ?? caseArt[entry.id];

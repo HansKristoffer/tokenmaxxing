@@ -46,6 +46,7 @@ function body(p: Pen, y0: number): void {
   p.rect(2, y0 + 1, 20, 1, J.woodDark);
   p.rect(2, y0 + 2, 20, 1, J.woodLight);
   p.rect(2, y0 + 9, 20, 1, J.woodDark);
+
   // Two cream panels, each with a woven heart.
   for (const x of [3, 15]) {
     p.rect(x, y0 + 3, 6, 6, C.ink);
@@ -54,9 +55,11 @@ function body(p: Pen, y0: number): void {
   }
   p.grid(HEART, HEART_PAL, 3, y0 + 4);
   p.grid(HEART, HEART_PAL, 15, y0 + 4);
+
   // Clip the hearts back into their panels: a 5x4 heart on a 4x4 panel would spill, so redraw the edge.
   p.rect(2, y0 + 4, 1, 4, J.wood);
   p.rect(20, y0 + 4, 1, 4, J.wood);
+
   // The green ribbon straight down the middle.
   p.rect(10, y0 + 1, 4, 9, J.green);
   p.rect(10, y0 + 1, 1, 9, J.greenLight);
@@ -76,6 +79,7 @@ function bow(p: Pen, y: number): void {
   p.px(15, y - 2, J.greenLight);
   p.rect(10, y - 2, 4, 3, C.ink);
   p.rect(11, y - 1, 2, 1, J.greenLight);
+
   // The spruce sprig, over the lid's left of the bow, with two red berries.
   p.rect(4, y + 1, 5, 1, J.greenDark);
   p.rect(3, y + 2, 5, 1, J.green);
@@ -103,6 +107,7 @@ function candle(p: Pen, x: number, y: number, flick: boolean): void {
 function drawClosed(p: Pen): void {
   p.rect(2, 25, 20, 2, C.shadow);
   body(p, 14);
+
   // The lid: a striped awning, red and cream in threes.
   p.rect(2, 7, 20, 1, C.ink);
   p.rect(0, 8, 24, 7, C.ink);
@@ -111,6 +116,7 @@ function drawClosed(p: Pen): void {
     p.rect(x, 8, 1, 6, red ? J.red : J.cream);
     p.px(x, 13, red ? J.redDark : J.creamDark);
   }
+
   // The ribbon over the lid, and snow along its top edge and in drifts.
   p.rect(10, 8, 4, 6, J.green);
   p.rect(10, 8, 1, 6, J.greenLight);
@@ -163,6 +169,7 @@ function drawOpen(p: Pen, frame: number): void {
   const t = frame % 4;
   p.rect(2, 25, 20, 2, C.shadow);
   p.rect(3, 26, 18, 1, `rgba(242, 193, 78, ${[0.45, 0.6, 0.5, 0.65][t]})`);
+
   // The lid, stood up behind and foreshortened: the awning stripes seen from below, the ribbon down its middle.
   p.rect(1, 7, 22, 6, C.ink);
   for (let x = 2; x < 22; x++) {
@@ -174,6 +181,7 @@ function drawOpen(p: Pen, frame: number): void {
   p.rect(10, 8, 1, 4, J.greenLight);
   p.rect(13, 8, 1, 4, J.greenDark);
   for (const x of [2, 3, 6, 7, 16, 17, 20, 21]) p.px(x, 8, J.snow);
+
   // The body, its mouth full of candlelight.
   body(p, 14);
   p.rect(0, 11, 24, 3, C.ink);
@@ -182,6 +190,7 @@ function drawOpen(p: Pen, frame: number): void {
   p.rect(1, 11, 22, 1, J.wood);
   p.px(1, 12, J.goldDark);
   p.px(22, 12, J.goldDark);
+
   // The burst: a wide glow, then a fan of rays that breathe in length, then the white-hot heart of it.
   glow(p, 12, 10, 11, 10, [0.4, 0.5, 0.45, 0.55][t]!);
   const rays: [number, number][] = [
@@ -205,6 +214,7 @@ function drawOpen(p: Pen, frame: number): void {
   p.rect(5, 9, 14, 2, "rgba(255, 220, 130, 0.65)");
   p.rect(8, 8, 8, 1, "rgba(255, 240, 190, 0.55)");
   p.rect(10, 8, 4, 3, "rgba(255, 250, 225, 0.85)");
+
   // Paper hearts floating up out of the light, and snow drifting down past them.
   const hearts: [x: number, phase: number][] = [
     [5, 0],
@@ -231,6 +241,7 @@ function drawOpen(p: Pen, frame: number): void {
     const y = (t * 2 + ph + k) % 8;
     p.px(bx + (t % 2), y, k % 2 ? J.frost : J.snow);
   });
+
   // Gold sparks that twinkle at the mouth.
   const sp: [number, number][] = [
     [4, 6],
@@ -258,6 +269,7 @@ function drawKey(p: Pen): void {
   for (const x of [6, 9]) {
     for (let y = 1; y < 4; y++) p.px(x, y, (y + x) % 2 ? J.red : J.cream);
   }
+
   // The coin: ink ring, gold face, a darker inner ring, a highlight and a shaded edge.
   p.disc(8, 9, 7, C.ink);
   p.disc(8, 9, 6, J.gold);
@@ -275,10 +287,13 @@ function drawKey(p: Pen): void {
   p.px(3, 8, J.goldLight);
   p.px(12, 13, J.goldDark);
   p.px(11, 14, J.goldDark);
+
   // The hole it hangs by.
   p.rect(7, 5, 2, 2, C.ink);
+
   // The woven heart stamp.
   p.grid(HEART, { r: J.red, w: J.goldLight }, 6, 8);
+
   // The cord's end below: a knot, then two twisted tails.
   p.rect(7, 16, 2, 1, C.ink);
   p.rect(6, 17, 4, 2, C.ink);

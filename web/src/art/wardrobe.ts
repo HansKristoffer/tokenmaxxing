@@ -259,6 +259,7 @@ function drawHeld(p: Pen, i: number, view: View, skin: string, flip: boolean, po
   const hy = h.rows.findIndex((r) => r.includes("h"));
   const hx = h.rows[hy]!.indexOf("h");
   const [x, y] = HAND[view];
+
   // Padded to 16 wide so the side view mirrors like the rest of the character.
   const shift = x - hx;
   const rows = src.map((r) => ".".repeat(shift) + r + ".".repeat(Math.max(0, 16 - shift - r.length)));

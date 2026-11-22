@@ -57,6 +57,7 @@ const STAR_COLS: [string, string, string][] = [
 ];
 const stars: Draw = (raw, f) => {
   const p = safe(raw);
+
   // Nine stars: sizes 7, 5, 3 cycling, three orbits (radius, height, direction, tilt).
   const orbits = [
     { r: 10, y: -7, dir: 1, ry: 2.6 },
@@ -78,8 +79,10 @@ const stars: Draw = (raw, f) => {
       back: Math.sin(a) < -0.3,
     });
   }
+
   // A warm golden dusk behind it all.
   p.disc(CX, CY - 1, 12, rgba(255, 200, 90, 0.04));
+
   // Stars behind the body are drawn first, so the front ones cover them.
   for (const s of list.sort((u, v) => Number(v.back) - Number(u.back))) {
     const o = orbits[s.i % 3]!;
@@ -117,6 +120,7 @@ const stars: Draw = (raw, f) => {
       p.px(s.x, s.y + h + 2, "#ffffff");
     }
   }
+
   // Loose glints in the gaps, each a little cross that blinks on its own beat.
   for (let i = 0; i < 9; i++) {
     const x = 2 + ((i * 11 + 5) % 25);
@@ -144,8 +148,10 @@ const wreath: Draw = (raw, f) => {
   const lit = Math.min(4, Math.floor(f / 2) + 1);
   const pos = (a: number, dr = 0) =>
     [CX + Math.cos(a) * (rx + dr), cy + Math.sin(a) * (ry + dr * 0.4)] as const;
+
   // Warm light thrown on the ground and the air, stronger with every candle.
   for (let k = 0; k < lit; k++) p.disc(CX, cy, 13 - k, rgba(255, 170, 70, 0.045 + 0.01 * k));
+
   // The candles stand at fixed points: left, back, right, front, lit in that order.
   const slots = [Math.PI, -Math.PI / 2, 0, Math.PI / 2];
   const drawWreath = (front: boolean) => {
@@ -219,6 +225,7 @@ const wreath: Draw = (raw, f) => {
     }
   });
   drawWreath(true);
+
   // The red bow at the front, ribbon tails hanging.
   const bx = CX;
   const by = Math.round(cy + ry + 1);
@@ -249,15 +256,18 @@ const FLAKE_5 = ["a.b.a", ".aba.", "bbcbb", ".aba.", "a.b.a"];
 const FLAKE_3 = [".a.", "aba", ".a."];
 const snow: Draw = (raw, f) => {
   const p = safe(raw);
+
   // Frost mist, a cold pale haze at the foot.
   for (let y = 18; y < 28; y++)
     p.disc(CX, y, 12 - (y - 18) * 0.4, rgba(200, 228, 246, 0.03 + (y - 18) * 0.006));
+
   // Far layer: tiny, dim, slow (14 px a loop, two copies), drifting side to side.
   for (let i = 0; i < 16; i++) {
     const y = ((i * 11 + (f * 14) / FRAMES) % 14) + (i % 2) * 14;
     const x = 1 + ((i * 17) % 26) + Math.sin((f / FRAMES + i * 0.13) * TAU) * 0.9;
     p.px(x, y, rgba(190, 220, 240, 0.5));
   }
+
   // Middle layer: bright dots swirling in a loose spiral round the figure, one fall per loop.
   for (let i = 0; i < 22; i++) {
     const y = (i * 9 + (f * 28) / FRAMES) % 28;
@@ -270,6 +280,7 @@ const snow: Draw = (raw, f) => {
       p.px(x - 1, y - 2, rgba(255, 255, 255, 0.2));
     }
   }
+
   // Near layer: big crystals, three of each size, turning (the arms swap colours) and twinkling.
   for (let i = 0; i < 6; i++) {
     const big = i < 3;
@@ -306,6 +317,7 @@ const snow: Draw = (raw, f) => {
 const nordlys: Draw = (raw, f) => {
   const p = safe(raw);
   const t = (f / FRAMES) * TAU;
+
   // Each curtain: a base height, a wave phase and a strength (`k`) that dims the back ones.
   const curtains = [
     { top: 2, len: 19, ph: 0, dir: 1, k: 1.0 },
@@ -313,6 +325,7 @@ const nordlys: Draw = (raw, f) => {
     { top: 1, len: 15, ph: 4.0, dir: 1, k: 0.65 },
     { top: 7, len: 18, ph: 5.3, dir: -1, k: 0.55 },
   ];
+
   // A deep teal sky tint at the top.
   for (let y = 0; y < 8; y++) {
     for (let x = 0; x < SIZE; x++) {
@@ -341,6 +354,7 @@ const nordlys: Draw = (raw, f) => {
       p.px(x, bottom + 1, rgba(120, 250, 190, 0.3 * c.k * ray));
     }
   }
+
   // Shimmer: bright specks that appear in the curtain and fade out, out of step with each other.
   for (let i = 0; i < 14; i++) {
     const ph = (f + i * 3) % 8;
@@ -349,6 +363,7 @@ const nordlys: Draw = (raw, f) => {
     const y = 4 + ((i * 7) % 16);
     p.px(x, y, ph === 1 ? "#ffffff" : rgba(210, 255, 235, 0.8));
   }
+
   // Stars between the curtains.
   for (let i = 0; i < 5; i++) {
     if ((f + i) % 3 !== 0) p.px(1 + ((i * 7) % 26), (i * 11) % 6, "#ffffff");

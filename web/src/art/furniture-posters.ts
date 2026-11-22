@@ -44,13 +44,16 @@ function counterCi(p: Pen): void {
   p.rect(2, 2, 28, 6, "#f2d9a0");
   p.rect(2, 11, 28, 4, "#c99a55");
   p.rect(2, 11, 28, 1, "#b08a4e");
+
   // A wall and a door behind.
   p.rect(18, 4, 12, 7, "#b08a4e");
   p.rect(18, 4, 12, 1, "#8c6b36");
   box(p, 24, 6, 3, 5, "#5a4326");
+
   // Crates.
   box(p, 3, 9, 4, 4, C.woodLight);
   p.rect(4, 10, 2, 1, C.woodDark);
+
   // The operator: helmet, a cyan visor, a vest and a rifle.
   box(p, 8, 3, 6, 5, "#2f4a3a");
   p.rect(9, 5, 4, 1, K.cyan);
@@ -60,12 +63,14 @@ function counterCi(p: Pen): void {
   p.rect(12, 13, 3, 2, C.ink);
   p.rect(15, 9, 8, 2, C.ink);
   p.rect(15, 9, 7, 1, "#4a4f5e");
+
   // The bomb: wires, and a screen with ERR (the build is red).
   box(p, 17, 8, 13, 7, "#3a3f4a");
   p.rect(18, 9, 11, 5, C.ink);
   p.text("ERR", 18, 9, "#ff4d4d");
   p.px(16, 13, K.red);
   p.px(15, 14, K.red);
+
   // A crosshair over it.
   dots(
     p,
@@ -96,18 +101,22 @@ function deployLeague(p: Pen): void {
     ],
     "#6f86c9",
   );
+
   // The pitch, striped, with a chalk line.
   p.rect(2, 11, 28, 4, "#3f9b4d");
   for (let x = 2; x < 30; x += 8) p.rect(x, 12, 4, 3, "#4fb35d");
   p.rect(2, 11, 28, 1, "#d6f2d6");
+
   // The goal: posts and a net.
   p.rect(24, 4, 1, 8, C.white);
   p.rect(24, 4, 6, 1, C.white);
   p.rect(25, 5, 5, 6, "#2c3d78");
+
   // The net: every other pixel, offset on each row.
   for (let y = 5; y < 11; y++) {
     for (let x = 25 + (y % 2); x < 30; x += 2) p.px(x, y, "#8aa2d6");
   }
+
   // The ball, hit hard.
   p.disc(19, 6, 3, C.ink);
   p.disc(19, 6, 2, "#eef0fa");
@@ -121,6 +130,7 @@ function deployLeague(p: Pen): void {
     "#3a3f55",
   );
   p.rect(17, 12, 5, 1, "#2e7a3c");
+
   // The car, with its boost.
   p.rect(2, 11, 3, 1, K.yellow);
   p.rect(2, 12, 5, 1, K.orange);
@@ -138,6 +148,7 @@ function leagueLinters(p: Pen): void {
   p.rect(2, 2, 28, 7, "#3a2a66");
   p.rect(2, 7, 28, 2, "#4b3a82");
   p.rect(2, 9, 28, 2, "#3a7b4f");
+
   // The lane.
   p.rect(2, 11, 28, 4, "#b79a5e");
   p.rect(2, 11, 28, 1, "#8c7440");
@@ -151,6 +162,7 @@ function leagueLinters(p: Pen): void {
     ],
     "#8c7ad6",
   );
+
   // The tower, a crystal over it glowing.
   p.disc(16, 4, 3, "#5d4fa0");
   box(p, 13, 6, 7, 9, K.stone);
@@ -163,6 +175,7 @@ function leagueLinters(p: Pen): void {
   p.rect(15, 3, 3, 3, C.ink);
   p.rect(16, 2, 1, 4, K.cyan);
   p.rect(15, 4, 3, 1, K.cyan);
+
   // Minions: blue from the left, red from the right.
   for (const [x, c] of [
     [3, K.blue],
@@ -176,6 +189,7 @@ function leagueLinters(p: Pen): void {
     p.px(x + (facesRight ? 2 : 1), 11, C.white);
     p.rect(x + (facesRight ? 4 : -1), 9, 1, 5, C.ink);
   }
+
   // A lint warning.
   p.rect(10, 3, 1, 1, K.yellow);
   p.rect(9, 4, 3, 1, K.yellow);
@@ -185,6 +199,7 @@ function leagueLinters(p: Pen): void {
 /** A three-lane MOBA with a roster of heroes. */
 function defenseDeps(p: Pen): void {
   p.rect(2, 2, 28, 13, "#1d1a1f");
+
   // The map: three lanes meeting two bases.
   p.rect(5, 3, 22, 7, "#2b2a33");
   const lane = "#8c7a55";
@@ -208,6 +223,7 @@ function defenseDeps(p: Pen): void {
     ],
     K.yellow,
   );
+
   // The roster: eight heroes, one picked.
   const colors = [K.red, K.blue, K.green, K.yellow, K.purple, K.orange, K.cyan, "#ff7ac6"];
   colors.forEach((c, i) => {
@@ -236,6 +252,7 @@ function lootborn(p: Pen): void {
     ],
     "#cfd6ff",
   );
+
   // The planet, with a tilted ring across it.
   p.disc(21, 7, 5, "#7a3f26");
   p.disc(21, 7, 4, "#c9763a");
@@ -246,6 +263,7 @@ function lootborn(p: Pen): void {
     p.px(21 + dx, y, "#f3c98b");
     p.px(21 + dx, y + 1, "#a4733f");
   }
+
   // The guardian: helmet, a gold visor, a cape.
   p.rect(2, 9, 3, 6, "#a02c2c");
   box(p, 6, 3, 6, 6, "#4a4f66");
@@ -254,6 +272,7 @@ function lootborn(p: Pen): void {
   box(p, 4, 9, 10, 6, "#4a4f66");
   p.rect(6, 10, 6, 1, "#6b7090");
   p.rect(13, 10, 6, 2, C.ink);
+
   // Loot drops: gold and purple.
   p.grid([".o.", "ooo", ".o."], { o: K.gold }, 23, 11);
   p.px(24, 12, C.white);
@@ -267,6 +286,7 @@ function pipelineValley(p: Pen): void {
   p.disc(26, 5, 2, "#ffe27a");
   p.rect(5, 4, 5, 1, C.white);
   p.rect(6, 3, 3, 1, C.white);
+
   // Hills and the field.
   p.rect(2, 8, 28, 3, "#86c35e");
   p.rect(2, 11, 28, 4, "#6aa84a");
@@ -275,6 +295,7 @@ function pipelineValley(p: Pen): void {
     p.px(x, 12, "#a5d977");
     p.px(x + 1, 14, "#a5d977");
   }
+
   // The barn.
   box(p, 4, 5, 9, 7, K.red);
   p.rect(5, 4, 7, 1, C.ink);
@@ -283,6 +304,7 @@ function pipelineValley(p: Pen): void {
   p.rect(7, 8, 3, 4, C.white);
   p.rect(7, 9, 3, 1, K.red);
   p.rect(8, 8, 1, 4, K.red);
+
   // A sign in the field: the build passed.
   p.rect(20, 9, 1, 5, C.ink);
   box(p, 17, 6, 8, 5, C.white);
@@ -304,6 +326,7 @@ function superMerge(p: Pen): void {
   p.rect(2, 2, 12, 13, "#5aa9ff");
   p.rect(3, 4, 3, 1, C.white);
   p.rect(4, 3, 2, 1, C.white);
+
   // Bricks.
   p.rect(2, 12, 12, 3, "#c2703d");
   p.rect(2, 12, 12, 1, "#e08e57");
@@ -317,14 +340,17 @@ function superMerge(p: Pen): void {
     ],
     "#8a4a26",
   );
+
   // The ? block.
   box(p, 3, 3, 7, 7, K.yellow);
   p.grid(["111", "..1", ".1.", "...", ".1."], { "1": C.ink }, 5, 4);
+
   // The goal: a pole with a pull-request pennant.
   p.rect(12, 4, 1, 8, C.ink);
   p.px(12, 3, K.yellow);
   p.rect(9, 4, 3, 2, K.green);
   p.px(11, 6, K.green);
+
   // A little dev, jumping.
   p.rect(5, 10, 4, 1, "#3a5fd6");
   p.rect(5, 11, 4, 1, "#f2c9a0");
@@ -348,6 +374,7 @@ function darkDeploys(p: Pen): void {
     ],
     "#6f78a0",
   );
+
   // The figure: a hood with glowing eyes, a long cloak, a sword planted beside.
   p.rect(5, 6, 5, 1, "#3a3f55");
   p.rect(4, 7, 6, 3, "#3a3f55");
@@ -359,6 +386,7 @@ function darkDeploys(p: Pen): void {
   p.rect(5, 10, 1, 4, "#3a3f55");
   p.rect(12, 8, 1, 6, "#cfd6df");
   p.rect(11, 9, 3, 1, K.stoneDark);
+
   // The bonfire.
   p.rect(2, 14, 12, 1, "#3b3647");
   p.rect(3, 13, 2, 1, K.orange);
@@ -394,16 +422,19 @@ function slayBacklog(p: Pen): void {
 /** A battle royale: a parachute dropping onto the island, the storm closing in. */
 function lastDev(p: Pen): void {
   p.rect(2, 2, 12, 13, "#6cc3ff");
+
   // The storm: purple in the corners.
   for (let i = 0; i < 4; i++) {
     p.rect(2, 2 + i, 4 - i, 1, K.purple);
     p.rect(14 - (4 - i), 2 + i, 4 - i, 1, K.purple);
   }
+
   // The island.
   p.rect(2, 12, 12, 3, "#58a9e2");
   p.rect(3, 11, 10, 3, "#4f9b3d");
   p.rect(5, 10, 6, 1, "#4f9b3d");
   p.px(11, 11, C.leaf);
+
   // The parachute: a dome, lines, a dev.
   p.disc(8, 6, 3, C.ink);
   p.rect(5, 6, 7, 1, C.ink);

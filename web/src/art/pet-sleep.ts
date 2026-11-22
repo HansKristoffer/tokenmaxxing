@@ -297,7 +297,11 @@ export function sleepingFrame(
   if (!frame) {
     const grid = sleeping(made.grid, left, t);
     frame = bake(SLEEP_W, SLEEP_H, (p) => {
-      for (const [y, row] of grid.entries()) for (const [x, c] of row.entries()) if (c) p.px(x, y, c);
+      for (const [y, row] of grid.entries()) {
+        for (const [x, c] of row.entries()) {
+          if (c) p.px(x, y, c);
+        }
+      }
     });
     frames.set(key, frame);
   }

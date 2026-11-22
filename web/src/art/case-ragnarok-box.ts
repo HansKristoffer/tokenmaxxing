@@ -85,6 +85,7 @@ function body(p: Pen, y0: number): void {
     p.px(x + 1, y0 + 3, R.steelLight);
     p.px(x + 1, y0 + 7, R.steelLight);
   }
+
   // Dragon-head studs on the lower corners.
   p.grid(DRAGON_L, DRAGON_PAL, 0, y0 + 6);
   p.grid(DRAGON_R, DRAGON_PAL, 21, y0 + 6);
@@ -117,6 +118,7 @@ function drawClosed(p: Pen): void {
     p.rect(x, 8, 2, 6, R.iron);
     p.rect(x, 8, 1, 6, R.steel);
   }
+
   // Frost on the lid's top edge and rim, and icicles over the chest's mouth.
   for (const x of [3, 4, 5, 8, 9, 12, 13, 14, 17, 18, 21]) p.px(x, 8, R.frost);
   for (const x of [5, 6, 10, 15, 16, 20]) p.px(x, 9, "rgba(207, 232, 242, 0.8)");

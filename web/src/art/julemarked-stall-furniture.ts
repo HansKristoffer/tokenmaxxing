@@ -50,9 +50,11 @@ function star(p: Pen, frame: number): void {
   const r = frame === 0 ? 6 : 7;
   p.disc(7, 8, r, frame === 0 ? "rgba(255, 214, 120, 0.22)" : "rgba(255, 214, 120, 0.34)");
   p.disc(7, 8, r - 3, "rgba(255, 226, 150, 0.22)");
+
   // The cord it hangs from.
   p.px(7, 0, J.creamDark);
   p.grid(STAR, { k: C.ink, y: frame === 0 ? J.gold : "#f8d466", Y: J.glow }, 0, 1);
+
   // A hot spot that flickers.
   p.px(7, frame === 0 ? 6 : 7, "#ffffff");
 }
@@ -74,6 +76,7 @@ function kalender(p: Pen): void {
       p.rect(x, y, 2, 1, tone[(i + Math.floor(i / 4)) % 4]!);
     }
   }
+
   // The odd one is a little off: tomorrow's, already open.
   p.rect(11, 12, 2, 1, J.glow);
 }
@@ -101,6 +104,7 @@ const DOOR = [
 
 function nissedoer(p: Pen): void {
   p.grid(DOOR, { k: C.ink, d: J.wood, r: J.red, w: J.cream, h: J.gold, s: J.stone }, 0, 0);
+
   // Planks, a lit pane glow under the curtain, and a shaded step.
   for (let y = 9; y <= 12; y++) p.px(7, y, J.woodDark);
   p.px(5, 9, J.woodLight);
@@ -133,19 +137,23 @@ function bordtree(p: Pen, frame: number): void {
   tier(p, 8, 11, 8, 6, J.green, J.greenDark);
   tier(p, 8, 6, 7, 5, J.greenLight, J.green);
   tier(p, 8, 2, 6, 3, J.green, J.greenDark);
+
   // A pot with a cream rim.
   box(p, 4, 19, 8, 4, J.red);
   p.rect(5, 19, 6, 1, J.cream);
   p.rect(5, 21, 2, 1, J.redLight);
+
   // The star on top.
   p.px(8, 0, J.gold);
   p.rect(7, 1, 3, 1, J.gold);
   p.px(8, 2, J.gold);
+
   // Woven hearts.
   heart(p, 4, 14, J.cream);
   heart(p, 10, 13, J.red);
   heart(p, 6, 9, J.red);
   heart(p, 9, 8, J.cream);
+
   // A string of lights, twinkling.
   const lights: [number, number][] = [
     [3, 17],
@@ -161,15 +169,18 @@ function bordtree(p: Pen, frame: number): void {
 
 function gaver(p: Pen): void {
   p.rect(0, 14, 16, 2, C.shadow);
+
   // The big red one, a cream ribbon.
   box(p, 0, 7, 9, 8, J.red);
   p.rect(4, 8, 2, 6, J.cream);
   p.rect(1, 10, 7, 2, J.cream);
   p.px(1, 8, J.redLight);
+
   // The green one beside it, red ribbon.
   box(p, 8, 9, 8, 6, J.green);
   p.rect(11, 10, 2, 4, J.red);
   p.rect(9, 11, 6, 1, J.red);
+
   // A small cream one on top with a bow.
   box(p, 1, 3, 7, 5, J.cream);
   p.rect(4, 4, 1, 3, J.red);
@@ -179,6 +190,7 @@ function gaver(p: Pen): void {
   p.px(4, 3, J.redDark);
   p.px(3, 1, C.ink);
   p.px(5, 1, C.ink);
+
   // And a gold one on the green, green ribbon.
   box(p, 9, 5, 5, 5, J.gold);
   p.rect(11, 6, 1, 3, J.green);

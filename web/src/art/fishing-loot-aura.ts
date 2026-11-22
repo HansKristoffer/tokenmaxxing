@@ -43,6 +43,7 @@ function bubble(p: Pen, x: number, y: number, size: number): void {
   for (let j = 1; j < e; j++) {
     for (let i = 1; i < e; i++) p.px(x + i, y + j, FILL);
   }
+
   // The glint sits on the rim of a small bubble and just inside a big one.
   const glintInset = size > 3 ? 1 : 0;
   p.px(x + glintInset, y + glintInset, GLINT);

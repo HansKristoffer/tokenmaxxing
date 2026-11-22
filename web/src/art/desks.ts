@@ -59,9 +59,11 @@ const PAL_OFF: Palette = { o: C.ink, S: "#2f3a4a", a: "#2f3a4a", b: "#2f3a4a", g
 
 const palette = (tier: string, mode: ScreenMode): Palette => {
   if (mode === "off") return { ...PAL_OFF, x: "#2f3a4a", m: C.metal };
+
   // The battlestation's screens are dark with neon text; the rest are the laptop's cyan.
   const neon = tier === "battlestation";
   const lineEnd = neon ? "#5ff2ff" : C.white;
+
   // The end of a line: there, or not, every other beat.
   const lineEndBlink = mode === "typingB" ? (neon ? "#1b2140" : C.screen) : lineEnd;
   return {

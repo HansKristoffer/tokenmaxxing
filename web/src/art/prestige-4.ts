@@ -264,6 +264,7 @@ const wireframe = (p: Pen, f: number): void => {
   }
   const solids = [CUBE, OCTA, TETRA];
   const sizes = [2.3, 2.7, 2.4];
+
   // Each solid's height on the ellipse. The higher ones are drawn first, so the lower ones lie over them.
   const height = (i: number) => Math.sin((f / FRAMES + i / 3) * TAU);
   const order = [0, 1, 2].sort((a, b) => height(a) - height(b));
@@ -281,6 +282,7 @@ const wireframe = (p: Pen, f: number): void => {
       k % 1,
     );
   }
+
   // Measuring ticks sparkle on the path.
   for (const j of [0, 4])
     p.px(
