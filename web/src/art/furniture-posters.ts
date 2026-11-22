@@ -6,7 +6,7 @@
  */
 import { TILE } from "@tokenmaxxing/core/world.ts";
 import { C } from "./palette.ts";
-import { bake, cached, type Pen } from "./pixels.ts";
+import { bake, box, cached, dots, type Pen } from "./pixels.ts";
 
 /** Sprite height in pixels. */
 export const POSTER_H = 24;
@@ -38,16 +38,6 @@ const K = {
   stone: "#9aa0b4",
   stoneDark: "#6c7288",
 } as const;
-
-/** A filled rectangle with a one-pixel ink outline. */
-function box(p: Pen, x: number, y: number, w: number, h: number, fill: string): void {
-  p.rect(x, y, w, h, C.ink);
-  p.rect(x + 1, y + 1, w - 2, h - 2, fill);
-}
-
-const dots = (p: Pen, pts: readonly (readonly [number, number])[], color: string) => {
-  for (const [x, y] of pts) p.px(x, y, color);
-};
 
 /** A tactical team shooter: a masked operator, a crate, and a bomb that shows ERR. */
 function counterCi(p: Pen): void {
@@ -465,9 +455,12 @@ export function drawPoster(p: Pen, a: PosterArt): void {
   p.rect(1, 1, w - 2, POSTER_H - 2, a.frame);
   p.rect(2, 2, w - 4, POSTER_H - 4, a.bg);
   a.draw(p, w);
+
   // The band: dark, with the title centred in it.
   p.rect(2, BAND, w - 4, 7, C.ink);
   p.rect(2, BAND, w - 4, 1, a.frame);
+
+  // Each glyph is 4 pixels wide, with no gap after the last one.
   const tw = a.title.length * 4 - 1;
   p.text(a.title, Math.floor((w - tw) / 2), BAND + 1, a.titleInk);
 }

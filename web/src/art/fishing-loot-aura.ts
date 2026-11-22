@@ -69,6 +69,7 @@ const stream: Draw = (p, f) => {
     const reach = 6 + ((i * 7) % 6);
     const wobble = Math.sin(k * TAU * 1.5 + i * 2.2) * 1.6;
     const centre = Math.round(CX + side * reach + wobble);
+    // Keeps the bubble inside the 28-pixel frame.
     const x = Math.max(1, Math.min(27 - size, centre - 1));
     const top = 3 + ((i * 5) % 9);
     const y = Math.round(24 - Math.min(k, POP_AT) * ((24 - top) / POP_AT));

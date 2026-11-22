@@ -6,7 +6,7 @@
  */
 import type { FancyPiece } from "./furniture-fancy.ts";
 import { C } from "./palette.ts";
-import type { Pen } from "./pixels.ts";
+import { box, type Pen } from "./pixels.ts";
 
 const J = {
   red: "#b8302c",
@@ -26,12 +26,6 @@ const J = {
   stone: "#c9c2b4",
   stoneDark: "#a8a090",
 } as const;
-
-/** A filled rectangle with a one-pixel ink outline. */
-function box(p: Pen, x: number, y: number, w: number, h: number, fill: string): void {
-  p.rect(x, y, w, h, C.ink);
-  p.rect(x + 1, y + 1, w - 2, h - 2, fill);
-}
 
 // A five-pointed paper star, 15 wide; "Y" is the lit centre ridge.
 // prettier-ignore

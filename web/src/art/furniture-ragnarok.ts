@@ -6,7 +6,7 @@
  */
 import type { FancyPiece } from "./furniture-fancy.ts";
 import { C } from "./palette.ts";
-import type { Pen } from "./pixels.ts";
+import { blob, box, dots, oval, type Pen, shadow } from "./pixels.ts";
 
 const N = {
   oak: "#6b4a2e",
@@ -39,32 +39,6 @@ const N = {
   boarLight: "#c0803a",
   bread: "#d9a45a",
 } as const;
-
-/** A filled rectangle with a one-pixel ink outline. */
-function box(p: Pen, x: number, y: number, w: number, h: number, fill: string): void {
-  p.rect(x, y, w, h, C.ink);
-  p.rect(x + 1, y + 1, w - 2, h - 2, fill);
-}
-
-const shadow = (p: Pen, x: number, y: number, w: number) => p.rect(x, y, w, 2, C.shadow);
-
-/** A filled ellipse, pixel-exact. */
-function oval(p: Pen, cx: number, cy: number, rx: number, ry: number, color: string): void {
-  for (let y = -ry; y <= ry; y++) {
-    const half = Math.floor(rx * Math.sqrt(1 - (y * y) / (ry * ry + 0.01)) + 0.3);
-    p.rect(cx - half, cy + y, half * 2 + 1, 1, color);
-  }
-}
-
-/** An ink-outlined ellipse. */
-function blob(p: Pen, cx: number, cy: number, rx: number, ry: number, fill: string): void {
-  oval(p, cx, cy, rx + 1, ry + 1, C.ink);
-  oval(p, cx, cy, rx, ry, fill);
-}
-
-const dots = (p: Pen, pts: readonly (readonly [number, number])[], color: string) => {
-  for (const [x, y] of pts) p.px(x, y, color);
-};
 
 // The raven on the cloth, in profile with its wings folded: 12×8.
 // prettier-ignore
@@ -135,9 +109,9 @@ function ravenBanner(p: Pen, frame: number): void {
 
   BANNER_RAVEN.forEach((row, dy) => {
     const dx = sway(frame, 5 + dy);
-    [...row].forEach((c, dxx) => {
+    [...row].forEach((c, column) => {
       const col = RAVEN_COLOURS[c];
-      if (col) p.px(10 + dxx + dx, 5 + dy, col);
+      if (col) p.px(10 + column + dx, 5 + dy, col);
     });
   });
 }
@@ -394,6 +368,7 @@ const LEAVES = ["#ffd36a", "#f5b830", "#ffe9a0", "#e9a020"];
 
 function yggdrasil(p: Pen, frame: number): void {
   oval(p, 24, 51, 20, 3, C.shadow);
+
   // Roots: splayed over the mound, one on the left nibbled through.
   p.rect(10, 47, 28, 4, C.ink);
   oval(p, 24, 49, 12, 3, "#5a8a3a");
@@ -407,6 +382,7 @@ function yggdrasil(p: Pen, frame: number): void {
     p.rect(x, y, w, 1, N.oak);
   }
   p.rect(12, 50, 3, 1, N.oakDark);
+
   // The nibbled root's end: bite marks and a few shavings.
   dots(
     p,
@@ -423,7 +399,11 @@ function yggdrasil(p: Pen, frame: number): void {
   p.rect(20, 24, 8, 25, N.oak);
   p.rect(20, 24, 2, 25, N.oakLight);
   p.rect(26, 24, 2, 25, N.oakDark);
-  for (let y = 26; y < 48; y += 4) p.px(23 + (y % 8 === 2 ? 1 : 0), y, N.oakDark);
+  for (let y = 26; y < 48; y += 4) {
+    const shift = y % 8 === 2 ? 1 : 0;
+    p.px(23 + shift, y, N.oakDark);
+  }
+
   // Branches reaching out to the crown.
   const limb = (x0: number, y0: number, x1: number, y1: number) => {
     const n = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0));
@@ -440,6 +420,7 @@ function yggdrasil(p: Pen, frame: number): void {
   limb(24, 24, 24, 10);
   limb(20, 30, 6, 28);
   limb(28, 30, 42, 28);
+
   // The crown: clumps of gold leaf, a lit core in each.
   const clump = (cx: number, cy: number, r: number) => {
     p.disc(cx, cy, r + 1, "#9a6a10");
@@ -453,6 +434,7 @@ function yggdrasil(p: Pen, frame: number): void {
   clump(7, 28, 4);
   clump(41, 28, 4);
   clump(24, 8, 5);
+
   // Leaves catching light, shifting from frame to frame.
   const glints: [number, number][] = [
     [18, 10],
@@ -471,6 +453,7 @@ function yggdrasil(p: Pen, frame: number): void {
       p.px(x + 1, y, "#fff3c4");
     }
   });
+
   // The eagle on the top, wings folded, a pale head, a gold beak.
   p.grid(
     [".bbb..", "bBbbww", "BBBbwy", ".bBb..", "..y.y."],
@@ -478,6 +461,7 @@ function yggdrasil(p: Pen, frame: number): void {
     21,
     0,
   );
+
   // The squirrel running up and down the trunk: one bound per frame.
   const sy = [40, 34, 28, 34][frame % 4]!;
   p.rect(28, sy, 5, 5, C.ink);

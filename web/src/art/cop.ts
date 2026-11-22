@@ -99,23 +99,28 @@ export const copFrame = cached(
   (facing: Facing, pose: Pose, scribble: 0 | 1 | null) => {
     const view: View = facing === "left" || facing === "right" ? "side" : facing;
     const flip = facing === "left";
+
     return bake(16, 16, (p) => {
       p.g.drawImage(characterFrame(COP.look, facing, pose), 0, 0);
       p.grid(UNIFORM[view], PAL, 0, 9, flip);
       p.grid(CAP[view], PAL, 0, 0, flip);
       if (scribble === null || view === "up") return;
+
       p.grid(NOTEPAD[view], PAL, 0, 9, flip);
+
       // The pencil: eraser up, tip on the page, a pixel along every other frame.
       const x = (view === "down" ? 10 : 11) + scribble;
-      const at = (px: number) => (flip ? 15 - px : px);
-      p.px(at(x + 1), 9, ERASER);
-      p.px(at(x + 1), 10, PENCIL);
-      p.px(at(x), 11, C.ink);
+      const mirrorX = (px: number) => (flip ? 15 - px : px);
+      p.px(mirrorX(x + 1), 9, ERASER);
+      p.px(mirrorX(x + 1), 10, PENCIL);
+      p.px(mirrorX(x), 11, C.ink);
     });
   },
 );
 
-const sirenRed = (now: number) => Math.floor(now / 170) % 2 === 0;
+// The siren swaps its red and blue every 170 ms, the pace of a real light bar.
+const SIREN_MS = 170;
+const sirenRed = (now: number) => Math.floor(now / SIREN_MS) % 2 === 0;
 const sirenHot = (red: boolean) => (red ? "#ff4a4a" : "#4a9bff");
 
 /**

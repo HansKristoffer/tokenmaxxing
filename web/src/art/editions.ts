@@ -15,8 +15,8 @@ import { bake, type Palette, type Pen } from "./pixels.ts";
 
 /**
  * Merchant editions (`core/src/editions.ts`) and holiday costumes (`core/src/costumes.ts`), drawn like the
- * shop's hats and glasses in `characters.ts`: hats over the head from row 0, glasses over the eyes from row 5. A grid per view;
- * a missing side or back view is the front one. Keyed by item id, so the catalog order is free.
+ * shop's hats and glasses in `characters.ts`: hats over the head from row 0, glasses over the eyes from row 5.
+ * A grid per view; a missing side or back view is the front one. Keyed by item id, so the catalog order is free.
  */
 
 export interface Art {

@@ -55,6 +55,8 @@ const DRAGON_R = [
   "ss.",
 ];
 const DRAGON_PAL = { s: R.steelLight, e: R.ember };
+// The raven stamp on the coin: a tiny bird with its wings folded.
+const RAVEN_STAMP = ["..dd..", ".dddd.", "dddddd", ".dd.d.", "......"];
 
 // The knotwork band: bone links, crossing over and under, on a dark groove. 12 wide, 3 tall.
 // prettier-ignore
@@ -75,6 +77,7 @@ function body(p: Pen, y0: number): void {
   p.rect(2, y0 + 5, 20, 1, R.oakLight);
   p.rect(2, y0 + 8, 20, 1, R.oakLight);
   p.rect(2, y0 + 9, 20, 1, R.oakDark);
+
   // Iron bands, with a rivet each way.
   for (const x of [3, 19]) {
     p.rect(x, y0 + 1, 2, 9, R.iron);
@@ -85,9 +88,11 @@ function body(p: Pen, y0: number): void {
   // Dragon-head studs on the lower corners.
   p.grid(DRAGON_L, DRAGON_PAL, 0, y0 + 6);
   p.grid(DRAGON_R, DRAGON_PAL, 21, y0 + 6);
+
   // The knotwork band across the planks.
   p.rect(6, y0 + 5, 12, 3, R.oakDark);
   p.grid(KNOT, { b: R.bone, B: R.boneDark }, 6, y0 + 5);
+
   // The tally: a cord from the clasp, a carved tag with a raven.
   p.px(17, y0 + 2, R.thongDark);
   p.px(17, y0 + 3, R.thongDark);
@@ -99,6 +104,7 @@ function body(p: Pen, y0: number): void {
 function drawClosed(p: Pen): void {
   p.rect(2, 25, 20, 2, C.shadow);
   body(p, 14);
+
   // The lid: a low dome of planks with an iron band each side.
   p.rect(2, 7, 20, 1, C.ink);
   p.rect(0, 8, 24, 7, C.ink);
@@ -117,6 +123,7 @@ function drawClosed(p: Pen): void {
   for (const x of [7, 8, 13, 14, 21]) p.px(x, 13, R.frost);
   for (const x of [8, 14]) p.px(x, 14, R.frost);
   p.px(8, 15, R.ice);
+
   // The shield-boss clasp over the seam: a steel disc, a dome, a bone spike.
   p.disc(12, 14, 4, C.ink);
   p.disc(12, 14, 3, R.steel);
@@ -131,6 +138,7 @@ function drawOpen(p: Pen, frame: number): void {
   p.rect(2, 25, 20, 2, C.shadow);
   p.rect(4, 26, 7, 1, "rgba(143, 196, 224, 0.5)");
   p.rect(13, 26, 7, 1, "rgba(255, 154, 60, 0.45)");
+
   // The lid, stood up behind: its inside lit from below, ice on the left and ember on the right.
   p.rect(1, 0, 22, 12, C.ink);
   p.rect(2, 1, 20, 10, R.oakDark);
@@ -147,6 +155,7 @@ function drawOpen(p: Pen, frame: number): void {
   for (const x of [3, 4, 8, 9, 10, 14, 15, 18, 19, 20]) p.px(x, 1, R.frost);
   p.px(6, 2, R.frost);
   p.px(16, 2, R.frost);
+
   // The body, its mouth full of light.
   body(p, 14);
   p.rect(0, 11, 24, 3, C.ink);
@@ -157,6 +166,7 @@ function drawOpen(p: Pen, frame: number): void {
   for (const x of [3, 4, 19, 20]) p.px(x, 11, R.steel);
   p.px(1, 12, R.frost);
   p.px(22, 12, R.frost);
+
   // The beam rising out: cold on the left, warm on the right, white where they meet.
   p.rect(5, 9, 7, 2, "rgba(190, 232, 255, 0.7)");
   p.rect(12, 9, 7, 2, "rgba(255, 190, 100, 0.7)");
@@ -196,6 +206,7 @@ function drawKey(p: Pen): void {
   p.rect(9, 1, 1, 3, R.thong);
   p.px(6, 2, R.thongDark);
   p.px(9, 3, R.thongDark);
+
   // The coin: ink ring, silver face, a darker inner ring, a highlight and a shaded edge.
   p.disc(8, 9, 7, C.ink);
   p.disc(8, 9, 6, R.silver);
@@ -207,12 +218,13 @@ function drawKey(p: Pen): void {
   p.px(3, 8, "#ffffff");
   p.px(12, 13, R.silverDark);
   p.px(11, 14, R.silverDark);
+
   // The hole it hangs by.
   p.rect(7, 5, 2, 2, C.ink);
   p.px(7, 5, R.iron);
-  // The raven stamp: a tiny bird, wings folded.
-  p.grid(["..dd..", ".dddd.", "dddddd", ".dd.d.", "......"], { d: R.iron }, 5, 7);
+  p.grid(RAVEN_STAMP, { d: R.iron }, 5, 7);
   p.px(9, 8, R.silverDark);
+
   // The thong's end below: a knot, a bone bead, two tails.
   p.rect(7, 16, 2, 1, C.ink);
   p.rect(6, 17, 4, 3, C.ink);

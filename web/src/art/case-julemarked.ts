@@ -8,8 +8,8 @@ import { C } from "./palette.ts";
  * Design and palette: `docs/cases/julemarked.md`.
  *
  * Rarity shows in the work: the commons carry one signature detail, the uncommons more silhouette, the epic a
- * moving glow. Wearing has two frames (standing and the first walking one is the base art; `walkB` lays
- * `JULEMARKED_WEAR_WALK` over it, which `wardrobe.ts` does): bells glint, lights blink, flames flicker, bulbs cycle.
+ * moving glow. Wearing has two frames. The base art is the standing one, and `JULEMARKED_WEAR_WALK` is laid over
+ * it for the second walking frame (`wardrobe.ts` does that): bells glint, lights blink, flames flicker, bulbs cycle.
  */
 
 const o = C.ink;

@@ -8,27 +8,7 @@
 import { PRESTIGE_TRACKS } from "@tokenmaxxing/core/prestige.ts";
 import type { FancyPiece } from "./furniture-fancy.ts";
 import { C } from "./palette.ts";
-import type { Pen } from "./pixels.ts";
-
-/** A filled rectangle with a one-pixel ink outline. */
-function box(p: Pen, x: number, y: number, w: number, h: number, fill: string): void {
-  p.rect(x, y, w, h, C.ink);
-  p.rect(x + 1, y + 1, w - 2, h - 2, fill);
-}
-
-/** A filled ellipse, pixel-exact. */
-function oval(p: Pen, cx: number, cy: number, rx: number, ry: number, color: string): void {
-  for (let y = -ry; y <= ry; y++) {
-    const half = Math.floor(rx * Math.sqrt(1 - (y * y) / (ry * ry + 0.01)) + 0.3);
-    p.rect(cx - half, cy + y, half * 2 + 1, 1, color);
-  }
-}
-
-/** An ink-outlined ellipse. */
-function blob(p: Pen, cx: number, cy: number, rx: number, ry: number, fill: string): void {
-  oval(p, cx, cy, rx + 1, ry + 1, C.ink);
-  oval(p, cx, cy, rx, ry, fill);
-}
+import { blob, box, oval, type Pen, shadow } from "./pixels.ts";
 
 /** A tapering column from row `y0` to `y1` (inclusive), `w0` wide at the top and `w1` at the bottom, centred on `cx`. */
 function column(p: Pen, cx: number, y0: number, y1: number, w0: number, w1: number, fill: string): void {
@@ -42,8 +22,6 @@ function column(p: Pen, cx: number, y0: number, y1: number, w0: number, w1: numb
     p.rect(Math.round(cx - h), y, Math.round(h * 2), 1, fill);
   }
 }
-
-const shadow = (p: Pen, x: number, y: number, w: number) => p.rect(x, y, w, 2, C.shadow);
 
 /** A four-point sparkle centred on (`x`, `y`); `big` adds a second pixel on each arm. */
 const sparkle = (p: Pen, x: number, y: number, color: string, big = false) => {

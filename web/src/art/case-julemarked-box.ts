@@ -106,8 +106,6 @@ function drawClosed(p: Pen): void {
   // The lid: a striped awning, red and cream in threes.
   p.rect(2, 7, 20, 1, C.ink);
   p.rect(0, 8, 24, 7, C.ink);
-  p.px(0, 8, "rgba(0,0,0,0)");
-  p.px(23, 8, "rgba(0,0,0,0)");
   for (let x = 1; x < 23; x++) {
     const red = Math.floor((x - 1) / 3) % 2 === 0;
     p.rect(x, 8, 1, 6, red ? J.red : J.cream);
@@ -140,12 +138,13 @@ function glow(
   alpha: number,
   rgb = "255, 214, 120",
 ): void {
-  for (let y = Math.max(0, Math.floor(cy - ry)); y <= Math.min(27, Math.ceil(cy + ry)); y++)
+  for (let y = Math.max(0, Math.floor(cy - ry)); y <= Math.min(27, Math.ceil(cy + ry)); y++) {
     for (let x = Math.max(0, Math.floor(cx - rx)); x <= Math.min(23, Math.ceil(cx + rx)); x++) {
       const d = Math.hypot((x - cx) / rx, (y - cy) / ry);
       const a = alpha * (1 - d) ** 1.4;
       if (d <= 1 && a >= 0.04) p.px(x, y, rgba(rgb, a));
     }
+  }
 }
 
 /** A tiny paper heart, 3x2 (red with a cream edge so it reads on the lid), fading as it climbs. */
@@ -216,7 +215,10 @@ function drawOpen(p: Pen, frame: number): void {
   hearts.forEach(([bx, ph], k) => {
     const rise = (t * 2 + ph) % 9;
     const y = 8 - rise;
-    miniHeart(p, bx + (t % 2 === k % 2 ? 1 : 0), y, rise > 6 ? 0.45 : 1, k % 2 === 0);
+    const sway = t % 2 === k % 2 ? 1 : 0;
+    // A heart fades out in its last few rows of climb.
+    const fade = rise > 6 ? 0.45 : 1;
+    miniHeart(p, bx + sway, y, fade, k % 2 === 0);
   });
   const flakes: [x: number, phase: number][] = [
     [2, 0],

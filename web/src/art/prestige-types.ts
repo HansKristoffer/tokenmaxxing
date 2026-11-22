@@ -11,6 +11,8 @@ import type { Back, BackView, Outfit } from "./wardrobe.ts";
 export const frameAt = (rows: string[], y: number): string[] => [...Array<string>(y).fill(""), ...rows];
 /** A back view that has only a front layer. */
 export const frontView = (front: string[]): BackView => ({ front });
+/** `rows` shifted a column to the right, for a flap or a lantern that swings out. */
+export const nudge = (rows: string[]): string[] => rows.map((r) => (r ? `.${r.slice(0, 15)}` : r));
 
 /** One prestige track's 2D wearables (`core/src/prestige.ts`); `prestige.ts` files them under their look indices. */
 export interface TrackArt {

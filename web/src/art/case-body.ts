@@ -1,6 +1,6 @@
 import { CASE_BASE } from "@tokenmaxxing/core/case.ts";
 import { NUSANTARA_BASE } from "@tokenmaxxing/core/case-nusantara.ts";
-import { frontView } from "./prestige-types.ts";
+import { frontView, nudge } from "./prestige-types.ts";
 import type { Back, BackView, Held, Outfit } from "./wardrobe.ts";
 
 /**
@@ -283,7 +283,7 @@ const LANTERN_SIDE: string[] = [
   "..yy............",
 ];
 // The walking side frame: the lantern is one column further right.
-const LANTERN_SIDE_WALK = LANTERN_SIDE.map((row) => (row ? "." + row.slice(0, 15) : row));
+const LANTERN_SIDE_WALK = nudge(LANTERN_SIDE);
 
 // A storm cloud over the head (rows 0-2, in front), and neon streaks falling down both sides of it that dim out
 // before the shoulders (behind). `shift` slides the streaks down a row for the second frame.
