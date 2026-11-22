@@ -57,7 +57,7 @@ export const CANDLE_LINES: readonly string[] = [
 export const CANDLES_FULL =
   "🕯️ Your candles burn with the town's. The stone says 1940-1945, and under it, small: Lys i vinduet. Light in the window.";
 
-/** What the memorial says before it is the day (it is only built while the theme is on, so rarely seen). */
+/** The years on the stone. The memorial is only built while the theme is on, so few players see it. */
 export const MEMORIAL_PLAQUE = "1940-1945";
 
 const HENNING_LINES: string[] = [

@@ -16,9 +16,9 @@ export const JULEBRYG = {
 } as const;
 
 /**
- * The truck: its row (the road that meets the square's south row, where it parks), the tile its back stands on
- * when parked, how wide it is, where it drives in from and out to, and when, in minutes from J-dag's midnight
- * (it leaves the next night).
+ * The truck: its row (the road that meets the square's south row, where it parks), the tile its back stands
+ * on when parked, how wide it is, where it drives in from and out to, and when. Times are minutes from
+ * J-dag's midnight, and it leaves the next night.
  */
 export const TRUCK = {
   y: 9,
@@ -38,7 +38,7 @@ const POURS_UNTIL = 3 * 24 * 60;
 /** Minutes from J-dag's midnight (Copenhagen) to `ms`: negative before it, past 1440 after. */
 const sinceJDag = (ms: number): number => minutesFrom("jDag", ms);
 
-/** Where the truck is at `ms` (its back's tile, fractional while it drives), or null when it isn't in town. */
+/** Where the truck is at `ms`: its back's tile (fractional while it drives), or null when it isn't in town. */
 export function truckAt(ms: number): { x: number; y: number; parked: boolean } | null {
   const m = sinceJDag(ms);
   const { y, park, from, to, arrives, leaves, drive } = TRUCK;

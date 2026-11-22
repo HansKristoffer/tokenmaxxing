@@ -59,10 +59,17 @@ const formatOf = (tz: string): Intl.DateTimeFormat => {
 export function cityTime(tz: string, ms: number): CityTime {
   const p: Record<string, string> = {};
   for (const { type, value } of formatOf(tz).formatToParts(ms)) p[type] = value;
-  const [y, m, d, hour, minute] = [p.year, p.month, p.day, p.hour, p.minute].map(Number) as number[];
+
+  const y = Number(p.year);
+  const m = Number(p.month);
+  const d = Number(p.day);
+  const hour = Number(p.hour);
+  const minute = Number(p.minute);
+
+  // The offset is the wall clock read as UTC, minus the real instant, in whole minutes.
   const minuteStart = Math.floor(ms / 60_000) * 60_000;
-  const offset = Math.round((Date.UTC(y!, m! - 1, d!, hour!, minute!) - minuteStart) / 60_000);
-  return { y: y!, m: m!, d: d!, weekday: WEEKDAYS.indexOf(p.weekday!), hour: hour!, minute: minute!, offset };
+  const offset = Math.round((Date.UTC(y, m - 1, d, hour, minute) - minuteStart) / 60_000);
+  return { y, m, d, weekday: WEEKDAYS.indexOf(p.weekday ?? ""), hour, minute, offset };
 }
 
 /** `HH:MM` on a city's clock. */

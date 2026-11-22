@@ -105,9 +105,12 @@ export const memberRoomOf = (room: RoomId): number | null => companyOfRoom(room)
 export const ownerOfOffice = (room: RoomId): number | null =>
   room.startsWith("office:") ? Number(room.slice(7)) : null;
 
-/** Every office is its owner's size and decor (its furniture is its drops); a building nobody has built is the bare floor. */
+/**
+ * Every office is its owner's size and decor (its furniture is its drops). A building nobody has built is the
+ * bare floor.
+ */
 export function baseMap(room: RoomId): GameMap {
-  // Fast path for fixed rooms ("town", "inn", shops, etc.) — avoids 3 prefix scans on every step.
+  // Fast path for fixed rooms ("town", "inn", shops, etc.). It avoids three prefix scans on every step.
   const fixed = (MAPS as Record<string, GameMap | undefined>)[room];
   if (fixed) return fixed;
   const owner = ownerOfOffice(room);
@@ -288,7 +291,8 @@ export function parseLook(raw: unknown): Look | null {
     if (!name) return null;
     out.petName = name;
   }
-  // Old looks have no aura, and a look without one is saved without the field. Nothing sells one: only the case's indices count.
+  // Old looks have no aura, and a look without one is saved without the field. Nothing sells one: only the
+  // case's indices count.
   const aura = r.aura;
   if (aura !== undefined && aura !== 0) {
     if (typeof aura !== "number" || !Number.isInteger(aura) || !caseAt("aura", aura)) return null;

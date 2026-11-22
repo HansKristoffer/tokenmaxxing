@@ -134,7 +134,7 @@ export function slideOfShelf(shelf: number | undefined): number {
 
 export const caseById = (id: unknown): CaseDef | undefined => CASES.find((c) => c.id === id);
 
-/** The case a rarity-bearing item belongs to, if any. */
+/** The case an item belongs to, if any. */
 export const caseOfItem = (itemId: string): CaseDef | undefined =>
   CASES.find((c) => c.items.some((i) => i.id === itemId));
 
@@ -162,7 +162,8 @@ export function rollCase(
   const weights = RARITIES.map((r) => (guaranteed && !isHit(r) ? 0 : def.odds[r]));
 
   // The roll is scaled to the total weight, so the weights need not sum to 1.
-  let x = rand() * weights.reduce((a, b) => a + b, 0);
+  const total = weights.reduce((a, b) => a + b, 0);
+  let x = rand() * total;
   let at = weights.findIndex((w) => {
     x -= w;
     return x < 0;

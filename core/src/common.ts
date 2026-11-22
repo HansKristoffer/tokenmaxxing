@@ -52,9 +52,10 @@ export const commonSeats = (): CommonSeat[] =>
   MAPS.common.rows.flatMap((row, y) =>
     [...row].flatMap((ch, x) => {
       const seat = MAPS.common.kind(x, y).seat;
-      return seat === "sofa" || seat === "chair"
-        ? [{ x, y, ch, kind: seat, facing: seat === "chair" ? ("up" as const) : ("down" as const) }]
-        : [];
+      if (seat !== "sofa" && seat !== "chair") return [];
+
+      const facing = seat === "chair" ? ("up" as const) : ("down" as const);
+      return [{ x, y, ch, kind: seat, facing }];
     }),
   );
 

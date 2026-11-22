@@ -49,7 +49,10 @@ export const COLOURS: readonly string[] = [
   "#ff9f43",
 ];
 
-/** A rocket goes up every `EVERY_MS` (two at once in the last `FINALE_MS`), climbs for `RISE_MS` and burns for `BURST_MS`. */
+/**
+ * A rocket goes up every `EVERY_MS`, two at once in the last `FINALE_MS`. It climbs for `RISE_MS` and burns
+ * for `BURST_MS`.
+ */
 export const EVERY_MS = 420;
 export const RISE_MS = 950;
 export const BURST_MS = 1_600;
@@ -86,6 +89,8 @@ const rocketOf = (show: Fireworks, id: number, now: number): Rocket | null => {
 export function rocketsAt(show: Fireworks, now: number): Rocket[] {
   if (!fireworksOn(show, now)) return [];
   const elapsed = now - show.at;
+
+  // Slots whose rockets may still be in the air, from the oldest to the newest one launched.
   const first = Math.max(0, Math.floor((elapsed - LIFE_MS) / EVERY_MS));
   const last = Math.min(Math.floor(elapsed / EVERY_MS), Math.floor((show.ms - 1) / EVERY_MS));
   const out: Rocket[] = [];
@@ -116,7 +121,11 @@ export function sparkAt(r: Rocket, i: number): [number, number, number] {
   const ring = Math.sqrt(1 - up * up);
   // 2.399963 is the golden angle in radians, so successive sparks never line up.
   const angle = i * 2.399963 + r.id;
-  return [Math.cos(angle) * ring * reach, up * reach - DROOP * t * t, Math.sin(angle) * ring * reach];
+
+  const across = Math.cos(angle) * ring * reach;
+  const lift = up * reach - DROOP * t * t;
+  const depth = Math.sin(angle) * ring * reach;
+  return [across, lift, depth];
 }
 
 /** How bright a burst's sparks still are: full, then fading out over its second half. */

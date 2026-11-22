@@ -1,6 +1,6 @@
 /**
  * Prestige: past level 50 you can choose to start another run (`RUN_LEVELS` levels of `TOKENS_PER_LEVEL` each) for
- * a collection nobody else can have. This file is the catalogue only: five tracks (V is the first release, more
+ * a collection nobody else can have. This file is the catalog only: five tracks (V is the first release, more
  * will follow), each with a tag (emblem and title), four wearables, a pet accessory and a home trophy. Like the
  * cases' (`case.ts`) the wearables go through `Look` at their own indices from `PRESTIGE_BASE`, so no range ever
  * meets another, but they are never sold, never in a case and cannot change hands. The art is keyed by the same
@@ -50,7 +50,7 @@ export interface PrestigeTrack {
   trophy: { name: string; blurb: string; w: number };
 }
 
-// A catalogue reads best one track a block.
+// A catalog reads best one track a block.
 // prettier-ignore
 export const PRESTIGE_TRACKS: readonly PrestigeTrack[] = [
   {
@@ -113,7 +113,7 @@ const item = (
   case: true,
 });
 
-// A catalogue reads best one item a line.
+// A catalog reads best one item a line.
 // prettier-ignore
 const NAMES: readonly [hat: string, outfit: string, back: string, aura: string][] = [
   ["Ascendant visor", "Ascendant robes", "Runic cape", "Ascending sparks"],

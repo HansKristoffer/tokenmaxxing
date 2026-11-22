@@ -40,7 +40,10 @@ export interface Statue {
   pinned: boolean;
 }
 
-/** What `world` keeps (in its state, so it outlives a restart): the last leader read, the admin's pin, and the next read. */
+/**
+ * What `world` keeps in its state, so it outlives a restart: the last leader read, the admin's pin, and the next
+ * read.
+ */
 export interface StatueState {
   read: { leader: Leader; since: number } | null;
   pin: { leader: Leader; since: number } | null;
@@ -53,7 +56,10 @@ export const NO_STATUE: StatueState = { read: null, pin: null, nextAt: 0 };
 /** What the admin page sees: all of it, and what the plinth shows for it. */
 export type StatueAdmin = StatueState & { shown: Statue };
 
-/** What the plinth shows for `s`: the admin's pin over the last leader read. A plain copy (`world`'s state hands out proxies). */
+/**
+ * What the plinth shows for `s`: the admin's pin over the last leader read. A plain copy, since `world`'s state
+ * hands out proxies.
+ */
 export function shownStatue(s: StatueState | undefined): Statue {
   const on = s?.pin ?? s?.read ?? null;
   return { leader: on ? { ...on.leader } : null, since: on?.since ?? 0, pinned: !!s?.pin };
@@ -62,7 +68,10 @@ export function shownStatue(s: StatueState | undefined): Statue {
 export const sameLeader = (a: Leader | null, b: Leader | null): boolean =>
   a === b || (!!a && !!b && a.model === b.model && a.org === b.org && a.ranking === b.ranking);
 
-/** `s` after a read of the ranking at `now`: a new leader takes the plinth from now, the same one keeps its `since`, and no answer (null) keeps what was there. */
+/**
+ * `s` after a read of the ranking at `now`: a new leader takes the plinth from now, the same one keeps its
+ * `since`, and no answer (null) keeps what was there.
+ */
 export function afterRead(s: StatueState, leader: Leader | null, now: number, nextAt: number): StatueState {
   if (!leader) return { ...s, nextAt };
   const since = s.read && sameLeader(s.read.leader, leader) ? s.read.since : now;
@@ -131,7 +140,7 @@ const ORGS = new Map<string, ProviderId>([
 
 const keyOf = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
 
-/** The pool's provider (`PROVIDERS`) behind an organisation's name, or null for one outside it. */
+/** The pool's provider (`PROVIDERS`) behind an organization's name, or null for one outside it. */
 export function providerFor(org: string): ProviderId | null {
   const key = keyOf(org);
   const byName = findProvider(org)?.id;
@@ -165,12 +174,14 @@ const dayName = (day: string) =>
 /** What the plinth says: its sign over it, its colour, and the plaque you read with E. */
 export function plaqueOf(s: Statue): { sign: string; accent: string; text: string } {
   const l = s.leader;
-  if (!l)
+  if (!l) {
     return {
       sign: "🗿 Unveiling soon",
       accent: BRONZE,
       text: "A plinth under a velvet drape. A brass plate reads: THE #1 MODEL. Unveiling soon.",
     };
+  }
+
   const by = makerOf(l);
   const details = [
     l.score === null ? "" : `score ${Math.round(l.score)}`,

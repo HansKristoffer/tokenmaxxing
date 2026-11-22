@@ -122,7 +122,8 @@ export function lightAt(ms: number): Light {
   const darkness = smooth((DAY_DEG - elevation) / (DAY_DEG - NIGHT_DEG)) * nightDepth(ms);
   const warmth = smooth(1 - Math.abs(elevation - 1) / 9);
 
-  // Below civil twilight (6 degrees under the horizon) it is night; dawn and dusk are the sun's climb and fall in between.
+  // Below civil twilight (6 degrees under the horizon) it is night. Dawn and dusk are the sun's climb and fall
+  // in between.
   let phase: Phase = "dusk";
   if (elevation > DAY_DEG) phase = "day";
   else if (elevation < -6) phase = "night";
@@ -333,7 +334,10 @@ export function weatherFrom(current: unknown): Weather | null {
   };
 }
 
-/** 0..1 how thick the fog or mist is: a fog code's own intensity, or what the visibility says, whichever is more. */
+/**
+ * 0..1 how thick the fog or mist is: a fog code's own intensity, or what the visibility says, whichever is
+ * more.
+ */
 export const fogOf = (w: Weather): number =>
   Math.max(w.kind === "fog" ? w.intensity : 0, Math.round(fogAt(w.visibilityM) * 100) / 100);
 
@@ -360,7 +364,10 @@ export const POLLEN_HIGH = {
   ragweed_pollen: 20,
 } as const;
 
-/** The worst pollen in Open-Meteo's air-quality `current` block against its high mark (0 none, 1 high, at most 5); null if it has none. */
+/**
+ * The worst pollen in Open-Meteo's air-quality `current` block against its high mark (0 none, 1 high, at most
+ * 5). Null if it has none.
+ */
 export function pollenFrom(current: unknown): number | null {
   const c = current as Record<string, unknown> | null;
   const ratios = Object.entries(POLLEN_HIGH).flatMap(([k, high]) => {

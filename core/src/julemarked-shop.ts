@@ -1,10 +1,10 @@
 /**
  * What the Julemarked's three small stalls sell, for coins: Julegodter (things to hold), Julepynt (furniture
  * for your own office) and Den varme bod (warm clothes, things to carry and small animals). They are shop items
- * like any other (`ITEMS`, the bag, trades, the Shop page) with three differences: each is bought only inside the market
- * room (`stallOfItem`; the market is only open from J-dag to 26 December, so the season gate is the gate's),
- * the Shop page opens on a stall's own goods and only those (`STALL_TABS`), and Møbelhuset, Thread & Token
- * and the pet shop never list them. No case gives one, and no case item is sold here.
+ * like any other (`ITEMS`, the bag, trades, the Shop page) with three differences. Each is bought only inside
+ * the market room (`stallOfItem`), and the market is only open from J-dag to 26 December, so that is the
+ * season gate. The Shop page opens on a stall's own goods and only those (`STALL_TABS`), and Møbelhuset,
+ * Thread & Token and the pet shop never list them. No case gives one, and no case item is sold here.
  *
  * Look indices count from `STALL_BASE` (900), after the Julemarked case's 800 to 899, so no range meets
  * another (shop and loot below 300, cases 300 to 599 and 800 to 899, the pond 600 to 699, prestige 700 to 799).

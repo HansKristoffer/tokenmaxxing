@@ -145,5 +145,8 @@ export const GREETINGS: Record<ShopId, readonly string[]> = {
 };
 
 /** The keeper's greeting as a line, `n` picks which of them (any number). */
-export const greeting = (shop: ShopId, n = 0): string =>
-  `${SHOPS[shop].keeperName}: "${GREETINGS[shop][n % GREETINGS[shop].length]}"`;
+export const greeting = (shop: ShopId, n = 0): string => {
+  const lines = GREETINGS[shop];
+  const line = lines[n % lines.length];
+  return `${SHOPS[shop].keeperName}: "${line}"`;
+};

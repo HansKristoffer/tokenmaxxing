@@ -22,11 +22,18 @@ function monthDay(text: string): number | null {
   return Math.min(MONTH_START[month - 1]! + day - 1, (MONTH_START[month] ?? YEAR_DAYS) - 1);
 }
 
-/** Days since 1 January on the Aarhus clock, the time of day as a fraction (0 to 365; 29 February counts as 1 March). */
+/**
+ * Days since 1 January on the Aarhus clock, the time of day as a fraction (0 to 365). 29 February counts as
+ * 1 March.
+ */
 export function yearDay(ms: number): number {
   const { m, d, hour, minute } = worldWall(ms);
   const leapDay = m === 2 && d === 29;
-  return MONTH_START[leapDay ? 2 : m - 1]! + (leapDay ? 0 : d - 1) + (hour * 60 + minute) / 1440;
+
+  const monthStart = MONTH_START[leapDay ? 2 : m - 1]!;
+  const daysIntoMonth = leapDay ? 0 : d - 1;
+  const timeOfDay = (hour * 60 + minute) / 1440;
+  return monthStart + daysIntoMonth + timeOfDay;
 }
 
 /** Meteorological seasons on the town's Aarhus calendar. */

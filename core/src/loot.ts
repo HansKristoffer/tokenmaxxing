@@ -35,7 +35,10 @@ export const LOOT_ODDS_FROM = "2026-10-26";
 
 /** Every lap round the ladder ("II", "III"…) multiplies the odds by this, up to `LAP_CAP`. */
 export const LAP_BONUS = 1.05;
-/** The most the odds ever grow: a 2% legendary is never above 20%, and a 40% common is certain from lap 20 (which is also where `lootOdds` stops them). */
+/**
+ * The most the odds ever grow. A 2% legendary reaches 20% (the cap) on lap 49, and a 40% common is certain
+ * from lap 20; `lootOdds` never goes past 1.
+ */
 export const LAP_CAP = 10;
 
 type LootSlot = "outfit" | "glasses" | "hat" | "pet" | "furniture";
@@ -67,7 +70,13 @@ const PIECE_BASE = 12;
  * Where loot starts in each slot: after the shop's, the head pack's and the wardrobe's, so loot never
  * shares an index with something sold. `LOOK_OPTIONS` ends each slot at `LOOT_FIRST + LOOT_COUNT`.
  */
-export const LOOT_FIRST = { outfit: WARDROBE_OPTIONS.outfit, glasses: FACE_COUNT, hat: HAT_COUNT, pet: 7 };
+export const LOOT_FIRST = {
+  outfit: WARDROBE_OPTIONS.outfit,
+  glasses: FACE_COUNT,
+  hat: HAT_COUNT,
+  // The shop's pets run from 0 to 6, the Singularity orb being the last.
+  pet: 7,
+};
 
 const loot = (
   boss: string,
@@ -159,13 +168,11 @@ export const lapBonus = (level: number): number => Math.min(LAP_CAP, LAP_BONUS *
  * The chance of one roll for `rarity` on lap `level`; `boost` is the dev-only `RAID_LOOT_BOOST`. `week` is
  * the raid week it's rolled in: before `LOOT_ODDS_FROM` the old odds. Without one, today's.
  */
-export const lootOdds = (rarity: Rarity, level: number, boost = 1, week?: string): number =>
-  Math.min(
-    1,
-    (week !== undefined && week < LOOT_ODDS_FROM ? OLD_ODDS[rarity] : RARITIES[rarity].odds) *
-      lapBonus(level) *
-      boost,
-  );
+export const lootOdds = (rarity: Rarity, level: number, boost = 1, week?: string): number => {
+  const isOldWeek = week !== undefined && week < LOOT_ODDS_FROM;
+  const baseOdds = isOldWeek ? OLD_ODDS[rarity] : RARITIES[rarity].odds;
+  return Math.min(1, baseOdds * lapBonus(level) * boost);
+};
 
 /**
  * One roll, in [0, 1): the first 52 bits of sha256("loot:<week>:<rung>:<userId>:<item>"). It drops when

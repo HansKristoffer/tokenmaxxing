@@ -126,7 +126,10 @@ export function themeOf(room: RoomId, festive?: FestiveId | null, at = Date.now(
   return THEMES.find((t) => t.id === id)!;
 }
 
-/** The festive theme's own music for a room's usual theme (only the town and the Tavern), or null: the usual one plays. */
+/**
+ * The festive theme's own music for a room's usual theme (only the town and the Tavern), or null: the usual one
+ * plays.
+ */
 export const festiveTheme = (festive: FestiveId | null | undefined, base: BaseThemeId): Theme | null =>
   festive && (base === "town" || base === "tavern") ? (FESTIVE_THEMES[festive]?.[base] ?? null) : null;
 

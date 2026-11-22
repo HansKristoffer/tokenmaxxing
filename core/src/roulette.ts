@@ -200,7 +200,7 @@ export interface RouletteState {
 
 /** How long bets are open, and how long the result stays up before the next round. */
 export const BETTING_MS = 20_000;
-export const RESULT_MS = 6000;
+export const RESULT_MS = 6_000;
 
 /** What the table is doing, for `nextPhase`. */
 export interface RoundView {
@@ -222,14 +222,21 @@ export function nextPhase(v: RoundView): RoulettePhase | null {
   switch (v.phase) {
     case "idle":
       return v.seated > 0 ? "betting" : null;
-    case "betting":
+    case "betting": {
       if (v.seated === 0) return "idle";
-      if (v.now >= v.endsAt || (v.allReady && v.betting > 0)) return v.betting > 0 ? "spinning" : "betting";
-      return null;
+
+      // Bets close when the time runs out, or as soon as every seated player has pressed Ready with a bet down.
+      const timeUp = v.now >= v.endsAt;
+      const readyWithBets = v.allReady && v.betting > 0;
+      if (!timeUp && !readyWithBets) return null;
+      return v.betting > 0 ? "spinning" : "betting";
+    }
     case "spinning":
       return v.now >= v.endsAt ? "result" : null;
-    case "result":
-      return v.now >= v.endsAt ? (v.seated > 0 ? "betting" : "idle") : null;
+    case "result": {
+      if (v.now < v.endsAt) return null;
+      return v.seated > 0 ? "betting" : "idle";
+    }
   }
 }
 

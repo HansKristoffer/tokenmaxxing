@@ -72,7 +72,10 @@ export const DANCES: readonly Dance[] = [
   { index: 19, move: "levitate", name: "Levitation", emoji: "🧘", price: 2000, rarity: "legendary", blurb: "Cross-legged, eyes shut, a foot off the floor. Peak aura.", aura: "#5ef2d6" },
 ];
 
-/** Beats a second each dance goes at, in 2D and 3D alike: about 120 bpm, slower for the calm ones. */
+/**
+ * Beats per second for each dance, the same in 2D and 3D. Two is about 120 bpm, which is the default; the
+ * calm ones are slower.
+ */
 const TEMPO: Partial<Record<DanceMove, number>> = {
   floss: 2.4,
   boat: 1.4,

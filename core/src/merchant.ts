@@ -36,8 +36,10 @@ export function cartOpen(now: number): boolean {
 }
 
 /** Weeks since the Monday 1970-01-05. */
-const weekNumber = (week: string): number =>
-  Math.round((Date.parse(`${week}T00:00:00Z`) - Date.parse("1970-01-05T00:00:00Z")) / (7 * 86_400_000));
+const weekNumber = (week: string): number => {
+  const elapsed = Date.parse(`${week}T00:00:00Z`) - Date.parse("1970-01-05T00:00:00Z");
+  return Math.round(elapsed / (7 * 86_400_000));
+};
 
 /** A small stable hash, so everyone's cart is shuffled the same way. */
 const hash = (a: number, b: number): number =>

@@ -1,7 +1,7 @@
 /**
  * The town's calendar: the days it keeps, worked out from the world's clock (Copenhagen) and nothing else,
  * like the street (`street.ts`) and the merchant (`merchant.ts`), so every client sees the same day and the
- * server keeps no state for it. Each feature asks whether today is in its own window round a day (`near`):
+ * server keeps no state for it. Each feature asks whether today falls in its own window around a holiday (`near`):
  * the pumpkins (`halloween.ts`) are out for the week up to Halloween, and a costume is sold for two
  * weeks before its day (`costumes.ts`).
  */
@@ -45,7 +45,8 @@ export function easter(year: number): [number, number] {
   const l = (32 + 2 * (b % 4) + 2 * Math.floor(c / 4) - h - (c % 4)) % 7;
   const m = Math.floor((a + 11 * h + 22 * l) / 451);
   const month = Math.floor((h + l - 7 * m + 114) / 31);
-  return [month, ((h + l - 7 * m + 114) % 31) + 1];
+  const day = ((h + l - 7 * m + 114) % 31) + 1;
+  return [month, day];
 }
 
 /** The day of the month of the first `weekday` (0 is Sunday) in `month` of `year`. */
@@ -104,7 +105,10 @@ export function daysFrom(id: HolidayId, ms: number): number {
     .reduce((a, b) => (Math.abs(b) < Math.abs(a) ? b : a));
 }
 
-/** Minutes from `id`'s midnight (Copenhagen) to `ms`, for its nearest occurrence: negative before it, past 1440 after. */
+/**
+ * Minutes from `id`'s midnight (Copenhagen) to `ms`, for its nearest occurrence: negative before it, past
+ * 1440 after.
+ */
 export function minutesFrom(id: HolidayId, ms: number): number {
   const { hour, minute, second } = worldWall(ms);
   return daysFrom(id, ms) * 24 * 60 + hour * 60 + minute + second / 60;

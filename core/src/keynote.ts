@@ -74,7 +74,9 @@ export function keynoteTalk(
   now: number,
 ): { title: string; when: string; live: boolean } | undefined {
   const s = screenOf(list, now);
-  return s ? { title: s.keynote.title, when: whenText(s.keynote.startsAt, now), live: s.live } : undefined;
+  if (!s) return undefined;
+
+  return { title: s.keynote.title, when: whenText(s.keynote.startsAt, now), live: s.live };
 }
 
 /** Whether two lists look the same to a player: nothing to send when they do. */
@@ -103,7 +105,10 @@ export function dateAt(at: number): string {
   return `${WEEKDAYS[w.weekday]!.slice(0, 3)} ${w.d} ${MONTHS[w.m - 1]}, ${clockAt(at)}`;
 }
 
-/** When it starts, as the barkeep says it: "today at 19:00", "tomorrow at 19:00", "on Tuesday at 19:00", "on 14 Oct at 19:00". */
+/**
+ * When it starts, as the barkeep says it: "today at 19:00", "tomorrow at 19:00", "on Tuesday at 19:00", or
+ * "on 14 Oct at 19:00" for a week or more ahead.
+ */
 export function whenText(at: number, now: number): string {
   const days = copenhagenDay(new Date(at)) - copenhagenDay(new Date(now));
   const w = worldWall(at);
@@ -178,7 +183,8 @@ const SAMPLE_STREAM = "https://www.youtube.com/watch?v=dQw4w9WgXcQ";
 
 /**
  * `?keynote=` in the page, for screenshots: `live` (or `live:OpenAI DevDay`) is one on now, `soon` (or
- * `soon:Google I/O`) one tomorrow evening, `off` none. Undefined: not forced, and the server's list decides.
+ * `soon:Google I/O`) one that starts a day from now, `off` none. Undefined: not forced, and the server's list
+ * decides.
  * Only the page: the bots and the badge follow the server's list.
  */
 export function forcedKeynotes(raw: string | null | undefined, now: number): Keynote[] | undefined {
@@ -188,7 +194,7 @@ export function forcedKeynotes(raw: string | null | undefined, now: number): Key
   const mode = rawMode.toLowerCase();
   const title = rest.join(":").trim();
   if (mode === "off") return [];
-  if (mode === "live")
+  if (mode === "live") {
     return [
       {
         id: -1,
@@ -199,7 +205,8 @@ export function forcedKeynotes(raw: string | null | undefined, now: number): Key
         url: SAMPLE_STREAM,
       },
     ];
-  if (mode === "soon")
+  }
+  if (mode === "soon") {
     return [
       {
         id: -1,
@@ -210,5 +217,6 @@ export function forcedKeynotes(raw: string | null | undefined, now: number): Key
         url: SAMPLE_STREAM,
       },
     ];
+  }
   return undefined;
 }

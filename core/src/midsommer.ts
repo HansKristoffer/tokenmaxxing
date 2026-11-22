@@ -9,8 +9,7 @@
  * make the two one file.)
  */
 import type { FestiveNpc } from "./festive.ts";
-import type { GameMap } from "./maps.ts";
-import { SHOP_DOOR_CHAR } from "./shoprooms.ts";
+import { FESTIVE_DOORS, type GameMap } from "./maps.ts";
 
 /**
  * The båltaler's tile: the lawn south of the pond, four tiles west of the bonfire (9, 6), off every path and
@@ -37,7 +36,7 @@ export const BALTALER: FestiveNpc = {
   ],
 };
 
-/** The Dannebrog poles, on grass: either side of the bonfire and round the pond. The first two stand all window. */
+/** The Dannebrog poles, on grass: either side of the bonfire and round the pond. The first two show for the whole window. */
 const FLAGS: readonly [number, number][] = [
   [8, 6],
   [11, 6],
@@ -79,11 +78,8 @@ export const flagSpots = (map: GameMap): [number, number][] =>
 export const blanketSpots = (map: GameMap): [number, number][] =>
   BLANKETS.filter(([x, y]) => grassy(map, x, y) && grassy(map, x + 1, y)).map(([x, y]) => [x, y]);
 
-/** The doors that get a wreath: the Tavern's (`I`), each company's (`D`) and each shop's. */
-const DOORS = ["I", "D", ...Object.values(SHOP_DOOR_CHAR)];
-
 export const wreathDoors = (map: GameMap): [number, number][] =>
-  DOORS.flatMap((ch) => map.find(ch).map(([x, y]): [number, number] => [x, y]));
+  FESTIVE_DOORS.flatMap((ch) => map.find(ch).map(([x, y]): [number, number] => [x, y]));
 
 /** The corners of the lawn where the glow-worms drift: the grass by the pond and the bonfire, in tiles. */
 export const WORM_LAWN = { x0: 1, y0: 1, x1: 13, y1: 7 } as const;

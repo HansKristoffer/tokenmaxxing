@@ -20,11 +20,11 @@ export interface Spot {
 }
 
 /**
- * Where it all stands: one row on the square's south side (y = 12, inside the paving and off its edge where the race
- * runs; the spawn and the star counter above it, the build snail's row below, and the pølsevogn and the merchant's
- * cart further east): the jumping chair, the watchman, the buffet and the Nytårsur, west to east (so the 3D
- * camera sees him past the low table, not behind the tower). Each of these
- * tiles blocks walking; row 11 above them stays open.
+ * Where it all stands: one row on the square's south side (y = 12, inside the paving and off its edge where the
+ * race runs; the spawn and the star counter above it, the build snail's row below, and the pølsevogn and the
+ * merchant's cart further east): the jumping chair, the watchman, the buffet and the Nytårsur, west to east (so
+ * the 3D camera sees him past the low table, not behind the tower). Each of these tiles blocks walking; row 11
+ * above them stays open.
  */
 export const NYTAR_NPC_TILE: Spot & { facing: Facing } = { x: 11, y: 12, facing: "down" };
 export const NYTAR_CLOCK: Spot = { x: 14, y: 12 };

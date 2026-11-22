@@ -13,7 +13,7 @@ import type { Weather } from "./sky.ts";
 
 /**
  * A door's gift: coins, or an item into the bag, with its name (`shop.ts` is not imported here: `tavern.ts`
- * reads this file, and the shop's catalogue leads back to the maps, which read the Tavern).
+ * reads this file, and the shop's catalog leads back to the maps, which read the Tavern).
  */
 export type Gift = { coins: number } | { item: string; name: string };
 

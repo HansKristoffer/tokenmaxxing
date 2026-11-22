@@ -21,7 +21,10 @@ export const FARMER_TILE = { x: -2, y: 4 } as const;
 export const STALL = { x: -3, y: 4 } as const;
 /** The påskeris: bare birch twigs hung with feathers and painted eggs, on the cobbles in the square. */
 export const EASTER_TREE = { x: 3, y: 12 } as const;
-/** The påskefrokost table, two tiles wide, on the lawn by the Tavern's door, clear of the path from its door to the square (13, 6). */
+/**
+ * The påskefrokost table, two tiles wide, on the lawn by the Tavern's door, clear of the path from its door to
+ * the square (13, 6).
+ */
 export const FROKOST = { x: 15, y: 6, w: 2 } as const;
 
 /** Tiles the scenery sits on, so no flower or egg is drawn under it. */
@@ -35,9 +38,10 @@ const RESERVED: readonly (readonly [number, number])[] = [
 ];
 
 /**
- * Whether Gudrun is on (x, y): the one thing nobody walks through (the client keeps you off her, as `blocksPaaske`). The
- * stall, the table and the tree are only scenery: click-to-walk routes do not know the client's blocks, so a table on the
- * Tavern's lawn that blocked would trap a click on the way north, and the square's tree would trap one there.
+ * Whether Gudrun is on (x, y): the one thing nobody walks through (the client keeps you off her, as
+ * `blocksPaaske`). The stall, the table and the tree are only scenery: click-to-walk routes do not know the
+ * client's blocks, so a table on the Tavern's lawn that blocked would trap a click on the way north, and the
+ * square's tree would trap one there.
  */
 export const isPaaskeSolid = (x: number, y: number): boolean => x === FARMER_TILE.x && y === FARMER_TILE.y;
 
@@ -214,7 +218,7 @@ export interface Critter {
   phase: number;
 }
 
-/** Who is out on which lawn, in the order they appear as the week goes on. Each wanders in a patch of open grass (tested). */
+/** Who is out on which lawn, in the order they appear as the week goes on. Each wanders in a patch of open grass. */
 export const CRITTERS: readonly Critter[] = [
   { kind: "lamb", x: -6, y: 6, r: 1.3, phase: 0.3 },
   { kind: "bunny", x: 18, y: 22, r: 1.4, phase: 1.1 },
