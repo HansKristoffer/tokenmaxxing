@@ -122,8 +122,6 @@ export function townMap(plots: readonly number[]): TownMap {
   return new TownMap(m.rows, m.x0, m.y0, parks);
 }
 
-// MARK: Companies and houses
-
 /** A company's house colours (`#rrggbb`) and logo, picked from its website. */
 export interface Brand {
   roof: string;
@@ -156,8 +154,6 @@ export const HOUSE_TIERS = TIER_MIN.length;
 /** Tokens per member over the last 30 days decide the house. */
 export const houseTier = (tokens30d: number, members: number): number =>
   TIER_MIN.findLastIndex((m) => tokens30d / Math.max(1, members) >= m);
-
-// MARK: The company building (`hq`)
 
 /** The floor of a company building: the game's own `MAPS.hq` rows (row 1 is the wall face where posters hang). */
 export const HQ_ROWS: readonly string[] = MAPS.hq.rows;

@@ -195,8 +195,6 @@ function nightMarketKey(): Model {
   return m;
 }
 
-// MARK: Nusantara
-
 const TEAK = "#8a5a2b";
 const TEAK_DARK = "#5a3a1c";
 const TEAK_LIGHT = "#a86f38";
