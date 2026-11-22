@@ -120,6 +120,7 @@ const gitAccount = once(async (): Promise<GithubAccount | null> => {
         SSH_ASKPASS: "",
       },
     });
+    // A helper that hangs must not hold up the sync, so it is stopped after 10 seconds.
     const timer = setTimeout(() => p.kill(), 10_000);
     const [out, code] = await Promise.all([new Response(p.stdout).text(), p.exited]);
     clearTimeout(timer);

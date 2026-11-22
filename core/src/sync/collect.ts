@@ -38,8 +38,8 @@ const extracted = (enabled: ReadonlySet<Source>): Set<Extracted> =>
   );
 
 /**
- * Every enabled source's new events in batches, from the offsets in `state`: the logs, OpenCode's
- * and Antigravity's databases and Cursor's dashboard through llm-usage-extraction, then GitHub PRs. A caller that
+ * Every enabled source's new events in batches, from the offsets in `state`: the logs, OpenCode's and
+ * Antigravity's databases and Cursor's dashboard through llm-usage-extraction, then GitHub PRs. A caller that
  * stops early (send failed) just re-reads the same events next time.
  */
 export async function* collect(state: SyncState, opts: CollectOptions): AsyncGenerator<Batch> {
