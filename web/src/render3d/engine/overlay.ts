@@ -57,7 +57,10 @@ export class Overlay {
   private fadeAt = 0;
   /** Last written screen transform (in tenths of a pixel) per label, to skip unchanged DOM style writes. */
   private readonly placed = new WeakMap<HTMLElement, { x: number; y: number }>();
-  /** Where the labels over things are judged from, in world units: the player (NaN: all show), the pointed tile and its reveal. */
+  /**
+   * Where the labels over things are judged from, in world units: the player (NaN: all show), the pointed tile and
+   * its reveal.
+   */
   private readonly focus = { x: NaN, z: NaN, hx: NaN, hz: NaN, hover: 0 };
 
   constructor() {
@@ -94,7 +97,10 @@ export class Overlay {
     return el;
   }
 
-  /** Once a frame: who the `near` labels are near to (`null`: all show), and the pointed tile with its reveal (0 to 1). */
+  /**
+   * Once a frame: who the `near` labels are near to (`null`: all show), and the pointed tile with its reveal
+   * (0 to 1).
+   */
   focusAt(
     me: readonly [number, number] | null,
     hovered: readonly [number, number] | null,
@@ -116,7 +122,7 @@ export class Overlay {
     this.v.copy(at).project(camera);
     const x = ((this.v.x + 1) / 2) * this.width + dx;
     const y = ((1 - this.v.y) / 2) * this.height + dy;
-    // A label may overhang the screen by these margins before it is hidden: its own width and height.
+    // A label may overhang the screen by these margins (CSS pixels) before it is hidden.
     let off = this.v.z > 1 || x < -240 || x > this.width + 240 || y < -80 || y > this.height + 200;
     let opacity = "";
     const f = this.focus;
@@ -166,8 +172,6 @@ export class Overlay {
     this.v.copy(at).project(camera);
     return [((this.v.x + 1) / 2) * this.width, ((1 - this.v.y) / 2) * this.height];
   }
-
-  // MARK: Fade
 
   /** Fades the picture to the room colour (1) or back (0), over `ms` (a short blink between rooms). */
   fadeTowards(to: number, ms: number, now: number): void {

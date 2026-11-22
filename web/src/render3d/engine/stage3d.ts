@@ -93,9 +93,10 @@ export class RoomStage {
   }
 
   /**
-   * Flags the room for the pipeline's static batching (`perf/bake.ts`): the still parts become a few merged meshes on the
-   * baked shadow layer, the rest (anything under `userData.live` or `nobatch`) stays as built. What moves is found by
-   * running the room's own animation through a few hours of the day and states of its lamps (`userData.sample`).
+   * Flags the room for the pipeline's static batching (`perf/bake.ts`): the still parts become a few merged meshes
+   * on the baked shadow layer, the rest (anything under `userData.live` or `nobatch`) stays as built. What moves
+   * is found by running the room's own animation through a few hours of the day and states of its lamps
+   * (`userData.sample`).
    */
   private batch(hooks: StageHooks): void {
     const { view } = this;

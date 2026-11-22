@@ -38,6 +38,7 @@ export function disposeObject(
 ): Freed {
   dropBaked(root);
   dropPropsNight(root);
+
   // Disposal may remove generated children; collect callbacks before invoking any of them.
   const callbacks: (() => void)[] = [];
   root.traverse((o) => {
@@ -48,6 +49,8 @@ export function disposeObject(
     }
   });
   for (const off of callbacks) off();
+
+  // Each texture, material and geometry is freed once, however many meshes share it.
   const seen = new Set<unknown>();
   const free = (thing: { dispose(): void; userData: Record<string, unknown> }, kind: keyof Freed) => {
     if (seen.has(thing) || shared(thing)) return;
