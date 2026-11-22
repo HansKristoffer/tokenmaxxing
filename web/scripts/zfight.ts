@@ -52,6 +52,7 @@ interface Tri {
 const label = (o: THREE.Object3D): string => {
   const path: string[] = [];
   for (let p: THREE.Object3D | null = o; p && path.length < 4; p = p.parent) {
+    // A const, so the filter's callback below keeps the node's type; a let would lose the narrowing inside it.
     const node = p;
     const tags = Object.keys(node.userData).filter((k) => node.userData[k] === true || k === "actor");
     const n = node.name || (node as THREE.Mesh).geometry?.type?.replace("Geometry", "") || node.type;
