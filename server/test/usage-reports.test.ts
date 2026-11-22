@@ -9,7 +9,7 @@ import {
   USAGE_MINUTE_CAP,
 } from "../src/actors/player.ts";
 import type { registry } from "../src/actors/registry.ts";
-import { type Sql, serial } from "../src/actors/shared.ts";
+import { serial } from "../src/actors/shared.ts";
 import type { ActivityDay, UsageDay } from "../src/actors/town.ts";
 import { RateLimiter } from "../src/rate-limit.ts";
 import { migrate as migrateTown } from "../src/town/schema.ts";
@@ -51,20 +51,7 @@ test("a stuck battle cannot delay ingest acknowledgements or the next batch", as
     waitUntil: (p: Promise<unknown>) => {
       background.push(p);
     },
-    db: {
-      execute: sql.execute,
-      transaction: async <T>(fn: (tx: Sql) => Promise<T>): Promise<T> => {
-        db.run("BEGIN");
-        try {
-          const result = await fn(sql);
-          db.run("COMMIT");
-          return result;
-        } catch (err) {
-          db.run("ROLLBACK");
-          throw err;
-        }
-      },
-    },
+    db: sql,
   } as unknown as Parameters<typeof ingest>[0];
   try {
     await migrateEvents(sql);
