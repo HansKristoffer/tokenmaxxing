@@ -19,8 +19,9 @@ import {
 } from "./service.ts";
 
 /**
- * `tokenmaxxing`: sync a second computer's usage into your account (ARCHITECTURE.md, "Linked computers"). The app on your
- * main Mac makes a link code; `link` trades it for this computer's own token, which can only sync.
+ * `tokenmaxxing`: sync a second computer's usage into your account (ARCHITECTURE.md, "Linked
+ * computers"). The app on your main Mac makes a link code; `link` trades it for this computer's own
+ * token, which can only sync.
  */
 
 const HELP = `tokenmaxxing ${pkg.version}: adds this computer's AI agent tokens to your Tokenmaxxing account.
@@ -119,6 +120,7 @@ function helperFor(onRevoked: () => void): Helper {
 }
 
 async function link(code: string | undefined, opts: { name?: string; server?: string; service: boolean }) {
+  // A link code is `<userId>.<secret>`. The user id is the digits before the dot, capped at 12.
   const userId = /^(\d{1,12})\./.exec(code ?? "")?.[1];
   if (!code || !userId) {
     throw new Fail("Usage: tokenmaxxing link <code>. Get a code in the app: Link a computer…");
@@ -220,9 +222,10 @@ async function status(): Promise<void> {
   console.log(`Server:    ${c.server}`);
   if (me) console.log(`Today:     ${compact(me.tokens)} tokens (all your computers)`);
   console.log(`Last sync: ${synced ? synced.toLocaleString() : "never"}`);
-  console.log(
-    `Service:   ${running === null ? "none (run tokenmaxxing run)" : running ? "running" : "stopped"}`,
-  );
+  let service = "stopped";
+  if (running === null) service = "none (run tokenmaxxing run)";
+  else if (running) service = "running";
+  console.log(`Service:   ${service}`);
 }
 
 async function unlink(): Promise<void> {
