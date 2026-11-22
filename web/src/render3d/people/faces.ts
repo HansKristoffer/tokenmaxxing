@@ -346,7 +346,6 @@ const LAYOUTS: Record<
   "animal-mouth": { ink: INKS.animal, scale: 1.9, y: 74, from: 96, eyes: false, mouth: true },
 };
 
-// MARK: Voxel faces
 const PX = 14;
 const PIXEL = {
   eye: "#1b1520",
@@ -512,7 +511,9 @@ export function faceTexture(face: Face, kind: FaceKind): THREE.CanvasTexture {
   let t = faces.get(key);
   if (!t) {
     if (kind === "voxel" || kind === "voxel-eyes" || kind === "voxel-mouth") {
-      t = pixelTexture((g) => drawVoxelFace(g, face, kind !== "voxel-mouth", kind !== "voxel-eyes"));
+      const eyes = kind !== "voxel-mouth";
+      const mouth = kind !== "voxel-eyes";
+      t = pixelTexture((g) => drawVoxelFace(g, face, eyes, mouth));
       t.userData.shared = true;
       faces.set(key, t);
       return t;

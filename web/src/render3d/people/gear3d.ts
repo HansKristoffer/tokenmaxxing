@@ -75,8 +75,6 @@ export interface LookOptions {
   company?: MerchLook;
 }
 
-// MARK: Catalogue
-
 type Slot = "hat" | "glasses" | "outfit" | "held" | "back" | "aura";
 const bySlot = new Map<string, Item>();
 for (const i of ITEMS)
@@ -84,6 +82,9 @@ for (const i of ITEMS)
 
 /** The shop item behind a slot's index, if there is one. */
 export const itemAt = (slot: Slot, index: number): Item | undefined => bySlot.get(`${slot}.${index}`);
+
+/** The height the builders are drawn for: worn things scale by a figure's height over it. */
+const BUILT_HEIGHT = 0.95;
 
 /** Hats the avatar already draws itself. */
 const BASE_HATS: Record<number, Hat> = { 1: "beanie", 2: "headphones", 3: "crown" };
@@ -197,10 +198,9 @@ export function wornBy(look: Look2D): Worn {
   return worn;
 }
 
-// MARK: The gear
-
 type Tick = (t: number, walking: boolean) => void;
 
+/** The gear for one look. It is built once the avatar's body exists; `update` then runs what the builders ticked. */
 class Dress implements Gear {
   private readonly ticks: Tick[] = [];
   constructor(
@@ -312,7 +312,7 @@ class Dress implements Gear {
     // In the right hand.
     const heldIn = (): Model => {
       const hand = frame(a.arms[1], [0, fit.hand, 0.01]);
-      hand.scale.setScalar(vox ? 1.4 : 1.5 * (a.height / 0.95));
+      hand.scale.setScalar(vox ? 1.4 : 1.5 * (a.height / BUILT_HEIGHT));
       // A shop icon of the item draws this on its own (`icons.ts`).
       hand.name = "held";
       return hand;
@@ -323,7 +323,7 @@ class Dress implements Gear {
     // A case aura circles the middle of the body, scaled with the person.
     const wornAura = worn.aura && AURA_BUILDERS[worn.aura.name];
     if (wornAura) {
-      const k = a.height / 0.95;
+      const k = a.height / BUILT_HEIGHT;
       const around = vox ? vpart(a.root, [0, a.height * 0.5, 0]) : a.root.part([0, a.height * 0.5, 0]);
       around.scale.setScalar(k);
       wornAura(around, (fn) => {
@@ -338,7 +338,7 @@ class Dress implements Gear {
 
   /** The legendary level: a golden halo over the head, a soft glow round the body, sparkles drifting up. */
   private aura(a: Avatar, top: number, tick: (fn: Tick) => void): void {
-    const k = a.height / 0.95;
+    const k = a.height / BUILT_HEIGHT;
     const base = top + 0.11 * k;
     const vox = a.style === "voxel";
     const halo = vox ? vpart(a.head, [0, base, 0]) : a.head.part([0, base, 0]);
@@ -462,8 +462,6 @@ function mug(h: Model, m: MerchLook): void {
   h.cyl(0.036, 0.004, "#5b3a24", [0, 0.083, 0.06], 0.036, 12);
 }
 
-// MARK: The mapper
-
 /**
  * A saved 2D look as an `avatar.ts` one. The base look (skin, hair, outfit colours, the avatar's own beanie,
  * headphones and crown) is plain `avatar.ts`; `gear` adds the rest.
@@ -522,8 +520,6 @@ const SEATED_TAG_LIFT: Record<string, number> = { sleep: 0.55, sit: 0.97, type: 
 /** How far over a character's head a name tag should float, in world units: higher over a halo. */
 export const tagLift = (level = 0, pose = "stand"): number =>
   (SEATED_TAG_LIFT[pose] ?? 1.35) + (level >= LEGENDARY_LEVEL ? 0.14 : 0);
-
-// MARK: Overhead chips
 
 export interface BadgeChip {
   emoji: string;
