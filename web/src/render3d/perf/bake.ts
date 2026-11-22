@@ -436,15 +436,12 @@ export class BakedLayer {
     const isQuiet = (o: THREE.Object3D): boolean => {
       let q = quiet.get(o);
       if (q !== undefined) return q;
+      // Lights and sprites, and anything kept live, act on their own every frame, so they never sleep.
+      const actsOnItsOwn =
+        o.userData[LIVE] || o.userData.noBake || (o as THREE.Light).isLight || (o as THREE.Sprite).isSprite;
       if (o === this.group) q = false;
       else if ((o as THREE.Mesh).isMesh) q = own.has(o as THREE.Mesh);
-      else if (
-        o.userData[LIVE] ||
-        o.userData.noBake ||
-        (o as THREE.Light).isLight ||
-        (o as THREE.Sprite).isSprite
-      )
-        q = false;
+      else if (actsOnItsOwn) q = false;
       else q = o.children.every(isQuiet);
       quiet.set(o, q);
       return q;
@@ -504,7 +501,8 @@ export class BakedLayer {
     >();
     const items = this.sources.map((s) => {
       const m = s.mesh;
-      const geo = (mode === "block" && !this.options.literal ? blockStandIn(m) : null) ?? m.geometry;
+      const standIn = mode === "block" && !this.options.literal ? blockStandIn(m) : null;
+      const geo = standIn ?? m.geometry;
       return {
         s,
         geo,
@@ -718,8 +716,9 @@ export class BakedLayer {
       syncAtlas(a);
       // One that keeps changing (a screen the warm-up never saw move) is taken out of the atlas for good.
       if (a.repaints > 24) {
-        for (const t of a.rects.keys())
+        for (const t of a.rects.keys()) {
           if (a.seen.get(t) !== undefined && t.version > 2) t.userData.animated = true;
+        }
         a.repaints = 0;
         invalidateBaked(this.root);
         return;
@@ -839,6 +838,7 @@ function layerOf(
   });
   why.baked = new Set(sources.map((x) => x.mesh)).size;
   why.moving = meshes.length - why.baked;
+  // One merged mesh saves no draw calls over the original, so a single source is left alone.
   if (why.baked < 2) return null;
   const layer = new BakedLayer(root, sources);
   layer.liveCount = why.moving;
@@ -940,7 +940,9 @@ export function syncBaked(scene: THREE.Scene, mode: BakeMode): BakedLayer[] {
     };
     const look = (o: THREE.Object3D, depth: number) => {
       if (o.userData[BAKE]) watch(o);
-      else if (depth < 3) for (const c of o.children) look(c, depth + 1);
+      else if (depth < 3) {
+        for (const c of o.children) look(c, depth + 1);
+      }
     };
     look(scene, 0);
     s.epoch = epoch;
@@ -950,7 +952,7 @@ export function syncBaked(scene: THREE.Scene, mode: BakeMode): BakedLayer[] {
       let top: THREE.Object3D | null = root;
       while (top?.parent) top = top.parent;
       if (top !== scene) {
-        // Never reached the scene (or left it): don't carry it for ever.
+        // Never reached the scene (or left it) in 900 frames: stop carrying it.
         if (++w.orphan > 900) watching.delete(root);
         continue;
       }
