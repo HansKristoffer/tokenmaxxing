@@ -620,13 +620,15 @@ function interact(): void {
   if (kind.poker) return void send(conn.pokerSit(me.facing));
   if (kind.seat || picnicSeat(x, y)) return void send(conn.sit(me.facing));
   if (kind.pours) return void send(conn.drink(me.facing));
-  if (kind.tosses)
-    return void send(
+  if (kind.tosses) {
+    send(
       conn.toss(me.facing).then((r) => {
         if (r && "notice" in r && tossLanded(r.notice)) viewHooks.toss?.(x, y);
         return r;
       }),
     );
+    return;
+  }
   if (kind.serves) return void send(conn.tavern(me.facing));
   // The Tavern's boards: the barkeep takes orders at the bar, the quest board gives out quests, the wall is the Hall of Fame.
   if (world.room === "inn") {

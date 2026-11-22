@@ -318,8 +318,6 @@ export function advanceRemotes(now: number): void {
 export const avatarAt = (x: number, y: number): Avatar | undefined =>
   [...world.avatars.values()].find((a) => a.x === x && a.y === y && a.info.id !== world.selfId);
 
-// MARK: Drops
-
 export const dropAt = (x: number, y: number): Drop | undefined =>
   world.drops.find((d) => dropCovers(d, x, y));
 
@@ -359,8 +357,6 @@ function showDrops(drops: Drop[]): void {
   grounds.delete(was.map);
   grounds.set(world.map, was.ground);
 }
-
-// MARK: Games
 
 export function applyGame(g: WorldGame): void {
   world.games.set(g.id, g);

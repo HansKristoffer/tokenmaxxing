@@ -21,7 +21,7 @@ const Z_WAVES: readonly (readonly [number, number])[] = [
 ];
 const LIFT_HZ = 9.1;
 /** The 2D tremor is redrawn this often, whole pixels at a time. */
-export const TREMOR_2D_HZ = 15;
+const TREMOR_2D_HZ = 15;
 
 const smooth = (x: number) => {
   const t = Math.min(1, Math.max(0, x));
@@ -48,7 +48,7 @@ const wave = (
   return sum;
 };
 
-export interface Tremor {
+interface Tremor {
   /** Sideways and depth offsets, in tiles. */
   dx: number;
   dz: number;
@@ -83,7 +83,7 @@ const PITCH_WAVES: readonly (readonly [number, number])[] = [
 /** The buzz comes in fits, about one every 1.6 s, and never quite stops between them. */
 const FIT_HZ = 0.62;
 
-export interface Jitter {
+interface Jitter {
   /** Tilts about the feet, in radians: side to side and back and forth. */
   roll: number;
   pitch: number;

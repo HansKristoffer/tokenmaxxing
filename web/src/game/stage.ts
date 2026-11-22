@@ -229,8 +229,8 @@ export function startStage(host: HTMLElement, tick: (now: number) => boolean): v
     const governable = graphics.get().choice === "auto" && settings.tier !== "low" && !idle && gap < 500;
     if (governable) {
       // Judged against what the display can show (or the player's own cap), so a 120 Hz screen is held to 120.
-      const step = governor.push(gap, settings.fpsCap === 0 ? refreshMs : 1000 / settings.fpsCap, now);
-      if (step) apply(step);
+      const governed = governor.push(gap, settings.fpsCap === 0 ? refreshMs : 1000 / settings.fpsCap, now);
+      if (governed) apply(governed);
     }
   };
   requestAnimationFrame(frame);

@@ -12,7 +12,7 @@ export interface Turning {
   at: number;
 }
 
-export type TurnStep =
+type TurnStep =
   /** Take the step. */
   | { act: "walk"; turning: null }
   /** Face `dir` without moving. */
