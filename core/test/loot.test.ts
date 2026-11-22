@@ -89,7 +89,7 @@ test("over many raiders, each rarity drops about as often as its odds", () => {
 });
 
 test("odds: 40%, 20%, 10% and 2%, ×1.05 a lap round the ladder, at most ×10", () => {
-  expect(["common", "rare", "epic", "legendary"].map((r) => oddsText(lootOdds(r as "rare", 1)))).toEqual([
+  expect((["common", "rare", "epic", "legendary"] as const).map((r) => oddsText(lootOdds(r, 1)))).toEqual([
     "40%",
     "20%",
     "10%",

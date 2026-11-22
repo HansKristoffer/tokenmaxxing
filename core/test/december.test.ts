@@ -46,9 +46,9 @@ test("julefrokost is Friday and Saturday evenings in December, until Christmas",
   expect(julefrokostOn(cph("2026-11-27T19:00"))).toBe(false);
   // The tap serves the evening's dish, with a glow, and the day's special again on Sunday.
   const fri = cph("2026-12-11T20:00");
-  expect(JULEFROKOST_MENU).toContain(specialOn(new Date(fri)) as never);
+  expect<readonly string[]>(JULEFROKOST_MENU).toContain(specialOn(new Date(fri)));
   expect(buffAt(fri)).toBe("glow");
-  expect(SPECIALS).toContain(specialOn(new Date(cph("2026-12-13T20:00"))) as never);
+  expect<readonly string[]>(SPECIALS).toContain(specialOn(new Date(cph("2026-12-13T20:00"))));
 });
 
 test("in December it snows whatever the real weather; not before", () => {

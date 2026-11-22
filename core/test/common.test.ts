@@ -28,6 +28,20 @@ const map = MAPS.common;
 describe("the company common room", () => {
   afterEach(() => setDrops("common:7", []));
 
+  // `route` ends one step short of a blocked tile: a way to a neighbour of the tile means someone can face it.
+  const standable = (x: number, y: number) => {
+    const entry = roomEntry("common:7");
+    return [
+      [0, 1],
+      [0, -1],
+      [1, 0],
+      [-1, 0],
+    ].some(([dx, dy]) => {
+      const [nx, ny] = [x + dx!, y + dy!];
+      return map.walkable(nx, ny) && route(map, [entry.x, entry.y], [nx, ny]) !== null;
+    });
+  };
+
   test("24x14, one exit, rectangular, every tile in the legend", () => {
     expect([map.width, map.height]).toEqual([24, 14]);
     expect(map.name).toBe("Common room");
@@ -76,7 +90,6 @@ describe("the company common room", () => {
   });
 
   test("every seat can be walked up to from the stairs, and seats are proper sit anchors", () => {
-    const entry = roomEntry("common:7");
     const seats = commonSeats();
     expect(seats.length).toBeGreaterThanOrEqual(12);
     // A long sofa, armchairs, beanbags and kitchen stools.
@@ -84,18 +97,7 @@ describe("the company common room", () => {
     for (const seat of seats) {
       expect(LEGEND[seat.ch]!.seat).toBeDefined();
       expect(map.walkable(seat.x, seat.y)).toBe(false);
-      // `route` ends one step short of a blocked tile: a way to its neighbour means someone can face it.
-      const next = [
-        [0, 1],
-        [0, -1],
-        [1, 0],
-        [-1, 0],
-      ].some(([dx, dy]) => {
-        const nx = seat.x + dx!;
-        const ny = seat.y + dy!;
-        return map.walkable(nx, ny) && route(map, [entry.x, entry.y], [nx, ny]) !== null;
-      });
-      expect(next).toBe(true);
+      expect(standable(seat.x, seat.y)).toBe(true);
       expect(seat.facing).toBe(seat.kind === "chair" ? "up" : "down");
     }
   });
@@ -119,17 +121,6 @@ describe("the company common room", () => {
     // The stage is walkable; the coffee machine and the espresso bar pour.
     expect(LEGEND.e!.walk).toBe(true);
     expect(LEGEND.o!.pours && LEGEND.α!.pours).toBe(true);
-    const entry = roomEntry("common:7");
-    const standable = (x: number, y: number) =>
-      [
-        [0, 1],
-        [0, -1],
-        [1, 0],
-        [-1, 0],
-      ].some(([dx, dy]) => {
-        const [nx, ny] = [x + dx!, y + dy!];
-        return map.walkable(nx, ny) && route(map, [entry.x, entry.y], [nx, ny]) !== null;
-      });
     for (const ch of ["e", "ψ", "π", "α", "o", "θ", "φ", "Q", "t", "ξ", "Θ", "k", "Ψ"])
       expect(map.find(ch).some(([x, y]) => standable(x, y))).toBe(true);
   });

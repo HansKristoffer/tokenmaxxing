@@ -97,10 +97,14 @@ describe("expensive power", () => {
   // A day of 96 quarters at 0.80 kr, a morning bump (07:00–10:00 Copenhagen) at 1.20 and an evening peak
   // (17:00–24:00, 28 quarters: more than the top quarter of the day) at 1.60.
   const day0 = Date.UTC(2026, 9, 26, 23);
+  const dkkAt = (hour: number) => {
+    if (hour >= 16 && hour < 23) return 1.6;
+    if (hour >= 6 && hour < 9) return 1.2;
+    return 0.8;
+  };
   const prices: Quarter[] = Array.from({ length: 96 }, (_, i) => {
     const at = day0 + i * 15 * 60_000;
-    const hour = new Date(at).getUTCHours();
-    return { at, dkk: hour >= 16 && hour < 23 ? 1.6 : hour >= 6 && hour < 9 ? 1.2 : 0.8 };
+    return { at, dkk: dkkAt(new Date(at).getUTCHours()) };
   });
 
   test("the day's dearest quarter, over the floor", () => {

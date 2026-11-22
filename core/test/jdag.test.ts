@@ -56,6 +56,6 @@ test("the Tavern pours Nissebryg from 20:59 on J-dag till Sunday is out, with a 
   expect(specialOn(new Date(fri))).toBe(JULEBRYG.line);
   expect(buffAt(fri)).toBe("glow");
   expect(specialBuff(serveUntil(fri))).toBe("glow");
-  expect(SPECIALS).toContain(specialOn(new Date(cph("2026-11-06T20:00"))) as never);
+  expect<readonly string[]>(SPECIALS).toContain(specialOn(new Date(cph("2026-11-06T20:00"))));
   expect(JULEBRYG.line).not.toMatch(/tuborg|carlsberg/i);
 });

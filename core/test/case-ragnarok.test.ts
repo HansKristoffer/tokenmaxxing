@@ -193,7 +193,7 @@ describe("the Ragnarok Eve case", () => {
 
   test("Night Market's pool is its base wearables and pieces, in the base index range", () => {
     expect(night.items).toHaveLength(CASE_ITEMS.length + CASE_PIECES.length);
-    expect(night.items.every((i) => (i.slot === "furniture" ? true : i.index < CASE_BASE + 100))).toBe(true);
+    expect(night.items.every((i) => i.slot === "furniture" || i.index < CASE_BASE + 100)).toBe(true);
   });
 
   test("every tier has items, so no roll falls through", () => {
