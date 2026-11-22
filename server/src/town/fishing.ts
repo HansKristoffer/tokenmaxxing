@@ -48,6 +48,9 @@ export function fishingJournal(sql: Sql, userId: number): Promise<FishingEntry[]
   );
 }
 
+/** The lucky casts left once `used` of the day's catches are in. */
+const luckAfter = (used: number): Luck => ({ left: Math.max(0, LUCKY_CASTS - used), of: LUCKY_CASTS });
+
 /** The day's lucky casts left for `userId`. */
 export async function luckOf(sql: Sql, userId: number, now: number): Promise<Luck> {
   const used =
@@ -59,7 +62,7 @@ export async function luckOf(sql: Sql, userId: number, now: number): Promise<Luc
         dayKey(now),
       )
     )?.catches ?? 0;
-  return { left: Math.max(0, LUCKY_CASTS - used), of: LUCKY_CASTS };
+  return luckAfter(used);
 }
 
 /** The pond's records, with their holders' names. */
@@ -176,7 +179,7 @@ export async function recordFish(
       return {
         record,
         treasure: found && { item: found.id },
-        luck: { left: Math.max(0, LUCKY_CASTS - catches), of: LUCKY_CASTS },
+        luck: luckAfter(catches),
       };
     },
     { name: "fishing-land" },

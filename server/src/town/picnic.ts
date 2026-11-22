@@ -1,6 +1,7 @@
 import { picnicReward, TOUCHED_GRASS } from "@tokenmaxxing/core/picnic.ts";
-import { all, type Sql, scalar } from "../actors/shared.ts";
+import { type Sql, scalar } from "../actors/shared.ts";
 import { giveItem } from "./coins.ts";
+import { grantOnce } from "./rewards.ts";
 
 /**
  * The "I was there" badge: a row in `rewards` per outage someone sat on a blanket for, so it comes
@@ -12,13 +13,7 @@ export async function markPicnic(
   since: number,
   now = Date.now(),
 ): Promise<boolean> {
-  const fresh = await all(
-    sql,
-    "INSERT INTO rewards (user_id, item) VALUES (?, ?) ON CONFLICT DO NOTHING RETURNING item",
-    userId,
-    picnicReward(since),
-  );
-  if (fresh.length === 0) return false;
+  if (!(await grantOnce(sql, userId, picnicReward(since)))) return false;
   await giveItem(sql, userId, TOUCHED_GRASS, now);
   return true;
 }

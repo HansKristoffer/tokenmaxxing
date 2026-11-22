@@ -85,14 +85,16 @@ export const levelOf = async (sql: Sql, userId: number): Promise<number> =>
 
 export async function playerCores(sql: Sql, userIds: Ids): Promise<PlayerCore[]> {
   const [where, ...args] = among("id", userIds);
-  const users = await all<UserRow>(sql, `SELECT ${USER_COLS} FROM users WHERE ${where}`, ...args);
+  const users = await all<UserRow & { desk: string | null }>(
+    sql,
+    `SELECT ${USER_COLS}, desk FROM users WHERE ${where}`,
+    ...args,
+  );
   const today = dayKey(Date.now());
-  const [lifetime, todays, desks] = await Promise.all([
+  const [lifetime, todays] = await Promise.all([
     tokensIn(sql, userIds),
     tokensIn(sql, userIds, [today, today]),
-    all<{ id: number; desk: string | null }>(sql, `SELECT id, desk FROM users WHERE ${where}`, ...args),
   ]);
-  const deskOf = new Map(desks.map((d) => [d.id, deskIndex(d.desk)]));
   const badges = await badgesOf(sql, userIds, lifetime);
   return users.map((u) => ({
     id: u.id,
@@ -101,7 +103,7 @@ export async function playerCores(sql: Sql, userIds: Ids): Promise<PlayerCore[]>
     level: levelFor(lifetime.get(u.id) ?? 0),
     companyId: u.companyId,
     todayTokens: todays.get(u.id) ?? 0,
-    desk: deskOf.get(u.id) ?? 0,
+    desk: deskIndex(u.desk),
     prestige: badgeOf(badges, u.id),
   }));
 }

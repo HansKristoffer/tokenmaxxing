@@ -1,12 +1,4 @@
-import {
-  type CaseDef,
-  caseById,
-  caseOfItem,
-  MAX_OPEN,
-  nextDry,
-  rollCase,
-  VENDOR_COINS,
-} from "@tokenmaxxing/core/cases.ts";
+import { caseById, caseOfItem, MAX_OPEN, nextDry, rollCase, VENDOR_COINS } from "@tokenmaxxing/core/cases.ts";
 import { rarityOf } from "@tokenmaxxing/core/rarity.ts";
 import { type Item, itemById } from "@tokenmaxxing/core/shop.ts";
 import { UserError } from "rivetkit";
@@ -180,7 +172,7 @@ export async function sellDuplicates(
   now: number,
   kept?: Kept,
 ): Promise<{ wallet: Wallet; sold: number }> {
-  const def: CaseDef | undefined = caseById(caseId);
+  const def = caseById(caseId);
   if (!def) throw new UserError("There's no such case.", { code: "not_found" });
   const sold = await sql.transaction(
     async (tx) => {

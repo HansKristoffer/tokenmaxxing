@@ -1,4 +1,4 @@
-import { type Edition, editionById } from "@tokenmaxxing/core/editions.ts";
+import { editionById } from "@tokenmaxxing/core/editions.ts";
 import { cartOpen, lineup, weekOf } from "@tokenmaxxing/core/merchant.ts";
 import { UserError } from "rivetkit";
 import { all, type Sql, scalar } from "../actors/shared.ts";
@@ -69,7 +69,7 @@ export async function buyEdition(
   if (!cartOpen(now))
     throw new UserError("The cart has moved on. It's back on Thursday.", { code: "closed" });
   const week = weekOf(now);
-  const e: Edition | undefined = lineup(week).find((l) => l.id === itemId);
+  const e = lineup(week).find((l) => l.id === itemId);
   if (!e) throw new UserError("The merchant isn't selling that this week.", { code: "not_found" });
   const sold = await soldOf(sql, week, e.id);
   if (sold >= e.supply) throw new UserError(`Sold out: all ${e.supply} are gone.`, { code: "sold_out" });

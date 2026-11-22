@@ -2,6 +2,7 @@ import { type Keynote, keynoteReward, upcoming } from "@tokenmaxxing/core/keynot
 import { UserError } from "rivetkit";
 import { all, one, type Sql, scalar } from "../actors/shared.ts";
 import { parseKeynote } from "../validate.ts";
+import { grantOnce } from "./rewards.ts";
 
 /**
  * The keynote watch parties (`core/src/keynote.ts` has the rules): what the admin page has scheduled, one
@@ -78,15 +79,8 @@ export async function removeKeynote(sql: Sql, rawId: unknown): Promise<Keynote> 
 /**
  * The watch party badge: one `rewards` row per keynote someone was in the Tavern for. True the first time.
  */
-export async function markKeynote(sql: Sql, userId: number, keynoteId: number): Promise<boolean> {
-  const fresh = await all(
-    sql,
-    "INSERT INTO rewards (user_id, item) VALUES (?, ?) ON CONFLICT DO NOTHING RETURNING item",
-    userId,
-    keynoteReward(keynoteId),
-  );
-  return fresh.length > 0;
-}
+export const markKeynote = (sql: Sql, userId: number, keynoteId: number): Promise<boolean> =>
+  grantOnce(sql, userId, keynoteReward(keynoteId));
 
 /** How many watch parties someone dropped in on, for their badge. */
 export const keynotesOf = (sql: Sql, userId: number): Promise<number> =>
