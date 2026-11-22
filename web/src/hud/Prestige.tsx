@@ -1,7 +1,7 @@
 import { RUN_LEVELS } from "@tokenmaxxing/core/prestige.ts";
 import type { PrestigeBadge } from "@tokenmaxxing/core/prestige-run.ts";
 import { defaultLook } from "@tokenmaxxing/core/world.ts";
-import { useEffect, useRef, useState } from "react";
+import { type CSSProperties, useEffect, useRef, useState } from "react";
 import { prestigeState, takePrestige } from "../net.ts";
 import { storage } from "../storage.ts";
 import { hud, useHud } from "../store.ts";
@@ -111,7 +111,7 @@ export function PrestigePanel() {
   const name = `Prestige ${track.roman} · ${track.name}`;
   return (
     <Modal title={name} wide>
-      <div className="prestige-panel" style={{ "--pt-main": track.colors.main } as React.CSSProperties}>
+      <div className="prestige-panel" style={{ "--pt-main": track.colors.main } as CSSProperties}>
         <PrestigeTag rank={track.rank} size={26} />
         <p className="muted">{track.theme}</p>
         <h3>What you earn</h3>
@@ -184,8 +184,10 @@ export function PrestigeToasts() {
     // A lower rank than before has no toasts to show.
     if (rank < before.rank) return;
 
-    const toasts =
-      rank > before.rank ? runToasts(rank, -1, runLevel) : runToasts(rank, before.runLevel, runLevel);
+    // Entering a higher track starts from -1: the tag toast, then every level and unlock of the run.
+    const enteredTrack = rank > before.rank;
+    const from = enteredTrack ? -1 : before.runLevel;
+    const toasts = runToasts(rank, from, runLevel);
     if (toasts.length > 0) setFresh({ toasts, at: Date.now() });
   }, [rank, runLevel]);
   const open = useHud((s) => s.panel !== null);

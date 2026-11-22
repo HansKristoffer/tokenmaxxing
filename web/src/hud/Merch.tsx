@@ -46,6 +46,10 @@ export function MerchShop({ companyId }: { companyId: number }) {
   if (editing && employee) return <MerchEditor company={company} onClose={() => setEditing(false)} />;
   const off = Math.round(EMPLOYEE_MERCH_DISCOUNT * 100);
   const discount = off === 100 ? "free" : `${off}% off`;
+  const employeeLine =
+    off === 100
+      ? "You work here: yours are free, one of each."
+      : `You work here: ${discount}, and what you pay goes into the company wallet.`;
 
   const buy = (item: Item) =>
     run(async () => {
@@ -58,9 +62,7 @@ export function MerchShop({ companyId }: { companyId: number }) {
     <Modal title={`👕 ${company.name} merch`} wide aside={<Balance balance={wallet.balance} />}>
       <p className="muted small">
         {employee
-          ? off === 100
-            ? "You work here: yours are free, one of each."
-            : `You work here: ${discount}, and what you pay goes into the company wallet.`
+          ? employeeLine
           : `Everything you pay goes into ${company.name}'s company wallet. Its people get theirs ${discount}.`}
       </p>
       {!atShop && (

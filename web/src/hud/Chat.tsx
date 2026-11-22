@@ -88,7 +88,7 @@ function Text({ text, me }: { text: string; me: string | undefined }) {
       {text.split(/(@[a-z0-9][a-z0-9._-]{1,31})/gi).map((part, i) =>
         i % 2 === 1 ? (
           // biome-ignore lint/suspicious/noArrayIndexKey: parts of one immutable string
-          <span key={i} className={`mention${part.slice(1).toLowerCase() === me ? " me" : ""}`}>
+          <span key={i} className={part.slice(1).toLowerCase() === me ? "mention me" : "mention"}>
             {part}
           </span>
         ) : (
@@ -132,24 +132,27 @@ const ChatLines = memo(function ChatLines({
       {chat.length === 0 && (
         <li className="muted">{inGame ? "Players and watchers talk here." : "No messages yet. Say hi!"}</li>
       )}
-      {runs.map(({ line: l, n }) => (
-        <li key={l.id} className={myName && mentionsIn(l.text).includes(myName) ? "mentions-me" : ""}>
-          {l.userId === 0 ? (
-            <span className="author">{l.name}</span>
-          ) : (
-            <button
-              type="button"
-              className={`author${l.userId === myId ? " me" : ""}`}
-              onClick={() => hud.set({ panel: { kind: "card", userId: l.userId } })}
-            >
-              {l.userId === champ && <span title="Tournament champion">👑 </span>}
-              {l.name}
-            </button>
-          )}
-          <Text text={l.text} me={myName} />
-          {n > 1 && <span className="muted small"> ×{n}</span>}
-        </li>
-      ))}
+      {runs.map(({ line: l, n }) => {
+        const mentionsMe = !!myName && mentionsIn(l.text).includes(myName);
+        return (
+          <li key={l.id} className={mentionsMe ? "mentions-me" : ""}>
+            {l.userId === 0 ? (
+              <span className="author">{l.name}</span>
+            ) : (
+              <button
+                type="button"
+                className={`author${l.userId === myId ? " me" : ""}`}
+                onClick={() => hud.set({ panel: { kind: "card", userId: l.userId } })}
+              >
+                {l.userId === champ && <span title="Tournament champion">👑 </span>}
+                {l.name}
+              </button>
+            )}
+            <Text text={l.text} me={myName} />
+            {n > 1 && <span className="muted small"> ×{n}</span>}
+          </li>
+        );
+      })}
     </ol>
   );
 });

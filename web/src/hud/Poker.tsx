@@ -175,6 +175,8 @@ function Moves({
 }) {
   const [raiseTo, setRaiseTo] = useState(legal.minTo);
   const to = Math.max(legal.minTo, Math.min(raiseTo, legal.maxTo));
+  // The pot, kept inside the raise's range.
+  const potTo = Math.min(legal.maxTo, Math.max(legal.minTo, pot));
   return (
     <div className="pk-moves">
       <button type="button" className="pk-fold" onClick={() => void act("fold")}>
@@ -217,7 +219,7 @@ function Moves({
           <button type="button" onClick={() => setRaiseTo(legal.minTo)}>
             Min
           </button>
-          <button type="button" onClick={() => setRaiseTo(Math.min(legal.maxTo, Math.max(legal.minTo, pot)))}>
+          <button type="button" onClick={() => setRaiseTo(potTo)}>
             Pot
           </button>
           <button type="button" onClick={() => setRaiseTo(legal.maxTo)}>

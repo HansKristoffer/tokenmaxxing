@@ -7,7 +7,7 @@ import { BIG_BLIND, BUY_IN, SEATS, SMALL_BLIND } from "@tokenmaxxing/core/poker.
 import { SPOTS } from "@tokenmaxxing/core/roulette.ts";
 import { namesIn } from "@tokenmaxxing/core/world.ts";
 import { typedSwitch, typedSwitchGroup } from "hanzio";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { joinRoulette, send } from "../game/input.ts";
 import { world } from "../game/world.ts";
 import { arcade, conn, openMatch } from "../net.ts";
@@ -52,6 +52,7 @@ export function ArcadePanel() {
   const { invites, open: joinable, playing, inGame } = lobbySummary(lobby, me);
   const mine = lobby.tables.find((t) => t.id === lobby.me.table);
   const open = joinable.filter((t) => !invites.includes(t));
+  const matchId = lobby.me.match;
 
   return (
     <Modal title="🎮 Arcade" wide beside={<Chat />}>
@@ -73,8 +74,8 @@ export function ArcadePanel() {
         </>
       )}
       {mine && <YourTable table={mine} />}
-      {inGame && (
-        <button type="button" className="primary" onClick={() => openMatch(lobby.me.match!)}>
+      {inGame && matchId !== null && (
+        <button type="button" className="primary" onClick={() => openMatch(matchId)}>
           ▶ Back to your game
         </button>
       )}
@@ -188,6 +189,7 @@ export function GamesBox() {
   const { error, run } = useRun();
   if (!lobby) return null;
   const { playing, inGame, open } = lobbySummary(lobby, me);
+  const matchId = lobby.me.match;
   const openArcade = () => hud.set({ panel: { kind: "arcade" } });
   return (
     <section className="panel games-box" aria-label="Games">
@@ -221,8 +223,8 @@ export function GamesBox() {
           </li>
         )}
       </ul>
-      {inGame ? (
-        <button type="button" className="primary wide" onClick={() => openMatch(lobby.me.match!)}>
+      {inGame && matchId !== null ? (
+        <button type="button" className="primary wide" onClick={() => openMatch(matchId)}>
           ▶ Back to your game
         </button>
       ) : lobby.me.table !== null ? (
@@ -369,7 +371,12 @@ export function NewTable({
   const me = useHud((s) => s.me?.userId);
   const [game, setGame] = useState<GameId>(preferred ?? "spr");
   const def = GAMES[game]!;
-  const [seats, setSeats] = useState(def.players.max);
+  // An invite starts at the fewest seats the game allows; an open table at the most.
+  const seatsFor = (id: GameId) => {
+    const { players } = GAMES[id]!;
+    return invite !== undefined ? players.min : players.max;
+  };
+  const [seats, setSeats] = useState(() => seatsFor(game));
   const [wanted, setStake] = useState(10);
   const [split, setSplit] = useState<Split>("all");
   const [open, setOpen] = useState(invite === undefined);
@@ -377,9 +384,10 @@ export function NewTable({
   const [minutes, setMinutes] = useState(60);
   const [seconds, setSeconds] = useState(30);
   const { error, run } = useRun();
-  useEffect(() => {
-    setSeats(invite !== undefined ? def.players.min : def.players.max);
-  }, [def, invite]);
+  const pickGame = (id: GameId) => {
+    setGame(id);
+    setSeats(seatsFor(id));
+  };
   const cap = Math.min(MAX_STAKE, Math.floor((wallet?.balance ?? 0) / 2));
   const stake = Math.min(wanted, cap);
 
@@ -441,7 +449,7 @@ export function NewTable({
               type="button"
               className="choice card"
               aria-pressed={g.id === game}
-              onClick={() => setGame(g.id)}
+              onClick={() => pickGame(g.id)}
             >
               <span className="game-emoji">{g.emoji}</span>
               <strong>{g.name}</strong>

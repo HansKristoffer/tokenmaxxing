@@ -54,9 +54,14 @@ const PLACES: readonly Place[] = (() => {
     let end = x;
     while (rows[y]![end + 1] === here) end++;
 
+    // A case is numbered the first time one of its spots comes up, in reading order.
     const caseKey = `${y}:${start}`;
-    if (!cases.has(caseKey)) cases.set(caseKey, cases.size + 1);
-    return { kind: "case", n: cases.get(caseKey)!, spot: x - start + 1, of: end - start + 1 };
+    let n = cases.get(caseKey);
+    if (n === undefined) {
+      n = cases.size + 1;
+      cases.set(caseKey, n);
+    }
+    return { kind: "case", n, spot: x - start + 1, of: end - start + 1 };
   });
 })();
 
