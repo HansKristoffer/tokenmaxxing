@@ -413,26 +413,11 @@ const view = (p: WorldPlayer, online: boolean): PlayerView => ({
   state: p.state,
 });
 
-const info = (p: WorldPlayer, online: boolean): PlayerInfo => ({
-  id: p.id,
-  name: p.name,
-  look: p.look,
-  level: p.level,
-  companyId: p.companyId,
-  todayTokens: p.todayTokens,
-  ...(p.prestige && p.prestige.rank > 0 ? { prestige: p.prestige } : {}),
-  liveAgents: p.liveAgents,
-  online: online || isBot(p.id),
-  coffeeUntil: p.coffeeUntil ?? 0,
-  polseUntil: p.polseUntil ?? 0,
-  specialUntil: p.specialUntil ?? 0,
-  dozing: online && !!p.dozing,
-  desk: p.desk ?? 0,
-  dance: p.state === "idle" ? (p.dance ?? 0) : 0,
-  danceSince: p.state === "idle" ? (p.danceSince ?? 0) : 0,
-  angling: p.state === "idle" && online ? (p.angling ?? null) : null,
-  landing: p.state === "idle" && online ? (p.landing ?? null) : null,
-});
+/** What everyone else is told of a player: their view without where they stand. */
+const info = (p: WorldPlayer, online: boolean): PlayerInfo => {
+  const { x: _x, y: _y, facing: _facing, state: _state, ...shared } = view(p, online);
+  return shared;
+};
 
 const pos = (p: WorldPlayer): PlayerPos => [p.id, p.x, p.y, p.facing, p.state];
 
@@ -686,11 +671,11 @@ export const world = actor({
         if (n % SAVE_EVERY === 0)
           void v.kept.save().catch((err) => console.warn(`[world] save: ${String(err)}`));
         if (n % COUNTS_EVERY === 0) {
-          const counts = occupancy(v.state, v.online);
-          const json = JSON.stringify(counts);
+          const heads = occupancy(v.state, v.online);
+          const json = JSON.stringify(heads);
           if (json !== v.occupancy) {
             v.occupancy = json;
-            c.broadcast("occupancy", counts);
+            c.broadcast("occupancy", heads);
           }
         }
         if (PERF) ended = perfTick(began, ended);
@@ -716,7 +701,10 @@ export const world = actor({
     // Only a tab that joined counted as its player being here.
     if (!s) return;
     const left = (v.online.get(s.userId) ?? 1) - 1;
-    if (left > 0) return void v.online.set(s.userId, left);
+    if (left > 0) {
+      v.online.set(s.userId, left);
+      return;
+    }
     v.online.delete(s.userId);
     v.lastInput.delete(s.userId);
     v.fishing.delete(s.userId);
@@ -810,16 +798,7 @@ export const world = actor({
         v.dirty.add(p.id);
         return correction(p);
       }
-      let s = v.steps.get(userId);
-      const budget = takeStep(s ? s.budget : STEP_BURST, s ? s.at : 0, now, stepPace(p.polseUntil ?? 0, now));
-      if (budget === null) return correction(p);
-      if (s) {
-        s.budget = budget;
-        s.at = now;
-      } else {
-        s = { budget, at: now };
-        v.steps.set(userId, s);
-      }
+      if (!spendStep(v, userId, p, now)) return correction(p);
 
       if (v.fishing.size > 0) v.fishing.delete(userId);
       const wasSeated = p.state !== "idle";
@@ -858,16 +837,7 @@ export const world = actor({
       const now = Date.now();
       const ctx = { vars: v };
       touch(ctx, p, now);
-      let s = v.steps.get(userId);
-      const budget = takeStep(s ? s.budget : STEP_BURST, s ? s.at : 0, now, stepPace(p.polseUntil ?? 0, now));
-      if (budget === null) return correction(p);
-      if (s) {
-        s.budget = budget;
-        s.at = now;
-      } else {
-        s = { budget, at: now };
-        v.steps.set(userId, s);
-      }
+      if (!spendStep(v, userId, p, now)) return correction(p);
       p.facing = rawDir;
       v.dirty.add(p.id);
       if (stopDance(p)) sendInfo(ctx, p, info(p, true));
@@ -963,10 +933,7 @@ export const world = actor({
       if (!p) return null;
       const userId = p.id;
       touch({ vars: v }, p, Date.now());
-      if (isFacing(facing)) p.facing = facing;
-      const [dx, dy] = DIRS[p.facing];
-      const x = p.x + dx;
-      const y = p.y + dy;
+      const { x, y } = tileAhead(p, facing);
       const seat = mapOf(p.room).kind(x, y).seat;
       // A card-room chair is for the poker table (`pokerSit`), not for resting in.
       if (seat && mapOf(p.room).kind(x, y).poker) return { notice: "🃏 That chair is at the poker table." };
@@ -995,9 +962,8 @@ export const world = actor({
       const p = free(c);
       if (p?.room !== "town" && p?.room !== "inn") return null;
       touch(c, p, Date.now());
-      if (isFacing(facing)) p.facing = facing;
-      const [dx, dy] = DIRS[p.facing];
-      if (mapOf(p.room).kind(p.x + dx, p.y + dy).tosses !== true) return null;
+      const ahead = tileAhead(p, facing);
+      if (mapOf(p.room).kind(ahead.x, ahead.y).tosses !== true) return null;
       const now = Date.now();
       if (now - (c.vars.tosses.get(p.id) ?? 0) < TOSS_MS) return { notice: "⛲ One coin at a time." };
       c.vars.tosses.set(p.id, now);
@@ -1021,9 +987,8 @@ export const world = actor({
       if (p?.room !== "town") return null;
       const now = Date.now();
       touch(c, p, now);
-      if (isFacing(facing)) p.facing = facing;
-      const [dx, dy] = DIRS[p.facing];
-      if (!isBarrel(p.x + dx, p.y + dy, now)) return null;
+      const ahead = tileAhead(p, facing);
+      if (!isBarrel(ahead.x, ahead.y, now)) return null;
       if (now - (c.vars.whacks.get(p.id) ?? 0) < WHACK_MS) return null;
       c.vars.whacks.set(p.id, now);
       let r: Whack;
@@ -1062,10 +1027,9 @@ export const world = actor({
       if (p?.room !== "town") return null;
       const now = Date.now();
       touch(c, p, now);
-      if (isFacing(facing)) p.facing = facing;
-      const [dx, dy] = DIRS[p.facing];
+      const ahead = tileAhead(p, facing);
       const steps = doorSteps(mapOf("town"));
-      const step = steps.find((s) => s.x === p.x + dx && s.y === p.y + dy);
+      const step = steps.find((s) => s.x === ahead.x && s.y === ahead.y);
       if (!step) return null;
       if (!trickOrTreatOn(now))
         return { notice: "🎃 Nobody answers. Trick-or-treat is on the 30th and 31st of October." };
@@ -1099,9 +1063,8 @@ export const world = actor({
       if (!p) return null;
       const now = Date.now();
       touch(c, p, now);
-      if (isFacing(facing)) p.facing = facing;
-      const [dx, dy] = DIRS[p.facing];
-      const at = mapOf(p.room).kind(p.x + dx, p.y + dy);
+      const ahead = tileAhead(p, facing);
+      const at = mapOf(p.room).kind(ahead.x, ahead.y);
       if (!at.pours && !at.orders) return null;
       p.coffeeUntil = drinkCoffee(p.coffeeUntil ?? 0, now);
       c.vars.kept.markDirty("players", p.id);
@@ -1133,9 +1096,8 @@ export const world = actor({
       if (!TAVERN || p?.room !== "inn") return null;
       const now = Date.now();
       touch(c, p, now);
-      if (isFacing(facing)) p.facing = facing;
-      const [dx, dy] = DIRS[p.facing];
-      const at = mapOf(p.room).kind(p.x + dx, p.y + dy);
+      const ahead = tileAhead(p, facing);
+      const at = mapOf(p.room).kind(ahead.x, ahead.y);
       if (!at.serves && !at.orders) return null;
       if (hasSpecial(p.specialUntil ?? 0, now)) return { notice: "🍽 You've still got the last one in you." };
       p.specialUntil = serveUntil(now);
@@ -1258,9 +1220,8 @@ export const world = actor({
       if (!TAVERN || p?.room !== "basement") return null;
       const now = Date.now();
       touch(c, p, now);
-      if (isFacing(facing)) p.facing = facing;
-      const [dx, dy] = DIRS[p.facing];
-      const at = chairAt(p.x + dx, p.y + dy);
+      const ahead = tileAhead(p, facing);
+      const at = chairAt(ahead.x, ahead.y);
       if (at < 0) return null;
       if (!c.vars.pokerActs.take(String(p.id), now)) return { notice: "🃏 Easy. One move at a time." };
       return pokerSitDown(c, p, at);
@@ -1300,14 +1261,11 @@ export const world = actor({
       const p = free(c);
       if (!p || p.room !== "basement") return null;
       touch(c, p, Date.now());
-      if (isFacing(facing)) p.facing = facing;
+      const ahead = tileAhead(p, facing);
       const r = c.vars.roulette;
       if (r.seats.some((s) => s.userId === p.id)) return null;
-      let spot = spotAt(p.x, p.y);
-      if (spot < 0) {
-        const [dx, dy] = DIRS[p.facing];
-        spot = spotAt(p.x + dx, p.y + dy);
-      }
+      const onSpot = spotAt(p.x, p.y);
+      const spot = onSpot >= 0 ? onSpot : spotAt(ahead.x, ahead.y);
       if (spot < 0) return null;
       if (r.seats.length >= SPOTS) return { notice: "The table is full. You can watch." };
       if (rouletteTaken(c, p, spot)) return { notice: "Someone's already there." };
@@ -1440,8 +1398,7 @@ export const world = actor({
       if (!p || (p.state !== "idle" && p.state !== "sit")) return null;
       touch(c, p, Date.now());
       const map = mapOf(p.room);
-      const [dx, dy] = DIRS[p.facing];
-      const [fx, fy] = [p.x + dx, p.y + dy];
+      const { x: fx, y: fy } = tileAhead(p);
       const here = dropsIn(p.room);
       const on = here.find((d) => dropCovers(d, p.x, p.y) && (p.state === "sit" || map.walkable(p.x, p.y)));
       // Facing it: what blocks, or any piece of furniture, even a seat or a rug that you could stand on.
@@ -1558,10 +1515,8 @@ export const world = actor({
       }
       sendToRoom(c, p.room, "drop", moved);
       const still = moved.x === d.x && moved.y === d.y;
-      return {
-        notice: `${turned !== was && (still || sideways(turned) !== sideways(was)) ? "Turned" : "Moved"} the ${dropName(moved)}.`,
-        drop: moved,
-      };
+      const turnedOnly = turned !== was && (still || sideways(turned) !== sideways(was));
+      return { notice: `${turnedOnly ? "Turned" : "Moved"} the ${dropName(moved)}.`, drop: moved };
     },
 
     say: async (c, rawText: unknown): Promise<void> => {
@@ -2609,6 +2564,32 @@ function stopDance(p: WorldPlayer): boolean {
   return true;
 }
 
+/** Spends one step from `userId`'s budget (`takeStep`); false when it is used up. */
+function spendStep(
+  v: { steps: Map<number, { budget: number; at: number }> },
+  userId: number,
+  p: WorldPlayer,
+  now: number,
+): boolean {
+  const s = v.steps.get(userId);
+  const budget = takeStep(s ? s.budget : STEP_BURST, s ? s.at : 0, now, stepPace(p.polseUntil ?? 0, now));
+  if (budget === null) return false;
+  if (s) {
+    s.budget = budget;
+    s.at = now;
+  } else {
+    v.steps.set(userId, { budget, at: now });
+  }
+  return true;
+}
+
+/** The tile `p` faces after turning to `facing`, when that is a direction (an arrow key or a button's facing). */
+function tileAhead(p: WorldPlayer, facing?: unknown): { x: number; y: number } {
+  if (isFacing(facing)) p.facing = facing;
+  const [dx, dy] = DIRS[p.facing];
+  return { x: p.x + dx, y: p.y + dy };
+}
+
 /** Input from `p`: wakes them if they were dozing. */
 function touch(c: Sender & { vars: Vars }, p: WorldPlayer, now: number): void {
   const v = c.vars;
@@ -2687,10 +2668,8 @@ function onProp(
   const games = s.games;
   if (!games) return false;
   for (const key in games) {
-    const tiles = propTiles(games[key]!.spot);
-    for (let i = 0; i < tiles.length; i++) {
-      const t = tiles[i]!;
-      if (t[0] === x && t[1] === y) return true;
+    for (const [tx, ty] of propTiles(games[key]!.spot)) {
+      if (tx === x && ty === y) return true;
     }
   }
   return false;
@@ -2847,9 +2826,9 @@ function walkBots(s: WorldState, v: Vars & { bots: Map<number, BotRun> }, now: n
       const roll = Math.random();
       const follow = b.followChance ?? BOT_FOLLOW_CHANCE;
       // Nobody gets two bots at once.
-      const free = inTown.filter((id) => ![...v.bots.values()].some((r) => r.following === id));
-      if (free.length > 0 && roll < follow) {
-        run.following = pick(free);
+      const unclaimed = inTown.filter((id) => ![...v.bots.values()].some((r) => r.following === id));
+      if (unclaimed.length > 0 && roll < follow) {
+        run.following = pick(unclaimed);
         run.followUntil = now + between(BOT_FOLLOW_MS);
         run.sayAt = Math.min(run.sayAt, now + between(BOT_GREET_MS));
       } else if (roll < follow + BOT_COFFEE_CHANCE) {
@@ -3212,13 +3191,13 @@ const correction = (p: WorldPlayer): StepResult => ({
 });
 
 function occupancy(s: WorldState, online: Map<number, number>): Partial<Record<RoomId, number>> {
-  const counts: Partial<Record<RoomId, number>> = {};
+  const heads: Partial<Record<RoomId, number>> = {};
   const players = s.players;
   for (const id of online.keys()) {
     const room = players[id]?.room;
-    if (room !== undefined) counts[room] = (counts[room] ?? 0) + 1;
+    if (room !== undefined) heads[room] = (heads[room] ?? 0) + 1;
   }
-  return counts;
+  return heads;
 }
 
 /**
@@ -3523,7 +3502,7 @@ type TileAt = { x: number; y: number };
  */
 async function takeDrop(
   c: Sender & { vars: Vars; client: () => Parameters<typeof main>[0] },
-  p: WorldState["players"][number],
+  p: WorldPlayer,
   userId: number,
   d: Drop,
 ): Promise<null | { notice: string; drop?: Drop }> {
