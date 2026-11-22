@@ -55,7 +55,7 @@ import { skyNow } from "./sky.ts";
 import { self, world } from "./world.ts";
 
 /** What stands in town now: the stage of the build-up, the flags that are up. Null outside Agustusan and the town. */
-export interface AgustusanNow {
+interface AgustusanNow {
   days: number;
   intensity: number;
   stand: ReturnType<typeof standing>;
@@ -83,6 +83,7 @@ export function agustusanNow(): AgustusanNow | null {
 }
 
 /** The year's medals, as `agustusan:2026:panjat` flags. */
+// The anniversary counts years of independence, which began in 1945; the key uses the calendar year.
 const medalKey = (l: Lomba): string => `agustusan:${anniversary(skyNow()) + 1945}:${l}`;
 const LOMBAS: Lomba[] = ["panjat", "kerupuk", "karung"];
 export const medalsWon = (): Lomba[] => LOMBAS.filter((l) => storage.getItem(medalKey(l)) === "1");
@@ -101,8 +102,6 @@ function award(l: Lomba, what: string): string {
       : ` (${n} of 3 medals this year.)`;
   return head + tail;
 }
-
-// MARK: The lomba
 
 const say = (text: string): void => hud.set({ dialog: text });
 
@@ -240,8 +239,6 @@ export function agustusanInteract(x: number, y: number): boolean {
   }
   return false;
 }
-
-// MARK: Drawing
 
 /** The tile's bottom edge in world pixels: what a prop is sorted by, as an item in the frame. */
 const floorOf = (y: number): number => (y + 1) * TILE;

@@ -23,7 +23,7 @@ import { roomName, self, world } from "./world.ts";
  * F turns a piece you are moving, or one you face, a quarter turn clockwise (four presses to come full circle).
  * Nothing is spent until the server says so. Both renderers draw it: 3D through `viewHooks.ghost`, 2D from `ghost`.
  */
-export type GhostMode = { kind: "move"; drop: Drop } | { kind: "place"; item: string; company: boolean };
+type GhostMode = { kind: "move"; drop: Drop } | { kind: "place"; item: string; company: boolean };
 
 export const ghost: {
   mode: GhostMode | null;
@@ -47,7 +47,7 @@ const itemOf = (m: GhostMode) => (m.kind === "move" ? m.drop.item : m.item);
 const failed = (e: unknown) => hud.set({ dialog: e instanceof Error ? e.message : "That didn't work." });
 
 /** Whether a piece of furniture could stand with its top-left tile on `t` (turned as the ghost is), as the client sees the room. */
-export function fitsHere(mode: GhostMode, t: Tile): boolean {
+function fitsHere(mode: GhostMode, t: Tile): boolean {
   return ghostFits(
     world.room,
     itemOf(mode),
@@ -111,8 +111,9 @@ export function rotate(): void {
   const at = turnedAround(drop.x, drop.y, pieceOfDrop(drop)?.w ?? 1, was, next);
   void conn.move(drop.id, at.x, at.y, next).then((r) => {
     hud.set({ dialog: r.notice });
-    if (r.drop && rotOf(r.drop.rot) !== was)
+    if (r.drop && rotOf(r.drop.rot) !== was) {
       undoStack.push({ kind: "move", room: drop.room, id: drop.id, x: drop.x, y: drop.y, rot: was });
+    }
   }, failed);
 }
 
@@ -187,8 +188,10 @@ export function confirm(): void {
     const was = rotOf(from.rot);
     void conn.move(from.id, t.x, t.y, turned).then((r) => {
       hud.set({ dialog: r.notice });
-      if (r.drop && (r.drop.x !== from.x || r.drop.y !== from.y || rotOf(r.drop.rot) !== was))
+      const moved = r.drop && (r.drop.x !== from.x || r.drop.y !== from.y || rotOf(r.drop.rot) !== was);
+      if (moved) {
         undoStack.push({ kind: "move", room: from.room, id: from.id, x: from.x, y: from.y, rot: was });
+      }
     }, failed);
     return;
   }
@@ -289,7 +292,8 @@ export function bindGhost(canvas: HTMLElement): void {
       }
       if (e.metaKey || e.ctrlKey || e.altKey) return;
       if (ghost.mode) {
-        if (k === "escape" || k === "e" || k === "enter" || k === "m" || k === "f") {
+        const isModeKey = k === "escape" || k === "e" || k === "enter" || k === "m" || k === "f";
+        if (isModeKey) {
           e.stopImmediatePropagation();
           e.preventDefault();
           if (k === "escape" || k === "m") cancel(true);

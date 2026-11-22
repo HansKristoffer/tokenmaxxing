@@ -42,7 +42,7 @@ const keyOf = (): string => `befrielsen:candles:${worldWall(skyNow()).y}`;
 
 let mineSeen: { key: string; n: number } | null = null;
 /** How many of your own candles burn on the tray this year. */
-export function myCandles(): number {
+function myCandles(): number {
   const key = keyOf();
   if (mineSeen?.key !== key) {
     const n = Number(storage.getItem(key));

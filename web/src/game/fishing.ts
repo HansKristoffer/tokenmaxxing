@@ -30,7 +30,6 @@ export function drawFishing({ g, items, labels, now, toScreen, dpr }: Frame): vo
     // Nose towards the water it came out of.
     const flip = h.waterX < h.x;
     const wiggle = h.t < 0.8 ? Math.sin(now / 60) * 0.12 : 0;
-    const fish = h.fish;
     items.push({
       y: h.y * TILE + TILE,
       draw: () => {
@@ -38,7 +37,7 @@ export function drawFishing({ g, items, labels, now, toScreen, dpr }: Frame): vo
         g.translate(Math.round(x), Math.round(y));
         g.rotate(wiggle);
         if (flip) g.scale(-1, 1);
-        drawFish(new Pen(g), fish, -FISH_W / 2, -FISH_H / 2);
+        drawFish(new Pen(g), h.fish, -FISH_W / 2, -FISH_H / 2);
         g.restore();
       },
     });

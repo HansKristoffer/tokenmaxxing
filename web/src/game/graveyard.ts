@@ -64,6 +64,7 @@ export function readStones(): void {
   const s = stoneInFront(currentStones(), me.x, me.y);
   if (!s || read.has(s.id)) return;
   read.add(s.id);
+  // Only the latest 50 ids are kept, so the saved list stays small.
   storage.setItem(READ, JSON.stringify([...read].slice(-50)));
   open(s);
 }
