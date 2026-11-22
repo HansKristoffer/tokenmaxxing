@@ -172,7 +172,8 @@ describe("the net cafe's poker table", () => {
     expect(stackOf(keeperUser)).toBe(2 * BUY_IN - mover.stack);
     expect(mover.stack).toBeLessThan(BUY_IN);
 
-    // Nothing but a seat's `cards` flag ever went out about anyone's hole cards: no card of theirs in what the other heard.
+    // Nothing but a seat's `cards` flag ever went out about anyone's hole cards:
+    // no card of theirs reached what the other heard.
     for (const [heard, mine, theirs] of [
       [heardA, holeA, holeB],
       [heardB, holeB, holeA],

@@ -2,21 +2,11 @@ import { describe, expect, test } from "bun:test";
 import { PricingCache } from "../src/pricing.ts";
 
 /**
- * Models that have actually appeared in fleet traffic, asserted to be priceable
- * from the VENDORED snapshot alone, with no network.
- *
- * The gap this guards: an unpriced model is not a visible failure. lookup()
- * returns null and the row gets costUsd 0, so player cards show $0 and the
- * leaderboard ranked by cost silently sorts that model's heaviest users last.
- *
- * `claude-opus-5` shipped in exactly that state: absent from the snapshot under
- * every alias while `claude-fable-5` was present, so the snapshot was vendored
- * in the window between the two landing upstream. On one developer machine that
- * was 193k messages and 50B cache-read tokens reading as $0.
- *
- * The daily refreshFromUpstream() masks this on any server with egress, which is
- * why it went unnoticed. That is precisely why the snapshot needs its own guard.
- * An air-gapped self-host never gets the correction.
+ * Models seen in fleet traffic must price from the vendored snapshot alone, with no network.
+ * An unpriced model does not fail visibly: lookup() returns null and the row costs $0, so a
+ * leaderboard ranked by cost sorts that model's heaviest users last. The daily
+ * refreshFromUpstream() hides this on any server with egress, and an air-gapped self-host never
+ * gets that correction, so the snapshot needs its own guard.
  *
  * Add a model here when it first shows up in traffic. A failure means
  * `bun run scripts/vendor-pricing.ts`.
