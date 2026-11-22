@@ -34,8 +34,9 @@ function leg(
 
 /** Strides a set of legs: `phase` each, `amp` radians, a trot when moving and (optionally) a fidget at rest. */
 function stride(legs: { j: Model; phase: number }[], t: number, moving: boolean, amp = 0.7, fidget = 0) {
-  for (const l of legs)
+  for (const l of legs) {
     l.j.rotation.x = moving ? Math.sin(t * 13 + l.phase) * amp : Math.sin(t * 9 + l.phase) * fidget;
+  }
 }
 
 // MARK: Huginn and Muninn
@@ -50,13 +51,14 @@ function raven(parent: Model, at: V3, k: number, seed: number) {
   bg.ell(0, 8.2, 3.4, 3, 3, 2.6, BLACK, 2.3);
   bg.ell(0, 8.5, 2, 2, 2, 2, BLACK, 2.3);
   // Folded wings along the sides, their tips trailing over the tail.
-  for (const s of SIDES)
+  for (const s of SIDES) {
     for (let z = 4; z >= -10; z--) {
       const top = z > -2 ? 9.2 : 9.2 - (-2 - z) * 0.3;
       const bot = z > -2 ? 5 : 5 + (-2 - z) * 0.22;
       const w = z > -5 ? 1 : 0;
       bg.box(s * 3.1, s * (3.9 + w), Math.round(bot), Math.round(top), z, z, BLACK);
     }
+  }
   // Tail: a wedge of long feathers trailing back and a little down.
   for (let z = -6; z >= -13; z--) {
     const w = z < -10 ? 2 : 1;
@@ -304,12 +306,14 @@ export function tanngrisnir(): Built {
   bg.set(0, 15, -8, SHADE);
   put(body, bg, [0, 0, 0], 1);
   const legs: { j: Model; phase: number }[] = [];
-  for (const [zi, z] of [4.6, -4.6].entries())
-    for (const [si, s] of SIDES.entries())
+  for (const [zi, z] of [4.6, -4.6].entries()) {
+    for (const [si, s] of SIDES.entries()) {
       legs.push({
         j: leg(body, [s * 2.7, 9, z], 9, 2, (c) => (c.t > 0.55 ? CREAM : SHADE), "#3b2f2a", false, 5 + zi),
         phase: (zi + si) * Math.PI,
       });
+    }
+  }
   // The head: a long skull, a pale muzzle and a lower jaw that works.
   const head = joint(body, [0, 17.5, 9]);
   const hg = new Grid();
@@ -410,12 +414,14 @@ export function hildisvini(): Built {
   }
   put(body, bg, [0, 0, 0], 1);
   const legs: { j: Model; phase: number }[] = [];
-  for (const [zi, z] of [4, -4].entries())
-    for (const [si, s] of SIDES.entries())
+  for (const [zi, z] of [4, -4].entries()) {
+    for (const [si, s] of SIDES.entries()) {
       legs.push({
         j: leg(body, [s * 3.5, 4, z], 4, 3, (c) => (c.t > 0.5 ? SKIN : DEEP), "#4a2c26", false, 5 + zi),
         phase: (zi + si) * Math.PI,
       });
+    }
+  }
   const head = joint(body, [0, 8.5, 6.2]);
   const hg = new Grid();
   hg.ell(0, 0, 0, 4, 3.8, 3.5, SKIN, 2.2);
@@ -450,8 +456,9 @@ export function hildisvini(): Built {
     [1, 2, -1],
     [1, 3, 0],
     [0, 3, 1],
-  ] as const)
+  ] as const) {
     tg.set(x, y, z, DEEP);
+  }
   put(tail, tg, [0, 0, 0], 4);
   return {
     rig: {
@@ -613,12 +620,14 @@ export function fenrir(): Built {
   bg.fluff(0.12, 3, 0.08);
   put(body, bg, [0, 0, 0], 1);
   const legs: { j: Model; phase: number }[] = [];
-  for (const [zi, z] of [4.4, -3.8].entries())
-    for (const [si, s] of SIDES.entries())
+  for (const [zi, z] of [4.4, -3.8].entries()) {
+    for (const [si, s] of SIDES.entries()) {
       legs.push({
         j: leg(body, [s * 2.7, 5, z], 5, 2, (c) => (c.t > 0.6 ? COAT : "#454854"), "#2a2c35", true, 5 + zi),
         phase: (zi + si) * Math.PI,
       });
+    }
+  }
   const head = joint(body, [0, 12.4, 7.2]);
   const hg = new Grid();
   hg.ell(0, 0, 0, 3.9, 3.5, 3.6, COAT, 2.2);
