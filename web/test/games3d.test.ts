@@ -1,5 +1,6 @@
 import { beforeAll, expect, test } from "bun:test";
 import type { WorldGame } from "@tokenmaxxing/core/world.ts";
+import { countMeshes } from "./support.ts";
 
 const pixels = () => ({ data: new Uint8ClampedArray(1 << 22), width: 1024, height: 1024 });
 const ctx = new Proxy(
@@ -60,29 +61,21 @@ const arena = (id: number): WorldGame => ({
   endsAt: Date.now() + 60_000,
 });
 
-const meshes = (root: import("three").Object3D): number => {
-  let n = 0;
-  root.traverse((o) => {
-    if ((o as import("three").Mesh).isMesh) n++;
-  });
-  return n;
-};
-
 test("a game on the square gets its table and stools, and takes them away when it ends", () => {
   w.world.games.clear();
   const layer = new games.GamesLayer((x, y) => [x + 0.5, y + 0.5]);
   layer.update(0);
   expect(layer.group.visible).toBe(false);
-  expect(meshes(layer.group)).toBe(0);
+  expect(countMeshes(layer.group)).toBe(0);
   w.world.games.set(1, table(1));
   layer.update(0.1);
   expect(layer.group.visible).toBe(true);
-  const built = meshes(layer.group);
+  const built = countMeshes(layer.group);
   // The table (its watchers' sign hidden) and a stool for each of the two seats.
   expect(built).toBeGreaterThan(8);
   w.world.games.delete(1);
   layer.update(0.2);
-  expect(meshes(layer.group)).toBe(0);
+  expect(countMeshes(layer.group)).toBe(0);
   layer.dispose();
 });
 
@@ -91,7 +84,7 @@ test("a third player at the table means another stool; a changed headline doesn'
   const layer = new games.GamesLayer((x, y) => [x + 0.5, y + 0.5]);
   w.world.games.set(1, table(1));
   layer.update(0);
-  const two = meshes(layer.group);
+  const two = countMeshes(layer.group);
   const same = layer.group.children[0]!;
   w.world.games.set(1, table(1, { headline: "Round 3/3", watchers: 3 }));
   layer.update(0.1);
@@ -101,7 +94,7 @@ test("a third player at the table means another stool; a changed headline doesn'
     table(1, { players: [2, 3, 4], seats: [...table(1).seats, { x: 8, y: 7, facing: "up" }] }),
   );
   layer.update(0.2);
-  expect(meshes(layer.group)).toBeGreaterThan(two);
+  expect(countMeshes(layer.group)).toBeGreaterThan(two);
   layer.dispose();
 });
 

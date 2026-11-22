@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import { TILE } from "@tokenmaxxing/core/world.ts";
 import { FANCY_FURNITURE } from "../src/art/furniture-fancy.ts";
-import { Pen } from "../src/art/pixels.ts";
+import { recorder } from "./support.ts";
 
 test("every fancy piece has a unique id, a valid footprint, frames and a price", () => {
   expect(FANCY_FURNITURE.length).toBeGreaterThanOrEqual(25);
@@ -20,25 +20,9 @@ test("every fancy piece has a unique id, a valid footprint, frames and a price",
 test("every frame draws something, on whole pixels inside its sprite", () => {
   for (const f of FANCY_FURNITURE)
     for (let frame = 0; frame < f.frames; frame++) {
-      const out: string[] = [];
-      let painted = 0;
-      const g = {
-        fillStyle: "",
-        fillRect(x: number, y: number, w: number, h: number) {
-          if (w <= 0 || h <= 0) return;
-          painted++;
-          if (
-            ![x, y, w, h].every(Number.isInteger) ||
-            x < 0 ||
-            y < 0 ||
-            x + w > f.w * TILE ||
-            y + h > f.height
-          )
-            out.push(`${x},${y} ${w}x${h}`);
-        },
-      };
-      f.draw(new Pen(g as unknown as CanvasRenderingContext2D), frame, f.tint ?? "#6d7fc4");
-      expect({ id: f.id, frame, out }).toEqual({ id: f.id, frame, out: [] });
-      expect(painted).toBeGreaterThan(10);
+      const r = recorder(f.w * TILE, f.height);
+      f.draw(r.pen, frame, f.tint ?? "#6d7fc4");
+      expect({ id: f.id, frame, out: r.bad }).toEqual({ id: f.id, frame, out: [] });
+      expect(r.painted()).toBeGreaterThan(10);
     }
 });

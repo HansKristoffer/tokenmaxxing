@@ -1,6 +1,6 @@
 import { afterEach, expect, setSystemTime, test } from "bun:test";
 import { plotId, townMap } from "@tokenmaxxing/core/maps.ts";
-import { EGGS_PER_DAY, FARMER_TILE, FROKOST } from "@tokenmaxxing/core/paaske.ts";
+import { EGGS_PER_DAY, FARMER_TILE, FROKOST, PAASKE_FARMER } from "@tokenmaxxing/core/paaske.ts";
 import { installHeadlessGlobals } from "../src/render3d/perf/stubs.ts";
 
 installHeadlessGlobals();
@@ -24,7 +24,6 @@ const { hud } = await import("../src/store.ts");
 const { storage } = await import("../src/storage.ts");
 const { Paaske3d } = await import("../src/render3d/town/paaske3d.ts");
 const { gudrun3d } = await import("../src/render3d/town/paaske-npc3d.ts");
-const { PAASKE_FARMER } = await import("@tokenmaxxing/core/paaske.ts");
 const { NPC_MODELS } = await import("../src/render3d/town/festive-npc3d.ts");
 const { NPC_SPRITES } = await import("../src/art/festive-npc.ts");
 const { HAT_BUILDERS } = await import("../src/render3d/people/gear3dHead.ts");

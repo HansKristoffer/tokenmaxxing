@@ -1,17 +1,9 @@
 import { expect, test } from "bun:test";
 import { STALL_WEARABLES } from "@tokenmaxxing/core/julemarked-shop.ts";
-import type * as THREE from "three";
 import { installHeadlessGlobals } from "../src/render3d/perf/stubs.ts";
+import { countMeshes } from "./support.ts";
 
 installHeadlessGlobals();
-
-const meshes = (o: THREE.Object3D) => {
-  let n = 0;
-  o.traverse((c) => {
-    if ((c as THREE.Mesh).isMesh) n++;
-  });
-  return n;
-};
 
 const worn = STALL_WEARABLES.filter((i) => i.slot !== "pet");
 
@@ -41,13 +33,13 @@ test("a character wearing each stall item is dressed in more than a bare one, in
   for (const voxel of [false, true]) {
     setSmoothBands(voxel);
     const style = voxel ? "voxel" : "grown";
-    const base = meshes(avatarFor(bare, undefined, style).root);
+    const base = countMeshes(avatarFor(bare, undefined, style).root);
     for (const item of worn) {
       // Outfits are built on the blocky body only (as for the other cases).
       if (!voxel && (item.slot === "outfit" || item.slot === "back")) continue;
       const a = avatarFor({ ...bare, [item.slot]: item.index }, undefined, style);
-      expect(meshes(a.root), `${style} ${item.slot}: ${item.name}`).toBeGreaterThan(base);
-      expect(meshes(a.root), `${item.name} stays modest`).toBeLessThan(base + 300);
+      expect(countMeshes(a.root), `${style} ${item.slot}: ${item.name}`).toBeGreaterThan(base);
+      expect(countMeshes(a.root), `${item.name} stays modest`).toBeLessThan(base + 300);
       for (const t of [0, 0.7, 1.9]) a.update(1 / 30, t);
       a.pose = "walk";
       a.update(1 / 30, 2.5);

@@ -5,23 +5,7 @@ import { CASE_BOX_SIZE } from "../src/art/case-box.ts";
 import { JULEMARKED_AURAS } from "../src/art/case-julemarked-aura.ts";
 import { drawJulemarkedBox } from "../src/art/case-julemarked-box.ts";
 import { PETS } from "../src/art/pet-base.ts";
-import { Pen } from "../src/art/pixels.ts";
-
-/** A pen that only records where it paints, so a sprite can be checked against its canvas without one. */
-const recorder = (w: number, h: number) => {
-  const bad: string[] = [];
-  let painted = 0;
-  const g = {
-    fillStyle: "",
-    fillRect(x: number, y: number, rw: number, rh: number) {
-      if (rw <= 0 || rh <= 0) return;
-      painted++;
-      if (![x, y, rw, rh].every(Number.isInteger) || x < 0 || y < 0 || x + rw > w || y + rh > h)
-        bad.push(`${x},${y} ${rw}x${rh}`);
-    },
-  };
-  return { pen: new Pen(g as unknown as CanvasRenderingContext2D), bad, painted: () => painted };
-};
+import { recorder } from "./support.ts";
 
 const of = (slot: string) => JULEMARKED_ITEMS.filter((i) => i.slot === slot);
 
