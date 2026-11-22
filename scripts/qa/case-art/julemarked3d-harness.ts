@@ -1,7 +1,6 @@
 // Browser harness for the Julemarked 3D pets and auras: the real Pet3D and avatars on a WebGL canvas.
 import * as THREE from "three";
 import { blockify } from "../../../web/src/render3d/kit/blocky.ts";
-
 import { avatarFor } from "../../../web/src/render3d/people/gear3d.ts";
 import { view } from "../../../web/src/render3d/perf/freeze.ts";
 import { petFrom2D } from "../../../web/src/render3d/pets/pets3d.ts";
@@ -129,7 +128,8 @@ const shoot = (
       for (; now < time; now += 1 / 30) av.update(1 / 30, now);
       [0, Math.PI].forEach((turn, a) => {
         av.root.rotation.y = turn;
-        shoot(ctx, CW, CH, (k * 2 + a) * CW, row * CH, cam, `aura ${idx} ${a ? "back" : "front"} t=${time}`);
+        const side = a ? "back" : "front";
+        shoot(ctx, CW, CH, (k * 2 + a) * CW, row * CH, cam, `aura ${idx} ${side} t=${time}`);
       });
     });
     scene.remove(av.root);

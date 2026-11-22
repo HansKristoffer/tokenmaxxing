@@ -35,7 +35,8 @@ const fail = (tier, why) => {
 
 for (const tier of tiers) {
   const d = tier === "low" ? "2d" : "3d";
-  const page = await openGame(browser, await signUp("pk"), tier, { viewport: { width: 1280, height: 800 } });
+  const user = await signUp("pk");
+  const page = await openGame(browser, user, tier, { viewport: { width: 1280, height: 800 } });
   await ready(page);
   const shot = async (name, wait = 1500) => {
     await page.waitForTimeout(wait);
@@ -165,7 +166,7 @@ for (const tier of tiers) {
   const town = townMap([]);
   const eggs = eggSpots(town, DAY);
   // Grass tiles in the 5x5 block round an egg.
-  const open = (e) => {
+  const grassAround = (e) => {
     let n = 0;
     for (let dy = -2; dy <= 2; dy++) {
       for (let dx = -2; dx <= 2; dx++) {
@@ -175,10 +176,10 @@ for (const tier of tiers) {
     return n;
   };
   // The egg the close-up is of: the one with the most open ground round it (no tree or house to hide it).
-  const FIRST = eggs.reduce((best, e, i) => (open(e) > open(eggs[best]) ? i : best), 0);
+  const closeUp = eggs.reduce((best, e, i) => (grassAround(e) > grassAround(eggs[best]) ? i : best), 0);
   if (want("egg") || want("eggs") || want("chick")) {
     // Walk to a tile behind the egg (the camera looks from the bottom right), shoot it in the grass, then step on it.
-    const e = eggs[FIRST];
+    const e = eggs[closeUp];
     await walk(e.x - 1, e.y - 1);
     await zoom(5);
     await clean("egg", 1500);
@@ -208,7 +209,7 @@ for (const tier of tiers) {
     await reset();
   }
   if (want("eggs") || want("chick")) {
-    for (const e of eggs.filter((_, i) => i !== FIRST)) await walk(e.x, e.y);
+    for (const e of eggs.filter((_, i) => i !== closeUp)) await walk(e.x, e.y);
     await page.waitForTimeout(800);
     const chip = await page.textContent(".paaske-eggs").catch(() => null);
     if (!chip?.includes("8 / 8")) fail(tier, `the chip says ${JSON.stringify(chip)} after all eight`);

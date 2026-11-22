@@ -1,7 +1,8 @@
 // bun scripts/qa/square.mjs [tier] : screenshots of the town square, HUD hidden: the whole town zoomed out and the
 // square close up, by day, at dusk and at night. OUT=dir saves them (default .data/qa/square). SHOTS picks from
 // `day,dusk,night`; ZOOMS from `far,mid,near`; AT=x,y stands somewhere else than the spawn; SEASON and WEATHER
-// pass through as `?season=` and `?weather=`; EVAL is an expression to run in the page and print after each shot. The first run starts a few companies, so the square has houses round it.
+// pass through as `?season=` and `?weather=`; EVAL is an expression to run in the page and print after each shot.
+// The first run starts a few companies, so the square has houses round it.
 // Needs a local server and Playwright (see lib.mjs).
 import { mkdirSync } from "node:fs";
 import { openGame, playwright, portals, ready, room, signUp, through, walkTile } from "./lib.mjs";

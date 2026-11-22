@@ -29,12 +29,8 @@ let failed = 0;
 const report = [];
 
 for (const tier of tiers) {
-  const page = await openGame(
-    browser,
-    await (company ? signUp("tour", 8_000_000, true) : signUp("tour")),
-    tier,
-    { viewport: { width: vw, height: vh } },
-  );
+  const user = await (company ? signUp("tour", 8_000_000, true) : signUp("tour"));
+  const page = await openGame(browser, user, tier, { viewport: { width: vw, height: vh } });
   await ready(page);
   const want = tier === "low" ? "2d" : "3d";
   const edges = {}; // room -> { "x,y": dest }

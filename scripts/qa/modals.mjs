@@ -189,6 +189,7 @@ const SKIPPED = {
   tombstone: "needs a grave's id from the graveyard's own data",
 };
 const known = new Set([...PANELS.map(([, p]) => p.kind), ...Object.keys(SKIPPED)]);
+// The panel kinds, read from the source's `Panel` type as text: a kind added there fails this run until it is listed.
 const store = readFileSync(join(ROOT, "web/src/store.ts"), "utf8");
 const union = store.slice(store.indexOf("export type Panel ="), store.indexOf("/** The jukebox's mute"));
 const missing = [...union.matchAll(/\| \{ kind: "(\w+)"/g)].map((m) => m[1]).filter((k) => !known.has(k));
@@ -230,6 +231,7 @@ for (const tier of tiers) {
     await page.waitForTimeout(panel.kind === "bag" ? 1800 : 900);
     const overflow = await dialog.evaluate((el) => el.scrollHeight - el.clientHeight);
     if (wholePage) await page.screenshot({ path });
+    // A few pixels of overflow is a rounding or border matter: shot as it is.
     else if (overflow <= 20) await dialog.screenshot({ path });
     else {
       // Taller than the window: lift the height cap so the shot has all of it.

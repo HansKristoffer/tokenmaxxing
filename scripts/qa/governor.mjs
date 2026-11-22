@@ -7,7 +7,8 @@ const browser = await pw.chromium.launch({
   headless: true,
   args: ["--use-angle=metal", "--ignore-gpu-blocklist"],
 });
-const page = await openGame(browser, await signUp("g"), "auto", {
+const user = await signUp("g");
+const page = await openGame(browser, user, "auto", {
   extra: async (ctx) => {
     await ctx.addInitScript(() => {
       window.__slow = 0;

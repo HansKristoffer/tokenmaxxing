@@ -10,7 +10,9 @@ const browser = await pw.chromium.launch({
   headless: true,
   args: ["--use-angle=metal", "--ignore-gpu-blocklist"],
 });
-const page = await openGame(browser, await signUp("h"), tier, { viewport: { width: 960, height: 600 } });
+const VIEW = { width: 960, height: 600 };
+const user = await signUp("h");
+const page = await openGame(browser, user, tier, { viewport: VIEW });
 await ready(page);
 // SKY=2026-10-26T14:00: daylight (Copenhagen time) and clear weather, so the sun casts shadows.
 if (process.env.SKY) {
@@ -40,7 +42,7 @@ const where = () =>
     const p = r.entities.positionOf(window.__tm.world.selfId);
     if (!p) return null;
     const v = r.rig.camera.position.clone().set(p[0], 0.8, p[1]).project(r.rig.camera);
-    return [((v.x + 1) / 2) * 960, ((1 - v.y) / 2) * 600];
+    return [((v.x + 1) / 2) * VIEW.width, ((1 - v.y) / 2) * VIEW.height];
   });
 const frames = [];
 for (let i = 0; i < 5; i++) {

@@ -47,6 +47,7 @@ const SCENES = [
   // The evening.
   { name: "dusk", q: "?sky=2026-08-17T21:50&weather=clear&theme=agustusan&day=08-17T21:50", stand: [9, 7], inn3: 1 },
 ];
+const ARROW_KEYS = { up: "ArrowUp", down: "ArrowDown", left: "ArrowLeft", right: "ArrowRight" };
 const only = args.length ? SCENES.filter((s) => args.includes(s.name)) : SCENES;
 
 const pw = await playwright();
@@ -59,7 +60,8 @@ const fail = (why) => {
 
 for (const tier of tiers) {
   const d = tier === "low" ? "2d" : "3d";
-  const page = await openGame(browser, await signUp("ag"), tier, { viewport: { width: 1100, height: 700 } });
+  const user = await signUp("ag");
+  const page = await openGame(browser, user, tier, { viewport: { width: 1100, height: 700 } });
   await ready(page);
   const go = async (ch) => {
     const p = (await portals(page)).find((q) => q.ch === ch);
@@ -80,18 +82,15 @@ for (const tier of tiers) {
     if (at.x !== s.stand[0] || at.y !== s.stand[1])
       fail(`${tier} ${s.name}: stood at ${at.x},${at.y}, wanted ${s.stand}`);
     if (s.face) {
-      await page.keyboard.down(
-        { up: "ArrowUp", down: "ArrowDown", left: "ArrowLeft", right: "ArrowRight" }[s.face],
-      );
+      const arrow = ARROW_KEYS[s.face];
+      await page.keyboard.down(arrow);
       await page.waitForTimeout(60);
-      await page.keyboard.up(
-        { up: "ArrowUp", down: "ArrowDown", left: "ArrowLeft", right: "ArrowRight" }[s.face],
-      );
+      await page.keyboard.up(arrow);
     }
     await page.keyboard.press("0");
     for (let i = 0; i < (s.out ?? 0); i++) await page.keyboard.press("-");
-    for (let i = 0; i < (tier === "low" ? (s.inn ?? 0) : (s.inn3 ?? s.inn ?? 0)); i++)
-      await page.keyboard.press("+");
+    const zoomIn = tier === "low" ? (s.inn ?? 0) : (s.inn3 ?? s.inn ?? 0);
+    for (let i = 0; i < zoomIn; i++) await page.keyboard.press("+");
     for (let i = 0; i < (s.rotate ?? 0); i++) await page.keyboard.press("r");
     if (s.climb) await page.evaluate((h) => window.__agustusan?.setClimb(h), s.climb);
     for (const key of s.press ?? []) {
@@ -114,6 +113,7 @@ for (const tier of tiers) {
     await page.addStyleTag({ content: "#hud{visibility:visible !important}" });
     console.log(path);
   }
+  // Headless Chromium's own GPU and favicon noise, which the game did not cause.
   const bad = page.errors.filter((e) => !/favicon|WebGL|GPU|swiftshader/i.test(e));
   if (bad.length) fail(`${tier} page errors: ${bad.slice(-4).join(" | ")}`);
 }

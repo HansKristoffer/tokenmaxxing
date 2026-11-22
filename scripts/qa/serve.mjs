@@ -48,7 +48,8 @@ mkdirSync(STATE_DIR, { recursive: true });
 
 // This week's Monday (UTC): a raid that is open now.
 const monday = new Date();
-monday.setUTCDate(monday.getUTCDate() - ((monday.getUTCDay() + 6) % 7));
+const daysSinceMonday = (monday.getUTCDay() + 6) % 7;
+monday.setUTCDate(monday.getUTCDate() - daysSinceMonday);
 // ADMIN_TOKEN needs 32 characters or more (docs/development.md). A UUID repeated twice clears that.
 const adminToken = process.env.ADMIN_TOKEN ?? previous?.adminToken ?? crypto.randomUUID().repeat(2);
 

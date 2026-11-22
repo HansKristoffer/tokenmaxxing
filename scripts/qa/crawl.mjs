@@ -12,7 +12,8 @@ const browser = await pw.chromium.launch({
   headless: true,
   args: ["--use-angle=metal", "--ignore-gpu-blocklist"],
 });
-const page = await openGame(browser, await signUp("c"), tier, {
+const user = await signUp("c");
+const page = await openGame(browser, user, tier, {
   viewport: { width: 960, height: 600 },
   dpr: 2,
 });
