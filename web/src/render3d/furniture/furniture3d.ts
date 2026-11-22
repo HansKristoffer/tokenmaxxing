@@ -113,7 +113,7 @@ const touchedGrass = (): Model => {
     [0.42, 0.18, 0.9],
     [0.7, -0.1, 1.05],
   ];
-  for (const [cx, cz, k] of tufts)
+  for (const [cx, cz, k] of tufts) {
     for (let i = 0; i < 12; i++) {
       const a = rnd() * Math.PI * 2;
       const r = rnd() * 0.17;
@@ -128,6 +128,7 @@ const touchedGrass = (): Model => {
       );
       blade.rotation.set((rnd() - 0.5) * 0.5, 0, (rnd() - 0.5) * 0.5);
     }
+  }
   // Tiny flowers on thin stems: daisies, a buttercup, a red bud.
   const flowers: [number, number, string, number][] = [
     [-0.45, 0.2, C.flowerWhite, 0.2],
@@ -269,11 +270,12 @@ const plantWall = (): Model => {
   const rnd = seeded(23);
   const greens = [C.leafDark, C.leaf, C.leafLight, C.leaf];
   let k = 0;
-  for (let row = 0; row < 6; row++)
+  for (let row = 0; row < 6; row++) {
     for (let x = -0.8 + (row % 2) * 0.1; x < 0.86; x += 0.21) {
       const c = greens[k++ % 4]!;
       m.ball(0.12 + rnd() * 0.03, c, [x, 0.4 + row * 0.19, 0.1 + rnd() * 0.04], [1, 0.9, 0.55], 8);
     }
+  }
   for (const [x, y] of [
     [-0.55, 1.3],
     [0.25, 1.1],
@@ -344,13 +346,13 @@ const bookshelfLibrary = (): Model => {
   for (let i = 0; i < 4; i++) {
     const y = 0.03 + i * 0.5;
     m.box([w, 0.04, d], wood, [0, y, 0]);
-    if (i < 3) books(m, -w / 2 + 0.07, w / 2 - 0.07, y + 0.04, 0.0, 0.36, i * 5 + 9);
+    if (i < 3) books(m, -w / 2 + 0.07, w / 2 - 0.07, y + 0.04, 0, 0.36, i * 5 + 9);
   }
   // A library ladder leaning on the right half, with a brass rail along the top.
   const ladder = m.part([0.55, 0, 0.2]);
   ladder.rotation.x = -0.12;
   for (const x of [-0.12, 0.12]) ladder.box([0.03, 1.65, 0.03], C.woodLight, [x, 0, 0]);
-  for (let y = 0.2; y < 1.6; y += 0.3) ladder.box([0.24, 0.025, 0.04], C.woodLight, [0, y, 0.0]);
+  for (let y = 0.2; y < 1.6; y += 0.3) ladder.box([0.24, 0.025, 0.04], C.woodLight, [0, y, 0]);
   m.box([w - 0.1, 0.02, 0.025], BRASS, [0, h - 0.02, d / 2 - 0.01]);
   return m;
 };
@@ -468,7 +470,7 @@ const hangingPlant = (): Model => {
   // Hook, macrame cords, the pot, and a pothos trailing down.
   m.box([0.04, 0.04, 0.12], C.ink, [0, 1.05, 0.05]);
   for (const x of [-0.1, 0, 0.1]) {
-    const cord = m.cyl(0.006, 0.4, CREAM, [x * 0.5, 0.68, 0.0], 0.006, 4);
+    const cord = m.cyl(0.006, 0.4, CREAM, [x * 0.5, 0.68, 0], 0.006, 4);
     cord.rotation.z = -x * 0.8;
   }
   m.cyl(0.11, 0.16, "#c2703d", [0, 0.52, 0], 0.15, 14);
@@ -478,7 +480,7 @@ const hangingPlant = (): Model => {
     [-0.1, 0.4],
     [0.04, 0.28],
     [0.12, 0.36],
-  ] as const)
+  ] as const) {
     for (let i = 0; i < 8; i++) {
       const y = 0.55 - (i / 8) * len;
       m.ball(
@@ -489,8 +491,9 @@ const hangingPlant = (): Model => {
         6,
       );
     }
-  m.ball(0.06, C.leaf, [-0.15, 0.7, 0.0], [1, 0.7, 1], 8);
-  m.ball(0.06, C.leafDark, [0.15, 0.7, 0.0], [1, 0.7, 1], 8);
+  }
+  m.ball(0.06, C.leaf, [-0.15, 0.7, 0], [1, 0.7, 1], 8);
+  m.ball(0.06, C.leafDark, [0.15, 0.7, 0], [1, 0.7, 1], 8);
   return m;
 };
 
@@ -672,15 +675,17 @@ const wallNeon = (): Model => {
       for (const [dx, dy] of glyphPixels(ch)) lit.push([x0 + i * 4 + dx, y0 + dy, i >= 5]);
     });
     const on = (late: boolean) => !flicker || !late;
-    for (const [x, y, late] of lit)
-      if (on(late))
-        for (const [dx, dy] of [
-          [-1, 0],
-          [1, 0],
-          [0, -1],
-          [0, 1],
-        ] as const)
-          p.px(x + dx, y + dy, "rgba(242,139,178,0.35)");
+    for (const [x, y, late] of lit) {
+      if (!on(late)) continue;
+      for (const [dx, dy] of [
+        [-1, 0],
+        [1, 0],
+        [0, -1],
+        [0, 1],
+      ] as const) {
+        p.px(x + dx, y + dy, "rgba(242,139,178,0.35)");
+      }
+    }
     for (const [x, y, late] of lit) p.px(x, y, on(late) ? tint(pink, 0.55) : tint(pink, -0.45));
   };
   const m = panel(1.8, 0.62, draw(false), { frame: "#1b1f2a", px: 18, lit: true });
@@ -705,12 +710,12 @@ const keyboardCase = (): Model => {
   m.box([1.7, 0.95, 0.52], glass("#a8dcf7", 0.25), [0, 0.4, 0]);
   m.box([1.74, 0.03, 0.56], TEAK_DARK, [0, 1.35, 0], 0.01);
   // The keyboard on an acrylic stand, tilted: dark case, rows of keycaps.
-  m.box([0.3, 0.1, 0.16], "#7cc0e6", [0, 0.415, 0.0]);
+  m.box([0.3, 0.1, 0.16], "#7cc0e6", [0, 0.415, 0]);
   const tilt = m.part([0, 0.55, 0.02]);
   tilt.rotation.x = -0.35;
   tilt.box([1.2, 0.05, 0.46], "#3c4454", [0, 0, 0], 0.02);
   const caps = ["#f2f0ea", "#f2f0ea", "#f2f0ea", "#e8584f", "#f2f0ea", "#4f8fe0"];
-  for (let row = 0; row < 4; row++)
+  for (let row = 0; row < 4; row++) {
     for (let i = 0; i < 14; i++) {
       const accent = row === 0 && (i === 0 || i === 13);
       tilt.box(
@@ -720,6 +725,7 @@ const keyboardCase = (): Model => {
         0.01,
       );
     }
+  }
   tilt.box([0.6, 0.03, 0.06], "#f2f0ea", [0, 0.05, 0.19], 0.01);
   // Underglow, a different colour in each beat.
   const under = glow("#f28bb2");

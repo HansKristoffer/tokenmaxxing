@@ -114,7 +114,9 @@ function deployLeague(p: Pen): void {
   p.rect(24, 4, 1, 8, C.white);
   p.rect(24, 4, 6, 1, C.white);
   p.rect(25, 5, 5, 6, "#2c3d78");
-  for (let y = 5; y < 11; y++) for (let x = 25 + (y % 2); x < 30; x += 2) p.px(x, y, "#8aa2d6");
+  for (let y = 5; y < 11; y++) {
+    for (let x = 25 + (y % 2); x < 30; x += 2) p.px(x, y, "#8aa2d6");
+  }
   // The ball, hit hard.
   p.disc(19, 6, 3, C.ink);
   p.disc(19, 6, 2, "#eef0fa");
@@ -525,6 +527,7 @@ function poster(a: PosterArt): () => ReturnType<typeof panel> {
         a.draw(p, a.w * 16);
         p.rect(2, BAND, inner, 7, C.ink);
         p.rect(2, BAND, inner, 1, a.frame);
+        // Letters of the 3x5 font take four pixels each, the last one without its gap.
         const tw = a.title.length * 4 - 1;
         p.text(a.title, Math.floor((a.w * 16 - tw) / 2), BAND + 1, a.titleInk);
       },

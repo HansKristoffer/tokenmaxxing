@@ -275,7 +275,7 @@ const angkringanCart = (): Model => {
   cab.box([CW - 0.04, CH - 0.04, 0.008], glass("#bfe6f2", 0.16), [0, 0.02, -CD / 2 + 0.01], 0.002);
   for (const s of [-1, 1])
     cab.box([0.008, CH - 0.04, CD - 0.04], glass("#bfe6f2", 0.2), [s * (CW / 2 - 0.01), 0.02, 0], 0.002);
-  for (const sy of [0.0, 0.24]) {
+  for (const sy of [0, 0.24]) {
     cab.box([CW - 0.06, 0.012, CD - 0.08], BAMBOO, [0, sy, 0], 0.003);
     for (let i = 0; i < 7; i++) {
       for (let j = 0; j < 3; j++) {
@@ -316,7 +316,7 @@ const angkringanCart = (): Model => {
   const puffs = [0, 1, 2, 3].map(() => m.ball(0.022, "#ffffff", [0.76, 1.2, -0.02], [1, 1, 1], 6));
   ticks.push((t) =>
     puffs.forEach((p, i) => {
-      // Two beats of steam, as the 2D frames: it steps up and thins out.
+      // The steam steps up in five beats and thins out as it rises.
       const u = Math.floor(((t * 0.8 + i / 4) % 1) * 5) / 5;
       p.position.set(0.76 + u * 0.1 + Math.sin(i * 2) * 0.015, 1.2 + u * 0.34, -0.02);
       p.scale.setScalar(1.1 - u * 0.7);
@@ -377,7 +377,7 @@ const bonangRack = (): Model => {
   }
   // The two mallets lie in the middle of the rack: a wooden stick with a padded head each.
   for (const [x, z, a] of [
-    [0.1, 0.0, 0.4],
+    [0.1, 0, 0.4],
     [-0.1, 0.02, -0.25],
   ] as const) {
     const grp = m.part([x, 0.55, z], a);
