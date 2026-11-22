@@ -680,7 +680,7 @@ function gate(boarded: boolean): Model {
   hole.rotation.x = Math.PI / 2;
   hole.position.z = -0.1;
   const glowMat = glow(VIOLET);
-  m.box([R * 2 - 0.3, 0.05, 0.2], glowMat, [0, 0.02, 0.0], 0);
+  m.box([R * 2 - 0.3, 0.05, 0.2], glowMat, [0, 0.02, 0], 0);
   for (let i = 0; i < 5; i++) {
     const shade = tint(C.stone, -0.15 - i * 0.14);
     m.box([R * 2 - 0.3 - i * 0.06, 0.05, 0.14], shade, [0, 0, 0.34 - i * 0.14], 0);
@@ -701,7 +701,6 @@ function gate(boarded: boolean): Model {
     }
     const tapeMesh = m.plane(R * 2 + 0.6, 0.14, painted(tapeTexture()), [0, 0.8, 0.36]);
     tapeMesh.rotation.z = -0.28;
-    // Danger sign.
     const sign = canvasTexture(
       64,
       40,
@@ -734,8 +733,9 @@ function frameDoor(slab: string, trim: string): Model {
   for (const [y, h] of [
     [0.12, 0.7],
     [1.0, 0.72],
-  ] as const)
+  ] as const) {
     m.box([0.6, h, 0.02], tint(slab, 0.1), [0, y, 0.03], 0.01);
+  }
   m.ball(0.045, GOLD, [0.3, 0.95, 0.07], [1, 1, 0.8]);
   return m;
 }
@@ -878,8 +878,9 @@ function hourglass(): Model {
   plinth(m);
   m.box([0.46, 0.07, 0.3], GOLD, [0, 0.22, 0], 0.02);
   m.box([0.46, 0.07, 0.3], GOLD, [0, 0.98, 0], 0.02);
-  for (const sx of [-1, 1])
+  for (const sx of [-1, 1]) {
     for (const sz of [-1, 1]) m.cyl(0.018, 0.7, GOLD_DARK, [sx * 0.2, 0.28, sz * 0.12], 0.018, 8);
+  }
   const sand = "#f2c46b";
   m.cyl(0.18, 0.34, glass("#e9f6fb", 0.5), [0, 0.29, 0], 0.025, 16);
   m.cyl(0.025, 0.34, glass("#e9f6fb", 0.5), [0, 0.63, 0], 0.18, 16);
@@ -935,6 +936,7 @@ function pedestal(rarity: Rarity): Model {
   const cone = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.3, 1.0, 18, 1, true), beam);
   cone.position.y = 0.2 + 0.5;
   m.add(cone);
+  // Epics sparkle with three stars and legendaries with six, the legendary ones in gold.
   const odds = { common: 0, rare: 0, epic: 3, legendary: 6 }[rarity];
   if (odds) sparkle(m, [0, 0.8, 0], rarity === "legendary" ? GOLD : colour, odds, 0.4);
   const base = new THREE.Color(colour);
