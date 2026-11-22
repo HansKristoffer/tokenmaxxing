@@ -126,12 +126,15 @@ const scoreOf = (s: SprintState, p: number, now: number) => {
 
 /** Wrong letters in the word being typed that are gone from the new text: fixed. */
 function fixedBetween(words: string[], before: string, after: string): number {
-  const old = before.split(" ");
-  const i = old.length - 1;
-  const was = old[i]!;
-  const now = after.split(" ")[i] ?? "";
+  const oldWords = before.split(" ");
+  const i = oldWords.length - 1;
+  const oldWord = oldWords[i]!;
+  const newWord = after.split(" ")[i] ?? "";
   let n = 0;
-  for (let j = 0; j < was.length; j++) if (was[j] !== words[i]![j] && now[j] !== was[j]) n++;
+  for (let j = 0; j < oldWord.length; j++) {
+    const wasWrong = oldWord[j] !== words[i]![j];
+    if (wasWrong && newWord[j] !== oldWord[j]) n++;
+  }
   return n;
 }
 
@@ -175,6 +178,7 @@ export const sprint: GameDef<SprintState, SprintView> = {
     const r = s.racers[player]!;
     if (typed === r.typed || now - r.at < MIN_GAP_MS) return s;
     const parts = typed.split(" ");
+    // Only lowercase letters and spaces, the same as the word list.
     const hasOtherCharacters = !/^[a-z ]*$/.test(typed);
     const hasDoubleSpace = parts.slice(0, -1).some((w) => w === "");
     const hasTooManyWords = parts.length > s.words.length;
@@ -190,7 +194,9 @@ export const sprint: GameDef<SprintState, SprintView> = {
     // Checked at the server's clock: 250 WPM is the most anyone has had time to type.
     const maxCorrect = (MAX_WPM * 5 * (now - s.startsAt + SLACK_MS)) / 60_000;
     if (next.correct > maxCorrect) return refused(`That's faster than ${MAX_WPM} WPM.`);
-    const scoredAt = next.correct > score(s.words, r.typed, 0, 0).correct ? now : r.scoredAt;
+    const correctBefore = score(s.words, r.typed, 0, 0).correct;
+    const scoredMore = next.correct > correctBefore;
+    const scoredAt = scoredMore ? now : r.scoredAt;
     return { ...s, racers: { ...s.racers, [player]: { typed, at: now, scoredAt, fixed } } };
   },
 

@@ -190,8 +190,10 @@ export const dice: GameDef<DiceState, DiceView> = {
       after.dice[before.turn]!.length === before.dice[before.turn]!.length - 1
     )
       out.push({ player: before.turn, text: "⏰ −1 🎲" });
-    for (const p of after.out)
-      if (!before.out.includes(p) && after.dice[p]!.length === 0) out.push({ player: p, text: "💀 out" });
+    for (const p of after.out) {
+      const justOut = !before.out.includes(p) && after.dice[p]!.length === 0;
+      if (justOut) out.push({ player: p, text: "💀 out" });
+    }
     return out;
   },
 
