@@ -317,7 +317,8 @@ export function createGraphics(storage?: Storage, prefersReducedMotion = () => f
 
 export type GraphicsStore = ReturnType<typeof createGraphics>;
 
-export const graphics = createGraphics(
-  storage,
-  () => typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches,
-);
+/** The OS asks for less motion (the accessibility setting), read now. */
+export const prefersReducedMotion = (): boolean =>
+  typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+export const graphics = createGraphics(storage, prefersReducedMotion);
