@@ -2,10 +2,10 @@ import * as THREE from "three";
 
 /**
  * Small painted textures (a sign, a price tag, a poster: 16 to 256 px, sampled without smoothing) folded into one
- * atlas per batch, so a room's textured props merge into one draw call per material setup instead of one per picture.
- * Close-ups keep nearest sampling; independently painted mip levels smooth distant pictures without bleeding. Only
- * unrepeated, unrotated canvases whose UVs stay inside 0..1 are folded. A texture that repaints often (a screen)
- * is left alone (`userData.animated`).
+ * atlas per batch, so a room's textured props merge into one draw call per material setup instead of one per
+ * picture. Close-ups keep nearest sampling; independently painted mip levels smooth distant pictures without
+ * bleeding. Only unrepeated, unrotated canvases whose UVs stay inside 0..1 are folded. A texture that repaints
+ * often (a screen) is left alone (`userData.animated`).
  */
 export interface Rect {
   x: number;
@@ -68,7 +68,9 @@ export function atlasable(t: THREE.Texture | null | undefined): t is THREE.Textu
   );
 }
 
-/** Small smooth canvas textures (shop price tags, labels, placards): packed into a separate linear-filtered atlas. */
+/**
+ * Small smooth canvas textures (shop price tags, labels, placards): packed into a separate linear-filtered atlas.
+ */
 export function atlasableSmooth(t: THREE.Texture | null | undefined): t is THREE.Texture {
   return (
     atlasableCommon(t) &&
@@ -80,7 +82,9 @@ export function atlasableSmooth(t: THREE.Texture | null | undefined): t is THREE
 }
 
 const uvBounds = new WeakMap<THREE.BufferGeometry, boolean>();
-/** Whether a geometry's UVs stay inside the picture (a tiled floor does not: it needs the texture's own wrap). */
+/**
+ * Whether a geometry's UVs stay inside the picture (a tiled floor does not: it needs the texture's own wrap).
+ */
 export function uvInside(g: THREE.BufferGeometry): boolean {
   let ok = uvBounds.get(g);
   if (ok === undefined) {
@@ -223,6 +227,7 @@ function paintTile(levels: HTMLCanvasElement[], texture: THREE.Texture, r: Rect,
   g.imageSmoothingEnabled = false;
   const xs = [0, PADDING, PADDING + r.w, tile.width];
   const ys = [0, PADDING, PADDING + r.h, tile.height];
+  // The picture's middle, and one pixel of each edge stretched out into the padding round it.
   const sx = [0, 0, r.w - 1];
   const sy = [0, 0, r.h - 1];
   const sw = [1, r.w, 1];

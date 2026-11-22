@@ -3,7 +3,8 @@ import { type BakedLayer, freezeLayer, sweepFrozen } from "./bake.ts";
 
 /**
  * What the camera sees right now, for the things that animate: how many pixels one world unit is, and which
- * people are inside the frame. The pipeline refreshes it every frame (`setView`); animation code reads it to skip work.
+ * people are inside the frame. The pipeline refreshes it every frame (`setView`); animation code reads it to skip
+ * work.
  */
 export const view = {
   pxPerUnit: 40,
@@ -12,7 +13,9 @@ export const view = {
   sees: (_p: THREE.Vector3, _r: number): boolean => true,
 };
 
-/** Models smaller than this many pixels tall are drawn frozen whatever they do: a stride is invisible at that size. */
+/**
+ * Models smaller than this many pixels tall are drawn frozen whatever they do: a stride is invisible at that size.
+ */
 export const TINY_PX = 20;
 
 /** `?nofreeze` turns freezing off (to compare pictures). */
@@ -21,9 +24,9 @@ const disabled = typeof location !== "undefined" && new URLSearchParams(location
 const freezers = new Set<Freezer>();
 
 /**
- * Holds a model frozen (`bake.ts`, `freezeLayer`) while it idles. The owner poses the model as usual and then reports
- * `settle(key)`, where `key` names a state worth freezing in (null while it animates); after a short rest the model is
- * merged, and `holds(key)` tells the owner it may skip posing until the state changes.
+ * Holds a model frozen (`bake.ts`, `freezeLayer`) while it idles. The owner poses the model as usual and then
+ * reports `settle(key)`, where `key` names a state worth freezing in (null while it animates); after a short rest
+ * the model is merged, and `holds(key)` tells the owner it may skip posing until the state changes.
  */
 export class Freezer {
   private readonly layers = new Map<string, BakedLayer>();
