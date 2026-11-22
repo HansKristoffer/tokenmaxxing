@@ -150,11 +150,14 @@ function convert(mesh: THREE.Mesh, textured: boolean): THREE.BufferGeometry | nu
     case "ConeGeometry": {
       const p = (g as THREE.CylinderGeometry).parameters;
       const mat = mesh.material as THREE.Material;
-      if (p.openEnded || p.thetaLength < Math.PI * 2 - 0.01 || mat.transparent || p.radialSegments <= 4)
-        return null;
+      // Open, partial and see-through pieces keep their own shape, and so do four-sided ones (roofs).
+      const isOpenOrPartial = p.openEnded || p.thetaLength < Math.PI * 2 - 0.01;
+      if (isOpenOrPartial || mat.transparent || p.radialSegments <= 4) return null;
+
       const big = Math.max(p.radiusTop, p.radiusBottom);
       const small = Math.min(p.radiusTop, p.radiusBottom);
       const taper = small / Math.max(big, 1e-6);
+      // A wide, tall-enough taper becomes a stepped pyramid; anything narrower becomes a prism.
       if (big >= 0.18 && taper < 0.4 && p.height > big * 0.5) {
         const s = steps(p.radiusTop, p.radiusBottom, p.height, big > 0.5 ? 4 : 3);
         return s.translate(0, p.height / 2, 0);
@@ -213,7 +216,7 @@ export function blockify(scene: THREE.Object3D): void {
 export function unblockify(scene: THREE.Object3D): void {
   scene.traverse((o) => {
     const m = o as THREE.Mesh;
-    const s = m.userData?.[SAVED] as Saved | undefined;
+    const s = m.userData[SAVED] as Saved | undefined;
     if (!s) return;
     m.geometry = s.geometry;
     if (s.rotX !== undefined) m.rotation.x = s.rotX;
