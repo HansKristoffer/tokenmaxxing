@@ -130,7 +130,7 @@ export const gapuraSprite = once(() =>
       p.rect(x + 1, 4, 5, 2, RED);
       p.rect(x + 1, 6, 5, 2, WHITE);
     }
-    // Bamboo sills of the gate's inside, with a swag of flowers.
+    // Five small blocks under the beam, red and white alternating.
     for (const x of [14, 22, 30, 38, 46]) p.rect(x, 35, 2, 2, x % 16 === 14 ? RED : WHITE);
   }),
 );
@@ -253,9 +253,13 @@ export const kerupukSprite = cached(
       // The string across the top, sagging.
       for (let x = 1; x < 15; x++) p.px(x, 6 + Math.round(Math.sin((x / 15) * Math.PI)), "#5e3d28");
       for (const [i, x] of [3, 8, 12].entries()) {
-        const sw = frame === 0 ? (i % 2 ? 1 : -1) : i % 2 ? -1 : 1;
+        // Odd crackers swing one way and even ones the other; the second frame swings them back.
+        const isOdd = i % 2 === 1;
+        const swingsRight = isOdd === (frame === 0);
+        const sw = swingsRight ? 1 : -1;
         p.rect(x, 8, 1, 6 + (i % 2), "#5e3d28");
         const y = 14 + (i % 2);
+
         // A prawn cracker: round, pale with a tan rim.
         p.rect(x - 2 + sw, y, 5, 4, "#e9c880");
         p.rect(x - 1 + sw, y - 1, 3, 1, "#e9c880");

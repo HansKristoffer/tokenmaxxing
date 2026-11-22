@@ -1,5 +1,6 @@
 import { CASE_BASE } from "@tokenmaxxing/core/case.ts";
 import { NUSANTARA_BASE } from "@tokenmaxxing/core/case-nusantara.ts";
+import { frontView } from "./prestige-types.ts";
 import type { Back, BackView, Held, Outfit } from "./wardrobe.ts";
 
 /**
@@ -222,13 +223,15 @@ export const CASE_HELD: Record<number, Held> = {
 // MARK: On the back
 
 /** `rows` moved down `dy` rows (or up, if negative), keeping the frame 16 tall. */
-const down = (rows: string[], dy: number): string[] => {
+const shiftRows = (rows: string[], dy: number): string[] => {
   const out = dy >= 0 ? [...Array<string>(dy).fill(""), ...rows] : rows.slice(-dy);
   return out.slice(0, 16);
 };
 
-// Rows are full 16×16 frames, top row first; `.` is nothing.
-/** A small picture dropped into an empty 16×16 frame at column `x`, row `y`. */
+/**
+ * A small picture dropped into an empty 16×16 frame at column `x`, row `y`. Rows are full frames, top row
+ * first; `.` is nothing.
+ */
 const frame = (art: string[], x: number, y: number): string[] => {
   const out = Array<string>(16).fill("");
   art.forEach((r, i) => {
@@ -279,6 +282,9 @@ const LANTERN_SIDE: string[] = [
   ".kkkkk..........",
   "..yy............",
 ];
+// The walking side frame: the lantern is one column further right.
+const LANTERN_SIDE_WALK = LANTERN_SIDE.map((row) => (row ? "." + row.slice(0, 15) : row));
+
 // A storm cloud over the head (rows 0-2, in front), and neon streaks falling down both sides of it that dim out
 // before the shoulders (behind). `shift` slides the streaks down a row for the second frame.
 const CLOUD = [".....wwwwww.....", "..vvvvvvvvvvvv..", ".VVpVVVVVVVVpVV."];
@@ -294,7 +300,9 @@ const rainBehind = (shift: number): string[] => {
   cols.forEach(([x, bright, dim], i) => {
     for (let y = 4; y <= 10; y++) {
       if ((y + shift + i * 2) % 3 === 2) continue;
-      rows[y]![x] = y <= 7 ? bright : y <= 9 ? dim : ".";
+      if (y <= 7) rows[y]![x] = bright;
+      else if (y <= 9) rows[y]![x] = dim;
+      else rows[y]![x] = ".";
     }
   });
   return rows.map((r) => r.join(""));
@@ -303,7 +311,6 @@ const rain = (shift: number): BackView => ({
   behind: rainBehind(shift),
   front: [...CLOUD, ...Array<string>(13).fill("")],
 });
-const view = (front: string[]): BackView => ({ front });
 
 // A fan of peacock eye-feathers for the Dadak merak, drawn from the maths: `n` feathers over a half circle around
 // (`cx`, `cy`), `xs` squashing it sideways for the side view, each with a gold eye at its own radius, a red cloth
@@ -325,6 +332,7 @@ const fan = (cx: number, cy: number, R: number, xs: number, eyes: number[], sway
         row += r < R * 0.15 ? "g" : "r";
         continue;
       }
+      // Clamped just under PI, so the last feather's index stays in range.
       const ang = Math.min(Math.PI - 1e-6, Math.max(0, Math.atan2(dy, dx) + sway));
       const k = Math.floor(ang / step);
       const mid = (k + 0.5) * step - sway;
@@ -332,7 +340,12 @@ const fan = (cx: number, cy: number, R: number, xs: number, eyes: number[], sway
       const ey = cy - Math.sin(mid) * eyes[k]!;
       const d = Math.hypot((x - ex) / xs, y - ey);
       const edge = Math.abs(ang / step - k - 0.5) > 0.46;
-      row += d < 0.9 ? "g" : d < 1.9 ? "e" : r > R - 1 ? "B" : edge ? "B" : k % 2 ? "G" : "T";
+
+      // The gold eye, then the rim of the feather, then its colour bands.
+      if (d < 0.9) row += "g";
+      else if (d < 1.9) row += "e";
+      else if (r > R - 1 || edge) row += "B";
+      else row += k % 2 ? "G" : "T";
     }
     return row;
   });
@@ -415,18 +428,18 @@ const WAYANG_SIDE: string[] = [
 export const CASE_BACKS: Record<number, Back> = {
   // Neon drone: hovers over the shoulder, rotors blurring, bobbing a row when they walk.
   [at(0)]: {
-    views: { down: view(DRONE), side: view(DRONE_SIDE), up: view(DRONE) },
-    walk: { down: view(DRONE_B), side: view(DRONE_SIDE_B), up: view(DRONE_B) },
+    views: { down: frontView(DRONE), side: frontView(DRONE_SIDE), up: frontView(DRONE) },
+    walk: { down: frontView(DRONE_B), side: frontView(DRONE_SIDE_B), up: frontView(DRONE_B) },
     pal: { c: "#9fe9ff", C: "#4fb8d8", k: "#2b2f3a", L: "#ff3fb0", p: "#ff3fb0", n: "#3ff0ff" },
   },
   // Paper lantern pack: a glowing lantern on the back, its pole tips showing at the neck.
   [at(1)]: {
     views: {
-      down: view(["", "", "", "", "", "", "", "", "....k......k....", ".....s....s....."]),
+      down: frontView(["", "", "", "", "", "", "", "", "....k......k....", ".....s....s....."]),
       side: { behind: LANTERN_SIDE },
-      up: view(LANTERN_BACK),
+      up: frontView(LANTERN_BACK),
     },
-    walk: { side: { behind: LANTERN_SIDE.map((r) => (r ? "." + r.slice(0, 15) : r)) }, up: view(down(LANTERN_BACK, -1)) },
+    walk: { side: { behind: LANTERN_SIDE_WALK }, up: frontView(shiftRows(LANTERN_BACK, -1)) },
     pal: { k: "#2b2433", o: "#8a2a1c", L: "#c4261f", l: "#ff6a3c", y: "#ffd35c", s: "#a8743a" },
   },
   // Neon rain: a violet storm cloud over the head, neon pink and cyan streaks falling beside it and dimming out.
@@ -440,12 +453,12 @@ export const CASE_BACKS: Record<number, Back> = {
     views: {
       down: { behind: BAKUL_DOWN, front: BAKUL_STRAPS },
       side: { behind: BAKUL_SIDE },
-      up: view(BAKUL_UP),
+      up: frontView(BAKUL_UP),
     },
     walk: {
-      down: { behind: down(BAKUL_DOWN, -1), front: BAKUL_STRAPS },
-      side: { behind: down(BAKUL_SIDE, -1) },
-      up: view(down(BAKUL_UP, -1)),
+      down: { behind: shiftRows(BAKUL_DOWN, -1), front: BAKUL_STRAPS },
+      side: { behind: shiftRows(BAKUL_SIDE, -1) },
+      up: frontView(shiftRows(BAKUL_UP, -1)),
     },
     pal: {
       R: "#8a5a2b", r: "#c9944a", w: "#e2b86a", m: "#7a2d7e", M: "#4c1a52", u: "#d6343a", U: "#ff7a6a",
@@ -457,12 +470,12 @@ export const CASE_BACKS: Record<number, Back> = {
     views: {
       down: { behind: WAYANG_UP },
       side: { behind: WAYANG_SIDE },
-      up: view(WAYANG_UP),
+      up: frontView(WAYANG_UP),
     },
     walk: {
-      down: { behind: down(WAYANG_UP, -1) },
-      side: { behind: down(WAYANG_SIDE, -1) },
-      up: view(down(WAYANG_UP, -1)),
+      down: { behind: shiftRows(WAYANG_UP, -1) },
+      side: { behind: shiftRows(WAYANG_SIDE, -1) },
+      up: frontView(shiftRows(WAYANG_UP, -1)),
     },
     pal: { d: "#3a2416", g: "#f2b632", G: "#ffd36a", k: "#8a5a2b", b: "#d9b36a", B: "#a8793a" },
   },
@@ -471,12 +484,12 @@ export const CASE_BACKS: Record<number, Back> = {
     views: {
       down: { behind: FAN_DOWN(0) },
       side: { behind: FAN_SIDE(0) },
-      up: view(FAN_UP(0)),
+      up: frontView(FAN_UP(0)),
     },
     walk: {
       down: { behind: FAN_DOWN(0.12) },
       side: { behind: FAN_SIDE(0.12) },
-      up: view(FAN_UP(0.12)),
+      up: frontView(FAN_UP(0.12)),
     },
     pal: { T: "#1fb5b0", G: "#2f7f3a", B: "#0f4a6e", e: "#243a73", g: "#f2b632", r: "#d6343a" },
   },

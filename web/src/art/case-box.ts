@@ -264,15 +264,16 @@ function chestBody(p: Pen, y0: number, lit: boolean): void {
   rattanPost(p, 3, y0 + 1, 9);
   rattanPost(p, 19, y0 + 1, 9);
   // Turquoise rope handles, a loop on each side.
-  for (const [x, d] of [
+  for (const [x, dir] of [
     [0, 1],
     [22, -1],
   ] as const) {
+    const right = dir === 1;
     p.rect(x, y0 + 3, 2, 5, C.ink);
-    p.rect(x + (d === 1 ? 0 : 1), y0 + 4, 1, 3, T.sea);
-    p.px(x + (d === 1 ? 1 : 0), y0 + 3, T.sea);
-    p.px(x + (d === 1 ? 1 : 0), y0 + 7, T.sea);
-    p.px(x + (d === 1 ? 0 : 1), y0 + 5, T.seaDark);
+    p.rect(x + (right ? 0 : 1), y0 + 4, 1, 3, T.sea);
+    p.px(x + (right ? 1 : 0), y0 + 3, T.sea);
+    p.px(x + (right ? 1 : 0), y0 + 7, T.sea);
+    p.px(x + (right ? 0 : 1), y0 + 5, T.seaDark);
   }
   // The sail emblem on a dark indigo plate: a white sail on a teak mast over a turquoise hull.
   p.rect(8, y0 + 2, 8, 8, C.ink);
@@ -355,16 +356,17 @@ function drawNusOpen(p: Pen, frame: number): void {
 function drawNusKey(p: Pen): void {
   const blue = "#3b5da8";
   // The batik ribbon: two tails falling either side of the anchor, tied above the ring in a cream and blue knot.
-  for (const [x, d] of [
+  for (const [x, dir] of [
     [2, -1],
     [11, 1],
   ] as const) {
+    const right = dir === 1;
     p.rect(x, 5, 4, 9, C.ink);
     p.rect(x + 1, 5, 2, 8, blue);
-    p.px(x + (d === 1 ? 2 : 1), 7, T.cream);
-    p.px(x + (d === 1 ? 1 : 2), 9, T.cream);
-    p.px(x + (d === 1 ? 2 : 1), 11, T.cream);
-    p.px(x + (d === 1 ? 1 : 2), 12, T.soga);
+    p.px(x + (right ? 2 : 1), 7, T.cream);
+    p.px(x + (right ? 1 : 2), 9, T.cream);
+    p.px(x + (right ? 2 : 1), 11, T.cream);
+    p.px(x + (right ? 1 : 2), 12, T.soga);
   }
   p.px(5, 3, C.ink);
   p.px(4, 4, C.ink);
@@ -424,7 +426,6 @@ function drawNusKey(p: Pen): void {
 
 const cache = new Map<string, HTMLCanvasElement>();
 
-/** The cases whose art is not the Night Market's, by case id (`core/src/cases.ts`); every other id draws the Night Market's. */
 type CaseDraw = (p: Pen, kind: CaseBoxKind, frame: number) => void;
 
 function drawNightMarket(p: Pen, kind: CaseBoxKind, frame: number): void {

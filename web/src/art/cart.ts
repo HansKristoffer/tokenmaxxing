@@ -71,13 +71,18 @@ export const cartSprite = cached(
       p.rect(43, 8, 1, 16, C.woodDark);
       awning(p);
       // Strings of bunting across the curtain.
-      for (let x = 7; x < 42; x += 4)
-        p.px(x, 15 + ((x >> 2) % 2), [C.flowerYellow, C.screen, C.flowerRed][x % 3]!);
+      const buntingColours = [C.flowerYellow, C.screen, C.flowerRed];
+      for (let x = 7; x < 42; x += 4) {
+        const sag = (x >> 2) % 2;
+        p.px(x, 15 + sag, buntingColours[x % 3]!);
+      }
+
       // The counter, the goods on it, and the box below.
       for (const [i, item] of items.entries()) {
         const sprite = itemFrame(item);
         p.g.drawImage(sprite, Math.round(1 + i * 10.5), 25 - sprite.height);
       }
+
       p.rect(1, 25, 46, 3, C.ink);
       p.rect(2, 25, 44, 2, C.woodLight);
       p.rect(3, 28, 42, 12, C.ink);
@@ -109,7 +114,7 @@ export const lantern = cached(
     }),
 );
 
-/** A soft glow under the lantern at night-ish moments: a few translucent rings. */
+/** A radial glow around a lantern at (`cx`, `cy`): gold at the centre, clear at radius `r`. */
 export function glow(g: CanvasRenderingContext2D, cx: number, cy: number, r: number): void {
   g.fillStyle = gradient(g, `lantern ${cx},${cy},${r}`, () => {
     const grad = g.createRadialGradient(cx, cy, 1, cx, cy, r);

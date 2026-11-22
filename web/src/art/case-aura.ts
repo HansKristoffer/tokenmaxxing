@@ -64,10 +64,12 @@ const fireflies: Draw = (p, f) => {
     const u = f / FRAMES + i * 0.37;
     const x = Math.round(CX + Math.sin(u * TAU * 0.5 + i * 2.1) * (7 + (i % 4)));
     const y = Math.round(CY + 1 + Math.cos(u * TAU * 0.5 + i * 1.3) * (8 + (i % 3)));
-    const on = (f + i * 3) % 5 < 3;
+    const phase = (f + i * 3) % 5;
+    const on = phase < 3;
     if (!on) continue;
+
     const col = i % 3 ? "#d8ff5a" : "#ffe45e";
-    if ((f + i * 3) % 5 === 1) {
+    if (phase === 1) {
       p.px(x - 1, y, "rgba(190, 255, 90, 0.4)");
       p.px(x + 1, y, "rgba(190, 255, 90, 0.4)");
       p.px(x, y - 1, "rgba(190, 255, 90, 0.4)");
@@ -111,19 +113,19 @@ const ring = (p: Pen, cx: number, cy: number, rx: number, ry: number, color: str
 // Mega Mendung: four batik clouds, each four bands from deep indigo to pale blue, circling slowly and dripping.
 const CLOUD_BANDS = ["#1b2a5e", "#243a73", "#4f78b8", "#cfe3f5"] as const;
 const cloud = (p: Pen, x: number, y: number) => {
-  const [d, i, b, l] = CLOUD_BANDS;
-  p.disc(x, y, 3, d);
-  p.disc(x - 4, y + 1, 2, d);
-  p.disc(x + 4, y + 1, 2, d);
-  p.rect(x - 6, y + 3, 13, 1, d);
-  p.disc(x, y, 2, i);
-  p.disc(x - 4, y + 1, 1, i);
-  p.disc(x + 4, y + 1, 1, i);
-  p.disc(x, y, 1, b);
-  p.px(x - 4, y + 1, b);
-  p.px(x + 4, y + 1, b);
-  p.px(x, y, l);
-  p.px(x - 1, y - 1, l);
+  const [deep, indigo, blue, pale] = CLOUD_BANDS;
+  p.disc(x, y, 3, deep);
+  p.disc(x - 4, y + 1, 2, deep);
+  p.disc(x + 4, y + 1, 2, deep);
+  p.rect(x - 6, y + 3, 13, 1, deep);
+  p.disc(x, y, 2, indigo);
+  p.disc(x - 4, y + 1, 1, indigo);
+  p.disc(x + 4, y + 1, 1, indigo);
+  p.disc(x, y, 1, blue);
+  p.px(x - 4, y + 1, blue);
+  p.px(x + 4, y + 1, blue);
+  p.px(x, y, pale);
+  p.px(x - 1, y - 1, pale);
 };
 const clouds: Draw = (p, f) => {
   for (let i = 0; i < 4; i++) {
@@ -189,6 +191,8 @@ const shadows: Draw = (p, f) => {
 const padi: Draw = (p, f) => {
   ring(p, CX, CY + 7, 11, 4.5, "rgba(255, 215, 90, 0.18)");
   const stalks = 11;
+
+  // Stalks further back are drawn first, so the nearer ones overlap them.
   const order = Array.from({ length: stalks }, (_, i) => i).sort(
     (a, b) => Math.sin((a / stalks) * TAU) - Math.sin((b / stalks) * TAU),
   );
@@ -200,6 +204,7 @@ const padi: Draw = (p, f) => {
     const sway = Math.round(Math.sin((f / FRAMES) * TAU + i * 1.3) * 1.2);
     for (let k = 0; k < h; k++)
       p.px(x + Math.round((sway * k) / h), y - k, k % 3 === 1 ? "#6fbf4a" : "#2f7f3a");
+    // The golden head at the top of the stalk.
     const hx = x + sway;
     p.px(hx, y - h, "#ffd36a");
     p.px(hx + 1, y - h + 1, "#f2b632");
@@ -207,6 +212,7 @@ const padi: Draw = (p, f) => {
     p.px(hx + 1, y - h + 2, "#e0a020");
     p.px(hx - 1, y - h + 1, "#ffd36a");
   }
+  // Grains drift up from the stalks and fade as they go.
   for (let i = 0; i < 9; i++) {
     const t = (f / FRAMES + i / 9) % 1;
     const x = Math.round(CX + Math.sin(t * 5 + i * 2.3) * (6 + (i % 3) * 2));
