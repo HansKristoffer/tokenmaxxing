@@ -1,6 +1,6 @@
 /* The launch stand's pamphlet (Pamphlet.tsx): a flyer with a stripe in the provider's colour. */
 .pamphlet {
-  background: #fbf7ef;
+  background: var(--paper);
   color: var(--ink);
   border-radius: 6px;
   padding: 0 0 14px;
@@ -14,7 +14,7 @@
   display: block;
   height: 14px;
   margin-bottom: 12px;
-  background: repeating-linear-gradient(90deg, var(--accent) 0 16px, #fbf7ef 16px 32px);
+  background: repeating-linear-gradient(90deg, var(--accent) 0 16px, var(--paper) 16px 32px);
 }
 
 /* Several providers: the stripe is a rainbow, and each launch gets a rule in its own colour. */

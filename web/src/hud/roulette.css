@@ -238,8 +238,8 @@
   place-items: center;
   border-radius: 50%;
   background: var(--accent);
-  color: #2b2433;
-  border: 2px dashed #2b2433;
+  color: var(--ink);
+  border: 2px dashed var(--ink);
   font-size: 0.65rem;
   line-height: 1;
 }

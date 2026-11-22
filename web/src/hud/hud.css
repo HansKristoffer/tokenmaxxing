@@ -2297,7 +2297,7 @@ button.lb-item:hover {
   background: var(--panel);
   border-radius: 10px;
   border-top: 5px solid transparent;
-  border-image: repeating-linear-gradient(90deg, #d9574a 0 6px, #fbf7ef 6px 12px) 5 0 0 0;
+  border-image: repeating-linear-gradient(90deg, #d9574a 0 6px, var(--paper) 6px 12px) 5 0 0 0;
   text-align: center;
   white-space: nowrap;
   pointer-events: none;
@@ -2370,8 +2370,8 @@ button.lb-item:hover {
   padding: 6px 8px;
   border-left: 4px solid #4a6fd6;
   border-radius: 3px;
-  background: #fbf7ef;
-  color: #2b2433;
+  background: var(--paper);
+  color: var(--ink);
   font-size: 12px;
 }
 .ticket-head {
@@ -2396,23 +2396,9 @@ button.lb-item:hover {
   list-style: none;
 }
 
-.trophies li {
-  display: flex;
-  gap: 10px;
-  align-items: center;
-  padding: 6px 8px;
-  border-radius: 6px;
-  background: rgba(255, 255, 255, 0.05);
-}
-
 .trophies li > span {
   display: flex;
   flex-direction: column;
-}
-
-.trophies canvas {
-  flex: none;
-  image-rendering: pixelated;
 }
 
 .trophies .unearned strong {
@@ -2662,7 +2648,8 @@ button.lb-item:hover {
   border-radius: 4px;
 }
 
-.raid-ladder .rung {
+.raid-ladder .rung,
+.loot-drops .rung {
   font-weight: 700;
   text-align: center;
 }
@@ -2954,11 +2941,6 @@ html[data-tier]:not([data-tier="low"]) .raid-teaser-box button.plaque {
   white-space: nowrap;
 }
 
-.loot-drops .rung {
-  font-weight: 700;
-  text-align: center;
-}
-
 .loot-toast {
   display: flex;
   flex-direction: column;
@@ -3022,7 +3004,8 @@ html[data-tier]:not([data-tier="low"]) .raid-teaser-box button.plaque {
   list-style: none;
 }
 .collection li,
-.hall li {
+.hall li,
+.trophies li {
   display: flex;
   gap: 10px;
   align-items: center;
@@ -3038,7 +3021,8 @@ html[data-tier]:not([data-tier="low"]) .raid-teaser-box button.plaque {
   min-width: 0;
 }
 .collection canvas,
-.hall canvas {
+.hall canvas,
+.trophies canvas {
   flex: none;
   image-rendering: pixelated;
 }
@@ -3786,7 +3770,7 @@ html[data-tier]:not([data-tier="low"]) .loot-table li .avatar {
   width: 30px;
   height: 42px;
   border-radius: 4px;
-  background: #fbf7ef;
+  background: var(--paper);
   color: #23202b;
   border: 1px solid rgba(0, 0, 0, 0.55);
   font-size: 13px;
@@ -3958,7 +3942,7 @@ html[data-tier]:not([data-tier="low"]) .loot-table li .avatar {
   display: grid;
   place-items: center;
   border-radius: 50%;
-  background: #fbf7ef;
+  background: var(--paper);
   color: #23202b;
   font-size: 9px;
   font-weight: 700;
@@ -4153,7 +4137,7 @@ html[data-tier]:not([data-tier="low"]) .loot-table li .avatar {
 
 .phone-pairing {
   margin-top: 20px;
-  border-top: 1px solid var(--line, #454b57);
+  border-top: 1px solid var(--line);
   padding-top: 12px;
 }
 .phone-pairing > img {
@@ -4460,7 +4444,7 @@ html[data-tier]:not([data-tier="low"]) .loot-table li .avatar {
   border: 2px solid #8c1d24;
   border-radius: 6px;
   background: #b3262e;
-  color: #fbf7ef;
+  color: var(--paper);
   text-align: center;
 }
 

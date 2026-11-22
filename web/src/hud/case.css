@@ -384,8 +384,8 @@
   .cs-reveal-all li {
     animation: none;
   }
-  .cs-strip .cs-tile {
-    filter: none !important;
+  .cs-strip[data-speed] .cs-tile {
+    filter: none;
   }
 }
 
@@ -623,7 +623,8 @@
 }
 
 .cs-box-wrap,
-.cshop-art-wrap {
+.cshop-art-wrap,
+.cs-raven-wrap {
   display: contents;
 }
 
@@ -642,9 +643,6 @@
 }
 .cs-roulette[data-case="ragnarok-eve"] .cs-marker::after {
   border-bottom-color: #ff9a3c;
-}
-.cs-raven-wrap {
-  display: contents;
 }
 .cs-raven {
   position: absolute;
