@@ -65,6 +65,69 @@ export class Breath {
   }
 }
 
+const MAX_PUFFS = 256;
+const puffMat = new THREE.Matrix4();
+
+/**
+ * Draws every outdoor person's cold-weather breath in a single instanced draw call instead of two transparent
+ * meshes per person.
+ */
+export class BreathPool {
+  readonly mesh: THREE.InstancedMesh;
+  private count = 0;
+
+  constructor() {
+    this.mesh = new THREE.InstancedMesh(PUFF, PUFF_MAT, MAX_PUFFS);
+    loose(this.mesh);
+    this.mesh.frustumCulled = false;
+    this.mesh.visible = false;
+    this.mesh.count = 0;
+  }
+
+  reset(): void {
+    this.count = 0;
+  }
+
+  emit(id: number, now: number, x: number, y: number, z: number, yaw: number, mouth: number): void {
+    if (this.count + 2 > MAX_PUFFS) return;
+    const t = breathPuff(id, now);
+    if (t === null) return;
+    const sin = Math.sin(yaw);
+    const cos = Math.cos(yaw);
+    const e = puffMat.elements;
+    for (let i = 0; i < 2; i++) {
+      const k = Math.max(0, t - i * 0.18);
+      const s = Math.max(0.001, Math.sin(Math.PI * Math.min(1, k * 1.2)) * (0.1 + i * 0.03));
+      const lx = (i - 0.5) * 0.05;
+      const ly = mouth + k * 0.18;
+      const lz = 0.22 + k * 0.45;
+      e[0] = s;
+      e[1] = 0;
+      e[2] = 0;
+      e[3] = 0;
+      e[4] = 0;
+      e[5] = s;
+      e[6] = 0;
+      e[7] = 0;
+      e[8] = 0;
+      e[9] = 0;
+      e[10] = s;
+      e[11] = 0;
+      e[12] = x + lx * cos + lz * sin;
+      e[13] = y + ly;
+      e[14] = z - lx * sin + lz * cos;
+      e[15] = 1;
+      this.mesh.setMatrixAt(this.count++, puffMat);
+    }
+  }
+
+  flush(): void {
+    this.mesh.count = this.count;
+    this.mesh.visible = this.count > 0;
+    if (this.count > 0) this.mesh.instanceMatrix.needsUpdate = true;
+  }
+}
+
 /** A striped scarf round the neck (at 0) with an end hanging down the front, in bot `id`'s colours. */
 export function scarf(id: number): Model {
   const [a, b] = scarfOf(id);

@@ -42,14 +42,29 @@ export function bareHead(look: Look2D, voxelStyle?: number): { head: Model; avat
   return { head, avatar };
 }
 
-/** The faces that move (laser eyes) need their avatar ticked; the barber's `ticks` does it for these. */
-const liveHeads: Avatar[] = [];
-let lastTick = 0;
-ticks.push((t) => {
-  const dt = Math.min(0.1, Math.max(0, t - lastTick));
-  lastTick = t;
-  for (const a of liveHeads) a.update(dt, t);
-});
+/** Keeps `fn` ticking while `obj` is in a scene; removes itself once the shop or preview is disposed. */
+function alive(obj: Model, fn: (dt: number, t: number) => void): void {
+  let seen = false;
+  let waited = 0;
+  let last = 0;
+  const tick = (t: number) => {
+    let o: Model["parent"] = obj;
+    while (o?.parent) o = o.parent;
+    const inScene = !!o && (o as { isScene?: boolean }).isScene === true;
+    if (inScene) {
+      seen = true;
+      const dt = last ? Math.min(0.1, Math.max(0, t - last)) : 0;
+      last = t;
+      fn(dt, t);
+      return;
+    }
+    if (seen || ++waited > 900) {
+      const i = ticks.indexOf(tick);
+      if (i >= 0) ticks.splice(i, 1);
+    }
+  };
+  ticks.push(tick);
+}
 
 /** A head on a little wooden stand, like a wig or a window dummy. `scale` grows the head, not the stand. */
 export function headOnStand(
@@ -64,7 +79,19 @@ export function headOnStand(
   head.scale.setScalar(s);
   head.position.y = 0.13;
   m.add(head);
-  if (opts.live) liveHeads.push(avatar);
+  // Only heads with animated face gear (e.g. laser eyes) need ticking; static display heads bake into the room.
+  if (opts.live && avatar.look.gear?.animated) {
+    head.userData.live = true;
+    alive(head, (dt, t) => avatar.update(dt, t));
+  } else {
+    head.traverse((o) => {
+      delete o.userData.rigid;
+      const mesh = o as THREE.Mesh;
+      if (mesh.isMesh && !Array.isArray(mesh.material) && mesh.material.userData.dynamic) {
+        delete mesh.material.userData.dynamic;
+      }
+    });
+  }
   return m;
 }
 

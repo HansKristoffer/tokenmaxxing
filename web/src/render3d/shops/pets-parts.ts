@@ -206,7 +206,7 @@ export function tag(
         g.fillText(line, cw / 2, y, cw - 8);
       }
     },
-    { frame: "#7a5a3a", px: 132, smooth: true },
+    { frame: "#7a5a3a", px: 132, smooth: true, static: true },
   );
   const tilt = m.part([0, lift, 0]);
   tilt.add(p);

@@ -155,3 +155,35 @@ test("an action's changes are on disk before it answers, also when it throws hal
   await expect(stumble(c)).rejects.toThrow("halfway");
   expect(rows().seeded).toBe(true);
 });
+
+test("dirty-tracked byEntry keys serialize and write only marked entries, and retry on failure", async () => {
+  const { sql, ran, rows } = await database();
+  let fail = false;
+  const flaky: TxSql = {
+    execute: sql.execute,
+    transaction: (fn) => (fail ? Promise.reject(new Error("io err")) : sql.transaction(fn)),
+  };
+  const kept = await Kept.load<Town>(flaky, ["players"], fresh);
+  kept.trackDirty("players");
+  for (let id = 1; id <= 50; id++) kept.value.players[id] = { name: `p${id}`, x: id };
+  await kept.save();
+  expect(Object.keys(rows())).toHaveLength(51);
+
+  ran.length = 0;
+  await kept.save();
+  expect(ran).toEqual([]);
+
+  kept.value.players[7]!.x = 777;
+  kept.markDirty("players", 7);
+  delete kept.value.players[8];
+  kept.markDirty("players", 8);
+  fail = true;
+  await expect(kept.save()).rejects.toThrow("io err");
+
+  fail = false;
+  ran.length = 0;
+  await kept.save();
+  expect(ran).toEqual(["INSERT players/7", "DELETE players/8"]);
+  expect(rows()["players/7"]).toEqual({ name: "p7", x: 777 });
+  expect(rows()["players/8"]).toBeUndefined();
+});

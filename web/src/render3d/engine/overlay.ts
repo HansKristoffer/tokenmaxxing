@@ -55,6 +55,8 @@ export class Overlay {
   private fadeMs = 0;
   private fadeFrom = 0;
   private fadeAt = 0;
+  /** Last written screen transform (in tenths of a pixel) per label, to skip unchanged DOM style writes. */
+  private readonly placed = new WeakMap<HTMLElement, { x: number; y: number }>();
   /** Where the labels over things are judged from, in world units: the player (NaN: all show), the pointed tile and its reveal. */
   private readonly focus = { x: NaN, z: NaN, hx: NaN, hz: NaN, hover: 0 };
 
@@ -135,13 +137,28 @@ export class Overlay {
     if (near && el.style.opacity !== opacity) el.style.opacity = opacity;
     this.px = x;
     this.py = y;
-    el.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px) translate(-50%, -100%)`;
+    this.setTransform(el, x, y);
     return true;
   }
 
   /** Moves an element placed this frame to another screen point (a label lifted off the ones below). */
   lift(el: HTMLElement, x: number, y: number): void {
-    el.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px) translate(-50%, -100%)`;
+    this.setTransform(el, x, y);
+  }
+
+  private setTransform(el: HTMLElement, x: number, y: number): void {
+    const rx = Math.round(x * 10);
+    const ry = Math.round(y * 10);
+    let last = this.placed.get(el);
+    if (last) {
+      if (last.x === rx && last.y === ry) return;
+      last.x = rx;
+      last.y = ry;
+    } else {
+      last = { x: rx, y: ry };
+      this.placed.set(el, last);
+    }
+    el.style.transform = `translate(${(rx / 10).toFixed(1)}px, ${(ry / 10).toFixed(1)}px) translate(-50%, -100%)`;
   }
 
   /** The screen point of a world position, in CSS pixels. */

@@ -14,7 +14,7 @@ import type { BoardRow, GameId } from "./games/types.ts";
 import { JULE_GATE_DOOR } from "./julemarked.ts";
 import { stallAt } from "./julemarked-shop.ts";
 import { LOOT_COUNT, LOOT_FIRST } from "./loot.ts";
-import { blockOf, doorOf, type GameMap, LEGEND, MAPS, type MapId, plotId, TOWN_SPAWN } from "./maps.ts";
+import { blockOf, doorOf, type GameMap, LEGEND, MAPS, plotId, TOWN_SPAWN } from "./maps.ts";
 import {
   canHang,
   type Door,
@@ -92,7 +92,8 @@ export const DIRS: Record<Facing, [number, number]> = {
   left: [-1, 0],
   right: [1, 0],
 };
-export const isFacing = (v: unknown): v is Facing => typeof v === "string" && v in DIRS;
+export const isFacing = (v: unknown): v is Facing =>
+  v === "up" || v === "down" || v === "left" || v === "right";
 
 export const companyOfRoom = (room: RoomId): number | null =>
   room.startsWith("hq:") ? Number(room.slice(3)) : null;
@@ -106,11 +107,14 @@ export const ownerOfOffice = (room: RoomId): number | null =>
 
 /** Every office is its owner's size and decor (its furniture is its drops); a building nobody has built is the bare floor. */
 export function baseMap(room: RoomId): GameMap {
+  // Fast path for fixed rooms ("town", "inn", shops, etc.) — avoids 3 prefix scans on every step.
+  const fixed = (MAPS as Record<string, GameMap | undefined>)[room];
+  if (fixed) return fixed;
   const owner = ownerOfOffice(room);
   if (owner !== null) return OFFICE_MAPS.get(owner) ?? MAPS.office;
   const company = companyOfRoom(room);
   if (company !== null) return HQS.get(company) ?? MAPS.hq;
-  return commonOfRoom(room) !== null ? MAPS.common : MAPS[room as MapId];
+  return MAPS.common;
 }
 
 /**
@@ -581,12 +585,21 @@ const STATE_OF = decoder(STATE_CODE);
  * nearly all of what a busy room sends.
  */
 export function writeMoves(m: Moves): string {
-  const head: unknown[] = [m.room, m.join, m.leave];
-  if (m.asleep !== undefined) head.push(m.asleep);
-  const positions = m.m.map(
-    ([id, x, y, facing, state]) => `${id},${x},${y},${FACING_CODE[facing]}${STATE_CODE[state]}`,
-  );
-  return `${JSON.stringify(head)}\n${positions.join(";")}`;
+  const header =
+    m.join.length === 0 && m.leave.length === 0 && m.asleep === undefined
+      ? `["${m.room}",[],[]]`
+      : JSON.stringify(
+          m.asleep === undefined ? [m.room, m.join, m.leave] : [m.room, m.join, m.leave, m.asleep],
+        );
+  const list = m.m;
+  if (list.length === 0) return `${header}\n`;
+  let body = "";
+  for (let i = 0; i < list.length; i++) {
+    const [id, x, y, facing, state] = list[i]!;
+    if (i > 0) body += ";";
+    body += `${id},${x},${y},${FACING_CODE[facing]}${STATE_CODE[state]}`;
+  }
+  return `${header}\n${body}`;
 }
 
 export function readMoves(wire: MovesWire): Moves {

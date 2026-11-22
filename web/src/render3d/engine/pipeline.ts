@@ -461,7 +461,8 @@ interface SplitShadow {
   dyn: THREE.DirectionalLight;
   /** What the baked map was drawn for: the batches' epoch, the sun's place, its size. */
   epoch: number;
-  key: string;
+  key: Float64Array;
+  hasKey: boolean;
   size: number;
   nextLive: number;
   at: number;
@@ -657,28 +658,43 @@ export class Pipeline {
     this.autoQuality = false;
   }
 
+  private readonly voxOpts: PipelineOptions = {
+    style: "voxel",
+    pixelSize: 1,
+    outline: 0,
+    crease: 0,
+    renderScale: 1,
+    dprCap: 1.5,
+    shadowSize: 4096,
+    blob: false,
+    crowd: 16,
+    shadowEvery: 1,
+    aoSamples: 16,
+    aoScale: 0.5,
+    msaa: 4,
+    tilt: true,
+    haze: true,
+    grade: true,
+  };
+
   /** What a voxel frame is drawn with right now: the explicit options, or what `quality` implies. */
   private voxelOptions(): PipelineOptions {
     const q = this.quality;
     const o = this.opts;
-    return {
-      style: "voxel",
-      pixelSize: 1,
-      outline: 0,
-      crease: 0,
-      renderScale: o.renderScale ?? (q === 0 ? 0.75 : 1),
-      dprCap: o.dprCap ?? (q >= 2 ? 1.5 : 1),
-      shadowSize: o.shadowSize ?? (q >= 2 ? 4096 : 2048),
-      blob: o.blob ?? false,
-      crowd: o.crowd ?? 16,
-      shadowEvery: o.shadowEvery ?? 1,
-      aoSamples: o.aoSamples ?? (q >= 2 ? 16 : q === 1 ? 10 : 0),
-      aoScale: o.aoScale ?? (q >= 2 ? 0.5 : 0.25),
-      msaa: o.msaa ?? (q >= 2 ? 4 : 0),
-      tilt: o.tilt ?? q >= 2,
-      haze: o.haze ?? true,
-      grade: o.grade ?? true,
-    };
+    const out = this.voxOpts;
+    out.renderScale = o.renderScale ?? (q === 0 ? 0.75 : 1);
+    out.dprCap = o.dprCap ?? (q >= 2 ? 1.5 : 1);
+    out.shadowSize = o.shadowSize ?? (q >= 2 ? 4096 : 2048);
+    out.blob = o.blob ?? false;
+    out.crowd = o.crowd ?? 16;
+    out.shadowEvery = o.shadowEvery ?? 1;
+    out.aoSamples = o.aoSamples ?? (q >= 2 ? 16 : q === 1 ? 10 : 0);
+    out.aoScale = o.aoScale ?? (q >= 2 ? 0.5 : 0.25);
+    out.msaa = o.msaa ?? (q >= 2 ? 4 : 0);
+    out.tilt = o.tilt ?? q >= 2;
+    out.haze = o.haze ?? true;
+    out.grade = o.grade ?? true;
+    return out;
   }
 
   /** Classic styles at pixel size 1 render at the screen's density, capped; coarser pixels render at 1. */
@@ -798,6 +814,12 @@ export class Pipeline {
     fixed: boolean;
     live: boolean;
   } | null = null;
+  private readonly planScratch: {
+    sun: THREE.DirectionalLight;
+    dyn: THREE.DirectionalLight;
+    fixed: boolean;
+    live: boolean;
+  } = { sun: null!, dyn: null!, fixed: false, live: false };
   private readonly staticCam = new THREE.Camera();
   private readonly liveCam = new THREE.Camera();
 
@@ -848,7 +870,7 @@ export class Pipeline {
     if (!st && on && sun && !bakePending(scene) && (this.frameNo > 30 || scene.userData.splitReady)) {
       const dyn = split ?? newSplitLight();
       if (dyn.parent !== scene) scene.add(dyn, dyn.target);
-      st = { dyn, epoch: -1, key: "", size: 0, nextLive: 0, at: 0 };
+      st = { dyn, epoch: -1, key: new Float64Array(15), hasKey: false, size: 0, nextLive: 0, at: 0 };
       this.splits.set(scene, st);
     }
     if (!st || !sun) {
@@ -864,25 +886,32 @@ export class Pipeline {
       r.shadowMap.needsUpdate = false;
       return;
     }
-    // The small map follows the sun exactly.
+    // The small map follows the sun exactly; compare the 15 key fields numerically without string churn.
     const sc = sun.shadow.camera;
-    const key = [
-      Math.round(sun.position.x / 0.2),
-      Math.round(sun.position.y / 0.2),
-      Math.round(sun.position.z / 0.2),
-      Math.round(sun.target.position.x / 0.2),
-      Math.round(sun.target.position.y / 0.2),
-      Math.round(sun.target.position.z / 0.2),
-      sc.left,
-      sc.right,
-      sc.top,
-      sc.bottom,
-      sc.near,
-      sc.far,
-      sc.zoom,
-      sun.shadow.bias,
-      sun.shadow.normalBias,
-    ].join(",");
+    const k0 = Math.round(sun.position.x / 0.2);
+    const k1 = Math.round(sun.position.y / 0.2);
+    const k2 = Math.round(sun.position.z / 0.2);
+    const k3 = Math.round(sun.target.position.x / 0.2);
+    const k4 = Math.round(sun.target.position.y / 0.2);
+    const k5 = Math.round(sun.target.position.z / 0.2);
+    const sk = st.key;
+    const keyChanged =
+      !st.hasKey ||
+      sk[0] !== k0 ||
+      sk[1] !== k1 ||
+      sk[2] !== k2 ||
+      sk[3] !== k3 ||
+      sk[4] !== k4 ||
+      sk[5] !== k5 ||
+      sk[6] !== sc.left ||
+      sk[7] !== sc.right ||
+      sk[8] !== sc.top ||
+      sk[9] !== sc.bottom ||
+      sk[10] !== sc.near ||
+      sk[11] !== sc.far ||
+      sk[12] !== sc.zoom ||
+      sk[13] !== sun.shadow.bias ||
+      sk[14] !== sun.shadow.normalBias;
     dyn.position.copy(sun.position);
     dyn.target.position.copy(sun.target.position);
     dyn.shadow.bias = sun.shadow.bias;
@@ -922,10 +951,29 @@ export class Pipeline {
     classifyCasters(scene);
     const now = performance.now();
     const invalid = st.epoch !== staticShadowEpoch() || st.size !== size || !sun.shadow.map;
-    const plan = { sun, dyn, fixed: false, live: false };
-    if (invalid || (st.key !== key && now - st.at > 120)) {
+    const plan = this.planScratch;
+    plan.sun = sun;
+    plan.dyn = dyn;
+    plan.fixed = false;
+    plan.live = false;
+    if (invalid || (keyChanged && now - st.at > 120)) {
       st.epoch = staticShadowEpoch();
-      st.key = key;
+      sk[0] = k0;
+      sk[1] = k1;
+      sk[2] = k2;
+      sk[3] = k3;
+      sk[4] = k4;
+      sk[5] = k5;
+      sk[6] = sc.left;
+      sk[7] = sc.right;
+      sk[8] = sc.top;
+      sk[9] = sc.bottom;
+      sk[10] = sc.near;
+      sk[11] = sc.far;
+      sk[12] = sc.zoom;
+      sk[13] = sun.shadow.bias;
+      sk[14] = sun.shadow.normalBias;
+      st.hasKey = true;
       st.size = size;
       st.at = now;
       plan.fixed = true;
@@ -1158,6 +1206,7 @@ export class Pipeline {
   }
 
   private readonly crowds = new WeakMap<THREE.Scene, ActorCache>();
+  private readonly rankPool: { o: THREE.Object3D; d: number }[] = [];
   private readonly rank: { o: THREE.Object3D; d: number }[] = [];
   private readonly ndc = new THREE.Vector3();
 
@@ -1178,22 +1227,37 @@ export class Pipeline {
       for (const a of c.actors) a.userData.lod = 0;
       return;
     }
-    this.rank.length = 0;
-    for (const a of c.actors) {
+    const n = c.actors.length;
+    this.rank.length = n;
+    for (let i = 0; i < n; i++) {
+      const a = c.actors[i]!;
       const e = a.matrixWorld.elements;
       this.ndc.set(e[12]!, e[13]!, e[14]!).project(this.cam!);
-      this.rank.push({ o: a, d: this.ndc.x * this.ndc.x + this.ndc.y * this.ndc.y });
+      let slot = this.rankPool[i];
+      if (!slot) {
+        slot = { o: a, d: 0 };
+        this.rankPool[i] = slot;
+      }
+      slot.o = a;
+      slot.d = this.ndc.x * this.ndc.x + this.ndc.y * this.ndc.y;
+      this.rank[i] = slot;
     }
     this.rank.sort((a, b) => a.d - b.d);
-    this.rank.forEach((r, i) => {
-      r.o.userData.lod = i < budget ? 0 : 1;
-    });
+    for (let i = 0; i < n; i++) {
+      this.rank[i]!.o.userData.lod = i < budget ? 0 : 1;
+    }
+    this.rank.length = 0;
   }
 
   private cam?: THREE.Camera;
   private readonly frustum = new THREE.Frustum();
   private readonly viewMatrix = new THREE.Matrix4();
   private readonly ball = new THREE.Sphere();
+  private readonly seesFn = (p: THREE.Vector3, r: number): boolean => {
+    this.ball.center.set(p.x, p.y + r * 0.5, p.z);
+    this.ball.radius = r;
+    return this.frustum.intersectsSphere(this.ball);
+  };
 
   /** Tells animation code what the camera sees (`freeze.ts`): how big things are, and what is out of the picture. */
   private look(scene: THREE.Scene, camera: THREE.OrthographicCamera, w: number): void {
@@ -1203,11 +1267,7 @@ export class Pipeline {
       this.viewMatrix.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse),
     );
     view.pxPerUnit = w / ((camera.right - camera.left) / camera.zoom);
-    view.sees = (p, r) => {
-      this.ball.center.set(p.x, p.y + r * 0.5, p.z);
-      this.ball.radius = r;
-      return this.frustum.intersectsSphere(this.ball);
-    };
+    view.sees = this.seesFn;
     this.rankActors(scene);
     // Frozen copies of people who left every scene are freed now and then.
     watchAll();

@@ -16,6 +16,7 @@ export function mergeStill(root: THREE.Object3D, keep: (mesh: THREE.Mesh) => boo
     samples: 1,
     probe: () => {},
     keep: (m) => m.userData.live === true || keep(m),
+    foldPlain: true,
   });
   root.visible = was;
 }

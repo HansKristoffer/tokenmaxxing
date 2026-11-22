@@ -176,7 +176,22 @@ export function mannequin(look: Look2D, opts?: LookOptions): Avatar {
   l.skin = MANNEQUIN.skin;
   l.hair = MANNEQUIN.hair;
   const a = new Avatar(l, "voxel");
-  alive(a.root, (t) => a.look.gear?.update?.(a, 0, t));
+  if (a.look.gear?.animated) {
+    alive(a.root, (t) => a.look.gear?.update?.(a, 0, t));
+  } else {
+    // Static mannequins are posed once on their podiums and never animate: bake them into the room.
+    delete a.root.userData.live;
+    delete a.root.userData.bake;
+    delete a.root.userData.actor;
+    delete a.root.userData.sample;
+    a.root.traverse((o) => {
+      delete o.userData.rigid;
+      const m = o as { isMesh?: boolean; material?: { userData?: { dynamic?: boolean } } | unknown[] };
+      if (m.isMesh && m.material && !Array.isArray(m.material) && m.material.userData?.dynamic) {
+        delete m.material.userData.dynamic;
+      }
+    });
+  }
   return a;
 }
 

@@ -79,8 +79,12 @@ export function rivetProxy(
   const sockets = new RateLimiter(limits.socketsPerMin, 60_000);
   const tooMany = () => new Response("Too many requests", { status: 429, headers: { "retry-after": "60" } });
 
-  const fetch = async (req: Request, server: Server<Upstream>): Promise<Response | undefined> => {
-    const url = new URL(req.url);
+  const fetch = async (
+    req: Request,
+    server: Server<Upstream>,
+    parsedUrl?: URL,
+  ): Promise<Response | undefined> => {
+    const url = parsedUrl ?? new URL(req.url);
     const path = url.pathname.startsWith(`${RIVET_PATH}/`) ? url.pathname.slice(RIVET_PATH.length) : null;
     if (path === null || !gatewayAllowed(path, url.searchParams))
       return new Response("Not found", { status: 404 });
@@ -115,6 +119,8 @@ export function rivetProxy(
   };
 
   const websocket: WebSocketHandler<Upstream> = {
+    // RivetKit events are already compact binary CBOR/text payloads; skipping per-message zlib cuts proxy CPU.
+    perMessageDeflate: false,
     open(ws) {
       const options: Bun.WebSocketOptions = {
         protocols: ws.data.protocols,
@@ -127,8 +133,10 @@ export function rivetProxy(
         for (const m of ws.data.pending) up.send(m);
         ws.data.pending = [];
       };
-      up.onmessage = (e) =>
-        ws.send(typeof e.data === "string" ? e.data : new Uint8Array(e.data as ArrayBuffer));
+      up.onmessage = (e) => {
+        if (typeof e.data === "string") ws.sendText(e.data, false);
+        else ws.sendBinary(e.data as ArrayBuffer, false);
+      };
       up.onclose = (e) => close(ws, e.code, e.reason);
       up.onerror = () => close(ws, 1011, "engine unreachable");
     },

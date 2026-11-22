@@ -701,8 +701,10 @@ class Renderer3D implements Renderer {
       for (const tex of w.textures ?? []) this.pipe.renderer.initTexture(tex);
       Object.assign(w, { textures: [], compiled: true, draw: true });
     }
-    if (this.warming?.draw && (this.reveal || now - this.stillSince > STILL_MS)) this.drawAhead();
-    lightPipeline(this.pipe, stage, dark);
+    if (this.warming?.draw && (this.reveal || now - this.stillSince > STILL_MS)) {
+      this.drawAhead();
+      lightPipeline(this.pipe, stage, dark);
+    }
     this.pipe.render(stage.scene, camera, this.w, this.h);
     this.drawn.add(stage);
     this.reveal = null;
@@ -728,6 +730,9 @@ class Renderer3D implements Renderer {
     return a ? view.toWorld(a.x, a.y) : null;
   }
 
+  private readonly seeAt = new THREE.Vector3();
+  private readonly seeDepth = new THREE.Vector3();
+
   /** Where the ring that cuts trees and roofs away round you is, in render pixels. */
   private seeSelf(
     stage: RoomStage,
@@ -740,9 +745,9 @@ class Renderer3D implements Renderer {
       SEE.value.w = 0;
       return;
     }
-    const at = new THREE.Vector3(me[0], 0.9, me[1]);
+    const at = this.seeAt.set(me[0], 0.9, me[1]);
     const reveal = stage.occlusion.update(at, camera, dt, calm);
-    const depth = -at.clone().applyMatrix4(camera.matrixWorldInverse).z;
+    const depth = -this.seeDepth.copy(at).applyMatrix4(camera.matrixWorldInverse).z;
     at.project(camera);
     const ratio = this.pipe.renderer.getPixelRatio();
     SEE.value.set(

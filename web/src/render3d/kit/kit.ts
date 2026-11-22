@@ -413,11 +413,21 @@ export function seeded(seed: number): () => number {
   };
 }
 
+const tintA = new THREE.Color();
+const tintWhite = new THREE.Color("#ffffff");
+const tintBlack = new THREE.Color("#000000");
+const tintCache = new Map<string, string>();
+
 /** Moves `#rrggbb` towards white (`f` > 0) or black (`f` < 0). */
 export function tint(hex: string, f: number): string {
-  const c = new THREE.Color(hex);
-  c.lerp(new THREE.Color(f > 0 ? "#ffffff" : "#000000"), Math.abs(f));
-  return `#${c.getHexString()}`;
+  const key = `${hex}|${f}`;
+  const hit = tintCache.get(key);
+  if (hit !== undefined) return hit;
+  tintA.set(hex).lerp(f > 0 ? tintWhite : tintBlack, Math.abs(f));
+  const out = `#${tintA.getHexString()}`;
+  if (tintCache.size >= 4096) tintCache.clear();
+  tintCache.set(key, out);
+  return out;
 }
 
 /** Pixel interiors stay sharp; trilinear mipmaps and anisotropy smooth receding surfaces. */

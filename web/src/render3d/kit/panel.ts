@@ -16,7 +16,14 @@ export function panel(
   w: number,
   h: number,
   draw: (g: CanvasRenderingContext2D, w: number, h: number) => void,
-  opts: { frame?: string; lift?: number; px?: number; lit?: boolean; smooth?: boolean } = {},
+  opts: {
+    frame?: string;
+    lift?: number;
+    px?: number;
+    lit?: boolean;
+    smooth?: boolean;
+    static?: boolean;
+  } = {},
 ): Panel {
   const { frame = "#5b3a24", lift = 0, px = 24, lit = false, smooth = false } = opts;
   const cw = Math.round(w * px);
@@ -24,6 +31,7 @@ export function panel(
   const m = new Model() as Panel;
   m.box([w + 0.12, h + 0.12, 0.08], frame, [0, lift, 0]);
   const tex: THREE.CanvasTexture = canvasTexture(cw, ch, (g) => draw(g, cw, ch), smooth);
+  if (!opts.static) tex.userData.mutable = true;
   m.plane(w, h, lit ? glow("#fff", tex) : painted(tex), [0, lift + (h + 0.12) / 2, 0.045]);
   m.redraw = (d) => {
     // The canvas behind the texture is one `canvasTexture` made, so it always has a 2D context.

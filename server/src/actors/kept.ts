@@ -43,6 +43,14 @@ function keptRows(value: object, byEntry: readonly string[] = []): Map<string, s
 export class Kept<T extends object> {
   /** Each row's JSON as last written. */
   private readonly written: Map<string, string>;
+  /** Keys written directly (not under a dirty-tracked `byEntry` bucket), for fast deletion checks. */
+  private readonly scannedWritten = new Set<string>();
+  /** `byEntry` keys opted into incremental dirty tracking (`trackDirty`). */
+  private readonly tracked = new Set<string>();
+  /** Entry keys mutated since the last save, per tracked `byEntry` key. */
+  private readonly dirtyEntries = new Map<string, Set<string>>();
+  /** Tracked keys needing a full reconciliation on the next save (e.g. initial write or bulk mutation). */
+  private readonly fullScan = new Set<string>();
   /** A save asked for that hasn't started: whoever asks before it does shares it. */
   private queued: Promise<void> | null = null;
   private tail: Promise<void> = Promise.resolve();
@@ -54,6 +62,37 @@ export class Kept<T extends object> {
     written: Map<string, string>,
   ) {
     this.written = written;
+    for (const name of written.keys()) this.scannedWritten.add(name);
+  }
+
+  /**
+   * Opts a `byEntry` key (like `world`'s `players`) into incremental dirty tracking so `save()` only
+   * serializes entries marked via `markDirty` instead of every entry on every save.
+   */
+  trackDirty(key: string): void {
+    if (!this.byEntry.includes(key)) throw new Error(`kept: ${key} is not a byEntry key`);
+    if (this.tracked.has(key)) return;
+    this.tracked.add(key);
+    this.dirtyEntries.set(key, new Set());
+    const prefix = `${key}/`;
+    let hasWritten = false;
+    for (const name of this.written.keys()) {
+      if (name.startsWith(prefix)) {
+        this.scannedWritten.delete(name);
+        hasWritten = true;
+      }
+    }
+    if (!hasWritten) this.fullScan.add(key);
+  }
+
+  /** Marks one entry under a tracked `byEntry` key as changed or removed. */
+  markDirty(key: string, entry: string | number): void {
+    this.dirtyEntries.get(key)?.add(String(entry));
+  }
+
+  /** Forces the next save to scan every entry under a tracked `byEntry` key. */
+  markAllDirty(key: string): void {
+    if (this.tracked.has(key)) this.fullScan.add(key);
   }
 
   /**
@@ -111,30 +150,142 @@ export class Kept<T extends object> {
   }
 
   private async write(): Promise<void> {
-    const rows = keptRows(this.value, this.byEntry);
+    if (this.tracked.size === 0) {
+      const rows = keptRows(this.value, this.byEntry);
+
+      const changed: [string, string][] = [];
+      for (const [name, json] of rows) {
+        if (this.written.get(name) !== json) changed.push([name, json]);
+      }
+      const gone = [...this.written.keys()].filter((name) => !rows.has(name));
+      if (changed.length === 0 && gone.length === 0) return;
+
+      await this.db.transaction(
+        async (tx) => {
+          await upsert(tx, changed);
+          for (let i = 0; i < gone.length; i += BATCH) {
+            const names = gone.slice(i, i + BATCH);
+            const placeholders = names.map(() => "?").join(", ");
+            await tx.execute(`DELETE FROM kept WHERE name IN (${placeholders})`, ...names);
+          }
+        },
+        { name: "keep" },
+      );
+
+      // What is on disk is recorded only after the transaction commits, so a failed write is retried in full.
+      for (const [name, json] of changed) {
+        this.written.set(name, json);
+        this.scannedWritten.add(name);
+      }
+      for (const name of gone) {
+        this.written.delete(name);
+        this.scannedWritten.delete(name);
+      }
+      return;
+    }
 
     const changed: [string, string][] = [];
-    for (const [name, json] of rows) {
-      if (this.written.get(name) !== json) changed.push([name, json]);
+    const gone: string[] = [];
+    const scannedSeen = new Set<string>();
+    const retriedFull: string[] = [];
+    const retriedDirty: [string, Set<string>][] = [];
+
+    for (const [key, v] of Object.entries(this.value)) {
+      if (v === undefined) continue;
+      if (key.includes("/")) throw new Error(`kept: the key ${key} has a slash`);
+
+      if (!this.byEntry.includes(key)) {
+        scannedSeen.add(key);
+        const json = JSON.stringify(v);
+        if (this.written.get(key) !== json) changed.push([key, json]);
+        continue;
+      }
+
+      const map = v as Record<string, unknown>;
+      if (!this.tracked.has(key)) {
+        for (const [entry, e] of Object.entries(map)) {
+          if (e === undefined) continue;
+          const name = `${key}/${entry}`;
+          scannedSeen.add(name);
+          const json = JSON.stringify(e);
+          if (this.written.get(name) !== json) changed.push([name, json]);
+        }
+        continue;
+      }
+
+      const dirty = this.dirtyEntries.get(key)!;
+      if (this.fullScan.has(key)) {
+        this.fullScan.delete(key);
+        retriedFull.push(key);
+        dirty.clear();
+        const present = new Set<string>();
+        for (const [entry, e] of Object.entries(map)) {
+          if (e === undefined) continue;
+          const name = `${key}/${entry}`;
+          present.add(name);
+          const json = JSON.stringify(e);
+          if (this.written.get(name) !== json) changed.push([name, json]);
+        }
+        const prefix = `${key}/`;
+        for (const name of this.written.keys()) {
+          if (name.startsWith(prefix) && !present.has(name)) gone.push(name);
+        }
+        continue;
+      }
+
+      if (dirty.size === 0) continue;
+      const batch = new Set(dirty);
+      dirty.clear();
+      retriedDirty.push([key, batch]);
+      for (const entry of batch) {
+        const name = `${key}/${entry}`;
+        const e = map[entry];
+        if (e === undefined) {
+          if (this.written.has(name)) gone.push(name);
+        } else {
+          const json = JSON.stringify(e);
+          if (this.written.get(name) !== json) changed.push([name, json]);
+        }
+      }
     }
-    const gone = [...this.written.keys()].filter((name) => !rows.has(name));
+
+    for (const name of this.scannedWritten) {
+      if (!scannedSeen.has(name)) gone.push(name);
+    }
+
     if (changed.length === 0 && gone.length === 0) return;
 
-    await this.db.transaction(
-      async (tx) => {
-        await upsert(tx, changed);
-        for (let i = 0; i < gone.length; i += BATCH) {
-          const names = gone.slice(i, i + BATCH);
-          const placeholders = names.map(() => "?").join(", ");
-          await tx.execute(`DELETE FROM kept WHERE name IN (${placeholders})`, ...names);
-        }
-      },
-      { name: "keep" },
-    );
+    try {
+      await this.db.transaction(
+        async (tx) => {
+          await upsert(tx, changed);
+          for (let i = 0; i < gone.length; i += BATCH) {
+            const names = gone.slice(i, i + BATCH);
+            const placeholders = names.map(() => "?").join(", ");
+            await tx.execute(`DELETE FROM kept WHERE name IN (${placeholders})`, ...names);
+          }
+        },
+        { name: "keep" },
+      );
+    } catch (err) {
+      // Restore dirty state so a failed write is retried in full on the next save.
+      for (const key of retriedFull) this.fullScan.add(key);
+      for (const [key, batch] of retriedDirty) {
+        const dirty = this.dirtyEntries.get(key)!;
+        for (const entry of batch) dirty.add(entry);
+      }
+      throw err;
+    }
 
-    // What is on disk is recorded only after the transaction commits, so a failed write is retried in full.
-    for (const [name, json] of changed) this.written.set(name, json);
-    for (const name of gone) this.written.delete(name);
+    for (const [name, json] of changed) {
+      this.written.set(name, json);
+      const slash = name.indexOf("/");
+      if (slash < 0 || !this.tracked.has(name.slice(0, slash))) this.scannedWritten.add(name);
+    }
+    for (const name of gone) {
+      this.written.delete(name);
+      this.scannedWritten.delete(name);
+    }
   }
 }
 

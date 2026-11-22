@@ -4,7 +4,16 @@ import { markMiddle } from "../engine/seethrough.ts";
 import { blockMoves, blockStandIn } from "../kit/blocky.ts";
 import { ticks } from "../kit/kit.ts";
 import { isPropsNight, type NightGlow, onPropsNight } from "../town/props.ts";
-import { type Atlas, atlasable, packAtlas, type Rect, remapUv, syncAtlas, uvInside } from "./atlas.ts";
+import {
+  type Atlas,
+  atlasable,
+  atlasableSmooth,
+  packAtlas,
+  type Rect,
+  remapUv,
+  syncAtlas,
+  uvInside,
+} from "./atlas.ts";
 import type { DetailRange } from "./details.ts";
 
 /**
@@ -132,13 +141,13 @@ function foldable(m: THREE.Material): boolean {
 }
 
 /** Two materials that look the same share a batch. */
-function matKey(m: THREE.Material, atlased = false): string {
+function matKey(m: THREE.Material, atlasTag?: string): string {
   const a = m as Lit;
   const fold = foldable(m);
   return [
     m.type,
     fold ? "vc" : (a.color?.getHexString() ?? ""),
-    atlased ? "atlas" : tex(a.map),
+    atlasTag ?? tex(a.map),
     tex(a.gradientMap),
     a.emissive?.getHexString() ?? "",
     m.side,
@@ -186,6 +195,7 @@ function matState(m: THREE.Material): string {
 
 const tmp = new THREE.Matrix4();
 const inv = new THREE.Matrix4();
+const scaleVec = new THREE.Vector3();
 
 interface Snap {
   m: Float32Array;
@@ -483,26 +493,137 @@ export class BakedLayer {
     const items = this.sources.map((s) => {
       const m = s.mesh;
       const geo = (mode === "block" && !this.options.literal ? blockStandIn(m) : null) ?? m.geometry;
-      return { s, geo, rect: undefined as Rect | undefined };
+      return {
+        s,
+        geo,
+        rect: undefined as Rect | undefined,
+        atlas: undefined as Atlas | undefined,
+        atlasTag: undefined as string | undefined,
+        remapped: false,
+      };
     });
-    // Small painted textures share one atlas (and so one batch per material setup).
-    const pictures = items.filter(({ s, geo }) => atlasable((s.material as Lit).map) && uvInside(geo));
-    const atlas = packAtlas(pictures.map(({ s }) => (s.material as Lit).map as THREE.Texture));
-    if (atlas) {
-      this.atlases.push(atlas);
-      for (const it of pictures) it.rect = atlas.rects.get((it.s.material as Lit).map as THREE.Texture);
+    // Small painted textures share an atlas (nearest-filtered signs and linear-filtered price tags each get one).
+    const nearestPics = items.filter(({ s, geo }) => atlasable((s.material as Lit).map) && uvInside(geo));
+    const nearestAtlas = packAtlas(nearestPics.map(({ s }) => (s.material as Lit).map as THREE.Texture));
+    if (nearestAtlas) {
+      this.atlases.push(nearestAtlas);
+      for (const it of nearestPics) {
+        const r = nearestAtlas.rects.get((it.s.material as Lit).map as THREE.Texture);
+        if (r) {
+          it.rect = r;
+          it.atlas = nearestAtlas;
+          it.atlasTag = "atlas:n";
+        }
+      }
     }
+    const smoothPics = items.filter(
+      ({ s, geo }) => atlasableSmooth((s.material as Lit).map) && uvInside(geo),
+    );
+    const smoothAtlas = packAtlas(
+      smoothPics.map(({ s }) => (s.material as Lit).map as THREE.Texture),
+      { smooth: true },
+    );
     const atlasMats = new Map<string, THREE.Material>();
-    for (const { s, geo, rect } of items) {
+    if (smoothAtlas) {
+      const staticRoom = !dynamicRoot(this.root);
+      // Count texture/geometry references in the whole room so we only retire immutable textures exclusively owned here.
+      const texRefs = new Map<THREE.Texture, number>();
+      const geoRefs = new Map<THREE.BufferGeometry, number>();
+      if (staticRoom) {
+        this.root.traverse((o) => {
+          const mesh = o as THREE.Mesh;
+          if (!mesh.isMesh) return;
+          geoRefs.set(mesh.geometry, (geoRefs.get(mesh.geometry) ?? 0) + 1);
+          const list = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+          for (const mat of list) {
+            const mp = (mat as Lit | undefined)?.map;
+            if (mp) texRefs.set(mp, (texRefs.get(mp) ?? 0) + 1);
+          }
+        });
+      }
+      const packedCount = new Map<THREE.Texture, number>();
+      for (const it of smoothPics) {
+        const mp = (it.s.material as Lit).map as THREE.Texture;
+        if (smoothAtlas.rects.has(mp) && !blockStandIn(it.s.mesh) && !it.s.material.userData.shared) {
+          packedCount.set(mp, (packedCount.get(mp) ?? 0) + 1);
+        }
+      }
+      const retiredTex = new Set<THREE.Texture>();
+      const retiredMats = new Set<THREE.Material>();
+      let allRetired = staticRoom;
+      for (const it of smoothPics) {
+        const oldMat = it.s.material;
+        const mp = (oldMat as Lit).map as THREE.Texture;
+        const r = smoothAtlas.rects.get(mp);
+        if (!r) continue;
+        it.rect = r;
+        it.atlas = smoothAtlas;
+        it.atlasTag = "atlas:s";
+        const canRetire =
+          staticRoom &&
+          !mp.userData.shared &&
+          !mp.userData.mutable &&
+          !mp.userData.animated &&
+          !oldMat.userData.shared &&
+          !blockStandIn(it.s.mesh) &&
+          packedCount.get(mp) === texRefs.get(mp);
+        if (canRetire) {
+          const shade = matKey(oldMat, "atlas:s");
+          let am = atlasMats.get(shade);
+          if (!am) {
+            am = oldMat.clone();
+            (am as Lit).map = smoothAtlas.texture;
+            am.onBeforeCompile = oldMat.onBeforeCompile;
+            am.customProgramCacheKey = oldMat.customProgramCacheKey;
+            atlasMats.set(shade, am);
+          }
+          // Transfer ownership of the atlas onto the source mesh itself so the dead source canvas is freed immediately.
+          const m = it.s.mesh;
+          let g = m.geometry;
+          if (g.userData.shared || (geoRefs.get(g) ?? 0) > 1) {
+            g = g.clone();
+            delete g.userData.shared;
+            m.geometry = g;
+          }
+          remapUv(g, r, smoothAtlas);
+          m.material = am;
+          it.s.material = am;
+          it.s.key = matKey(am);
+          it.geo = g;
+          it.remapped = true;
+          retiredTex.add(mp);
+          retiredMats.add(oldMat);
+        } else {
+          allRetired = false;
+        }
+      }
+      for (const mp of retiredTex) {
+        smoothAtlas.rects.delete(mp);
+        smoothAtlas.seen.delete(mp);
+        mp.dispose();
+        const canvas = mp.image as HTMLCanvasElement | null;
+        if (canvas && typeof canvas.getContext === "function") {
+          canvas.width = 0;
+          canvas.height = 0;
+        }
+      }
+      for (const mat of retiredMats) mat.dispose();
+      // Only keep the atlas on `BakedLayer` when mutable textures remain; transferred atlases are owned by the room.
+      if (!allRetired) {
+        this.atlases.push(smoothAtlas);
+        for (const am of atlasMats.values()) am.userData.baked = true;
+      }
+    }
+    for (const { s, geo, rect, atlas, atlasTag, remapped } of items) {
       const m = s.mesh;
       tmp.copy(s.local);
       const shadows = `${m.castShadow ? 1 : 0}${m.receiveShadow ? 1 : 0}`;
       const place = `${shadows}|${s.cell}${s.glow ? `|${s.glow}` : ""}`;
       let key = `${s.key}|${place}`;
       let material = s.material;
-      if (rect && atlas) {
-        const shade = matKey(s.material, true);
-        key = `${shade}|${place}|atlas`;
+      if (rect && atlas && atlasTag && !remapped) {
+        const shade = matKey(s.material, atlasTag);
+        key = `${shade}|${place}|${atlasTag}`;
         let am = atlasMats.get(shade);
         if (!am) {
           am = s.material.clone();
@@ -520,10 +641,10 @@ export class BakedLayer {
         groups.set(key, grp);
       }
       const part = prepared(geo, tmp, s.color);
-      if (rect && atlas) remapUv(part, rect, atlas);
-      const scale = new THREE.Vector3().setFromMatrixScale(tmp);
+      if (rect && atlas && !remapped) remapUv(part, rect, atlas);
+      scaleVec.setFromMatrixScale(tmp);
       const detail = (m.userData.detailSize as number | undefined) ?? 0;
-      grp.parts.push({ geometry: part, detail: detail * Math.min(scale.x, scale.y, scale.z) });
+      grp.parts.push({ geometry: part, detail: detail * Math.min(scaleVec.x, scaleVec.y, scaleVec.z) });
     }
     for (const [key, grp] of groups) {
       grp.parts.sort((a, b) => {
