@@ -138,6 +138,12 @@ export function sleeveStripes(c: BodyCtx, color: string): void {
   });
 }
 
+/** A band of colour round each arm, `y` cubes down from the shoulder, `pad` cubes wider than the arm. */
+export const armBand = (c: BodyCtx, color: string, y: number, h: number, pad = 0) =>
+  c.arms.forEach((arm) => {
+    new Vx(vpart(arm)).b(-1.22 - pad, y, -1.22 - pad, 2.44 + 2 * pad, h, 2.44 + 2 * pad, color);
+  });
+
 /** Stepped caps over the shoulders (armour, a cape's mantle). */
 function pauldrons(c: BodyCtx, color: string, trim: string): void {
   c.arms.forEach((arm, i) => {

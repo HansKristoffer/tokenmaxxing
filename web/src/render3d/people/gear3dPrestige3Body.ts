@@ -19,9 +19,10 @@ const PINK = "#ff7cf5";
 const WHITE = "#ffeafd";
 const MANTLE = ["#1d1428", "#241a33", "#170f21", "#2a1d3d"];
 
-// MARK: Outfit
-
-/** A glowing fault down a plate: stairs of light through `pts` (cube coordinates), a halo behind each and a white spot in the middle. */
+/**
+ * A glowing fault down a plate: stairs of light through `pts` (cube coordinates), a halo behind each and a white spot
+ * in the middle.
+ */
 function fault(v: Vx, z: number, dir: 1 | -1, pts: readonly (readonly [number, number])[]): void {
   for (const [x, y] of pts) {
     v.b(x - 0.2, y - 0.2, dir > 0 ? z : z - 0.3, 1.1, 1.1, 0.3, see(MAGENTA, 0.3, true));
@@ -122,8 +123,6 @@ OUTFIT_BUILDERS[PRESTIGE_BASE + 2] = (c: BodyCtx) => {
     });
   });
 };
-
-// MARK: Back
 
 // Rift mantle: a mantle of black torn from a rift. Rows of plates hang from the shoulders, each from the one above, so
 // the lower rows swing out later; the hem is ragged, and its tears and both edges crackle with magenta light. A fault of

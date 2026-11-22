@@ -118,10 +118,10 @@ function armsOf(b: Model, at: V3, build: (arm: Model, side: number) => void): [M
   }) as [Model, Model];
 }
 
-// MARK: Hats, drawn for a chibi head of radius 0.25; other heads scale them
 /** The radius of a chibi head: the hats are drawn for it, and the chibi and the grown-up heads are sized from it. */
 const CHIBI_R = 0.25;
 
+/** The hat a look wears, drawn for a chibi head; `hatOn` scales it to the head it sits on. */
 function hat(head: Model, look: Look): void {
   const [main, dark] = look.outfit;
   switch (look.hat) {
@@ -173,8 +173,6 @@ function hatOn(head: Model, look: Look, r: number, at: V3): void {
   g.scale.setScalar(r / CHIBI_R);
   hat(g, look);
 }
-
-// MARK: Chibi
 
 /** Hair for a head of radius `CHIBI_R`; a receding hairline (`recede`) loses the fringe and the spikes. */
 function chibiHair(head: Model, look: Look, c = look.hair, recede = false): void {
@@ -249,7 +247,7 @@ export function chibi(b: Model, look: Look): Rig {
   return { legs, arms, head, hip: HIP, height: NECK + CHIBI_R * 1.81, faces };
 }
 
-// MARK: Busytown animals
+/** How an animal is built: its fur and face colours, its ears and tail, and how long its muzzle is. */
 export interface Kind {
   fur: string;
   muzzle: string;
@@ -399,7 +397,7 @@ export function animal(b: Model, look: Look): Rig {
   return { legs, arms, head, hip: HIP, height: NECK + R * 1.8, faces };
 }
 
-// MARK: Grown-ups, people and animals on one adult body, at any age
+/** How much a grown-up has aged: width, how much grey, and how far they hunch. */
 export const AGING: Record<Age, { width: number; grey: number; hunch: number }> = {
   young: { width: 0.94, grey: 0, hunch: 0 },
   adult: { width: 1.04, grey: 0, hunch: 0 },
@@ -532,7 +530,7 @@ export function grown(b: Model, look: Look): Rig {
   };
 }
 
-// MARK: Bots
+/** A little robot: a box head with a screen for a face, a green light on its chest and a pink antenna. */
 export function bot(b: Model, look: Look): Rig {
   const HIP = 0.2;
   const NECK = 0.48;

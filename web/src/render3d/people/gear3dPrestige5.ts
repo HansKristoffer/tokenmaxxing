@@ -55,14 +55,14 @@ function prismaticCrown(m: Model, c: Ctx): void {
   // The prism over it: a diamond of stepped boxes that turns and glints through the spectrum.
   const prism = m.part([0, y + 0.36, 0]);
   const core = lit("#ffffff");
-  for (const [w, h, yy] of [
+  for (const [w, h, dy] of [
     [0.03, 0.03, -0.045],
     [0.075, 0.03, -0.015],
     [0.075, 0.03, 0.015],
     [0.03, 0.03, 0.045],
   ] as const) {
     const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, w), core);
-    b.position.y = yy;
+    b.position.y = dy;
     b.userData.noBlock = true;
     prism.add(b);
   }
@@ -74,7 +74,5 @@ function prismaticCrown(m: Model, c: Ctx): void {
   });
 }
 
-Object.assign(HAT_BUILDERS, {
-  "Prismatic crown": (m: Model, c: Ctx) => prismaticCrown(m, c),
-});
+Object.assign(HAT_BUILDERS, { "Prismatic crown": prismaticCrown });
 COVERS_HAIR.add("Prismatic crown");

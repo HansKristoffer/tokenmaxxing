@@ -45,8 +45,6 @@ function path(m: Model, p: Paint, pts: [number, number, number][]): void {
   for (const [x, y, sz] of pts) m.box([sz, sz, sz], p, [x, y - sz / 2, 0], 0.004);
 }
 
-// MARK: Hats
-
 /**
  * A crown over the head: on a blocky head (which ignores a thin dome: its hair block pokes through) two stacked
  * slabs that cover the whole skull, on a smooth one a dome.
@@ -180,14 +178,12 @@ function operaHorns(m: Model): void {
 }
 
 Object.assign(HAT_BUILDERS, {
-  "Fur hood": (m: Model) => furHood(m),
-  "Nasal helm": (m: Model) => nasalHelm(m),
-  "Beaded braids": (m: Model, c: Ctx) => beadedBraids(m, c),
-  "Opera horns": (m: Model) => operaHorns(m),
+  "Fur hood": furHood,
+  "Nasal helm": nasalHelm,
+  "Beaded braids": beadedBraids,
+  "Opera horns": operaHorns,
 });
 for (const n of ["Fur hood", "Nasal helm", "Opera horns"]) COVERS_HAIR.add(n);
-
-// MARK: Glasses
 
 /** A round lens (a square pane on a blocky face) in a rim. */
 function roundLens(e: Model, frame: string, glass: string, r = 0.062, opacity = 0.5): THREE.Mesh {
@@ -283,7 +279,7 @@ Object.assign(FACE_BUILDERS, {
       const fall = (t * 0.5) % 1;
       drops.position.y = -0.1 - fall * 0.05;
       drops.scale.setScalar(1 - fall);
-      (lens.material as THREE.MeshBasicMaterial).opacity = 0.34 + Math.sin(t * 2) * 0.06;
+      (lens.material as THREE.Material).opacity = 0.34 + Math.sin(t * 2) * 0.06;
     });
   },
 });

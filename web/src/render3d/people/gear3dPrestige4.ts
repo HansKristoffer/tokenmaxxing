@@ -98,7 +98,5 @@ function diadem(m: Model, c: Ctx): void {
   });
 }
 
-Object.assign(HAT_BUILDERS, {
-  "Architect's diadem": (m: Model, c: Ctx) => diadem(m, c),
-});
+Object.assign(HAT_BUILDERS, { "Architect's diadem": diadem });
 COVERS_HAIR.add("Architect's diadem");

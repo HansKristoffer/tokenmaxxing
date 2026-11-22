@@ -8,6 +8,7 @@ import { STALL_BASE } from "@tokenmaxxing/core/julemarked-shop.ts";
 import type * as THREE from "three";
 import type { Model } from "../kit/kit.ts";
 import {
+  armBand,
   BACK_BUILDERS,
   type BackBuilder,
   type BodyCtx,
@@ -45,23 +46,21 @@ const RAIN_LIGHT = "#ffe27a";
 const INK = "#1d1a1c";
 const STEEL = "#b9c2ca";
 const STEEL_DARK = "#8893a0";
-const T = 0.004; // the corner radius of a "sharp" box
-
-// MARK: Hat
+const CORNER = 0.004; // The corner radius of a "sharp" box, the rounding each block gets.
 
 /** Wool earmuffs: a stepped band over the crown, a cream fluffy cup over each ear with a red heart-of-wool centre. */
 function oreVaermere(m: Model): void {
   // The grown head is a little shorter than the blocky one: the band sits lower on it.
   const top = isVox(m) ? 0.31 : 0.225;
-  m.box([0.56, 0.045, 0.1], RED_DARK, [0, top, 0], T);
+  m.box([0.56, 0.045, 0.1], RED_DARK, [0, top, 0], CORNER);
   for (const s of [-1, 1]) {
-    m.box([0.045, top - 0.09, 0.1], RED_DARK, [s * 0.275, (top + 0.09) / 2, 0], T);
-    m.box([0.045, 0.12, 0.1], RED_DARK, [s * 0.275, 0.09, 0], T);
+    m.box([0.045, top - 0.09, 0.1], RED_DARK, [s * 0.275, (top + 0.09) / 2, 0], CORNER);
+    m.box([0.045, 0.12, 0.1], RED_DARK, [s * 0.275, 0.09, 0], CORNER);
     // The cup: a cream block, a darker rim, a red wool centre on the outside.
-    m.box([0.06, 0.18, 0.18], CREAM, [s * 0.29, -0.03, 0], T);
-    m.box([0.064, 0.15, 0.15], CREAM_DARK, [s * 0.288, -0.03, 0], T);
-    m.box([0.066, 0.12, 0.12], CREAM, [s * 0.296, -0.03, 0], T);
-    m.box([0.07, 0.06, 0.06], RED, [s * 0.299, -0.03, 0], T);
+    m.box([0.06, 0.18, 0.18], CREAM, [s * 0.29, -0.03, 0], CORNER);
+    m.box([0.064, 0.15, 0.15], CREAM_DARK, [s * 0.288, -0.03, 0], CORNER);
+    m.box([0.066, 0.12, 0.12], CREAM, [s * 0.296, -0.03, 0], CORNER);
+    m.box([0.07, 0.06, 0.06], RED, [s * 0.299, -0.03, 0], CORNER);
   }
 }
 
@@ -75,13 +74,13 @@ function pelshue(m: Model): void {
   const w = vox ? 0.6 : 0.56;
   const d = vox ? 0.58 : 0.56;
   // The crown: two steps and a flat top.
-  m.box([w - 0.04, 0.1, d - 0.04], FUR, [0, top - 0.03, 0], T);
-  m.box([w - 0.14, 0.04, d - 0.14], FUR_LIGHT, [0, top + 0.04, 0], T);
-  m.box([w - 0.26, 0.03, d - 0.26], FUR, [0, top + 0.075, 0], T);
+  m.box([w - 0.04, 0.1, d - 0.04], FUR, [0, top - 0.03, 0], CORNER);
+  m.box([w - 0.14, 0.04, d - 0.14], FUR_LIGHT, [0, top + 0.04, 0], CORNER);
+  m.box([w - 0.26, 0.03, d - 0.26], FUR, [0, top + 0.075, 0], CORNER);
   // The brow band, front and back thicker, with tufts that stick up a little.
   const by = top - 0.115;
-  m.box([w, 0.075, d], FUR_DARK, [0, by, 0], T);
-  m.box([w + 0.01, 0.03, d + 0.01], FUR, [0, by + 0.03, 0], T);
+  m.box([w, 0.075, d], FUR_DARK, [0, by, 0], CORNER);
+  m.box([w + 0.01, 0.03, d + 0.01], FUR, [0, by + 0.03, 0], CORNER);
   for (const [x, z] of [
     [-0.2, 1],
     [-0.07, 1],
@@ -94,9 +93,9 @@ function pelshue(m: Model): void {
   // The flaps over the ears: a thick slab hanging down each side from the band, a darker lining inside, tufty tips.
   for (const s of [-1, 1]) {
     const x = s * (w / 2 - 0.03);
-    m.box([0.1, 0.3, 0.34], FUR, [x, by - 0.15, 0.0], T);
-    m.box([0.012, 0.25, 0.28], FUR_DARK, [x - s * 0.052, by - 0.15, 0.0], T);
-    m.box([0.11, 0.05, 0.3], FUR_LIGHT, [x + s * 0.004, by - 0.04, 0.0], T);
+    m.box([0.1, 0.3, 0.34], FUR, [x, by - 0.15, 0.0], CORNER);
+    m.box([0.012, 0.25, 0.28], FUR_DARK, [x - s * 0.052, by - 0.15, 0.0], CORNER);
+    m.box([0.11, 0.05, 0.3], FUR_LIGHT, [x + s * 0.004, by - 0.04, 0.0], CORNER);
     for (const z of [-0.11, 0.0, 0.11]) m.box([0.1, 0.06, 0.07], FUR_DARK, [x, by - 0.31, z], 0.002);
     // The cord, hanging from the flap tip.
     m.box([0.02, 0.1, 0.02], RED_DARK, [x - s * 0.02, by - 0.37, 0.14], 0.002);
@@ -113,11 +112,11 @@ function sixpence(m: Model): void {
   const top = vox ? 0.32 : 0.25;
   const w = vox ? 0.58 : 0.55;
   const d = vox ? 0.58 : 0.55;
-  m.box([w, 0.07, d], TWEED_DARK, [0, top - 0.1, 0], T);
+  m.box([w, 0.07, d], TWEED_DARK, [0, top - 0.1, 0], CORNER);
   // The soft crown, wider than the band, sloping forward.
-  m.box([w + 0.04, 0.06, d + 0.02], TWEED, [0, top - 0.04, 0.01], T);
-  m.box([w + 0.01, 0.045, d - 0.02], TWEED, [0, top + 0.015, 0.04], T);
-  m.box([w - 0.1, 0.03, d - 0.1], TWEED_LIGHT, [0, top + 0.05, 0.05], T);
+  m.box([w + 0.04, 0.06, d + 0.02], TWEED, [0, top - 0.04, 0.01], CORNER);
+  m.box([w + 0.01, 0.045, d - 0.02], TWEED, [0, top + 0.015, 0.04], CORNER);
+  m.box([w - 0.1, 0.03, d - 0.1], TWEED_LIGHT, [0, top + 0.05, 0.05], CORNER);
   m.box([0.045, 0.03, 0.045], TWEED_DARK, [0, top + 0.08, 0.04], 0.002);
   // The tweed: scattered flecks on the crown.
   for (const [x, z, c] of [
@@ -132,7 +131,7 @@ function sixpence(m: Model): void {
   ] as const)
     m.box([0.04, 0.008, 0.04], c, [x, top + 0.02 + (Math.abs(x) < 0.12 ? 0.015 : 0), z + 0.04], 0.001);
   // The peak: a short stiff slab, dipped a little, over the brow.
-  const peak = m.box([0.4, 0.02, 0.17], TWEED_DARK, [0, top - 0.115, d / 2 + 0.07], T);
+  const peak = m.box([0.4, 0.02, 0.17], TWEED_DARK, [0, top - 0.115, d / 2 + 0.07], CORNER);
   peak.rotation.x = 0.12;
   m.box([0.4, 0.014, 0.02], "#2e343b", [0, top - 0.128, d / 2 + 0.14], 0.002);
   // A stitched seam on the band.
@@ -145,8 +144,6 @@ Object.assign(HAT_BUILDERS, {
   Sixpence: sixpence,
 });
 for (const n of ["Pelshue", "Sixpence"]) COVERS_HAIR.add(n);
-
-// MARK: Glasses
 
 const SHELL = "#8a4b1e";
 const SHELL_DARK = "#3d2210";
@@ -231,19 +228,17 @@ Object.assign(FACE_BUILDERS, {
   Hyggebriller: hyggebriller,
 });
 
-// MARK: Held
-
 // biome-ignore format: a catalogue reads best one to a line
 const HELD: Record<string, HeldBuilder> = {
   // A red mug with a cream band, thick cocoa topped with stepped whipped cream, a chocolate dust, steam.
   "Varm kakao": (h, tick) => {
     const z = 0.06;
-    h.box([0.085, 0.09, 0.085], RED, [0, 0.0, z], T);
-    h.box([0.088, 0.022, 0.088], CREAM, [0, 0.028, z], T);
-    h.box([0.07, 0.006, 0.07], PEBER, [0, 0.046, z], T);
-    h.box([0.06, 0.02, 0.06], WHITE, [0, 0.058, z], T);
-    h.box([0.04, 0.02, 0.04], WHITE, [0, 0.076, z], T);
-    h.box([0.02, 0.016, 0.02], WHITE, [0, 0.092, z], T);
+    h.box([0.085, 0.09, 0.085], RED, [0, 0.0, z], CORNER);
+    h.box([0.088, 0.022, 0.088], CREAM, [0, 0.028, z], CORNER);
+    h.box([0.07, 0.006, 0.07], PEBER, [0, 0.046, z], CORNER);
+    h.box([0.06, 0.02, 0.06], WHITE, [0, 0.058, z], CORNER);
+    h.box([0.04, 0.02, 0.04], WHITE, [0, 0.076, z], CORNER);
+    h.box([0.02, 0.016, 0.02], WHITE, [0, 0.092, z], CORNER);
     for (const [x, zz] of [
       [-0.016, 0.014],
       [0.02, -0.01],
@@ -251,9 +246,9 @@ const HELD: Record<string, HeldBuilder> = {
     ] as const)
       h.box([0.008, 0.004, 0.008], PEBER, [x, 0.069, z + zz], 0.001);
     // The handle, a square C on the right.
-    h.box([0.024, 0.014, 0.02], CREAM, [0.054, 0.025, z], T);
-    h.box([0.024, 0.014, 0.02], CREAM, [0.054, -0.022, z], T);
-    h.box([0.014, 0.06, 0.02], CREAM, [0.065, 0.002, z], T);
+    h.box([0.024, 0.014, 0.02], CREAM, [0.054, 0.025, z], CORNER);
+    h.box([0.024, 0.014, 0.02], CREAM, [0.054, -0.022, z], CORNER);
+    h.box([0.014, 0.06, 0.02], CREAM, [0.065, 0.002, z], CORNER);
     const puffs = [0, 1].map(() => h.box([0.02, 0.02, 0.02], lit(WHITE), [0, 0.11, z], 0.002));
     tick((t) =>
       puffs.forEach((p, i) => {
@@ -266,8 +261,8 @@ const HELD: Record<string, HeldBuilder> = {
   // A cream paper plate with two sugar-dusted knots of fried dough, each a stepped diamond with a hole.
   Klejner: (h) => {
     const z = 0.08;
-    h.box([0.16, 0.012, 0.13], CREAM, [0, 0.0, z], T);
-    h.box([0.16, 0.014, 0.012], RED, [0, 0.002, z + 0.062], T);
+    h.box([0.16, 0.012, 0.13], CREAM, [0, 0.0, z], CORNER);
+    h.box([0.16, 0.014, 0.012], RED, [0, 0.002, z + 0.062], CORNER);
     for (const cx of [-0.036, 0.04]) {
       const k = h.part([cx, 0.012, z + (cx < 0 ? 0.008 : -0.006)]);
       const u = 0.014;
@@ -300,14 +295,14 @@ const HELD: Record<string, HeldBuilder> = {
   // A cream bowl with a red band, white porridge heaped in steps, a pat of butter, cinnamon dots, a wooden spoon.
   "Risengrød med smør": (h, tick) => {
     const z = 0.06;
-    h.box([0.06, 0.012, 0.06], CREAM_DARK, [0, -0.04, z], T);
-    h.box([0.09, 0.04, 0.09], CREAM, [0, -0.016, z], T);
-    h.box([0.108, 0.032, 0.108], CREAM, [0, 0.02, z], T);
-    h.box([0.112, 0.014, 0.112], RED, [0, 0.016, z], T);
-    h.box([0.1, 0.012, 0.1], "#fbf6ea", [0, 0.044, z], T);
-    h.box([0.072, 0.014, 0.072], "#fbf6ea", [0, 0.056, z], T);
-    h.box([0.04, 0.012, 0.04], WHITE, [0, 0.067, z], T);
-    h.box([0.03, 0.014, 0.024], GOLD, [0.004, 0.077, z + 0.002], T);
+    h.box([0.06, 0.012, 0.06], CREAM_DARK, [0, -0.04, z], CORNER);
+    h.box([0.09, 0.04, 0.09], CREAM, [0, -0.016, z], CORNER);
+    h.box([0.108, 0.032, 0.108], CREAM, [0, 0.02, z], CORNER);
+    h.box([0.112, 0.014, 0.112], RED, [0, 0.016, z], CORNER);
+    h.box([0.1, 0.012, 0.1], "#fbf6ea", [0, 0.044, z], CORNER);
+    h.box([0.072, 0.014, 0.072], "#fbf6ea", [0, 0.056, z], CORNER);
+    h.box([0.04, 0.012, 0.04], WHITE, [0, 0.067, z], CORNER);
+    h.box([0.03, 0.014, 0.024], GOLD, [0.004, 0.077, z + 0.002], CORNER);
     for (const [x, zz] of [
       [-0.03, 0.02],
       [0.02, -0.03],
@@ -318,8 +313,8 @@ const HELD: Record<string, HeldBuilder> = {
       h.box([0.007, 0.004, 0.007], "#8a4a26", [x, 0.064, z + zz], 0.001);
     const sp = h.part([0.03, 0.06, z + 0.012]);
     sp.rotation.z = -0.5;
-    sp.box([0.012, 0.1, 0.012], WOOD, [0, 0.03, 0], T);
-    sp.box([0.03, 0.018, 0.012], WOOD, [0, 0.085, 0], T);
+    sp.box([0.012, 0.1, 0.012], WOOD, [0, 0.03, 0], CORNER);
+    sp.box([0.03, 0.018, 0.012], WOOD, [0, 0.085, 0], CORNER);
     const puff = h.box([0.016, 0.016, 0.016], lit(WHITE), [-0.02, 0.1, z], 0.002);
     tick((t) => {
       const k = (t * 0.6) % 1;
@@ -330,45 +325,45 @@ const HELD: Record<string, HeldBuilder> = {
   // A loaf of pale marzipan under a slab of dark chocolate, one thin slice cut off and a gold ribbon of leaf.
   Marcipanbrød: (h) => {
     const z = 0.07;
-    h.box([0.15, 0.052, 0.07], "#e6c9a0", [0, 0.0, z], T);
-    h.box([0.154, 0.024, 0.074], "#4a2a1a", [0, 0.036, z], T);
-    h.box([0.154, 0.004, 0.074], "#6b3f22", [0, 0.05, z], T);
+    h.box([0.15, 0.052, 0.07], "#e6c9a0", [0, 0.0, z], CORNER);
+    h.box([0.154, 0.024, 0.074], "#4a2a1a", [0, 0.036, z], CORNER);
+    h.box([0.154, 0.004, 0.074], "#6b3f22", [0, 0.05, z], CORNER);
     for (const x of [-0.04, 0.02, 0.06]) h.box([0.012, 0.004, 0.076], "#6b3f22", [x, 0.052, z], 0.001);
     h.box([0.154, 0.01, 0.01], GOLD, [0, 0.012, z + 0.037], 0.002);
     // The cut slice, leaning against the end.
-    h.box([0.012, 0.05, 0.07], "#f0d8b4", [0.086, 0.0, z], T);
-    h.box([0.014, 0.022, 0.074], "#4a2a1a", [0.086, 0.036, z], T);
+    h.box([0.012, 0.05, 0.07], "#f0d8b4", [0.086, 0.0, z], CORNER);
+    h.box([0.014, 0.022, 0.074], "#4a2a1a", [0.086, 0.036, z], CORNER);
   },
   // A candy cane: a straight shaft of red and white bands and a squared hook at the top.
   Sukkerstang: (h) => {
     const z = 0.06;
     const w = 0.026;
-    for (let i = 0; i < 8; i++) h.box([w, 0.022, w], i % 2 ? WHITE : RED, [0, -0.03 + i * 0.022, z], 0.002);
+    for (let i = 0; i < 8; i++) {
+      const y = -0.03 + i * 0.022;
+      h.box([w, 0.022, w], i % 2 ? WHITE : RED, [0, y, z], 0.002);
+    }
     for (let i = 0; i < 3; i++) h.box([w, w, w], i % 2 ? WHITE : RED, [-i * w, 0.15, z], 0.002);
     h.box([w, w, w], WHITE, [-2 * w, 0.124, z], 0.002);
     h.box([w, w, w], RED, [-2 * w, 0.098, z], 0.002);
   },
-};
-// biome-ignore format: a catalogue reads best one to a line
-Object.assign(HELD, {
   // A dented steel flask: a stepped body with a dark band, a red cup-lid, a screw collar, a side handle and steam.
   Termokande: (h, tick) => {
     const z = 0.06;
-    h.box([0.07, 0.17, 0.07], STEEL, [0, 0.0, z], T);
-    h.box([0.074, 0.012, 0.074], STEEL_DARK, [0, -0.06, z], T);
-    h.box([0.074, 0.012, 0.074], STEEL_DARK, [0, 0.01, z], T);
-    h.box([0.074, 0.03, 0.074], INK, [0, -0.085, z], T);
+    h.box([0.07, 0.17, 0.07], STEEL, [0, 0.0, z], CORNER);
+    h.box([0.074, 0.012, 0.074], STEEL_DARK, [0, -0.06, z], CORNER);
+    h.box([0.074, 0.012, 0.074], STEEL_DARK, [0, 0.01, z], CORNER);
+    h.box([0.074, 0.03, 0.074], INK, [0, -0.085, z], CORNER);
     // The lid cup and collar.
-    h.box([0.075, 0.016, 0.075], STEEL_DARK, [0, 0.092, z], T);
-    h.box([0.066, 0.04, 0.066], RED, [0, 0.118, z], T);
-    h.box([0.05, 0.012, 0.05], RED_DARK, [0, 0.142, z], T);
+    h.box([0.075, 0.016, 0.075], STEEL_DARK, [0, 0.092, z], CORNER);
+    h.box([0.066, 0.04, 0.066], RED, [0, 0.118, z], CORNER);
+    h.box([0.05, 0.012, 0.05], RED_DARK, [0, 0.142, z], CORNER);
     // A bright edge and a dent on the side.
     h.box([0.012, 0.15, 0.012], "#e4eaef", [-0.026, 0.0, z + 0.03], 0.002);
     h.box([0.05, 0.026, 0.01], STEEL_DARK, [0.01, 0.03, z + 0.038], 0.002);
     // The handle, a squared loop on the right.
-    h.box([0.022, 0.014, 0.02], INK, [0.05, 0.06, z], T);
-    h.box([0.022, 0.014, 0.02], INK, [0.05, -0.04, z], T);
-    h.box([0.014, 0.1, 0.02], INK, [0.062, 0.01, z], T);
+    h.box([0.022, 0.014, 0.02], INK, [0.05, 0.06, z], CORNER);
+    h.box([0.022, 0.014, 0.02], INK, [0.05, -0.04, z], CORNER);
+    h.box([0.014, 0.1, 0.02], INK, [0.062, 0.01, z], CORNER);
     const puffs = [0, 1].map(() => h.box([0.016, 0.016, 0.016], lit(WHITE), [0, 0.16, z], 0.002));
     tick((t) =>
       puffs.forEach((p, i) => {
@@ -382,10 +377,10 @@ Object.assign(HELD, {
   Fyrfadslys: (h, tick) => {
     const z = 0.06;
     const glass = see("#cfe6f0", 0.38);
-    h.box([0.078, 0.01, 0.078], "#9fb8c4", [0, -0.012, z], T);
-    h.box([0.08, 0.07, 0.08], glass, [0, 0.024, z], T);
-    h.box([0.056, 0.036, 0.056], "#f7f1e0", [0, 0.01, z], T);
-    h.box([0.046, 0.006, 0.046], "#fff8dc", [0, 0.03, z], T);
+    h.box([0.078, 0.01, 0.078], "#9fb8c4", [0, -0.012, z], CORNER);
+    h.box([0.08, 0.07, 0.08], glass, [0, 0.024, z], CORNER);
+    h.box([0.056, 0.036, 0.056], "#f7f1e0", [0, 0.01, z], CORNER);
+    h.box([0.046, 0.006, 0.046], "#fff8dc", [0, 0.03, z], CORNER);
     h.box([0.006, 0.014, 0.006], INK, [0, 0.036, z], 0.001);
     const glow = h.box([0.07, 0.07, 0.07], lit("#ffb94a"), [0, 0.06, z], 0.002);
     (glow.material as THREE.Material).transparent = true;
@@ -402,16 +397,8 @@ Object.assign(HELD, {
       glow.scale.setScalar(1 + Math.sin(t * 7) * 0.05);
     });
   },
-} satisfies Record<string, HeldBuilder>);
+};
 Object.assign(HELD_BUILDERS, HELD);
-
-// MARK: Outfits
-
-/** A band of colour round an arm: a cuff, a mitten. */
-const armBand = (c: BodyCtx, color: string, y: number, h: number, pad = 0) =>
-  c.arms.forEach((arm) => {
-    new Vx(vpart(arm)).b(-1.22 - pad, y, -1.22 - pad, 2.44 + 2 * pad, h, 2.44 + 2 * pad, color);
-  });
 
 /** A hem of panels that swing a little when walking: front and back, from the belt. */
 function skirt(c: BodyCtx, color: string, trim: string, len: number): void {
@@ -422,7 +409,8 @@ function skirt(c: BodyCtx, color: string, trim: string, len: number): void {
       const x = s > 0 ? 0.1 : -4.0;
       const z = side > 0 ? -0.1 : -0.4;
       v.b(x, -len, z, 3.9, len, 0.5, color);
-      v.b(x, -len, z - (side > 0 ? 0 : 0.05), 3.9, 0.5, 0.55, trim);
+      const trimZ = z - (side > 0 ? 0 : 0.05);
+      v.b(x, -len, trimZ, 3.9, 0.5, 0.55, trim);
     }
     return p;
   });
@@ -542,16 +530,19 @@ const OUTFITS: Record<number, (c: BodyCtx) => void> = {
         for (let x = 0; x < w; x++) {
           const a = Math.floor(x / 3) % 2;
           const b = Math.floor(y / 3) % 2;
-          px(g, a && b ? INK : a || b ? "#8f1f22" : "#c93a34", x, y);
+          let color = "#c93a34";
+          if (a || b) color = "#8f1f22";
+          if (a && b) color = INK;
+          px(g, color, x, y);
         }
     };
     marks(c, plaid, plaid);
     const v = grid(c);
     // The rest of the torso, above and below the patch: the same checks as blocks.
     for (const y of [-0.2, 6.3]) {
-      const hh = y < 0 ? 1.0 : 1.7;
+      const height = y < 0 ? 1.0 : 1.7;
       for (let i = 0; i < 7; i++) {
-        for (const z of [2.0, -2.3]) v.b(-3.5 + i, y, z, 1, hh, 0.3, i % 2 ? "#c93a34" : INK);
+        for (const z of [2.0, -2.3]) v.b(-3.5 + i, y, z, 1, height, 0.3, i % 2 ? "#c93a34" : INK);
       }
     }
     // The hem: a dark band, shirt tails.
@@ -582,8 +573,6 @@ const OUTFITS: Record<number, (c: BodyCtx) => void> = {
 for (const [n, build] of Object.entries(OUTFITS)) {
   OUTFIT_BUILDERS[STALL_BASE + Number(n)] = build;
 }
-
-// MARK: Back
 
 const BLANKET = "#b8302c";
 const BLANKET_DARK = "#7e1f1d";

@@ -171,8 +171,6 @@ const smooth = (a: number, b: number, x: number) => {
 
 const FLOOR = -0.47;
 
-// MARK: Julestjerne
-
 const STAR = pixels(
   ["...X...", "..XXX..", "XXXOXXX", ".XXXXX.", "..XXX..", ".XX.XX.", ".X...X."],
   0.02,
@@ -281,9 +279,10 @@ const julestjerne: AuraBuilder = (m, tick) => {
   });
 };
 
-// MARK: Adventskrans
-
-/** The wreath, merged to one mesh: two layers of dark and mid green boxes, outward fir sprigs, red berries, gold glints, cones. */
+/**
+ * The wreath, merged to one mesh: two layers of dark and mid green boxes, outward fir sprigs, red berries, gold
+ * glints and cones.
+ */
 function wreath(r: number): THREE.BufferGeometry {
   const parts: THREE.BufferGeometry[] = [];
   const rnd = seeded(801);
@@ -468,15 +467,13 @@ const adventskrans: AuraBuilder = (m, tick) => {
       e.o.scale.setScalar((Math.sin(k * Math.PI) * 0.02 + 0.001) * Math.min(1, f * 1.4));
       e.o.rotation.set(t * 3 + e.w, t * 2, 0);
     }
-    const sum = (lit[0]! + lit[1]! + lit[2]! + lit[3]!) / 4;
+    const sum = lit.reduce((total, value) => total + value, 0) / lit.length;
     wreathGlow.scale.setScalar(0.6 + sum * 0.5 + Math.sin(t * 9) * 0.015);
     wreathGlow.visible = floor.visible = sum > 0.01;
     floor.scale.setScalar(0.5 + sum * 0.6 + Math.sin(t * 7) * 0.02);
     floor.rotation.y = t * 0.15;
   });
 };
-
-// MARK: Snefnug
 
 const CRYSTAL = pixels(
   ["X..X..X", ".X.X.X.", "..XXX..", "XXXOXXX", "..XXX..", ".X.X.X.", "X..X..X"],
@@ -599,8 +596,6 @@ const snefnug: AuraBuilder = (m, tick) => {
     }
   });
 };
-
-// MARK: Nordlys
 
 /** A curtain column of five stacked slabs, white with its alpha fading up from the hem: bright bottom edge, ghost top. */
 const COLUMN = (() => {

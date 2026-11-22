@@ -7,6 +7,7 @@
 import { PRESTIGE_BASE } from "@tokenmaxxing/core/prestige.ts";
 import * as THREE from "three";
 import {
+  armBand,
   BACK_BUILDERS,
   type BackBuilder,
   type BodyCtx,
@@ -28,8 +29,6 @@ const SILVER_DARK = "#9aa3b8";
 const GLOW = "#c4a8ff";
 const WHITE = "#ffffff";
 
-// MARK: Outfit
-
 /** A rune on a 3-pixel grid at (x, y): a stem with a pair of arms, three variants so the robe's are not copies. */
 const rune = (g: CanvasRenderingContext2D, color: string, x: number, y: number, kind: number) => {
   px(g, color, x, y, 3, 12);
@@ -45,12 +44,6 @@ const rune = (g: CanvasRenderingContext2D, color: string, x: number, y: number, 
     px(g, color, x, y + 6, 3, 3);
   }
 };
-
-/** A band of colour round an arm, `y` cubes down from the shoulder. */
-const armBand = (c: BodyCtx, color: string, y: number, h: number, pad = 0) =>
-  c.arms.forEach((arm) => {
-    new Vx(vpart(arm)).b(-1.22 - pad, y, -1.22 - pad, 2.44 + 2 * pad, h, 2.44 + 2 * pad, color);
-  });
 
 // biome-ignore format: a catalogue reads best one to a line
 const ROBES = (c: BodyCtx): void => {
@@ -140,8 +133,6 @@ const ROBES = (c: BodyCtx): void => {
   });
 };
 OUTFIT_BUILDERS[PRESTIGE_BASE] = ROBES;
-
-// MARK: Back
 
 /** A rune on the cape's outer face: bars as [x, y, w, h] from its centre line, in cubes, three shapes. */
 // biome-ignore format: a catalogue reads best one to a line

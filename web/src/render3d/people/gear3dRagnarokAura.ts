@@ -59,8 +59,6 @@ const smooth = (a: number, b: number, x: number) => {
   return k * k * (3 - 2 * k);
 };
 
-// MARK: Bifröst
-
 const RAINBOW = ["#ff4b4b", "#ff9a3c", "#ffe14a", "#5af0a0", "#4aa8ff", "#9a7cff"];
 
 /** One band of the rainbow: boxes along an arc of `sweep` radians at radius `r`, thinning to the ends, merged to one mesh. */
@@ -123,8 +121,6 @@ AURA_BUILDERS["Bifröst"] = (m, tick) => {
     }
   });
 };
-
-// MARK: Valkyrie Lights
 
 // Valkyrie Lights: curtains of aurora, green at the foot and violet at the top, rippling up behind and round.
 AURA_BUILDERS["Valkyrie Lights"] = (m, tick) => {
@@ -191,8 +187,6 @@ AURA_BUILDERS["Valkyrie Lights"] = (m, tick) => {
     }
   });
 };
-
-// MARK: Rune Gale
 
 /** Strokes of the safe Elder Futhark glyphs on a 0..1 square (y down). Never Sowilo, Othala, Tyr or Algiz. */
 const GLYPHS: Record<string, [number, number][][]> = {
@@ -391,8 +385,6 @@ AURA_BUILDERS["Rune Gale"] = (m, tick) => {
     }
   });
 };
-
-// MARK: Ginnungagap
 
 // Ginnungagap: pale snow drifts down the left of the wearer and orange embers rise up the right; at the head the two
 // meet and wind round each other in a spiral.

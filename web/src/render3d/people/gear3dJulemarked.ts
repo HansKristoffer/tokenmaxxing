@@ -71,8 +71,6 @@ function cells(
   });
 }
 
-// MARK: Hats
-
 /** A tall stepped red cone, a thick cream brim, and a long floppy tip that curls back and sways, ending in a gold bell. */
 function nissehue(m: Model, c: Ticker): void {
   bx(m, 0, 0.15, 0, 0.55, 0.3, 0.55, RED_DARK);
@@ -89,9 +87,9 @@ function nissehue(m: Model, c: Ticker): void {
   const N = 7;
   for (let i = 0; i < N; i++) {
     const w = 0.17 * 0.84 ** i;
-    const L = 0.15 - i * 0.008;
-    bx(parent, 0, L / 2, 0, w, L, w, i % 2 ? RED : "#c9403a");
-    const next = parent.part([0, L, 0]);
+    const len = 0.15 - i * 0.008;
+    bx(parent, 0, len / 2, 0, w, len, w, i % 2 ? RED : "#c9403a");
+    const next = parent.part([0, len, 0]);
     segs.push(parent);
     parent = next;
   }
@@ -195,8 +193,8 @@ function grankrans(m: Model, c: Ticker): void {
     const mat = bulbMat(cols[i % 4]!);
     bulbs.push({ mat, mesh: bx(m, x, 0.115 + (i % 3) * 0.02, z, 0.032, 0.032, 0.032, mat), i });
   }
-  const [bx0, bz0] = roundAt(m, -0.75, 0.31);
-  const bow = m.part([bx0, 0.16, bz0], -0.75);
+  const [bowX, bowZ] = roundAt(m, -0.75, 0.31);
+  const bow = m.part([bowX, 0.16, bowZ], -0.75);
   for (const s of [-1, 1]) {
     const loop = bow.box([0.1, 0.075, 0.025], RED, [s * 0.065, -0.04, 0.01], 0.01);
     loop.rotation.z = s * 0.3;
@@ -245,8 +243,6 @@ Object.assign(HAT_BUILDERS, {
   "Lucia-krone": luciaKrone,
 });
 for (const n of ["Nissehue", "Pomponhue"]) COVERS_HAIR.add(n);
-
-// MARK: Glasses
 
 /** A square frame, `w` by `h`, of bars `t` thick, round the middle of `e`. */
 function frame(e: Model, w: number, h: number, t: number, color: Paint, z = 0): void {
@@ -308,7 +304,6 @@ Object.assign(FACE_BUILDERS, {
   "Julelys-briller": (m: Model, c: Ticker) => {
     const cols = ["#ff4a3a", "#ffd24a", "#4aa8ff", "#5cff7a"];
     const bulbs: { mat: THREE.MeshBasicMaterial; mesh: THREE.Mesh; i: number }[] = [];
-    let n = 0;
     for (const s of [-1, 1] as const) {
       const e = eyeAt(m, s);
       frame(e, 0.15, 0.125, 0.008, GREEN, -0.004);
@@ -319,9 +314,10 @@ Object.assign(FACE_BUILDERS, {
       for (let k = 0; k < 5; k++) pts.push([w / 2 - (k * w) / 4, -h / 2]);
       pts.push([-w / 2, 0], [w / 2, 0]);
       for (const [x, y] of pts) {
-        const mat = bulbMat(cols[n % 4]!);
+        const i = bulbs.length;
+        const mat = bulbMat(cols[i % 4]!);
         const mesh = bx(e, x, y, 0.008, 0.026, 0.026, 0.024, mat);
-        bulbs.push({ mat, mesh, i: n++ });
+        bulbs.push({ mat, mesh, i });
       }
     }
     bx(m, 0, EYE_Y, 0.245, 0.06, 0.014, 0.014, GREEN);
@@ -366,8 +362,6 @@ Object.assign(FACE_BUILDERS, {
   },
 });
 
-// MARK: Held
-
 /** A rising puff of steam, glitter or dust: `n` translucent blocks that climb, grow and fade. */
 function puffs(
   g: Model,
@@ -380,6 +374,7 @@ function puffs(
   a = 0.55,
 ): void {
   const list = Array.from({ length: n }, (_, i) => {
+    // `see(..., true)` builds a MeshBasicMaterial, so the cast to set its opacity is safe.
     const mat = see(color, a, true);
     return {
       mat: mat as THREE.MeshBasicMaterial,
@@ -446,7 +441,9 @@ const HELD: Record<string, HeldBuilder> = {
     bag.rotation.z = 0.08;
     for (let i = 0; i < 8; i++) {
       const w = 0.03 + i * 0.012;
-      bx(bag, 0, 0.012 + i * 0.022, 0, w, 0.024, w, i === 2 || i === 3 ? RED : i % 2 ? CREAM : CREAM_DARK);
+      let paint = i % 2 ? CREAM : CREAM_DARK;
+      if (i === 2 || i === 3) paint = RED;
+      bx(bag, 0, 0.012 + i * 0.022, 0, w, 0.024, w, paint);
     }
     bx(bag, 0, 0.19, 0, 0.14, 0.016, 0.14, CREAM_DARK);
     const brown = ["#8a5a2c", "#6b3f1c", "#a06a34", "#5d3418"];

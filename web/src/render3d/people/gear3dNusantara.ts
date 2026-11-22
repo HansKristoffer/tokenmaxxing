@@ -65,8 +65,6 @@ const looseSleeves = (c: BodyCtx, color: string, trim: string) =>
     v.b(-1.65, -6.5, -1.65, 3.3, 0.7, 3.3, trim);
   });
 
-// MARK: Outfits
-
 // biome-ignore format: a catalogue reads best one to a line
 const OUTFITS: Record<number, (c: BodyCtx) => void> = {
   // Batik shirt: soga brown with a lattice of cream diamonds, a slim placket with buttons, a stand collar.
@@ -219,7 +217,6 @@ const OUTFITS: Record<number, (c: BodyCtx) => void> = {
     );
     const v = grid(c);
     // The face: a round disc of red cubes, 7 across, a little proud of the chest.
-    const FACE = HIBISCUS;
     const rows: [number, number, number][] = [
       // [y, x from, width]
       [8.2, -2, 4],
@@ -231,7 +228,7 @@ const OUTFITS: Record<number, (c: BodyCtx) => void> = {
       [2.2, -3, 6],
       [1.2, -2, 4],
     ];
-    for (const [y, x, w] of rows) v.b(x, y - 0.9, 2.0, w, 1.0, 0.75, FACE);
+    for (const [y, x, w] of rows) v.b(x, y - 0.9, 2.0, w, 1.0, 0.75, HIBISCUS);
     // Cheeks, nose, brows, big white eyes with a pupil each, a moustache and a wide white grin.
     for (const s of [-1, 1]) {
       v.b(s > 0 ? 2.1 : -3.1, 3.1, 2.75, 1.0, 0.9, 0.3, "#f2848a");
@@ -279,8 +276,6 @@ const OUTFITS: Record<number, (c: BodyCtx) => void> = {
 for (const [n, build] of Object.entries(OUTFITS)) {
   OUTFIT_BUILDERS[NUSANTARA_BASE + Number(n)] = build;
 }
-
-// MARK: Held
 
 // biome-ignore format: a catalogue reads best one to a line
 const HELD: Record<string, HeldBuilder> = {
@@ -349,9 +344,9 @@ const HELD: Record<string, HeldBuilder> = {
     spar.box([0.25, 0.014, 0.01], BAMBOO_DARK, [0, -0.02, -0.012], 0.002);
     // The diamond: four triangles, red and yellow in turn, drawn once and set as raised cubes (or a plane).
     const body = kite.part([0, 0, 0]);
-    const sheet = (g: CanvasRenderingContext2D, w: number, hh: number) => {
+    const sheet = (g: CanvasRenderingContext2D, w: number, height: number) => {
       const cx = w / 2;
-      const cy = hh * 0.42;
+      const cy = height * 0.42;
       const quad = (pts: [number, number][], col: string) => {
         g.fillStyle = col;
         g.beginPath();
@@ -381,7 +376,7 @@ const HELD: Record<string, HeldBuilder> = {
       quad(
         [
           [0, cy],
-          [cx, hh],
+          [cx, height],
           [cx, cy],
         ],
         SAFFRON,
@@ -389,7 +384,7 @@ const HELD: Record<string, HeldBuilder> = {
       quad(
         [
           [w, cy],
-          [cx, hh],
+          [cx, height],
           [cx, cy],
         ],
         HIBISCUS,
@@ -398,7 +393,7 @@ const HELD: Record<string, HeldBuilder> = {
       g.lineWidth = Math.max(1, w * 0.04);
       g.beginPath();
       g.moveTo(cx, 0);
-      g.lineTo(cx, hh);
+      g.lineTo(cx, height);
       g.moveTo(0, cy);
       g.lineTo(w, cy);
       g.stroke();
@@ -451,13 +446,11 @@ const HELD: Record<string, HeldBuilder> = {
 };
 Object.assign(HELD_BUILDERS, HELD);
 
-// MARK: Back
-
 /** A raised pixel picture on a flat plane at `at` in a body frame (the puppets, the fan). */
 function picture(
   b: VoxModel,
   w: number,
-  hh: number,
+  height: number,
   draw: (g: CanvasRenderingContext2D, cw: number, ch: number) => void,
   at: [number, number, number],
   cell = 0.015,
@@ -466,7 +459,7 @@ function picture(
 ) {
   return pixelPatch(b, {
     cols: Math.round(w / cell),
-    rows: Math.round(hh / cell),
+    rows: Math.round(height / cell),
     cell,
     depth,
     draw,
@@ -532,77 +525,77 @@ const BACKS: Record<string, BackBuilder> = {
     for (const y of [-2.2, -6.4]) v.b(-3.2, y, -5.0, 6.4, 0.6, 2.7, TEAK_DARK);
     for (const y of [-1.0, -3.6, -5.2, -7.0]) v.b(-3.1, y, -5.0, 6.2, 0.18, 2.62, BAMBOO_DARK);
     // Bamboo sticks poking up beyond the puppets.
-    for (const [x, hh] of [
+    for (const [x, height] of [
       [-2.4, 3.2],
       [2.6, 3.8],
       [0.3, 4.8],
     ] as const)
-      v.b(x, -1.0, -4.0, 0.35, hh + 1, 0.35, BAMBOO);
+      v.b(x, -1.0, -4.0, 0.35, height + 1, 0.35, BAMBOO);
     // The gunungan: a leaf-shaped leather, the tree of life cut into it, gold dots round the edge.
-    const gun = (g: CanvasRenderingContext2D, w: number, hh: number) => {
+    const gun = (g: CanvasRenderingContext2D, w: number, height: number) => {
       const leaf = (inset: number, col: string) => {
         g.fillStyle = col;
         g.beginPath();
         g.moveTo(w / 2, inset);
-        g.bezierCurveTo(w * 1.02, hh * 0.38, w * 0.98, hh * 0.9, w / 2, hh - inset);
-        g.bezierCurveTo(w * 0.02, hh * 0.9, -w * 0.02, hh * 0.38, w / 2, inset);
+        g.bezierCurveTo(w * 1.02, height * 0.38, w * 0.98, height * 0.9, w / 2, height - inset);
+        g.bezierCurveTo(w * 0.02, height * 0.9, -w * 0.02, height * 0.38, w / 2, inset);
         g.fill();
       };
       leaf(0, "#c9972a");
-      leaf(hh * 0.045, "#3a2414");
+      leaf(height * 0.045, "#3a2414");
       // The tree: a trunk, three branches and a crown, in gold.
       g.fillStyle = "#e8b23a";
-      g.fillRect(w / 2 - w * 0.03, hh * 0.3, w * 0.06, hh * 0.55);
+      g.fillRect(w / 2 - w * 0.03, height * 0.3, w * 0.06, height * 0.55);
       for (const [y, r] of [
         [0.4, 0.28],
         [0.54, 0.34],
         [0.68, 0.22],
       ] as const) {
-        g.fillRect(w / 2 - w * r, hh * y, w * r * 2, w * 0.05);
-        g.fillRect(w / 2 - w * r, hh * y - w * 0.06, w * 0.06, w * 0.08);
-        g.fillRect(w / 2 + w * r - w * 0.06, hh * y - w * 0.06, w * 0.06, w * 0.08);
+        g.fillRect(w / 2 - w * r, height * y, w * r * 2, w * 0.05);
+        g.fillRect(w / 2 - w * r, height * y - w * 0.06, w * 0.06, w * 0.08);
+        g.fillRect(w / 2 + w * r - w * 0.06, height * y - w * 0.06, w * 0.06, w * 0.08);
       }
       g.beginPath();
-      g.arc(w / 2, hh * 0.28, w * 0.09, 0, Math.PI * 2);
+      g.arc(w / 2, height * 0.28, w * 0.09, 0, Math.PI * 2);
       g.fill();
       g.fillStyle = "#e8b23a";
       for (const y of [0.2, 0.3, 0.45, 0.6, 0.75, 0.86]) {
-        g.fillRect(w * 0.16, hh * y, w * 0.07, w * 0.07);
-        g.fillRect(w * 0.77, hh * y, w * 0.07, w * 0.07);
+        g.fillRect(w * 0.16, height * y, w * 0.07, w * 0.07);
+        g.fillRect(w * 0.77, height * y, w * 0.07, w * 0.07);
       }
     };
     picture(root, 0.26, 0.48, gun, [-0.085, 0.1, -4.2 * U], 0.012, 0.016);
     // The clown (a generic long-nosed one): a big round head, a long nose, a round belly and arms on thin sticks.
-    const clown = (g: CanvasRenderingContext2D, w: number, hh: number) => {
+    const clown = (g: CanvasRenderingContext2D, w: number, height: number) => {
       g.fillStyle = "#3a2414";
       g.beginPath();
-      g.arc(w * 0.42, hh * 0.2, w * 0.3, 0, Math.PI * 2);
+      g.arc(w * 0.42, height * 0.2, w * 0.3, 0, Math.PI * 2);
       g.fill();
-      g.fillRect(w * 0.3, hh * 0.38, w * 0.22, hh * 0.1);
+      g.fillRect(w * 0.3, height * 0.38, w * 0.22, height * 0.1);
       g.beginPath();
-      g.ellipse(w * 0.42, hh * 0.64, w * 0.4, hh * 0.22, 0, 0, Math.PI * 2);
+      g.ellipse(w * 0.42, height * 0.64, w * 0.4, height * 0.22, 0, 0, Math.PI * 2);
       g.fill();
       // The long nose.
       g.beginPath();
-      g.moveTo(w * 0.6, hh * 0.17);
-      g.lineTo(w * 1.0, hh * 0.24);
-      g.lineTo(w * 0.62, hh * 0.3);
+      g.moveTo(w * 0.6, height * 0.17);
+      g.lineTo(w * 1.0, height * 0.24);
+      g.lineTo(w * 0.62, height * 0.3);
       g.fill();
       // Gold: an eye, a cap band, a belt and belly dots.
       g.fillStyle = "#e8b23a";
-      g.fillRect(w * 0.5, hh * 0.15, w * 0.1, hh * 0.05);
-      g.fillRect(w * 0.14, hh * 0.08, w * 0.56, hh * 0.04);
-      g.fillRect(w * 0.06, hh * 0.58, w * 0.72, hh * 0.04);
+      g.fillRect(w * 0.5, height * 0.15, w * 0.1, height * 0.05);
+      g.fillRect(w * 0.14, height * 0.08, w * 0.56, height * 0.04);
+      g.fillRect(w * 0.06, height * 0.58, w * 0.72, height * 0.04);
       for (const [x, y] of [
         [0.25, 0.7],
         [0.45, 0.76],
         [0.62, 0.68],
       ] as const)
-        g.fillRect(w * x, hh * y, w * 0.07, w * 0.07);
+        g.fillRect(w * x, height * y, w * 0.07, w * 0.07);
       // The legs.
       g.fillStyle = "#3a2414";
-      g.fillRect(w * 0.18, hh * 0.84, w * 0.16, hh * 0.16);
-      g.fillRect(w * 0.5, hh * 0.84, w * 0.16, hh * 0.16);
+      g.fillRect(w * 0.18, height * 0.84, w * 0.16, height * 0.16);
+      g.fillRect(w * 0.5, height * 0.84, w * 0.16, height * 0.16);
     };
     picture(root, 0.22, 0.38, clown, [0.09, 0.07, -4.5 * U], 0.012, 0.016);
     tick((t, walking) => {
@@ -612,34 +605,34 @@ const BACKS: Record<string, BackBuilder> = {
   // Dadak merak: a great fan of peacock-eye feathers rising behind, a red medallion at the hub, swaying slowly. Fabric and feather.
   "Dadak merak": (b, tick) => {
     const pivot = vpart(b, [0, -1.5 * U, -3.2 * U]);
-    const W = 1.12;
-    const H = 0.92;
-    const fan = (back: boolean) => (g: CanvasRenderingContext2D, w: number, hh: number) => {
+    const fanWidth = 1.12;
+    const fanHeight = 0.92;
+    const fan = (back: boolean) => (g: CanvasRenderingContext2D, w: number, height: number) => {
       const cx = w / 2;
-      const cy = hh - w * 0.07;
-      const R = w * 0.49 * (back ? 1 : 0.9);
+      const cy = height - w * 0.07;
+      const radius = w * 0.49 * (back ? 1 : 0.9);
       const n = back ? 17 : 15;
       for (let i = 0; i < n; i++) {
         const a = Math.PI * (-0.05 + (1.1 * (i + 0.5)) / n);
         const ux = Math.cos(a);
         const uy = -Math.sin(a);
-        const half = ((R * 1.1 * Math.PI) / n) * 0.5 * (back ? 1.7 : 1.25);
-        const tip = back ? R : R * 0.95;
+        const half = ((radius * 1.1 * Math.PI) / n) * 0.5 * (back ? 1.7 : 1.25);
+        const tip = back ? radius : radius * 0.95;
         g.save();
         g.translate(cx, cy);
         g.rotate(Math.atan2(uy, ux));
         // The feather: a long leaf of blue-green, dark at the edge.
         g.fillStyle = back ? DEEP_SEA : i % 2 ? TURQUOISE : "#1a9a8a";
         g.beginPath();
-        g.moveTo(R * 0.16, 0);
+        g.moveTo(radius * 0.16, 0);
         g.quadraticCurveTo(tip * 0.5, -half * 1.15, tip, 0);
-        g.quadraticCurveTo(tip * 0.5, half * 1.15, R * 0.16, 0);
+        g.quadraticCurveTo(tip * 0.5, half * 1.15, radius * 0.16, 0);
         g.fill();
         if (!back) {
           g.strokeStyle = "#0b4f5e";
           g.lineWidth = Math.max(1, w * 0.012);
           g.beginPath();
-          g.moveTo(R * 0.2, 0);
+          g.moveTo(radius * 0.2, 0);
           g.lineTo(tip * 0.98, 0);
           g.stroke();
           // The eye: gold, then green, then deep blue.
@@ -685,12 +678,12 @@ const BACKS: Record<string, BackBuilder> = {
       }
     };
     // Two layers: the dark fan behind, the eyed fan in front of it, a hair apart.
-    const hub = H / 2 - 0.07 * W;
+    const hub = fanHeight / 2 - 0.07 * fanWidth;
     // The eyed side faces away from the wearer, so it turns right round: the dark fan sits behind it, against the back.
     const face = vpart(pivot, [0, 0, 0]);
     face.rotation.y = Math.PI;
-    picture(face, W, H, fan(true), [0, hub, -0.013], 0.014, 0.014, 3);
-    picture(face, W, H, fan(false), [0, hub, 0.0], 0.014, 0.014, 3);
+    picture(face, fanWidth, fanHeight, fan(true), [0, hub, -0.013], 0.014, 0.014, 3);
+    picture(face, fanWidth, fanHeight, fan(false), [0, hub, 0.0], 0.014, 0.014, 3);
     tick((t, walking) => {
       pivot.rotation.z = Math.sin(t * (walking ? 5 : 0.9)) * (walking ? 0.07 : 0.045);
       pivot.rotation.x = Math.sin(t * (walking ? 10 : 1.3) + 1) * (walking ? 0.03 : 0.012);

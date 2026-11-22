@@ -161,19 +161,17 @@ function prismOrSteps(radius: number, top: number, h: number): THREE.BufferGeome
   return boxes(list);
 }
 
-// MARK: Rings, domes, bands
-
-/** A square ring of blocks, flat (a halo, a brim) or standing up, `R` to its centre line. */
+/** A square ring of blocks, flat (a halo, a brim) or standing up, `radius` to its centre line. */
 export function boxRing(
   m: THREE.Object3D,
   p: Paint,
-  R: number,
+  radius: number,
   tube: number,
   at: V3 = [0, 0, 0],
   flat = true,
 ): THREE.Mesh {
   const t = Math.max(tube * 2, 0.022);
-  const r = R * 0.95;
+  const r = radius * 0.95;
   const g = cached(`vring${r},${t},${flat}`, () => {
     const a = r + t / 2;
     const l: Cube[] = [
@@ -241,8 +239,6 @@ export function squarePane(m: THREE.Object3D, r: number, p: Paint, at: V3): THRE
   const g = cached(`vpane${r}`, () => new THREE.PlaneGeometry(r * 1.8, r * 1.8));
   return place(m, g, p, at);
 }
-
-// MARK: Shapes and pixels
 
 /** A flat shape (heart, star, wedge) rebuilt from cubes about `cell` wide, its depth along z. */
 export function voxShape(
@@ -401,8 +397,6 @@ export function pixelPatch(
   mesh.castShadow = false;
   return mesh;
 }
-
-// MARK: Grid placement
 
 /**
  * Blocks by cube coordinates in `parent`'s frame: (x, y, z) is a box's low corner and (w, h, d) its size, all in

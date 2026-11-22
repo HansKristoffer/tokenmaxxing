@@ -62,7 +62,10 @@ export function smoothFit(style: CharStyle, human: boolean, width = 1): SmoothFi
   }
 }
 
-/** Whether a worn outfit (by look index) or back item (by name) is a prestige one: the only body gear drawn on smooth bodies. */
+/**
+ * Whether a worn outfit (by look index) or back item (by name) is a prestige one: the only body gear drawn on smooth
+ * bodies.
+ */
 export const isPrestigeOutfit = (index: number): boolean =>
   index >= PRESTIGE_BASE && index < PRESTIGE_BASE + 100;
 const BACKS = new Set(PRESTIGE_ITEMS.filter((i) => i.slot === "back").map((i) => i.name));
