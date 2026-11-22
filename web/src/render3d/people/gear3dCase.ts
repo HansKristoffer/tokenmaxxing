@@ -33,8 +33,8 @@ const PINK = "#ff3fb0";
 const INK = "#2b2433";
 
 /**
- * A paper lantern on a string, hanging from `at` (cubes) in `parent`: a glowing body with darker ribs, caps and a tassel.
- * The returned pivot is the string's top, so tilting it swings the lantern.
+ * A paper lantern on a string, hanging from `at` (cubes) in `parent`: a glowing body with darker ribs, caps and a
+ * tassel. The returned pivot is the string's top, so tilting it swings the lantern.
  */
 function lantern(
   parent: VoxModel,
@@ -46,6 +46,7 @@ function lantern(
   const pivot = vpart(parent, [at[0] * U, at[1] * U, at[2] * U]);
   const v = new Vx(pivot);
   const h = w * 1.15;
+  // The string runs 1.7 cubes from the pivot down to the top cap.
   const top = -1.7;
   v.b(-0.1, top, -0.1, 0.2, -top, 0.2, INK);
   v.b(-w * 0.35, top - 0.1, -w * 0.35, w * 0.7, 0.4, w * 0.7, INK);
@@ -64,8 +65,7 @@ function swing(c: { tick: BodyCtx["tick"] }, l: VoxModel, phase = 0, axis: "x" |
   });
 }
 
-// MARK: Outfits
-
+/** A wide cuff at each wrist: a coloured sleeve end with a trim band across it. */
 const flare = (c: BodyCtx, color: string, trim: string) =>
   c.arms.forEach((arm) => {
     const v = new Vx(vpart(arm));
@@ -209,6 +209,8 @@ const OUTFITS: Record<number, (c: BodyCtx) => void> = {
   },
   // Dragon satin jacket: teal-black satin with gold rib, a zip, a dragon on the left chest and a big one coiled up the back.
   4: (c) => {
+    // Each segment between two points is cut into six blocks, so the body reads as one line; a dark gold edge
+    // goes under the gold.
     const dragon = (g: CanvasRenderingContext2D, pts: [number, number][], r: number) => {
       const path: [number, number][] = [];
       for (let i = 1; i < pts.length; i++) {
@@ -345,8 +347,6 @@ for (const [n, build] of Object.entries(OUTFITS)) {
   OUTFIT_BUILDERS[CASE_BASE + Number(n)] = build;
 }
 
-// MARK: Held
-
 // biome-ignore format: a catalogue reads best one to a line
 const HELD: Record<string, HeldBuilder> = {
   // Ramen bowl: blue bowl, red rim, broth and noodles with an egg, a fish cake, nori and spring onion; steam, chopsticks.
@@ -412,6 +412,7 @@ const HELD: Record<string, HeldBuilder> = {
           if (r < 1.2) col = GOLD;
           else if (r > 1.8 && edge < 0.4) col = "#b98a4a";
           else col = sector % 2 ? CREAM : RED;
+          // The canopy is a dome: each ring of blocks sits lower toward the rim.
           y = Math.floor((R - r) * 0.42);
         }
 
@@ -477,8 +478,6 @@ const HELD: Record<string, HeldBuilder> = {
 };
 Object.assign(HELD_BUILDERS, HELD);
 
-// MARK: Back
-
 // biome-ignore format: a catalogue reads best one to a line
 const BACKS: Record<string, BackBuilder> = {
   // Neon drone: a chunky quad-drone over the right shoulder: four lit rotor rings, a pink eye, a pink and cyan underlight.
@@ -500,6 +499,7 @@ const BACKS: Record<string, BackBuilder> = {
     ] as const) {
       const sx = x > 0 ? 1 : -1;
       const sz = z > 0 ? 1 : -1;
+
       v.b(
         Math.min(0, x) + (sx > 0 ? 2 : 0),
         1.2,
@@ -509,6 +509,7 @@ const BACKS: Record<string, BackBuilder> = {
         Math.abs(z) - 2.4,
         "#454a5c",
       );
+
       v.b(x - 0.7, 0.4, z - 0.7, 1.4, 1.8, 1.4, "#2b2f3a");
       const ringY = 2.2;
       v.b(x - 2.8, ringY, z - 2.8, 5.6, 0.7, 0.7, lit(col));
@@ -575,15 +576,24 @@ const BACKS: Record<string, BackBuilder> = {
       const rad = 6.8 + rnd() * 1.4;
       const mat = see(cols[i % cols.length]!, 1, true);
       const m = new Vx(b).b(0, 0, 0, 0.6, 3.4, 0.6, mat);
-      return { m, mat, x: Math.sin(a) * rad, z: Math.cos(a) * rad * 0.9, p: rnd(), v: 0.55 + rnd() * 0.35 };
+      return {
+        m,
+        mat,
+        x: Math.sin(a) * rad,
+        z: Math.cos(a) * rad * 0.9,
+        p: rnd(),
+        v: 0.55 + rnd() * 0.35,
+      };
     });
     const fall = (t: number, walking: boolean) => {
       cloud.position.y = top * U + Math.sin(t * 1.6) * 0.01;
       const f = Math.sin(t * 3.1) > 0.86;
       for (const m of bolt) m.visible = f;
+
       for (const d of drops) {
         const k = (t * d.v * (walking ? 0.9 : 0.7) + d.p) % 1;
         d.m.position.set(d.x * U, (top - 3 - k * 10) * U, d.z * U);
+        // `see(..., true)` builds a MeshBasicMaterial, so the cast to read its opacity is safe.
         (d.mat as THREE.MeshBasicMaterial).opacity = Math.min(1, (1 - k) * 2.6, k * 14);
         d.m.scale.y = 0.6 + (1 - k) * 0.6;
       }

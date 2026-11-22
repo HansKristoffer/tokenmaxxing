@@ -10,20 +10,11 @@ import type { Model } from "../kit/kit.ts";
 import { shimmer } from "./gear3dPrestige5Aura.ts";
 import "./gear3dPrestige5Body.ts";
 import { band, COVERS_HAIR, type Ctx, HAT_BUILDERS, lit } from "./gear3dHead.ts";
-import { isVox } from "./voxgear.ts";
+import { isVox, roundAt } from "./voxgear.ts";
 
 const PEARL = "#f4f0ff";
 const PEARL_SHADE = "#cfc6ea";
 const PINK = "#ff7ad9";
-
-/** A point at angle `a` round a head: on a circle for smooth models, on the square band for blocky ones. */
-function roundAt(m: Model, a: number, r: number): [number, number] {
-  const x = Math.sin(a);
-  const z = Math.cos(a);
-  if (!isVox(m)) return [x * r, z * r];
-  const k = (r * 0.92) / Math.max(Math.abs(x), Math.abs(z));
-  return [x * k, z * k];
-}
 
 /**
  * A pearl crown of seven points, a gem on each that walks round the whole spectrum, a band of pearl with fourteen

@@ -25,6 +25,7 @@ function basic(color: string, opacity: number): THREE.Material {
   return m;
 }
 
+/** Smoothstep: 0 up to `a`, 1 from `b` on, and an eased curve between. */
 const smooth = (a: number, b: number, x: number) => {
   const k = Math.min(1, Math.max(0, (x - a) / (b - a)));
   return k * k * (3 - 2 * k);
@@ -79,9 +80,10 @@ AURA_BUILDERS["Bubble stream"] = (m, tick) => {
       const z = Math.cos(a) * r;
       b.o.position.set(x, y, z);
       // Born small, full size most of its life, swelling and vanishing in the pop.
+      const born = smooth(0, 0.06, k);
       const pop = smooth(0.94, 0.965, k);
       const swell = 1 + smooth(0.9, 0.96, k) * 0.35;
-      const size = b.d * Math.min(smooth(0, 0.06, k), 1 - pop) * swell * cubes;
+      const size = b.d * Math.min(born, 1 - pop) * swell * cubes;
       const wob = Math.sin(t * 5 + b.w) * 0.09;
       b.o.scale.set(size * (1 + wob), size * (1 - wob), size);
       b.o.visible = size > 0.002;

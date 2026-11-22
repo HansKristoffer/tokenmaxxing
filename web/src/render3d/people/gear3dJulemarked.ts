@@ -13,7 +13,7 @@ import type { Model, Paint } from "../kit/kit.ts";
 import "./gear3dJulemarkedBody.ts";
 import { HELD_BUILDERS, type HeldBuilder } from "./gear3dBody.ts";
 import { COVERS_HAIR, EYE_Y, eyeAt, FACE_BUILDERS, HAT_BUILDERS, lit, see, sign } from "./gear3dHead.ts";
-import { boxRing, isVox } from "./voxgear.ts";
+import { boxRing, isVox, roundAt } from "./voxgear.ts";
 
 const RED = "#b8302c";
 const RED_DARK = "#8f2421";
@@ -69,15 +69,6 @@ function cells(
       );
     }
   });
-}
-
-/** A point at angle `a` round a head: on a circle for smooth models, on the square band for blocky ones. */
-function roundAt(m: THREE.Object3D, a: number, r: number): [number, number] {
-  const x = Math.sin(a);
-  const z = Math.cos(a);
-  if (!isVox(m)) return [x * r, z * r];
-  const k = (r * 0.92) / Math.max(Math.abs(x), Math.abs(z));
-  return [x * k, z * k];
 }
 
 // MARK: Hats

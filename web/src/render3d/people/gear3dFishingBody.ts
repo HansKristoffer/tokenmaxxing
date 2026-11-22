@@ -22,8 +22,6 @@ const TEAL_LIGHT = "#5cc7b5";
 const BRASS = "#d9a441";
 const BLACK = "#2b2f36";
 
-// MARK: Held
-
 // biome-ignore format: a catalogue reads best one to a line
 const HELD: Record<string, HeldBuilder> = {
   // Golden rod: a gold rod held at a slant, a cork grip, a reel with a crank, gold guides and a thin line hanging off the
@@ -50,11 +48,11 @@ const HELD: Record<string, HeldBuilder> = {
     // The blank, three tapering gold sections joined at the bends, with a guide ring under each.
     let at = rod.part([0, 0.078, 0]);
     let tip = 0;
-    const lens = [0.15, 0.15, 0.11];
+    const lengths = [0.15, 0.15, 0.11];
     const radii = [0.0125, 0.0098, 0.0072, 0.0045];
-    lens.forEach((len, i) => {
+    lengths.forEach((len, i) => {
       if (i) {
-        const next = at.part([0, lens[i - 1]!, 0]);
+        const next = at.part([0, lengths[i - 1]!, 0]);
         next.rotation.x = bends[i]!;
         at = next;
       }
@@ -63,7 +61,7 @@ const HELD: Record<string, HeldBuilder> = {
       ring(at, GOLD_DARK, 0.007, 0.0018, [0, len * 0.55, 0.016], true);
       tip += bends[i]!;
     });
-    const end = at.part([0, lens[2]!, 0]);
+    const end = at.part([0, lengths[2]!, 0]);
     end.ball(0.007, GOLD_DARK, [0, 0, 0]);
     // The line hangs straight down from the tip whatever the rod does (the lean and the bends undone), to the bobber.
     const sag = -(lean + tip);
@@ -95,8 +93,6 @@ const HELD: Record<string, HeldBuilder> = {
   },
 };
 Object.assign(HELD_BUILDERS, HELD);
-
-// MARK: Back
 
 /** A lure on a short line, hung from the pivot of `p` (cube units: down is negative). */
 function hung(p: VoxModel, kind: "spoon" | "jig"): void {
@@ -134,21 +130,25 @@ const BACKS: Record<string, BackBuilder> = {
     for (const y of [-7.6, -6.7]) v.b(-3.6, y, -5.0, 7.2, 0.25, 0.25, TEAL_DARK);
     // The lid on its hinge: it sits on the tray's front edge and lifts a hair as you walk.
     const lid = vpart(b, [0, -4.6 * U, -0.2 * U]);
-    const l = new Vx(lid);
+    const lidBlocks = new Vx(lid);
+
     // Takes coordinates in the pack's frame and moves them into the lid's, which sits 4.6 cubes down and 0.2 forward.
-    const at = (x: number, y: number, z: number, w: number, hh: number, d: number, c: string) =>
-      l.b(x, y + 4.6, z + 0.2, w, hh, d, c);
+    const at = (x: number, y: number, z: number, w: number, height: number, d: number, c: string) =>
+      lidBlocks.b(x, y + 4.6, z + 0.2, w, height, d, c);
     at(-4, -4.6, -4.8, 8, 3.0, 4.6, TEAL);
     at(-4.1, -5.0, -4.9, 8.2, 0.5, 4.8, TEAL_DARK);
     at(-3.4, -1.6, -4.4, 6.8, 0.6, 3.8, TEAL_LIGHT);
     for (const y of [-3.6, -2.7]) at(-3.6, y, -5.0, 7.2, 0.25, 0.25, TEAL_DARK);
+
     // The handle: two steel posts and a black grip, standing up from the lid.
     for (const x of [-2.8, 2.2]) at(x, -1.0, -3.4, 0.6, 0.9, 0.9, STEEL);
     at(-2.8, -0.2, -3.5, 5.6, 0.7, 1.1, BLACK);
+
     // A fish sticker on the lid, nose to the left.
     at(-1.3, -3.4, -5.08, 1.8, 0.9, 0.16, "#ffd23f");
     at(0.5, -3.6, -5.08, 0.7, 1.3, 0.16, "#ff9f1c");
     at(-1.1, -3.0, -5.14, 0.3, 0.3, 0.1, BLACK);
+
     // Brass corner caps, front and back, bottom and top.
     for (const x of [-4.2, 3.3]) {
       v.b(x, -8.7, -5.0, 0.9, 0.9, 0.9, BRASS);

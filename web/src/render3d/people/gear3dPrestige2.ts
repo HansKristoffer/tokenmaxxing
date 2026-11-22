@@ -9,7 +9,7 @@ import type { Model } from "../kit/kit.ts";
 import "./gear3dPrestige2Aura.ts";
 import "./gear3dPrestige2Body.ts";
 import { band, type Ctx, HAT_BUILDERS, lit, shaped, star } from "./gear3dHead.ts";
-import { isVox } from "./voxgear.ts";
+import { isVox, roundAt } from "./voxgear.ts";
 
 const MID = "#1b2a6b";
 const MID_L = "#3550c0";
@@ -17,15 +17,6 @@ const CYAN = "#22d3ee";
 const GLOW = "#8cf0ff";
 const PALE = "#ffffff";
 const VIOLET = "#7a5cff";
-
-/** A point at angle `a` round a head: on a circle for smooth models, on the square band for blocky ones. */
-function roundAt(m: Model, a: number, r: number): [number, number] {
-  const x = Math.sin(a);
-  const z = Math.cos(a);
-  if (!isVox(m)) return [x * r, z * r];
-  const k = (r * 0.92) / Math.max(Math.abs(x), Math.abs(z));
-  return [x * k, z * k];
-}
 
 /**
  * A midnight-blue crown with five points, each tipped with a glowing star, a cyan gem and a big four-point star over

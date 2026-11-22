@@ -129,6 +129,15 @@ export function vpart(parent: THREE.Object3D, at: V3 = [0, 0, 0]): VoxModel {
 
 export const isVox = (m: THREE.Object3D): m is VoxModel => m instanceof VoxModel;
 
+/** A point at angle `a` round a head: on a circle for smooth models, on the square band for blocky ones. */
+export function roundAt(m: THREE.Object3D, a: number, r: number): [number, number] {
+  const x = Math.sin(a);
+  const z = Math.cos(a);
+  if (!isVox(m)) return [x * r, z * r];
+  const k = (r * 0.92) / Math.max(Math.abs(x), Math.abs(z));
+  return [x * k, z * k];
+}
+
 /** Applies a tilt only to smooth models: blocks stay square to the grid. */
 export function tilt<T extends THREE.Object3D>(m: THREE.Object3D, o: T, x = 0, y = 0, z = 0): T {
   if (!isVox(m)) o.rotation.set(x, y, z);
