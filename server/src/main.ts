@@ -220,7 +220,8 @@ const server = Bun.serve({
     },
   },
   fetch(req, server) {
-    const path = new URL(req.url).pathname;
+    const url = new URL(req.url);
+    const path = url.pathname;
     // The pages themselves only at /play and /admin, with their headers.
     const asset = path.endsWith(".html") ? undefined : assets.get(path);
     if (asset)
@@ -241,7 +242,7 @@ const server = Bun.serve({
       return new Response(page, {
         headers: headersFor("site", req, { "cache-control": siteCacheControl(path) }),
       });
-    return proxy.fetch(req, server);
+    return proxy.fetch(req, server, url);
   },
   websocket: proxy.websocket,
 });

@@ -84,6 +84,7 @@ function logoBoard(brand: Brand, w: number, h: number, frame: string): Model {
     g.restore();
   };
   const tex = canvasTexture(cw, ch, draw, true);
+  tex.userData.mutable = true;
   const face = m.plane(w, h, painted(tex), [0, (h + 0.12) / 2, 0.045]);
   nightGlow(face, glow("#fff", tex));
   return m;

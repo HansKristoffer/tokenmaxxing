@@ -61,8 +61,22 @@ const fixed = (hex: string): THREE.Color => {
   }
   return c;
 };
-const mixCol = (a: THREE.Color, b: THREE.Color, k: number) => a.clone().lerp(b, clamp01(k));
+const mixTo = (out: THREE.Color, a: THREE.Color, b: THREE.Color, k: number) =>
+  out.copy(a).lerp(b, clamp01(k));
 const scratch = new THREE.Color();
+const tmpColA = new THREE.Color();
+const tmpColB = new THREE.Color();
+const tmpColC = new THREE.Color();
+const tmpColD = new THREE.Color();
+const tmpHemi = new THREE.Color();
+const tmpSun = new THREE.Color();
+const tmpBg = new THREE.Color();
+const murkGrey = new THREE.Color(0.7, 0.72, 0.76);
+const skyAt = new THREE.Vector3();
+const windVec = new THREE.Vector2();
+const rainVel = new THREE.Vector3();
+const rainDir = new THREE.Vector3();
+const UP_Y = new THREE.Vector3(0, 1, 0);
 /** A 0..255 sRGB triple as a colour, in a shared scratch (read it before the next call). */
 const srgb = (c: readonly [number, number, number]) =>
   scratch.setRGB(c[0] / 255, c[1] / 255, c[2] / 255, THREE.SRGBColorSpace);
@@ -222,13 +236,14 @@ class Particles {
     // Rain: streaks slanted with the wind.
     if (rainN) {
       const speed = w.kind === "drizzle" ? 9 : w.kind === "storm" ? 17 : 14;
-      const vel = new THREE.Vector3(wind.x * 3, -speed, wind.y * 3);
-      this.q.setFromUnitVectors(new THREE.Vector3(0, 1, 0), vel.clone().normalize().negate());
+      rainVel.set(wind.x * 3, -speed, wind.y * 3);
+      rainDir.copy(rainVel).normalize().negate();
+      this.q.setFromUnitVectors(UP_Y, rainDir);
       const k = w.kind === "drizzle" ? 0.6 : w.kind === "storm" ? 1.4 : 1;
       this.s.set(1, k, 1);
       for (let i = 0; i < rainN; i++) {
         const p = this.rainPos[i]!;
-        p.addScaledVector(vel, dt * (0.8 + (i % 7) * 0.06));
+        p.addScaledVector(rainVel, dt * (0.8 + (i % 7) * 0.06));
         if (p.y < 0.05) {
           if (Math.random() < 0.05) this.drop(p.x, p.z);
           p.set((Math.random() - 0.5) * 2 * REACH, 10 + Math.random() * 3, (Math.random() - 0.5) * 2 * REACH);
@@ -460,7 +475,7 @@ export class Fx {
     this.lit.glow = lerp(this.lit.glow, glowTarget, blend);
     const { dark, warm, glow } = this.lit;
     this.flashBoost = this.particles.flash;
-    this.applyLight(dark, warm, murk, ms);
+    this.applyLight(dark, warm, murk, ms, l.elevation);
 
     // Lamps and windows come on once it's dim enough.
     if (!this.nightOn && glow > 0.4) {
@@ -477,8 +492,8 @@ export class Fx {
     if (inTown) {
       if (this.sky.parent !== stage.scene) stage.scene.add(this.sky);
       // Centred on the frustum, not the camera: the rig slides the window off-centre to clear the HUD.
-      const at = new THREE.Vector3((camera.left + camera.right) / 2, (camera.top + camera.bottom) / 2, -150);
-      this.sky.position.copy(at.applyQuaternion(camera.quaternion)).add(camera.position);
+      skyAt.set((camera.left + camera.right) / 2, (camera.top + camera.bottom) / 2, -150);
+      this.sky.position.copy(skyAt.applyQuaternion(camera.quaternion)).add(camera.position);
       this.sky.quaternion.copy(camera.quaternion);
       const sw = (camera.right - camera.left) * 1.05;
       const sh = (camera.top - camera.bottom) * 1.05;
@@ -492,31 +507,32 @@ export class Fx {
       const nightH = fixed("#1a2145");
       const grey = fixed("#8c97a6");
       const greyH = fixed("#c3c9d0");
-      let top = mixCol(day, warmT, warm * 0.85);
-      let hor = mixCol(dayH, warmH, warm * 0.85);
-      top = mixCol(top, nightT, dark ** 1.3);
-      hor = mixCol(hor, nightH, dark ** 1.3);
+      const top = mixTo(tmpColA, day, warmT, warm * 0.85);
+      const hor = mixTo(tmpColB, dayH, warmH, warm * 0.85);
+      top.lerp(nightT, clamp01(dark ** 1.3));
+      hor.lerp(nightH, clamp01(dark ** 1.3));
       const fest = this.festive;
       if (fest) {
         // Violet-orange or candle and snow-blue, mostly at dusk and in the dark.
         const g = festiveGrade(fest, dark, warm);
         const sk = SKY[fest.id];
-        const kk = Math.min(1, g.k * 1.1);
-        top = mixCol(top, mixCol(fixed(sk.duskTop), fixed(sk.nightTop), dark ** 0.8), kk);
-        hor = mixCol(hor, mixCol(fixed(sk.duskHor), fixed(sk.nightHor), dark ** 0.8), kk);
+        const kk = clamp01(g.k * 1.1);
+        const dk = dark ** 0.8;
+        top.lerp(mixTo(tmpColC, fixed(sk.duskTop), fixed(sk.nightTop), dk), kk);
+        hor.lerp(mixTo(tmpColC, fixed(sk.duskHor), fixed(sk.nightHor), dk), kk);
       }
       const gk = clamp01(s.cloud * 0.6 + storm * 2 + Math.min(0.3, fog * 0.6)) * (1 - dark * 0.7);
-      top = mixCol(top, grey.clone().multiplyScalar(1 - dark * 0.8 - storm), gk);
-      hor = mixCol(hor, greyH.clone().multiplyScalar(1 - dark * 0.8 - storm), gk);
+      const gScale = 1 - dark * 0.8 - storm;
+      top.lerp(tmpColC.copy(grey).multiplyScalar(gScale), clamp01(gk));
+      hor.lerp(tmpColC.copy(greyH).multiplyScalar(gScale), clamp01(gk));
       u.top!.value.copy(top);
       u.hor!.value.copy(hor);
-      u.cloudCol!.value.copy(
-        mixCol(
-          fixed("#ffffff"),
-          mixCol(fixed("#ffb89a"), fixed("#1b2038"), dark),
-          Math.max(warm * 0.6, dark),
-        ).multiplyScalar(1 - storm * 2.2),
-      );
+      mixTo(
+        u.cloudCol!.value,
+        fixed("#ffffff"),
+        mixTo(tmpColD, fixed("#ffb89a"), fixed("#1b2038"), dark),
+        Math.max(warm * 0.6, dark),
+      ).multiplyScalar(1 - storm * 2.2);
       u.dark!.value = dark;
       u.time!.value = t;
       u.cloud!.value = s.cloud;
@@ -538,9 +554,9 @@ export class Fx {
     // Weather in the town (the indoor stages stay dry).
     const heading = (s.windDir * Math.PI) / 180;
     const gust = Math.min(1, s.windMs / 10);
-    const winds = new THREE.Vector2(-Math.sin(heading) * gust * 2.5, Math.cos(heading) * gust * 1.2);
+    windVec.set(-Math.sin(heading) * gust * 2.5, Math.cos(heading) * gust * 1.2);
     this.particles.group.visible = inTown;
-    this.particles.update(dt, t, s, this.host.town.target, winds);
+    this.particles.update(dt, t, s, this.host.town.target, windVec);
     // Snow settles on up-facing surfaces and melts away; fog banks drift.
     const snowy = s.kind === "snow" && s.intensity > 0.05;
     this.snowAmt.value = lerp(this.snowAmt.value, snowy ? 1 : 0, Math.min(1, dt * 0.5));
@@ -557,13 +573,13 @@ export class Fx {
       mat.color.copy(fixed(mist > fog ? MIST : "#e4e9ee"));
       mat.opacity = lerp(mat.opacity, want, Math.min(1, dt));
       m.visible = mat.opacity > 0.01 && inTown;
-      m.position.x += m.userData.speed * dt * (winds.x >= 0 ? 1 : -1);
+      m.position.x += m.userData.speed * dt * (windVec.x >= 0 ? 1 : -1);
       if (m.position.x > 40) m.position.x = -6;
       if (m.position.x < -6) m.position.x = 40;
     }
   }
 
-  private applyLight(dark: number, warm: number, murk: number, ms: number): void {
+  private applyLight(dark: number, warm: number, murk: number, ms: number, elevation: number): void {
     const dayHemi = fixed("#fff4e0");
     const warmHemi = fixed("#ffc89a");
     const nightHemi = fixed("#8fa0ff");
@@ -575,25 +591,32 @@ export class Fx {
     // Morning on the left, evening on the right; at night the moon takes the same arc.
     const az = Math.max(-1.3, Math.min(1.3, (hours - 13) / 6));
     const flash = this.flashBoost;
+    const darkPow = clamp01(dark ** 1.4);
+    const elev = clamp01(elevation / 55);
+    const sunY = lerp(7, 15, Math.max(elev, dark * 0.6));
+    const hemiInt = lerp(1.6, 0.55, dark) * (1 - murk * 0.25) * (1 - warm * 0.08) + flash * 2.4;
+    const sunInt = Math.max(0.15, lerp(lerp(2.4, 1.8, warm), 0.35, dark) * (1 - murk * 1.1));
+    mixTo(tmpHemi, dayHemi, warmHemi, warm * 0.8).lerp(nightHemi, darkPow);
+    mixTo(tmpSun, daySun, warmSun, warm * 0.8).lerp(nightSun, darkPow);
+    const fest = this.festive;
+    if (fest) {
+      const g = festiveGrade(fest, dark, warm);
+      const fk = Math.min(1, g.k * 1.5);
+      const fc = srgb(g.rgb as [number, number, number]);
+      tmpHemi.lerp(fc, fk);
+      tmpSun.lerp(fc, fk);
+    }
+    tmpHemi.lerp(murkGrey, murk * 0.5);
+    tmpSun.lerp(murkGrey, murk * 0.5);
+    mixTo(tmpBg, fixed("#1b1f2a"), fixed("#0f111a"), dark);
     for (const s of this.host.stages) {
-      const h = mixCol(mixCol(dayHemi, warmHemi, warm * 0.8), nightHemi, dark ** 1.4);
-      const sc = mixCol(mixCol(daySun, warmSun, warm * 0.8), nightSun, dark ** 1.4);
-      const grey = (c: THREE.Color) => c.lerp(new THREE.Color(0.7, 0.72, 0.76), murk * 0.5);
-      const fest = this.festive;
-      if (fest) {
-        const g = festiveGrade(fest, dark, warm);
-        h.lerp(srgb(g.rgb as [number, number, number]), Math.min(1, g.k * 1.5));
-        sc.lerp(srgb(g.rgb as [number, number, number]), Math.min(1, g.k * 1.5));
-      }
-      s.hemi.color.copy(grey(h));
-      s.sun.color.copy(grey(sc));
-      s.hemi.intensity = lerp(1.6, 0.55, dark) * (1 - murk * 0.25) * (1 - warm * 0.08) + flash * 2.4;
-      s.sun.intensity = lerp(lerp(2.4, 1.8, warm), 0.35, dark) * (1 - murk * 1.1);
-      s.sun.intensity = Math.max(0.15, s.sun.intensity);
-      const elev = clamp01(this.opts.light(ms).elevation / 55);
-      s.sun.position.set(s.target.x + az * 14, lerp(7, 15, Math.max(elev, dark * 0.6)), s.target.z + 7);
+      s.hemi.color.copy(tmpHemi);
+      s.sun.color.copy(tmpSun);
+      s.hemi.intensity = hemiInt;
+      s.sun.intensity = sunInt;
+      s.sun.position.set(s.target.x + az * 14, sunY, s.target.z + 7);
       s.sun.target.position.copy(s.target);
-      (s.scene.background as THREE.Color | null)?.copy(mixCol(fixed("#1b1f2a"), fixed("#0f111a"), dark));
+      (s.scene.background as THREE.Color | null)?.copy(tmpBg);
     }
   }
 
@@ -606,7 +629,8 @@ export class Fx {
       t - this.lightsAt < 1.5;
     if (unchanged) return;
 
-    this.lampsApplied = { glow, dim };
+    this.lampsApplied.glow = glow;
+    this.lampsApplied.dim = dim;
     setStreetLampDim(dim);
     // The lamp list is searched again every 1.5 s, not every frame: a room may have been built since.
     const refresh = t - this.lightsAt > 1.5;

@@ -45,7 +45,7 @@ import { picnicsOf } from "./picnic.ts";
 import { badgesOf } from "./prestige.ts";
 import { questsCleared } from "./quests.ts";
 import { ticketsOf } from "./tickets.ts";
-import { levelOf, lookOf, TOKENS, tokensIn, USER_COLS, type UserRow, userById } from "./users.ts";
+import { lookOf, TOKENS, tokensIn, USER_COLS, type UserRow, userById } from "./users.ts";
 
 export interface BoardPlayer extends Totals {
   rank: number;
@@ -255,8 +255,24 @@ const byRange = new Map<string, ReturnType<typeof buildBoard>>();
 /** Every player's tokens per day over the last 30 days, kept like `byRange`. */
 const dailyByDays = new Map<string, Promise<Map<number, number[]>>>();
 
+interface TodayEntry {
+  rank: number;
+  userId: number;
+  name: string;
+  tokens: number;
+}
+interface TodayCache {
+  top: TodayEntry[];
+  byUser: Map<number, TodayEntry>;
+  count: number;
+}
+/** Today's ranked totals per database instance, cleared by `boardsChanged` and on day rollover. */
+let boardsVersion = 0;
+const todayCache = new WeakMap<Sql, { ver: number; day: string; data: Promise<TodayCache> }>();
+
 /** Something on the boards changed: a sync, a sign-up, a new name or look, someone joining or leaving. */
 export function boardsChanged(): void {
+  boardsVersion++;
   byRange.clear();
   dailyByDays.clear();
 }
@@ -583,30 +599,64 @@ export async function trend(sql: Sql, userId: number, now: number): Promise<Tren
   };
 }
 
-/**
- * The corner is polled by every open tab and after every sync, so it reads only today's usage (the
- * `usage_day` index) rather than the whole board: anyone with no tokens today ranks below everyone here.
- */
-export async function today(sql: Sql, userId: number, now: number): Promise<Today> {
-  const u = await userById(sql, userId);
+async function loadToday(sql: Sql, day: string): Promise<TodayCache> {
   const busy = await all<{ userId: number; name: string; tokens: number }>(
     sql,
     `SELECT u.id AS userId, u.name, SUM(${TOKENS}) AS tokens
      FROM usage_daily d JOIN users u ON u.id = d.user_id WHERE d.day = ? GROUP BY u.id`,
-    dayKey(now),
+    day,
   );
   // As `rank` sorts by tokens: the most first, ties by name.
-  const ranked = busy
+  const ranked: TodayEntry[] = busy
     .filter((p) => p.tokens > 0)
     .sort((a, b) => b.tokens - a.tokens || a.name.localeCompare(b.name))
-    .map((p, i) => ({ ...p, rank: i + 1, isMe: p.userId === userId }));
-  const mine = ranked.find((p) => p.isMe);
-  const top = ranked.slice(0, TODAY_TOP);
+    .map((p, i) => ({ rank: i + 1, userId: p.userId, name: p.name, tokens: p.tokens }));
+  const byUser = new Map<number, TodayEntry>();
+  for (const r of ranked) byUser.set(r.userId, r);
+  return { top: ranked.slice(0, TODAY_TOP), byUser, count: ranked.length };
+}
+
+function todayOf(sql: Sql, day: string): Promise<TodayCache> {
+  const hit = todayCache.get(sql);
+  if (hit && hit.ver === boardsVersion && hit.day === day) return hit.data;
+  const ver = boardsVersion;
+  const data = loadToday(sql, day);
+  const entry = { ver, day, data };
+  todayCache.set(sql, entry);
+  data.catch(() => {
+    if (todayCache.get(sql) === entry) todayCache.delete(sql);
+  });
+  return data;
+}
+
+/**
+ * The corner is polled by every open tab and after every sync, so today's ranked list is kept per day
+ * until `boardsChanged()` drops it: each poll only reads the caller's own level (and name if unranked).
+ */
+export async function today(sql: Sql, userId: number, now: number): Promise<Today> {
+  const day = dayKey(now);
+  const [board, self] = await Promise.all([
+    todayOf(sql, day),
+    one<{ name: string; lifetime: number }>(
+      sql,
+      `SELECT u.name, COALESCE((SELECT SUM(${TOKENS}) FROM usage_daily WHERE user_id = u.id), 0) AS lifetime
+       FROM users u WHERE u.id = ?`,
+      userId,
+    ),
+  ]);
+  if (!self) await userById(sql, userId); // preserves the exact `not_found` UserError
+  const mine = board.byUser.get(userId);
+  const top = board.top.map((p) => ({ ...p, isMe: p.userId === userId }));
   return {
-    me: { rank: mine?.rank ?? null, tokensToday: mine?.tokens ?? 0, level: await levelOf(sql, userId) },
+    me: { rank: mine?.rank ?? null, tokensToday: mine?.tokens ?? 0, level: levelFor(self!.lifetime) },
     top:
       mine && mine.rank <= TODAY_TOP
         ? top
-        : [...top, mine ?? { rank: ranked.length + 1, userId, name: u.name, tokens: 0, isMe: true }],
+        : [
+            ...top,
+            mine
+              ? { ...mine, isMe: true }
+              : { rank: board.count + 1, userId, name: self!.name, tokens: 0, isMe: true },
+          ],
   };
 }

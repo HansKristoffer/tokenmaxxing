@@ -27,7 +27,6 @@ export interface Cell {
 }
 
 const key = (x: number, y: number, z: number) => ((x + 128) << 16) | ((y + 128) << 8) | (z + 128);
-const unkey = (k: number): V3 => [(k >> 16) - 128, ((k >> 8) & 255) - 128, (k & 255) - 128];
 
 /** A repeatable hash in [0, 1). */
 export function hash(x: number, y: number, z: number, seed = 0): number {
@@ -65,9 +64,11 @@ export function color(c: string): THREE.Color {
   return r;
 }
 
+const mixScratch = new THREE.Color();
+
 /** `a` mixed towards `b` by `k`. */
 export function mix(a: string, b: string, k: number): string {
-  return `#${color(a).clone().lerp(color(b), k).getHexString(THREE.SRGBColorSpace)}`;
+  return `#${mixScratch.copy(color(a)).lerp(color(b), k).getHexString(THREE.SRGBColorSpace)}`;
 }
 export const lighten = (c: string, k: number) => mix(c, "#ffffff", k);
 export const darken = (c: string, k: number) => mix(c, "#0c0a12", k);
@@ -96,7 +97,7 @@ export class Grid {
 
   /** Every cell as [x, y, z, colour]. */
   each(fn: (x: number, y: number, z: number, c: Rgb) => void): void {
-    for (const [k, c] of this.cells) fn(...unkey(k), c);
+    for (const [k, c] of this.cells) fn((k >> 16) - 128, ((k >> 8) & 255) - 128, (k & 255) - 128, c);
   }
 
   /** A solid box, corners inclusive. */
@@ -173,8 +174,10 @@ export class Grid {
     const du = Math.max(1, b.z1 - b.z0);
     const dt = Math.max(1, b.y1 - b.y0);
     const ds = Math.max(1, Math.max(Math.abs(b.x0), Math.abs(b.x1)));
-    for (const [k, c] of [...this.cells]) {
-      const [x, y, z] = unkey(k);
+    for (const [k, c] of this.cells) {
+      const x = (k >> 16) - 128;
+      const y = ((k >> 8) & 255) - 128;
+      const z = (k & 255) - 128;
       const n = fn({ x, y, z, u: (z - b.z0) / du, t: (y - b.y0) / dt, s: x / ds, c });
       if (n) this.cells.set(k, n);
     }
@@ -327,70 +330,101 @@ export interface BakeOpts {
 // Entries live only while meshes own them; identical legs, eyes and pets share immutable buffers.
 const surfaces = new Map<string, { solid: THREE.BufferGeometry; lit?: THREE.BufferGeometry; refs: number }>();
 
+const CORNERS: readonly (readonly [number, number])[] = [
+  [-1, -1],
+  [1, -1],
+  [1, 1],
+  [-1, 1],
+];
+
 /** Cells whose colour starts with "*" glow (unlit); everything else is shaded. */
 export function bake(g: Grid, o: BakeOpts = {}): THREE.Mesh {
   const [ox, oy, oz] = o.origin ?? [0, 0, 0];
   const seed = o.seed ?? 0;
   const jit = o.jitter ?? 0.045;
-  const cacheKey = JSON.stringify([[...g.cells], ox, oy, oz, seed, jit, o.flat ?? false]);
+  const flat = o.flat ?? false;
+  const cells = g.cells;
+  let cacheKey = `${ox},${oy},${oz},${seed},${jit},${flat ? 1 : 0},${cells.size}`;
+  for (const [ck, cc] of cells) cacheKey += `|${ck}:${cc}`;
   const cached = surfaces.get(cacheKey);
   if (cached) return ownSurface(cacheKey, cached, o.opacity ?? 1);
   const solid = { p: [] as number[], c: [] as number[], n: [] as number[], i: [] as number[] };
   const lit = { p: [] as number[], c: [] as number[], n: [] as number[], i: [] as number[] };
-  const tmp = new THREE.Color();
-  g.each((x, y, z, raw) => {
-    const glow = raw.startsWith("*");
+  const aoVals = [1, 1, 1, 1];
+  for (const [ck, raw] of cells) {
+    const x = (ck >> 16) - 128;
+    const y = ((ck >> 8) & 255) - 128;
+    const z = (ck & 255) - 128;
+    const glow = raw.charCodeAt(0) === 42; // '*'
     const base = color(glow ? raw.slice(1) : raw);
+    const br = base.r;
+    const bg = base.g;
+    const bb = base.b;
     const out = glow ? lit : solid;
     const vj = hash(x, y, z, seed + 3) * 2 - 1;
-    for (const f of FACES) {
-      const [nx, ny, nz] = f.n;
-      if (g.has(x + nx, y + ny, z + nz)) continue;
+    const unlit = glow || flat;
+    for (let fi = 0; fi < FACES.length; fi++) {
+      const f = FACES[fi]!;
+      const nx = f.n[0];
+      const ny = f.n[1];
+      const nz = f.n[2];
+      const bx = x + nx;
+      const by = y + ny;
+      const bz = z + nz;
+      if (cells.has(key(bx, by, bz))) continue;
       const fj = hash(x, y, z, seed + 11 + nx * 2 + ny * 3 + nz * 5) * 2 - 1;
       // The face's shade, then the colour jitter: 65% from the voxel and 35% from the face.
-      const k = (glow || o.flat ? 1 : f.shade) * (1 + jit * (0.65 * vj + 0.35 * fj));
-      const ao: number[] = [];
-      const corners: [number, number][] = [
-        [-1, -1],
-        [1, -1],
-        [1, 1],
-        [-1, 1],
-      ];
-      for (const [su, sw] of corners) {
-        if (glow || o.flat) {
-          ao.push(1);
-          continue;
+      const k = (unlit ? 1 : f.shade) * (1 + jit * (0.65 * vj + 0.35 * fj));
+      const ux = f.u[0];
+      const uy = f.u[1];
+      const uz = f.u[2];
+      const wx = f.w[0];
+      const wy = f.w[1];
+      const wz = f.w[2];
+      if (unlit) {
+        aoVals[0] = aoVals[1] = aoVals[2] = aoVals[3] = 1;
+      } else {
+        for (let ci = 0; ci < 4; ci++) {
+          const su = CORNERS[ci]![0];
+          const sw = CORNERS[ci]![1];
+          const side1 = cells.has(key(bx + su * ux, by + su * uy, bz + su * uz)) ? 1 : 0;
+          const side2 = cells.has(key(bx + sw * wx, by + sw * wy, bz + sw * wz)) ? 1 : 0;
+          if (side1 && side2) {
+            aoVals[ci] = AO[0]!;
+          } else {
+            const diagonal = cells.has(
+              key(bx + su * ux + sw * wx, by + su * uy + sw * wy, bz + su * uz + sw * wz),
+            )
+              ? 1
+              : 0;
+            aoVals[ci] = AO[3 - (side1 + side2 + diagonal)]!;
+          }
         }
-        const side1 = g.has(x + nx + su * f.u[0], y + ny + su * f.u[1], z + nz + su * f.u[2]) ? 1 : 0;
-        const side2 = g.has(x + nx + sw * f.w[0], y + ny + sw * f.w[1], z + nz + sw * f.w[2]) ? 1 : 0;
-        const diagonal = g.has(
-          x + nx + su * f.u[0] + sw * f.w[0],
-          y + ny + su * f.u[1] + sw * f.w[1],
-          z + nz + su * f.u[2] + sw * f.w[2],
-        )
-          ? 1
-          : 0;
-        // Two solid sides close the corner fully (darkest). Otherwise each solid neighbour darkens it one step.
-        ao.push(AO[side1 && side2 ? 0 : 3 - (side1 + side2 + diagonal)]!);
       }
-      const vs = corners.map(([su, sw]) => [
-        (x - ox + 0.5 * (nx + su * f.u[0] + sw * f.w[0])) * VOX,
-        (y - oy + 0.5 * (ny + su * f.u[1] + sw * f.w[1])) * VOX,
-        (z - oz + 0.5 * (nz + su * f.u[2] + sw * f.w[2])) * VOX,
-      ]);
-      // Split the quad along the diagonal that keeps the occlusion gradient smooth.
-      const flip = ao[0]! + ao[2]! < ao[1]! + ao[3]!;
-      const order = flip ? [1, 2, 3, 1, 3, 0] : [0, 1, 2, 0, 2, 3];
       const first = out.p.length / 3;
-      for (const i of order) out.i.push(first + i);
-      for (let i = 0; i < 4; i++) {
-        out.p.push(...vs[i]!);
+      // Split the quad along the diagonal that keeps the occlusion gradient smooth.
+      if (aoVals[0]! + aoVals[2]! < aoVals[1]! + aoVals[3]!) {
+        out.i.push(first + 1, first + 2, first + 3, first + 1, first + 3, first);
+      } else {
+        out.i.push(first, first + 1, first + 2, first, first + 2, first + 3);
+      }
+      const cx0 = x - ox + 0.5 * nx;
+      const cy0 = y - oy + 0.5 * ny;
+      const cz0 = z - oz + 0.5 * nz;
+      for (let ci = 0; ci < 4; ci++) {
+        const su = CORNERS[ci]![0];
+        const sw = CORNERS[ci]![1];
+        out.p.push(
+          (cx0 + 0.5 * (su * ux + sw * wx)) * VOX,
+          (cy0 + 0.5 * (su * uy + sw * wy)) * VOX,
+          (cz0 + 0.5 * (su * uz + sw * wz)) * VOX,
+        );
         out.n.push(nx, ny, nz);
-        tmp.copy(base).multiplyScalar(k * ao[i]!);
-        out.c.push(tmp.r, tmp.g, tmp.b);
+        const s = k * aoVals[ci]!;
+        out.c.push(br * s, bg * s, bb * s);
       }
     }
-  });
+  }
   const geo = (d: typeof solid) => {
     const bg = new THREE.BufferGeometry();
     bg.setIndex(d.i);

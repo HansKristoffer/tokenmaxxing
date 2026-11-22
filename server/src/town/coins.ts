@@ -424,12 +424,17 @@ export async function buy(sql: Sql, userId: number, item: Item, now: number, kep
   // A dance is learned once: a second copy would do nothing, and it can't be traded on.
   if (item.slot === "dance" && (await holds(sql, userId, item.id)))
     throw new UserError("You know that dance already.", { code: "owned" });
-  if ((await wallet(sql, userId, now, kept)).balance < item.price)
-    throw new UserError("Not enough coins yet.", { code: "too_poor" });
+  const w = await wallet(sql, userId, now, kept);
+  if (w.balance < item.price) throw new UserError("Not enough coins yet.", { code: "too_poor" });
   // The item first: if the purchase write fails, it was free rather than paid for and lost.
   await giveItem(sql, userId, item.id, now);
   await addPurchase(sql, userId, item.id, item.price, now);
-  return wallet(sql, userId, now, kept);
+  return {
+    ...w,
+    balance: w.balance - item.price,
+    items: w.items + 1,
+    owned: w.owned.includes(item.id) ? w.owned : [...w.owned, item.id],
+  };
 }
 
 /**
@@ -450,14 +455,19 @@ export async function buyMerch(
   const price = merchPrice(item.id.split(".")[2] as MerchKind, employee);
   if (price === 0 && (await holds(sql, userId, item.id)))
     throw new UserError("You have one already: the free one is one each.", { code: "owned" });
-  if ((await wallet(sql, userId, now, kept)).balance < price)
-    throw new UserError("Not enough coins yet.", { code: "too_poor" });
+  const w = await wallet(sql, userId, now, kept);
+  if (w.balance < price) throw new UserError("Not enough coins yet.", { code: "too_poor" });
   await giveItem(sql, userId, item.id, now);
   if (price > 0) {
     await addPurchase(sql, userId, item.id, price, now);
     await companyLedgerAdd(sql, company.id, userId, price, "merch", item.id, now);
   }
-  return wallet(sql, userId, now, kept);
+  return {
+    ...w,
+    balance: w.balance - price,
+    items: w.items + 1,
+    owned: w.owned.includes(item.id) ? w.owned : [...w.owned, item.id],
+  };
 }
 
 /** Someone's office. Every office is open: anyone can walk in. */

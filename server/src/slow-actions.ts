@@ -8,6 +8,22 @@ export const SLOW_ACTION_MS = 5_000;
 type Definition = { config: { actions?: Record<string, unknown> } };
 type Ctx = { key?: unknown[] };
 
+function reportSlow(
+  name: string,
+  action: string,
+  c: Ctx,
+  start: number,
+  failed: boolean,
+  slowMs: number,
+  log: (line: string) => void,
+): void {
+  const ms = Math.round(performance.now() - start);
+  if (ms < slowMs) return;
+  const key = c?.key?.join("/") ?? "";
+  const outcome = failed ? " (failed)" : "";
+  log(`[slow] ${name}[${key}].${action} ${ms} ms${outcome}`);
+}
+
 /** Times every action of `definition`, in place. */
 export function logSlowActions(
   name: string,
@@ -20,31 +36,26 @@ export function logSlowActions(
     if (typeof handler !== "function") continue;
     actions[action] = (c: Ctx, ...args: unknown[]) => {
       const start = performance.now();
-      const done = (failed: boolean) => {
-        const ms = Math.round(performance.now() - start);
-        if (ms < slowMs) return;
-
-        const key = c?.key?.join("/") ?? "";
-        const outcome = failed ? " (failed)" : "";
-        log(`[slow] ${name}[${key}].${action} ${ms} ms${outcome}`);
-      };
-
       let out: unknown;
       try {
         out = handler(c, ...args);
       } catch (err) {
-        done(true);
+        if (performance.now() - start >= slowMs) reportSlow(name, action, c, start, true, slowMs, log);
         throw err;
       }
 
       // The timing only observes the result: the caller still gets the promise itself.
       if (out instanceof Promise) {
         out.then(
-          () => done(false),
-          () => done(true),
+          () => {
+            if (performance.now() - start >= slowMs) reportSlow(name, action, c, start, false, slowMs, log);
+          },
+          () => {
+            if (performance.now() - start >= slowMs) reportSlow(name, action, c, start, true, slowMs, log);
+          },
         );
-      } else {
-        done(false);
+      } else if (performance.now() - start >= slowMs) {
+        reportSlow(name, action, c, start, false, slowMs, log);
       }
       return out;
     };

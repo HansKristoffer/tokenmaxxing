@@ -38,7 +38,7 @@ import { Burst, type Overlay } from "../engine/overlay.ts";
 import { Model } from "../kit/kit.ts";
 import { type Pet3D, petFrom2D } from "../pets/pets3d.ts";
 import type { RoomView } from "../rooms/rooms.ts";
-import { Breath, neckOf, scarf } from "../town/cold3d.ts";
+import { BreathPool, neckOf, scarf } from "../town/cold3d.ts";
 import { STOOL_Y, seatPose } from "../town/gamefx.ts";
 import { CopWatch, ShowcaseCache } from "../town/world-logic.ts";
 import { Aura } from "./aura3d.ts";
@@ -80,9 +80,8 @@ interface Rig {
   seen: number;
   bedroll: Model | null;
   halo: THREE.Mesh | null;
-  /** The cold (`town/cold3d.ts`): where their neck is (-1 until measured), their breath and, on a bot, a scarf. */
+  /** The cold (`town/cold3d.ts`): where their neck is (-1 until measured) and, on a bot, a scarf. */
   neck: number;
-  breath: Breath | null;
   scarf: Model | null;
   /** How far into a sneeze they are this frame (0..1), or null. */
   sneeze: number | null;
@@ -181,6 +180,8 @@ export class Entities {
   private bursts = 0;
   /** What the cold does to people this frame: outdoors only. */
   private chill: Chill | null = null;
+  /** Shared instanced mesh for everyone's cold-weather breath puffs (1 draw call for the whole crowd). */
+  private readonly breathPool = new BreathPool();
   /** Bots whose bodies the room draws itself. */
   private keepers: ReadonlySet<number> = new Set();
   private readonly v = new THREE.Vector3();
@@ -281,7 +282,6 @@ export class Entities {
       bedroll: null,
       halo: null,
       neck: -1,
-      breath: null,
       scarf: null,
       sneeze: null,
       aura: null,
@@ -331,10 +331,14 @@ export class Entities {
   clear(): void {
     for (const r of [...this.rigs.values()]) this.remove(r);
     this.group.clear();
+    this.breathPool.reset();
+    this.breathPool.flush();
   }
 
   dispose(): void {
     this.clear();
+    this.breathPool.mesh.removeFromParent();
+    this.breathPool.mesh.dispose();
     this.group.removeFromParent();
   }
 
@@ -342,9 +346,11 @@ export class Entities {
   update(now: number, dt: number, view: RoomView, camera: THREE.OrthographicCamera): void {
     this.keepers = view.keepers ?? NONE;
     this.chill = view.outdoors ? chillOf(weatherNow()) : null;
+    this.breathPool.reset();
     const frame = ++this.frame;
     const dtS = dt / 1000;
     const t = now / 1000;
+    const unow = Date.now();
     const me = world.avatars.get(world.selfId);
     // This runs every frame for everyone: the lists below are kept and refilled, not built anew.
     const list = this.list;
@@ -388,30 +394,29 @@ export class Entities {
       r.merch = merchVersion();
       const crowd = crowds.get(tileKey(a.x, a.y));
       const spread = crowd && crowd.length > 1 ? crowdOffset(crowd.indexOf(a.info.id), crowd.length) : ALONE;
-      this.step(r, a, me, view, camera, now, dt, dtS, t, spread);
+      this.step(r, a, me, view, camera, now, unow, dt, dtS, t, spread);
     }
     list.length = 0;
     // Deleting the entry a Map's iteration is on is safe: nobody left is the usual case, and needs no copy.
     for (const r of this.rigs.values()) if (r.seen !== frame) this.remove(r);
+    this.breathPool.flush();
+    if (this.breathPool.mesh.visible) {
+      if (this.breathPool.mesh.parent !== this.group) this.group.add(this.breathPool.mesh);
+    } else if (this.breathPool.mesh.parent === this.group) {
+      this.breathPool.mesh.removeFromParent();
+    }
     this.declutter();
   }
 
   /** Breath in the cold (not asleep or at a desk), and a scarf on a bot, at their neck as their pose has it now. */
-  private cold(r: Rig, a: GameAvatar, now: number, lying: boolean): void {
+  private cold(r: Rig, a: GameAvatar, now: number, y: number, lying: boolean): void {
     const chill = this.chill;
     const up = !lying && a.state !== "away" && a.state !== "working";
     const breathes = !!chill && up && !a.warp && r.root.visible;
     const scarved = wearsScarf(a, chill) && up;
     if ((breathes || scarved) && r.neck < 0) r.neck = neckOf(r.root, r.avatar.body, r.avatar.head);
     const neck = r.neck + r.avatar.body.position.y;
-    if (breathes && !r.breath) {
-      r.breath = new Breath();
-      r.root.add(r.breath.group);
-    }
-    if (r.breath) {
-      if (breathes) r.breath.update(r.id, now, neck + 0.1);
-      else r.breath.group.visible = false;
-    }
+    if (breathes) this.breathPool.emit(r.id, now, r.x, y, r.z, r.yaw, neck + 0.1);
     if (scarved && !r.scarf) {
       r.scarf = scarf(r.id);
       r.root.add(r.scarf);
@@ -454,6 +459,7 @@ export class Entities {
     view: RoomView,
     camera: THREE.OrthographicCamera,
     now: number,
+    unow: number,
     dt: number,
     dtS: number,
     t: number,
@@ -470,7 +476,8 @@ export class Entities {
     r.at = p;
     const [cx, cz] = view.toWorld(p.x, p.y);
     // Off the tile's middle when someone else stands on it too (not while running laps).
-    const [tx, tz] = lap ? [cx, cz] : [cx + spread[0], cz + spread[1]];
+    const tx = lap ? cx : cx + spread[0];
+    const tz = lap ? cz : cz + spread[1];
     const dx = tx - r.x;
     const dz = tz - r.z;
     // How far they came this frame, for the stride (a jump into place is not a step).
@@ -480,7 +487,8 @@ export class Entities {
       r.z = tz;
       r.placed = true;
     } else {
-      const [wasX, wasZ] = [r.x, r.z];
+      const wasX = r.x;
+      const wasZ = r.z;
       r.x = approach(r.x, tx, dt, 45);
       r.z = approach(r.z, tz, dt, 45);
       moved = Math.hypot(r.x - wasX, r.z - wasZ);
@@ -524,7 +532,6 @@ export class Entities {
     r.yaw = turnToward(r.yaw, yawTarget, dt, 70);
 
     // Coffee and the Tavern's special: a buzz, or a warm glow.
-    const unow = Date.now();
     const special = hasSpecial(info.specialUntil ?? 0, unow) ? specialBuff(info.specialUntil ?? 0) : null;
     // A buzz off the clock (`tremor.ts`), the same at any frame rate: feet planted, the body vibrating over
     // them. The Tavern special's jitter counts as 1.5 cups.
@@ -598,7 +605,7 @@ export class Entities {
     const bubbleOn = a.bubble !== null && now < a.bubble.until;
     av.talking = bubbleOn;
     if (near) av.update(dtS, t, moved);
-    this.cold(r, a, now, lying || pose === "sleep");
+    this.cold(r, a, now, y, lying || pose === "sleep");
     if (r.cop) {
       r.cop.gear.update(r.cop.watch.read(bubbleOn && a.bubble ? a.bubble.text : "", now), now, this.calm);
     }

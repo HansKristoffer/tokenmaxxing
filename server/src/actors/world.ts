@@ -167,7 +167,6 @@ import {
   JUMP_MS,
   MOVES_TEXT,
   type Moves,
-  type MovesWire,
   mapOf,
   memberRoomOf,
   mentionsIn,
@@ -201,7 +200,7 @@ import {
   type WorldGame,
   writeMoves,
 } from "@tokenmaxxing/core/world.ts";
-import { compact, countBy, must, omit, sortBy, typedSwitch } from "hanzio";
+import { must, sortBy } from "hanzio";
 import { actor, UserError } from "rivetkit";
 import { db } from "rivetkit/db";
 import { putAwayNotice } from "../furniture-notices.ts";
@@ -234,6 +233,7 @@ import {
   type Caller,
   type Callers,
   type ConnParams,
+  callerFrom,
   callerOf,
   main,
   requireInternal,
@@ -413,8 +413,26 @@ const view = (p: WorldPlayer, online: boolean): PlayerView => ({
   state: p.state,
 });
 
-const info = (p: WorldPlayer, online: boolean): PlayerInfo =>
-  omit(view(p, online), ["x", "y", "facing", "state"]);
+const info = (p: WorldPlayer, online: boolean): PlayerInfo => ({
+  id: p.id,
+  name: p.name,
+  look: p.look,
+  level: p.level,
+  companyId: p.companyId,
+  todayTokens: p.todayTokens,
+  ...(p.prestige && p.prestige.rank > 0 ? { prestige: p.prestige } : {}),
+  liveAgents: p.liveAgents,
+  online: online || isBot(p.id),
+  coffeeUntil: p.coffeeUntil ?? 0,
+  polseUntil: p.polseUntil ?? 0,
+  specialUntil: p.specialUntil ?? 0,
+  dozing: online && !!p.dozing,
+  desk: p.desk ?? 0,
+  dance: p.state === "idle" ? (p.dance ?? 0) : 0,
+  danceSince: p.state === "idle" ? (p.danceSince ?? 0) : 0,
+  angling: p.state === "idle" && online ? (p.angling ?? null) : null,
+  landing: p.state === "idle" && online ? (p.landing ?? null) : null,
+});
 
 const pos = (p: WorldPlayer): PlayerPos => [p.id, p.x, p.y, p.facing, p.state];
 
@@ -425,6 +443,7 @@ export const world = actor({
       players: {},
       companies: {},
     }));
+    kept.trackDirty("players");
     return {
       /** Where everyone is, and what else outlives a restart: saved from the loop (`SAVE_EVERY`). */
       state: kept.value,
@@ -437,6 +456,24 @@ export const world = actor({
       online: new Map<number, number>(),
       /** Each connection that has joined, by its id: whose it is, and its handle to send through (`listeners`). */
       tabs: new Map<string, Tab>(),
+      /** Joined tabs indexed by userId and by current room, so sends never scan every connection. */
+      tabsByUser: new Map<number, Set<Tab>>(),
+      tabsByRoom: new Map<RoomId, Set<Tab>>(),
+      tabsIndexed: 0,
+      /** Joined tabs still using the legacy object `moves` wire format (0 for all modern clients). */
+      legacyTabs: 0,
+      /** Offline players that still need `settle()` checks (working, in arena, or not yet away). */
+      settleWatch: new Set<number>(),
+      settlePlayersRef: null as Record<string, WorldPlayer> | null,
+      /** Players indexed by room, so room queries and snapshots never scan every registered player. */
+      playersByRoom: new Map<RoomId, Set<WorldPlayer>>(),
+      playerRoom: new Map<number, RoomId>(),
+      playersRef: null as Record<string, WorldPlayer> | null,
+      /** Cached town house views; reused across snapshots until `housesRev` advances. */
+      cachedHouses: null as { rev: number; inside: Houses; lights: number[] } | null,
+      housesRev: 1,
+      /** Room just returned by `join()` for a single-tab player, so `flush()` skips a duplicate snapshot. */
+      joinedRoom: new Map<number, RoomId>(),
       /** Players that moved or changed room since the last tick. */
       dirty: new Set<number>(),
       /** The room each player was last announced in. */
@@ -546,27 +583,37 @@ export const world = actor({
   }),
   onCreate: (c) => requireMain(c),
   onWake: async (c) => {
+    const v = c.vars;
+    const ctx = {
+      vars: v,
+      db: c.db,
+      client: () => c.client(),
+      broadcast: (name: string, ...args: unknown[]) => c.broadcast(name, ...args),
+    };
     // Every floor, and every office's lock, are `town`'s: the world only keeps them in memory.
     // ponytail: `seed` sends everyone every time, for the floors; split it if that gets big.
     const seed = await main(c.client()).town.seed();
     // First start (or a wiped world): everyone too, put to bed.
-    if (!c.vars.state.seeded) {
-      for (const co of seed.companies) c.vars.state.companies[co.id] = co;
-      for (const p of seed.players) upsert(c.vars.state, p);
-      c.vars.state.seeded = true;
+    if (!v.state.seeded) {
+      for (const co of seed.companies) v.state.companies[co.id] = co;
+      for (const p of seed.players) upsert(v.state, p, v);
+      v.state.seeded = true;
     }
-    c.vars.state.offices = seed.offices;
-    c.vars.plots = await loadPlots(c.db);
-    c.vars.graves = stonesOf(c.vars.plots);
-    for (const id of Object.keys(c.vars.state.players)) buildOffice(c.vars.state, Number(id));
-    delete (c.vars.state as { drops?: unknown }).drops; // kept here before `seed` carried them
-    placeBots(c.vars.state);
-    tidyInn(c.vars.state);
-    buildTown(c.vars.state);
-    for (const id of Object.keys(c.vars.state.companies)) buildHq(c.vars.state, Number(id));
+    v.state.offices = seed.offices;
+    v.plots = await loadPlots(c.db);
+    v.graves = stonesOf(v.plots);
+    for (const id of Object.keys(v.state.players)) buildOffice(v.state, Number(id));
+    delete (v.state as { drops?: unknown }).drops; // kept here before `seed` carried them
+    placeBots(v.state);
+    tidyInn(v.state);
+    buildTown(v.state);
+    for (const id of Object.keys(v.state.companies)) buildHq(v.state, Number(id));
+    rebuildPlayerIndex(v);
+    rebuildTabIndex(v);
+    v.kept?.markAllDirty("players");
     // `seed` is every floor: what was here before sleeping (a drop whose call failed, say) goes.
     for (const room of DROPS.keys()) setDrops(room, []);
-    for (const d of seed.drops) lay(c, d);
+    for (const d of seed.drops) lay(ctx, d);
     // The table is gone with the last actor: whoever the town still has seated gets their stack back.
     if (TAVERN)
       await main(c.client())
@@ -576,7 +623,7 @@ export const world = actor({
     await main(c.client())
       .town.rouletteRefund()
       .catch((err) => console.warn(`[roulette] release: ${String(err)}`));
-    c.vars.loop = background("world", async () => {
+    v.loop = background("world", async () => {
       const signal = c.abortSignal;
       let n = 0;
       let ended = performance.now();
@@ -584,65 +631,65 @@ export const world = actor({
         const began = performance.now();
         const now = Date.now();
         if (++n % REST_CHECK_EVERY === 0) {
-          for (const p of settle(c.vars, now)) sendInfo(c, p, info(p, true));
+          for (const p of settle(v, now)) sendInfo(ctx, p, info(p, true));
         }
         // With nobody to see them, the bots stand still (and their walks aren't saved).
-        if (n % BOT_STEP_EVERY === 0 && c.vars.online.size > 0) {
-          for (const p of walkBots(c.vars.state, c.vars, now)) sendInfo(c, p, info(p, true));
-          talkBots(c, now);
-          if (TAVERN) cheerBots(c, now);
+        if (n % BOT_STEP_EVERY === 0 && v.online.size > 0) {
+          for (const p of walkBots(v.state, v, now)) sendInfo(ctx, p, info(p, true));
+          talkBots(ctx, now);
+          if (TAVERN) cheerBots(ctx, now);
         }
-        if (now >= c.vars.outageAt) {
-          c.vars.outageAt = now + OUTAGE_EVERY_MS;
-          void refreshOutage(c, now);
+        if (now >= v.outageAt) {
+          v.outageAt = now + OUTAGE_EVERY_MS;
+          void refreshOutage(ctx, now);
         }
-        if (now >= c.vars.launchesAt) {
-          c.vars.launchesAt = now + LAUNCHES_EVERY_MS;
-          void refreshLaunches(c, now).catch((err) => console.warn(`[launch] refresh: ${String(err)}`));
+        if (now >= v.launchesAt) {
+          v.launchesAt = now + LAUNCHES_EVERY_MS;
+          void refreshLaunches(ctx, now).catch((err) => console.warn(`[launch] refresh: ${String(err)}`));
         }
         // When it's due (kept, so a restart doesn't read it again), and once at a time.
-        if (now >= (c.vars.state.statue?.nextAt ?? 0)) {
-          c.vars.state.statue = { ...(c.vars.state.statue ?? NO_STATUE), nextAt: now + STATUE_RETRY_MS };
-          void refreshStatue(c, now);
+        if (now >= (v.state.statue?.nextAt ?? 0)) {
+          v.state.statue = { ...(v.state.statue ?? NO_STATUE), nextAt: now + STATUE_RETRY_MS };
+          void refreshStatue(ctx, now);
         }
-        if (now >= c.vars.keynotesAt) {
-          c.vars.keynotesAt = now + KEYNOTES_EVERY_MS;
-          void refreshKeynotes(c);
+        if (now >= v.keynotesAt) {
+          v.keynotesAt = now + KEYNOTES_EVERY_MS;
+          void refreshKeynotes(ctx);
         }
-        if (now >= c.vars.barrelAt) {
-          c.vars.barrelAt = now + BARREL_EVERY_MS;
-          void refreshBarrel(c, now);
+        if (now >= v.barrelAt) {
+          v.barrelAt = now + BARREL_EVERY_MS;
+          void refreshBarrel(ctx, now);
         }
-        if (TAVERN && n % WATCH_EVERY === 0) watchBeat(c, now);
-        copBeat(c, now);
-        if (TAVERN) tavernBeat(c, n, now);
-        jukeboxBeat(c, now);
-        if (TAVERN) pokerBeat(c, now);
-        rouletteBeat(c, now);
-        if (now >= c.vars.weatherAt) {
-          c.vars.weatherAt = now + WEATHER_EVERY_MS;
-          void refreshWeather(c);
+        if (TAVERN && n % WATCH_EVERY === 0) watchBeat(ctx, now);
+        copBeat(ctx, now);
+        if (TAVERN) tavernBeat(ctx, n, now);
+        jukeboxBeat(ctx, now);
+        if (TAVERN) pokerBeat(ctx, now);
+        rouletteBeat(ctx, now);
+        if (now >= v.weatherAt) {
+          v.weatherAt = now + WEATHER_EVERY_MS;
+          void refreshWeather(ctx);
         }
-        if (now >= c.vars.pollenAt) {
-          c.vars.pollenAt = now + POLLEN_EVERY_MS;
-          void refreshPollen(c);
+        if (now >= v.pollenAt) {
+          v.pollenAt = now + POLLEN_EVERY_MS;
+          void refreshPollen(ctx);
         }
-        if (now >= c.vars.gridAt) {
-          c.vars.gridAt = now + GRID_EVERY_MS;
-          void refreshGrid(c, now);
+        if (now >= v.gridAt) {
+          v.gridAt = now + GRID_EVERY_MS;
+          void refreshGrid(ctx, now);
         }
-        if (now >= c.vars.starsAt) {
-          c.vars.starsAt = now + STARS_EVERY_MS;
-          void refreshStars(c, now);
+        if (now >= v.starsAt) {
+          v.starsAt = now + STARS_EVERY_MS;
+          void refreshStars(ctx, now);
         }
-        flush(c);
+        flush(ctx);
         if (n % SAVE_EVERY === 0)
-          void c.vars.kept.save().catch((err) => console.warn(`[world] save: ${String(err)}`));
+          void v.kept.save().catch((err) => console.warn(`[world] save: ${String(err)}`));
         if (n % COUNTS_EVERY === 0) {
-          const counts = occupancy(c.vars.state, c.vars.online);
+          const counts = occupancy(v.state, v.online);
           const json = JSON.stringify(counts);
-          if (json !== c.vars.occupancy) {
-            c.vars.occupancy = json;
+          if (json !== v.occupancy) {
+            v.occupancy = json;
             c.broadcast("occupancy", counts);
           }
         }
@@ -652,34 +699,41 @@ export const world = actor({
   },
   // Everything it kept is in memory until then: a stop that isn't a crash loses nothing.
   onSleep: async (c) => {
-    await c.vars.loop;
-    await c.vars.kept.save();
+    const v = c.vars;
+    await v.loop;
+    for (const id of v.dirty) v.kept.markDirty("players", id);
+    await v.kept.save();
   },
   onConnect: async (c, conn) => {
     const caller = await authenticate(conn.params as ConnParams | undefined, c.client());
     c.vars.callers.set(conn.id, caller);
   },
   onDisconnect: (c, conn) => {
-    c.vars.callers.delete(conn.id);
-    const s = c.vars.tabs.get(conn.id);
-    c.vars.tabs.delete(conn.id);
+    const v = c.vars;
+    const connId = conn.id;
+    v.callers.delete(connId);
+    const s = removeTab(v, connId);
     // Only a tab that joined counted as its player being here.
     if (!s) return;
-    const left = (c.vars.online.get(s.userId) ?? 1) - 1;
-    if (left > 0) return void c.vars.online.set(s.userId, left);
-    c.vars.online.delete(s.userId);
-    c.vars.lastInput.delete(s.userId);
-    c.vars.fishing.delete(s.userId);
-    const p = c.vars.state.players[s.userId];
+    const left = (v.online.get(s.userId) ?? 1) - 1;
+    if (left > 0) return void v.online.set(s.userId, left);
+    v.online.delete(s.userId);
+    v.lastInput.delete(s.userId);
+    v.fishing.delete(s.userId);
+    v.joinedRoom.delete(s.userId);
+    const p = v.state.players[s.userId];
     if (!p) return;
+    const ctx = { vars: v, client: () => c.client() };
     stopFishing(p);
-    pokerStandUp(c, p.id);
-    rouletteLeave(c, p.id);
+    pokerStandUp(ctx, p.id);
+    rouletteLeave(ctx, p.id);
     const from = p.room;
     // At a game table they stay put: the match decides what happens if they don't come back.
-    if (p.state !== "playing") rest(c.vars.state, p, restState(p, Date.now()));
-    c.vars.dirty.add(p.id);
-    sendInfo(c, p, info(p, false), from);
+    if (p.state !== "playing") rest(v.state, p, restState(p, Date.now()), v);
+    v.settleWatch.add(p.id);
+    v.dirty.add(p.id);
+    v.kept.markDirty("players", p.id);
+    sendInfo(ctx, p, info(p, false), from);
   },
   actions: {
     /**
@@ -687,84 +741,109 @@ export const world = actor({
      * `moves` (`MOVES_TEXT`; nothing from a client older than that).
      */
     join: async (c, wire?: unknown): Promise<Snapshot> => {
-      const userId = requireUser(callerOf(c));
-      const p = must(
-        c.vars.state.players[userId],
-        () => new UserError("Unknown player.", { code: "not_found" }),
-      );
+      const v = c.vars;
+      const conn = c.conn;
+      const connId = conn.id;
+      const userId = requireUser(callerFrom(v.callers, connId));
+      const p = must(v.state.players[userId], () => new UserError("Unknown player.", { code: "not_found" }));
       const text = wire === MOVES_TEXT;
-      c.vars.tabs.set(c.conn.id, { conn: c.conn, userId, text });
-      c.vars.online.set(userId, (c.vars.online.get(userId) ?? 0) + 1);
-      c.vars.lastInput.set(userId, Date.now());
-      p.dozing = false;
-      stopDance(p);
+      addTab(v, connId, { conn, userId, text });
+      v.online.set(userId, (v.online.get(userId) ?? 0) + 1);
+      v.settleWatch.delete(userId);
+      const now = Date.now();
+      v.lastInput.set(userId, now);
+      if (p.dozing) {
+        p.dozing = false;
+        v.kept.markDirty("players", p.id);
+      }
+      if (stopDance(p)) v.kept.markDirty("players", p.id);
       const from = p.room;
-      if (wake(c.vars.state, p)) c.vars.dirty.add(p.id);
-      sendInfo(c, p, info(p, true), from);
-      c.conn.send("outage", c.vars.outage);
-      c.conn.send("launches", c.vars.launches);
-      c.conn.send("graveyard", c.vars.graves);
-      c.conn.send("statue", shownStatue(c.vars.state.statue));
-      c.conn.send("grid", c.vars.grid.grid);
-      c.conn.send("keynotes", c.vars.keynotes);
-      c.conn.send("stars", starsOf(c.vars.state.stars ?? NO_STARS));
-      c.conn.send("barrel", c.vars.barrel);
+      const was = v.announced.get(p.id);
+      const wasVisible = was !== undefined && !v.hidden.has(p.id);
+      if (wake(v.state, p, v)) v.dirty.add(p.id);
+      if (v.online.get(userId) === 1) v.joinedRoom.set(userId, p.room);
+      const ctx = { vars: v, db: c.db };
+      // Skip broadcasting `info` when nobody currently shows `p` in `p.room` (e.g. waking from dorm):
+      // `flush()` will send `join` with their full `PlayerView`, and the joining tab receives `snapshot`.
+      if (wasVisible && (was === p.room || was === from)) {
+        sendInfo(ctx, p, info(p, true), from);
+      } else {
+        const officeTabs = v.tabsByRoom.get(`office:${p.id}`);
+        if (officeTabs && officeTabs.size > 0) {
+          const payload = info(p, true);
+          for (const t of officeTabs) t.conn.send("info", payload);
+        }
+      }
+      conn.send("outage", v.outage);
+      conn.send("launches", v.launches);
+      conn.send("graveyard", v.graves);
+      conn.send("statue", shownStatue(v.state.statue));
+      conn.send("grid", v.grid.grid);
+      conn.send("keynotes", v.keynotes);
+      conn.send("stars", starsOf(v.state.stars ?? NO_STARS));
+      conn.send("barrel", v.barrel);
       if (p.room === "inn") {
-        sendJukebox(c, Date.now(), userId);
+        sendJukebox(ctx, now, userId);
       }
       if (p.room === "basement") {
-        sendPoker(c, Date.now(), userId);
-        sendRoulette(c, userId);
+        sendPoker(ctx, now, userId);
+        sendRoulette(ctx, userId);
       }
-      return snapshot(c.vars.state, c.vars.online, c.vars.weather, p, chatOf(c, p.room));
+      return snapshot(v, p, chatOf(ctx, p.room));
     },
 
     step: (c, rawDir: unknown): StepResult => {
-      const userId = requireUser(callerOf(c));
-      const p = c.vars.state.players[userId];
+      const v = c.vars;
+      const userId = requireUser(callerFrom(v.callers, c.conn.id));
+      const p = v.state.players[userId];
       if (!p || !isFacing(rawDir)) return null;
       const now = Date.now();
-      touch(c, p, now);
+      const ctx = { vars: v };
+      touch(ctx, p, now);
       // At a game table: the arrow keys do nothing until the game ends.
       if (p.state === "playing") return correction(p);
       // At the poker table: leave it first (a hand in play is theirs to fold).
-      if (pokerSeated(c, userId))
+      if (pokerSeated(ctx, userId))
         return { notice: "🃏 You're at the poker table. Leave the table to get up." };
       // Back from being away: the first key press returns them to where they were.
-      if (wake(c.vars.state, p)) {
-        c.vars.dirty.add(p.id);
+      if (wake(v.state, p, v)) {
+        v.dirty.add(p.id);
         return correction(p);
       }
-      const s = c.vars.steps.get(userId) ?? { budget: STEP_BURST, at: 0 };
-      const budget = takeStep(s.budget, s.at, now, stepPace(p.polseUntil ?? 0, now));
+      let s = v.steps.get(userId);
+      const budget = takeStep(s ? s.budget : STEP_BURST, s ? s.at : 0, now, stepPace(p.polseUntil ?? 0, now));
       if (budget === null) return correction(p);
-      c.vars.steps.set(userId, { budget, at: now });
+      if (s) {
+        s.budget = budget;
+        s.at = now;
+      } else {
+        s = { budget, at: now };
+        v.steps.set(userId, s);
+      }
 
-      c.vars.fishing.delete(userId);
+      if (v.fishing.size > 0) v.fishing.delete(userId);
       const wasSeated = p.state !== "idle";
       p.facing = rawDir;
       p.state = "idle";
-      c.vars.dirty.add(p.id);
+      v.dirty.add(p.id);
       // Walking off ends a dance (turning on the spot too: an arrow key is how you walk away), and puts the rod away.
       const danced = stopDance(p);
-      if (stopFishing(p) || danced) sendInfo(c, p, info(p, true));
-      return typedSwitch(stepTarget(mapOf(p.room), p.x, p.y, rawDir), "kind", {
-        move: (target) => {
-          if (p.room === "town" && onProp(c.vars.state, c.vars, target.x, target.y)) return correction(p);
-          p.x = target.x;
-          p.y = target.y;
-          return null;
-        },
-        blocked: () => (wasSeated ? correction(p) : null),
-        portal: (target) => {
-          const doors = p.companyId === null ? [] : doorsOf(c.vars.state, p.companyId);
-          const dest = portal(p.room, target, p.companyId, plots(c.vars.state), doors);
-          if ("notice" in dest) return { notice: dest.notice };
-          Object.assign(p, dest);
-          countVisit(c, p);
-          return correction(p);
-        },
-      });
+      if (stopFishing(p) || danced) sendInfo(ctx, p, info(p, true));
+      const target = stepTarget(mapOf(p.room), p.x, p.y, rawDir);
+      if (target.kind === "move") {
+        if (p.room === "town" && onProp(v.state, v, target.x, target.y, now)) return correction(p);
+        p.x = target.x;
+        p.y = target.y;
+        return null;
+      }
+      if (target.kind === "blocked") return wasSeated ? correction(p) : null;
+      const doors = p.companyId === null ? [] : doorsOf(v.state, p.companyId);
+      const dest = portal(p.room, target, p.companyId, plots(v.state), doors);
+      if ("notice" in dest) return { notice: dest.notice };
+      Object.assign(p, dest);
+      syncPlayerRoom(v, p);
+      countVisit({ vars: v, client: () => c.client() }, p);
+      return correction(p);
     },
 
     /**
@@ -772,30 +851,40 @@ export const world = actor({
      * your feet, and everyone in the room sees it (`moves`). It spends the step budget like a step.
      */
     turn: (c, rawDir: unknown): StepResult => {
-      const userId = requireUser(callerOf(c));
-      const p = c.vars.state.players[userId];
+      const v = c.vars;
+      const userId = requireUser(callerFrom(v.callers, c.conn.id));
+      const p = v.state.players[userId];
       if (!p || !isFacing(rawDir) || p.state !== "idle") return null;
       const now = Date.now();
-      touch(c, p, now);
-      const s = c.vars.steps.get(userId) ?? { budget: STEP_BURST, at: 0 };
-      const budget = takeStep(s.budget, s.at, now, stepPace(p.polseUntil ?? 0, now));
+      const ctx = { vars: v };
+      touch(ctx, p, now);
+      let s = v.steps.get(userId);
+      const budget = takeStep(s ? s.budget : STEP_BURST, s ? s.at : 0, now, stepPace(p.polseUntil ?? 0, now));
       if (budget === null) return correction(p);
-      c.vars.steps.set(userId, { budget, at: now });
+      if (s) {
+        s.budget = budget;
+        s.at = now;
+      } else {
+        s = { budget, at: now };
+        v.steps.set(userId, s);
+      }
       p.facing = rawDir;
-      c.vars.dirty.add(p.id);
-      if (stopDance(p)) sendInfo(c, p, info(p, true));
+      v.dirty.add(p.id);
+      if (stopDance(p)) sendInfo(ctx, p, info(p, true));
       return null;
     },
 
     /** Space: a hop, shown to everyone in the room. Only on your feet, and one at a time. */
     jump: (c): void => {
-      const userId = requireUser(callerOf(c));
-      const p = c.vars.state.players[userId];
+      const v = c.vars;
+      const userId = requireUser(callerFrom(v.callers, c.conn.id));
+      const p = v.state.players[userId];
       const now = Date.now();
-      if (p?.state !== "idle" || now - (c.vars.jumps.get(userId) ?? 0) < JUMP_MS) return;
-      c.vars.jumps.set(userId, now);
-      touch(c, p, now);
-      sendToRoom(c, p.room, "jump", userId);
+      if (p?.state !== "idle" || now - (v.jumps.get(userId) ?? 0) < JUMP_MS) return;
+      v.jumps.set(userId, now);
+      const ctx = { vars: v };
+      touch(ctx, p, now);
+      sendToRoom(ctx, p.room, "jump", userId);
     },
 
     /**
@@ -844,7 +933,10 @@ export const world = actor({
         throw new UserError("Slow down a little.", { code: "rate_limited" });
       touch(c, p, now);
       if (index === 0) {
-        if (stopDance(p)) sendInfo(c, p, info(p, true));
+        if (stopDance(p)) {
+          c.vars.kept.markDirty("players", p.id);
+          sendInfo(c, p, info(p, true));
+        }
         return;
       }
       const d = Number.isInteger(index) ? danceAt(index as number) : undefined;
@@ -860,15 +952,17 @@ export const world = actor({
       standing();
       p.dance = d.index;
       p.danceSince = now;
+      c.vars.kept.markDirty("players", p.id);
       sendInfo(c, p, info(p, true));
     },
 
     /** E while facing a free seat: sits you on it (beds lie you down). */
     sit: (c, facing: unknown): StepResult => {
-      const p = free(c);
+      const v = c.vars;
+      const p = free({ conn: c.conn, vars: v });
       if (!p) return null;
       const userId = p.id;
-      touch(c, p, Date.now());
+      touch({ vars: v }, p, Date.now());
       if (isFacing(facing)) p.facing = facing;
       const [dx, dy] = DIRS[p.facing];
       const x = p.x + dx;
@@ -877,15 +971,13 @@ export const world = actor({
       // A card-room chair is for the poker table (`pokerSit`), not for resting in.
       if (seat && mapOf(p.room).kind(x, y).poker) return { notice: "🃏 That chair is at the poker table." };
       // At an outage picnic the blankets are seats too, and sitting on one earns its badge.
-      const outage = p.room === "town" && onBlanket(x, y) ? c.vars.outage : null;
-      const taken = Object.values(c.vars.state.players).some(
-        (o) => o.room === p.room && o.x === x && o.y === y,
-      );
+      const outage = p.room === "town" && onBlanket(x, y) ? v.outage : null;
+      const taken = roomHasPlayerAt(v, p.room, x, y);
       if (!seat && !outage) return null;
       if (taken) return { notice: "Someone's already there." };
       Object.assign(p, { x, y, state: "sit", facing: seat === "chair" ? "up" : "down" });
-      if (stopDance(p)) sendInfo(c, p, info(p, true));
-      c.vars.dirty.add(p.id);
+      if (stopDance(p)) sendInfo({ vars: v }, p, info(p, true));
+      v.dirty.add(p.id);
       // A bench is the day's bench quest, once per bench.
       if (TAVERN && seat === "bench") questEvent(c, userId, "bench", `bench:${p.room}:${x},${y}`);
       if (outage)
@@ -1012,6 +1104,7 @@ export const world = actor({
       const at = mapOf(p.room).kind(p.x + dx, p.y + dy);
       if (!at.pours && !at.orders) return null;
       p.coffeeUntil = drinkCoffee(p.coffeeUntil ?? 0, now);
+      c.vars.kept.markDirty("players", p.id);
       sendInfo(c, p, info(p, c.vars.online.has(p.id)));
       if (TAVERN && p.room === "inn") questEvent(c, p.id, "coffee", `coffee:${now}`);
       const cups = Math.round(cupsLeft(p.coffeeUntil, now));
@@ -1029,6 +1122,7 @@ export const world = actor({
       if (!cartOpen(now)) return { notice: "🌭 Lukket. The pølsevogn opens 11:00 to 14:00." };
       if (hasPolse(p.polseUntil ?? 0, now)) return { notice: "🌭 You're still full from the last one." };
       p.polseUntil = now + POLSE.ms;
+      c.vars.kept.markDirty("players", p.id);
       sendInfo(c, p, info(p, c.vars.online.has(p.id)));
       return { notice: `🌭 One rød pølse, med det hele. You walk quicker for ${POLSE.ms / 60_000} minutes.` };
     },
@@ -1045,6 +1139,7 @@ export const world = actor({
       if (!at.serves && !at.orders) return null;
       if (hasSpecial(p.specialUntil ?? 0, now)) return { notice: "🍽 You've still got the last one in you." };
       p.specialUntil = serveUntil(now);
+      c.vars.kept.markDirty("players", p.id);
       sendInfo(c, p, info(p, c.vars.online.has(p.id)));
       const how = specialBuff(p.specialUntil) === "glow" ? "You glow" : "You buzz";
       return {
@@ -1083,7 +1178,10 @@ export const world = actor({
       if (!p || !cast) return { ok: false, message: "Cast a line first." };
       // Consume before awaiting the journal write: two tabs cannot claim the same fish.
       c.vars.fishing.delete(p.id);
-      if (stopFishing(p)) sendInfo(c, p, info(p, true));
+      if (stopFishing(p)) {
+        c.vars.kept.markDirty("players", p.id);
+        sendInfo(c, p, info(p, true));
+      }
       const now = Date.now();
       if (
         p.room !== "town" ||
@@ -1106,6 +1204,7 @@ export const world = actor({
       // Held up for the room to see, if they're still on the bank.
       if (p.x === cast.x && p.y === cast.y && p.state === "idle") {
         p.landing = { fish: caught.fish, waterX: cast.waterX, waterY: cast.waterY, at: Date.now() };
+        c.vars.kept.markDirty("players", p.id);
         sendInfo(c, p, info(p, true));
       }
       return { ok: true, catch: caught, ...landed };
@@ -1118,6 +1217,7 @@ export const world = actor({
       // The rod goes away with the panel; a catch still being held up stays up for its moment.
       if (p?.angling) {
         p.angling = null;
+        c.vars.kept.markDirty("players", p.id);
         sendInfo(c, p, info(p, true));
       }
     },
@@ -1179,16 +1279,11 @@ export const world = actor({
       const t = c.vars.poker;
       if (seatOf(t, p.id) >= 0) return { notice: "🃏 You're at the table already." };
       const chairs = pokerChairs();
-      const at = chairs.findIndex(
-        (ch, i) =>
-          !t.seats[i] &&
-          !Object.values(c.vars.state.players).some(
-            (o) => o.room === "basement" && o.x === ch.x && o.y === ch.y,
-          ),
-      );
+      const at = chairs.findIndex((ch, i) => !t.seats[i] && !roomHasPlayerAt(c.vars, "basement", ch.x, ch.y));
       if (at < 0) return { notice: "🃏 The poker table is full." };
       if (p.room !== "basement") {
         Object.assign(p, roomEntry("basement"), { state: "idle" });
+        syncPlayerRoom(c.vars, p);
         c.vars.dirty.add(p.id);
         countVisit(c, p);
       }
@@ -1236,6 +1331,7 @@ export const world = actor({
       const spot = spots.findIndex((_, i) => !rouletteTaken(c, p, i));
       if (p.room !== "basement") {
         Object.assign(p, roomEntry("basement"), { state: "idle" });
+        syncPlayerRoom(c.vars, p);
         c.vars.dirty.add(p.id);
         countVisit(c, p);
       }
@@ -1438,7 +1534,7 @@ export const world = actor({
       if (!d || !piece) return { notice: "That's gone." };
       if (d.co !== undefined ? d.co !== p.companyId : ownerOfOffice(p.room) !== userId)
         return { notice: "Only its owner moves that." };
-      const people = Object.values(c.vars.state.players).filter((o) => o.room === p.room);
+      const people = roomPlayers(c.vars, p.room);
       if (people.some((o) => o.state === "sit" && dropCovers(d, o.x, o.y)))
         return { notice: "Someone is on it." };
       if (rot && !canTurn(piece.ch)) return { notice: "That one hangs as it is." };
@@ -1469,21 +1565,26 @@ export const world = actor({
     },
 
     say: async (c, rawText: unknown): Promise<void> => {
-      const userId = requireUser(callerOf(c));
-      const p = c.vars.state.players[userId];
+      const v = c.vars;
+      const userId = requireUser(callerFrom(v.callers, c.conn.id));
+      const p = v.state.players[userId];
       const text = parseChatText(rawText);
       if (!p || !text) return;
-      if (!c.vars.chat.take(String(userId), Date.now()))
+      const now = Date.now();
+      if (!v.chat.take(String(userId), now))
         throw new UserError("Slow down a little.", { code: "rate_limited" });
-      touch(c, p, Date.now());
-      const line = await announce(c, p.room, text, userId, p.name);
+      const ctx = { vars: v, db: c.db };
+      touch(ctx, p, now);
+      const line = await announce(ctx, p.room, text, userId, p.name);
       // People mentioned elsewhere hear about it; those in the room already see the line.
       const named = new Set(mentionsIn(text));
       if (named.size === 0) return;
-      const players = c.vars.state.players;
-      for (const l of listeners(c)) {
-        if (l.userId === userId || l.room === undefined || l.room === line.room) continue;
-        if (named.has(players[l.userId]!.name)) l.conn.send("mention", line);
+      const players = v.state.players;
+      for (const t of v.tabs.values()) {
+        if (t.userId === userId) continue;
+        const target = players[t.userId];
+        if (!target || target.room === line.room) continue;
+        if (named.has(target.name)) t.conn.send("mention", line);
       }
     },
 
@@ -1525,6 +1626,7 @@ export const world = actor({
       if (!canReturn(c.vars.state, p, to)) return { notice: "You can't get in there." };
       touch(c, p, Date.now());
       Object.assign(p, to, { state: "idle" });
+      syncPlayerRoom(c.vars, p);
       c.vars.dirty.add(p.id);
       countVisit(c, p);
       return correction(p);
@@ -1538,6 +1640,7 @@ export const world = actor({
       if (canReturn(c.vars.state, p, p.back)) Object.assign(p, p.back);
       p.state = "idle";
       p.back = null;
+      syncPlayerRoom(c.vars, p);
       c.vars.dirty.add(p.id);
       return correction(p);
     },
@@ -1583,10 +1686,12 @@ export const world = actor({
           if (p.state === "idle" || p.state === "sit") p.back = spotOf(p, p.state);
           else p.back ??= restedSpot(p);
           Object.assign(p, { room: "town", x: seat.x, y: seat.y, facing: seat.facing, state: "playing" });
+          syncPlayerRoom(c.vars, p);
           if (stopDance(p)) sendInfo(c, p, info(p, c.vars.online.has(p.id)));
         } else {
           p.arena = seat;
-          if (p.state === "away" || p.state === "working") rest(c.vars.state, p, "working");
+          if (!c.vars.online.has(p.id)) c.vars.settleWatch.add(p.id);
+          if (p.state === "away" || p.state === "working") rest(c.vars.state, p, "working", c.vars);
         }
         c.vars.dirty.add(p.id);
       }
@@ -1608,8 +1713,9 @@ export const world = actor({
         // Offline, or resting at the arena: back to their own bed or desk, keeping where they were.
         if (!c.vars.online.has(p.id) || p.state === "away" || p.state === "working") {
           const before = p.back;
-          rest(c.vars.state, p, restState(p, now));
+          rest(c.vars.state, p, restState(p, now), c.vars);
           if (before) p.back = before;
+          if (!c.vars.online.has(p.id)) c.vars.settleWatch.add(p.id);
         }
         c.vars.dirty.add(p.id);
       }
@@ -1647,37 +1753,42 @@ export const world = actor({
 
     /** From `town`. Returns drops a building that lost or gained a door had no place for, to give back. */
     setPlayer: async (c, core: PlayerCore): Promise<number[]> => {
-      requireInternal(callerOf(c));
-      const old = c.vars.state.players[core.id];
+      const v = c.vars;
+      requireInternal(callerFrom(v.callers, c.conn.id));
+      const old = v.state.players[core.id];
       const before = old?.companyId;
       const hadDoor = doorKey(old);
-      const online = c.vars.online.has(core.id);
+      const online = v.online.has(core.id);
       // Before `upsert` writes over it: every sync pushes, and most change nothing anyone sees.
       const shown = old && JSON.stringify(info(old, online));
-      const p = upsert(c.vars.state, core);
+      const p = upsert(v.state, core, v);
+      v.kept.markDirty("players", p.id);
       const from = p.room;
       if (before !== undefined && before !== p.companyId) {
         // Changed company: out of the old house (and out of any office with no company at all),
         // and resting players move to the new one.
-        if (!online) rest(c.vars.state, p, p.state === "working" ? "working" : "away");
+        if (!online) rest(v.state, p, p.state === "working" ? "working" : "away", v);
         else if (
           (memberRoomOf(p.room) !== null && memberRoomOf(p.room) !== p.companyId) ||
           (p.companyId === null && ownerOfOffice(p.room) !== null)
-        )
+        ) {
           Object.assign(p, townSpawn());
-        c.vars.dirty.add(p.id);
+          syncPlayerRoom(v, p);
+        }
+        v.dirty.add(p.id);
       }
       const next = info(p, online);
-      if (JSON.stringify(next) !== shown) sendInfo(c, p, next, from);
+      const ctx = { vars: v, db: c.db };
+      if (JSON.stringify(next) !== shown) sendInfo(ctx, p, next, from);
       // A new name, level or look shows through the house's walls too.
-      if (companyOfRoom(p.room) !== null) c.vars.housesStale = true;
+      if (companyOfRoom(p.room) !== null) markHousesStale(v);
       const lifted: number[] = [];
       // A level that grew their office: the room grows right and down, so everyone inside stays valid.
-      if (buildOffice(c.vars.state, p.id)) lifted.push(...(await rebuildOffice(c, p.id)));
+      if (buildOffice(v.state, p.id)) lifted.push(...(await rebuildOffice(ctx, p.id)));
       // A door came, went or was renamed: in the old building and the new one.
       if (doorKey(p) !== hadDoor) {
         for (const id of new Set([before, p.companyId])) {
-          if (id != null) lifted.push(...(await rebuildHq(c, id)));
+          if (id != null) lifted.push(...(await rebuildHq(ctx, id)));
         }
       }
       return lifted;
@@ -1688,36 +1799,40 @@ export const world = actor({
      * go, and so does what's on their office floor: returns those ids, for `town` to give back.
      */
     removePlayer: async (c, userId: number): Promise<number[]> => {
-      requireInternal(callerOf(c));
+      const v = c.vars;
+      requireInternal(callerFrom(v.callers, c.conn.id));
+      const ctx = { vars: v, db: c.db };
       const drops = [...DROPS.values()]
         .flat()
         .filter((d) => (d.by === userId && d.co === undefined) || d.room === `office:${userId}`);
-      for (const d of drops) lift(c, d);
+      for (const d of drops) lift(ctx, d);
       const ids = drops.map((d) => d.id);
       // Their office goes too; anyone inside stays until they leave.
-      delete c.vars.state.offices?.[userId];
+      delete v.state.offices?.[userId];
       clearOffice(userId);
-      const p = c.vars.state.players[userId];
+      const p = v.state.players[userId];
       if (!p) return ids;
-      sendToRoom(c, p.room, "moves", { room: p.room, join: [], m: [], leave: [userId] } satisfies Moves);
-      delete c.vars.state.players[userId];
-      c.vars.housesStale = true;
+      sendToRoom(ctx, p.room, "moves", { room: p.room, join: [], m: [], leave: [userId] } satisfies Moves);
+      unindexPlayer(v, p);
+      delete v.state.players[userId];
+      v.kept.markDirty("players", userId);
+      markHousesStale(v);
       for (const vars of [
-        c.vars.online,
-        c.vars.announced,
-        c.vars.steps,
-        c.vars.lastInput,
-        c.vars.jumps,
-        c.vars.petPlays,
-        c.vars.tosses,
-        c.vars.fishing,
-        c.vars.fishingStarts,
-        c.vars.whacks,
-        c.vars.knocks,
+        v.online,
+        v.announced,
+        v.steps,
+        v.lastInput,
+        v.jumps,
+        v.petPlays,
+        v.tosses,
+        v.fishing,
+        v.fishingStarts,
+        v.whacks,
+        v.knocks,
       ])
         vars.delete(userId);
-      for (const set of [c.vars.dirty, c.vars.hidden]) set.delete(userId);
-      for (const [id, who] of c.vars.callers) {
+      for (const set of [v.dirty, v.hidden]) set.delete(userId);
+      for (const [id, who] of v.callers) {
         if (who.kind === "user" && who.userId === userId) {
           c.conns
             .get(id)
@@ -1725,7 +1840,7 @@ export const world = actor({
             .catch(() => {});
         }
       }
-      if (p.companyId !== null) ids.push(...(await rebuildHq(c, p.companyId)));
+      if (p.companyId !== null) ids.push(...(await rebuildHq(ctx, p.companyId)));
       return ids;
     },
 
@@ -1768,19 +1883,35 @@ export const world = actor({
 
     /** From `town`, for the offices list: every office, as it is now. */
     openOffices: (c) => {
-      requireInternal(callerOf(c));
-      return Object.values(c.vars.state.players)
-        .filter((p) => hasOffice(p))
-        .map((p) => ({
+      const v = c.vars;
+      requireInternal(callerFrom(v.callers, c.conn.id));
+      ensurePlayerIndex(v);
+      const out: {
+        id: number;
+        name: string;
+        level: number;
+        company: string;
+        tier: number;
+        inside: number;
+      }[] = [];
+      for (const key in v.state.players) {
+        const p = v.state.players[key]!;
+        if (!hasOffice(p)) continue;
+        const roomSet = v.playersByRoom.get(`office:${p.id}`);
+        let inside = 0;
+        if (roomSet) {
+          for (const o of roomSet) if (v.online.has(o.id)) inside++;
+        }
+        out.push({
           id: p.id,
           name: p.name,
           level: p.level,
-          company: c.vars.state.companies[p.companyId!]?.name ?? "",
-          tier: officeTier(p.level, officeOf(c.vars.state, p.id).size),
-          inside: Object.values(c.vars.state.players).filter(
-            (o) => o.room === `office:${p.id}` && c.vars.online.has(o.id),
-          ).length,
-        }));
+          company: v.state.companies[p.companyId!]?.name ?? "",
+          tier: officeTier(p.level, officeOf(v.state, p.id).size),
+          inside,
+        });
+      }
+      return out;
     },
 
     /** From `town`: the keynote schedule, changed on the admin page. */
@@ -1853,7 +1984,7 @@ export const world = actor({
       const w = piece?.w ?? 1;
       const rot = rotOf(onto?.rot);
       if (rot && (!piece || !canTurn(piece.ch))) return { notice: "That one hangs as it is." };
-      const people = Object.values(c.vars.state.players).filter((o) => o.room === p.room);
+      const people = roomPlayers(c.vars, p.room);
       // One drop per tile; furniture lands on nobody, and not in anyone's way.
       const taken = new Set<string>();
       for (const d of here) {
@@ -1952,25 +2083,30 @@ export const world = actor({
 
     /** From `player` after an ingest: offline players work at their desk while agents run. */
     activity: (c, userId: number, lastAt: number, liveAgents: number, burn = 0, hourTokens = 0): void => {
-      requireInternal(callerOf(c));
-      c.vars.cop.burns.set(userId, { id: userId, tokens: hourTokens, at: Date.now() });
-      const p = c.vars.state.players[userId];
+      const v = c.vars;
+      requireInternal(callerFrom(v.callers, c.conn.id));
+      const now = Date.now();
+      v.cop.burns.set(userId, { id: userId, tokens: hourTokens, at: now });
+      const p = v.state.players[userId];
       if (!p) return;
       p.lastAgentAt = Math.max(p.lastAgentAt, lastAt);
       // Of what everyone sees (`info`), only the agent count can change here.
       const changed = p.liveAgents !== liveAgents;
       p.liveAgents = liveAgents;
       p.burn = burn;
-      const online = c.vars.online.has(userId);
+      v.kept.markDirty("players", userId);
+      const online = v.online.has(userId);
       const from = p.room;
       if (!online) {
-        const want = restState(p, Date.now());
+        v.settleWatch.add(p.id);
+        const want = restState(p, now);
         if (p.state !== want) {
-          rest(c.vars.state, p, want);
-          c.vars.dirty.add(p.id);
+          rest(v.state, p, want, v);
+          v.dirty.add(p.id);
+          if (p.companyId !== null) markHousesStale(v);
         }
       }
-      if (changed) sendInfo(c, p, info(p, online), from);
+      if (changed) sendInfo({ vars: v }, p, info(p, online), from);
     },
   },
 });
@@ -1982,11 +2118,24 @@ const hasOffice = (p: PlayerCore) => p.companyId !== null && p.level >= OFFICE_L
 
 type Vars = {
   state: WorldState;
+  kept: Kept<WorldState>;
   callers: Callers;
   online: Map<number, number>;
   lastInput: Map<number, number>;
   chatLines: Map<RoomId, Promise<ChatLine[]>>;
   tabs: Map<string, Tab>;
+  tabsByUser: Map<number, Set<Tab>>;
+  tabsByRoom: Map<RoomId, Set<Tab>>;
+  tabsIndexed: number;
+  legacyTabs: number;
+  settleWatch: Set<number>;
+  settlePlayersRef: Record<string, WorldPlayer> | null;
+  playersByRoom: Map<RoomId, Set<WorldPlayer>>;
+  playerRoom: Map<number, RoomId>;
+  playersRef: Record<string, WorldPlayer> | null;
+  cachedHouses: { rev: number; inside: Houses; lights: number[] } | null;
+  housesRev: number;
+  joinedRoom: Map<number, RoomId>;
   visited: { day: string; keys: Set<string> };
   dirty: Set<number>;
   announced: Map<number, RoomId>;
@@ -2022,6 +2171,212 @@ type Vars = {
   rouletteActs: RateLimiter;
 };
 
+type IndexVars = Pick<
+  Vars,
+  | "state"
+  | "tabs"
+  | "tabsByUser"
+  | "tabsByRoom"
+  | "tabsIndexed"
+  | "legacyTabs"
+  | "playersByRoom"
+  | "playerRoom"
+  | "playersRef"
+>;
+
+function markHousesStale(v: Pick<Vars, "housesStale" | "housesRev">): void {
+  v.housesStale = true;
+  v.housesRev++;
+}
+
+function rebuildPlayerIndex(v: IndexVars): void {
+  v.playersByRoom ??= new Map();
+  v.playerRoom ??= new Map();
+  v.playersByRoom.clear();
+  v.playerRoom.clear();
+  const players = v.state.players;
+  v.playersRef = players;
+  for (const key in players) {
+    const p = players[key]!;
+    let set = v.playersByRoom.get(p.room);
+    if (!set) {
+      set = new Set();
+      v.playersByRoom.set(p.room, set);
+    }
+    set.add(p);
+    v.playerRoom.set(p.id, p.room);
+  }
+}
+
+function ensurePlayerIndex(v: IndexVars): void {
+  if (!v.playersByRoom || v.playersRef !== v.state.players) {
+    rebuildPlayerIndex(v);
+    if (v.tabsIndexed > 0) rebuildTabIndex(v);
+  }
+}
+
+function rebuildTabIndex(v: IndexVars): void {
+  v.tabsByUser ??= new Map();
+  v.tabsByRoom ??= new Map();
+  v.tabsByUser.clear();
+  v.tabsByRoom.clear();
+  if (!v.tabs) {
+    v.tabsIndexed = 0;
+    v.legacyTabs = 0;
+    return;
+  }
+  const players = v.state.players;
+  let count = 0;
+  let legacy = 0;
+  for (const tab of v.tabs.values()) {
+    if (!tab.text) legacy++;
+    let byUser = v.tabsByUser.get(tab.userId);
+    if (!byUser) {
+      byUser = new Set();
+      v.tabsByUser.set(tab.userId, byUser);
+    }
+    byUser.add(tab);
+    const room = players[tab.userId]?.room;
+    if (room !== undefined) {
+      let byRoom = v.tabsByRoom.get(room);
+      if (!byRoom) {
+        byRoom = new Set();
+        v.tabsByRoom.set(room, byRoom);
+      }
+      byRoom.add(tab);
+    }
+    count++;
+  }
+  v.tabsIndexed = count;
+  v.legacyTabs = legacy;
+}
+
+function ensureTabIndex(v: IndexVars): void {
+  ensurePlayerIndex(v);
+  if (!v.tabsByRoom || !v.tabsByUser || ((v.tabsIndexed ?? 0) === 0 && (v.tabs?.size ?? 0) > 0)) {
+    rebuildTabIndex(v);
+  }
+}
+
+function addTab(v: IndexVars, connId: string, tab: Tab): void {
+  ensureTabIndex(v);
+  const existing = v.tabs.get(connId);
+  if (existing) removeTab(v, connId);
+  v.tabs.set(connId, tab);
+  if (!tab.text) v.legacyTabs++;
+  let byUser = v.tabsByUser.get(tab.userId);
+  if (!byUser) {
+    byUser = new Set();
+    v.tabsByUser.set(tab.userId, byUser);
+  }
+  byUser.add(tab);
+  const room = v.state.players[tab.userId]?.room;
+  if (room !== undefined) {
+    let byRoom = v.tabsByRoom.get(room);
+    if (!byRoom) {
+      byRoom = new Set();
+      v.tabsByRoom.set(room, byRoom);
+    }
+    byRoom.add(tab);
+  }
+  v.tabsIndexed++;
+}
+
+function removeTab(v: IndexVars, connId: string): Tab | undefined {
+  const tab = v.tabs.get(connId);
+  if (!tab) return undefined;
+  v.tabs.delete(connId);
+  if (!tab.text && v.legacyTabs > 0) v.legacyTabs--;
+  const byUser = v.tabsByUser.get(tab.userId);
+  if (byUser) {
+    byUser.delete(tab);
+    if (byUser.size === 0) v.tabsByUser.delete(tab.userId);
+  }
+  const room = v.playerRoom.get(tab.userId) ?? v.state.players[tab.userId]?.room;
+  if (room !== undefined) {
+    const byRoom = v.tabsByRoom.get(room);
+    if (byRoom) {
+      byRoom.delete(tab);
+      if (byRoom.size === 0) v.tabsByRoom.delete(room);
+    }
+  }
+  if (v.tabsIndexed > 0) v.tabsIndexed--;
+  return tab;
+}
+
+function syncPlayerRoom(v: IndexVars, p: WorldPlayer): void {
+  ensurePlayerIndex(v);
+  const prev = v.playerRoom.get(p.id);
+  if (prev === p.room) return;
+  if (prev !== undefined) {
+    const oldSet = v.playersByRoom.get(prev);
+    if (oldSet) {
+      oldSet.delete(p);
+      if (oldSet.size === 0) v.playersByRoom.delete(prev);
+    }
+  }
+  let nextSet = v.playersByRoom.get(p.room);
+  if (!nextSet) {
+    nextSet = new Set();
+    v.playersByRoom.set(p.room, nextSet);
+  }
+  nextSet.add(p);
+  v.playerRoom.set(p.id, p.room);
+
+  const tabs = v.tabsByUser.get(p.id);
+  if (tabs && tabs.size > 0) {
+    if (prev !== undefined) {
+      const oldTabs = v.tabsByRoom.get(prev);
+      if (oldTabs) {
+        for (const t of tabs) oldTabs.delete(t);
+        if (oldTabs.size === 0) v.tabsByRoom.delete(prev);
+      }
+    }
+    let nextTabs = v.tabsByRoom.get(p.room);
+    if (!nextTabs) {
+      nextTabs = new Set();
+      v.tabsByRoom.set(p.room, nextTabs);
+    }
+    for (const t of tabs) nextTabs.add(t);
+  }
+}
+
+function unindexPlayer(v: IndexVars, p: WorldPlayer): void {
+  ensurePlayerIndex(v);
+  const prev = v.playerRoom.get(p.id);
+  if (prev !== undefined) {
+    const set = v.playersByRoom.get(prev);
+    if (set) {
+      set.delete(p);
+      if (set.size === 0) v.playersByRoom.delete(prev);
+    }
+    v.playerRoom.delete(p.id);
+  }
+}
+
+function roomPlayers(v: IndexVars, room: RoomId): WorldPlayer[] {
+  ensurePlayerIndex(v);
+  const set = v.playersByRoom.get(room);
+  if (!set) return [];
+  const players = v.state.players;
+  const out: WorldPlayer[] = [];
+  for (const p of set) {
+    if (players[p.id] === p && p.room === room) out.push(p);
+  }
+  return out;
+}
+
+function roomHasPlayerAt(v: IndexVars, room: RoomId, x: number, y: number, exceptId?: number): boolean {
+  ensurePlayerIndex(v);
+  const set = v.playersByRoom.get(room);
+  if (!set) return false;
+  const players = v.state.players;
+  for (const o of set) {
+    if (o.id !== exceptId && players[o.id] === o && o.room === room && o.x === x && o.y === y) return true;
+  }
+  return false;
+}
+
 /** Ticks in a minute, and in the five between flushes: the regulars' plaques (`TavernClock`). */
 const MINUTE_TICKS = 600;
 const FLUSH_TICKS = 5 * MINUTE_TICKS;
@@ -2051,7 +2406,7 @@ function tavernBeat(
     });
 }
 
-function upsert(s: WorldState, core: PlayerCore): WorldPlayer {
+function upsert(s: WorldState, core: PlayerCore, v?: IndexVars): WorldPlayer {
   const existing = s.players[core.id];
   if (existing) return Object.assign(existing, core);
   const p: WorldPlayer = {
@@ -2062,7 +2417,7 @@ function upsert(s: WorldState, core: PlayerCore): WorldPlayer {
     liveAgents: 0,
   };
   s.players[core.id] = p;
-  rest(s, p, "away");
+  rest(s, p, "away", v);
   p.back = null; // Nowhere to go back to: a new player wakes up at home.
   return p;
 }
@@ -2159,21 +2514,33 @@ const restedSpot = (p: WorldPlayer): NonNullable<WorldPlayer["back"]> =>
   p.room === "upstairs" ? { ...roomEntry("inn"), state: "idle" } : spotOf(p, "idle");
 
 /** Sends `p` to their bed (`away`) or desk (`working`) at home, remembering where they were. */
-function rest(s: WorldState, p: WorldPlayer, state: "away" | "working"): void {
+function rest(s: WorldState, p: WorldPlayer, state: "away" | "working", v?: IndexVars): void {
   if (p.state === "idle" || p.state === "sit") p.back = spotOf(p, p.state);
   stopDance(p);
   // In a battle, they rest at their arena desk, typing away.
   if (p.arena) {
     Object.assign(p, { room: "town", x: p.arena.x, y: p.arena.y, facing: p.arena.facing, state: "working" });
+    if (v) syncPlayerRoom(v, p);
     return;
   }
   const room = homeRoom(p.companyId);
-  const taken = new Set(
-    Object.values(s.players)
-      .filter((o) => o.id !== p.id && o.room === room)
-      .map((o) => `${o.x},${o.y}`),
-  );
+  const taken = new Set<string>();
+  if (v) {
+    ensurePlayerIndex(v);
+    const inRoom = v.playersByRoom.get(room);
+    if (inRoom) {
+      for (const o of inRoom) {
+        if (o.id !== p.id && s.players[o.id] === o && o.room === room) taken.add(`${o.x},${o.y}`);
+      }
+    }
+  } else {
+    for (const key in s.players) {
+      const o = s.players[key]!;
+      if (o.id !== p.id && o.room === room) taken.add(`${o.x},${o.y}`);
+    }
+  }
   Object.assign(p, restSpot(room, state, taken), { state });
+  if (v) syncPlayerRoom(v, p);
 }
 
 /**
@@ -2197,21 +2564,32 @@ function canReturn(s: WorldState, p: WorldPlayer, to: Place): boolean {
  * still be there (`canReturn`), else up where they lie. False if they weren't
  * resting.
  */
-function wake(s: WorldState, p: WorldPlayer): boolean {
+function wake(s: WorldState, p: WorldPlayer, v?: IndexVars): boolean {
   if (p.state !== "away" && p.state !== "working") return false;
   const back = p.back;
   p.back = null;
   if (!back || !canReturn(s, p, back)) {
     // From their bed upstairs (no company, no home to wake in), they get up at the Tavern's door.
     Object.assign(p, p.room === "upstairs" ? roomEntry("inn") : {}, { state: "idle" });
+    if (v) syncPlayerRoom(v, p);
     return true;
   }
   // Someone took their seat meanwhile, or it's gone: stand up there instead.
-  const taken = Object.values(s.players).some(
-    (o) => o.id !== p.id && o.room === back.room && o.x === back.x && o.y === back.y,
-  );
+  let taken = false;
+  if (v) {
+    taken = roomHasPlayerAt(v, back.room, back.x, back.y, p.id);
+  } else {
+    for (const key in s.players) {
+      const o = s.players[key]!;
+      if (o.id !== p.id && o.room === back.room && o.x === back.x && o.y === back.y) {
+        taken = true;
+        break;
+      }
+    }
+  }
   const seat = mapOf(back.room).kind(back.x, back.y).seat;
   Object.assign(p, back, { state: back.state === "sit" && seat && !taken ? "sit" : "idle" });
+  if (v) syncPlayerRoom(v, p);
   return true;
 }
 
@@ -2233,9 +2611,11 @@ function stopDance(p: WorldPlayer): boolean {
 
 /** Input from `p`: wakes them if they were dozing. */
 function touch(c: Sender & { vars: Vars }, p: WorldPlayer, now: number): void {
-  c.vars.lastInput.set(p.id, now);
+  const v = c.vars;
+  v.lastInput.set(p.id, now);
   if (!p.dozing) return;
   p.dozing = false;
+  v.kept.markDirty("players", p.id);
   sendInfo(c, p, info(p, true));
 }
 
@@ -2245,21 +2625,40 @@ function touch(c: Sender & { vars: Vars }, p: WorldPlayer, now: number): void {
  */
 function settle(v: Vars, now: number): WorldPlayer[] {
   const dozed: WorldPlayer[] = [];
-  for (const p of Object.values(v.state.players)) {
-    if (p.state === "playing" || isBot(p.id)) continue;
-    if (v.online.has(p.id)) {
-      // A dance goes on until it's stopped: nobody nods off in the middle of one.
-      if (!p.dozing && !p.dance && now - (v.lastInput.get(p.id) ?? now) > IDLE_MS) {
-        p.dozing = true;
-        dozed.push(p);
-      }
+  const players = v.state.players;
+  // Seed the offline watch set on first run or if a test replaced `v.state.players`.
+  if (v.settlePlayersRef !== players) {
+    v.settlePlayersRef = players;
+    v.settleWatch.clear();
+    for (const key in players) {
+      const p = players[key]!;
+      if (isBot(p.id) || v.online.has(p.id)) continue;
+      if (p.state !== "away" || p.arena || now - p.lastAgentAt < WORKING_MS) v.settleWatch.add(p.id);
+    }
+  }
+  for (const id of v.online.keys()) {
+    const p = players[id];
+    if (!p || p.state === "playing" || isBot(id)) continue;
+    // A dance goes on until it's stopped: nobody nods off in the middle of one.
+    if (!p.dozing && !p.dance && now - (v.lastInput.get(id) ?? now) > IDLE_MS) {
+      p.dozing = true;
+      v.kept.markDirty("players", id);
+      dozed.push(p);
+    }
+  }
+  for (const id of v.settleWatch) {
+    const p = players[id];
+    if (!p || isBot(id) || v.online.has(id)) {
+      v.settleWatch.delete(id);
       continue;
     }
+    if (p.state === "playing") continue;
     const want = p.arena ? "working" : restState(p, now);
     if (p.state !== want) {
-      rest(v.state, p, want);
-      v.dirty.add(p.id);
+      rest(v.state, p, want, v);
+      v.dirty.add(id);
     }
+    if (p.state === "away" && !p.arena && want === "away") v.settleWatch.delete(id);
   }
   return dozed;
 }
@@ -2268,15 +2667,34 @@ function settle(v: Vars, now: number): WorldPlayer[] {
  * A table or desk of a game in town, the pølsevogn, a launch stand while it's up, the J-dag truck while it's
  * parked, or a tombstone: nobody walks onto it.
  */
-const onProp = (s: WorldState, v: Pick<Vars, "launches" | "graves">, x: number, y: number) =>
-  isCart(x, y) ||
-  isTruck(x, y, Date.now()) ||
-  isBarrel(x, y, Date.now()) ||
-  isBonfire(x, y, Date.now()) ||
-  isNytarProp(x, y, Date.now()) ||
-  (isStand(x, y) && activeLaunches(Date.now(), v.launches).length > 0) ||
-  stoneAt(v.graves, x, y) !== undefined ||
-  Object.values(s.games ?? {}).some((g) => propTiles(g.spot).some(([px, py]) => px === x && py === y));
+function onProp(
+  s: WorldState,
+  v: Pick<Vars, "launches" | "graves">,
+  x: number,
+  y: number,
+  now = Date.now(),
+): boolean {
+  if (
+    isCart(x, y) ||
+    isTruck(x, y, now) ||
+    isBarrel(x, y, now) ||
+    isBonfire(x, y, now) ||
+    isNytarProp(x, y, now) ||
+    (isStand(x, y) && activeLaunches(now, v.launches).length > 0) ||
+    stoneAt(v.graves, x, y) !== undefined
+  )
+    return true;
+  const games = s.games;
+  if (!games) return false;
+  for (const key in games) {
+    const tiles = propTiles(games[key]!.spot);
+    for (let i = 0; i < tiles.length; i++) {
+      const t = tiles[i]!;
+      if (t[0] === x && t[1] === y) return true;
+    }
+  }
+  return false;
+}
 
 /** A line in a room's chat: someone's (`say`), or the town's own by default (a game's result). */
 async function announce(
@@ -2378,13 +2796,18 @@ const runOf = (
  */
 function walkBots(s: WorldState, v: Vars & { bots: Map<number, BotRun> }, now: number): WorldPlayer[] {
   const map = mapOf("town");
-  const inTown = [...v.online.keys()].filter((id) => s.players[id]?.room === "town");
+  ensurePlayerIndex(v);
+  const inTown: number[] = [];
+  const townSet = v.playersByRoom.get("town");
+  if (townSet) {
+    for (const o of townSet) if (v.online.has(o.id)) inTown.push(o.id);
+  }
   const drank: WorldPlayer[] = [];
   const live = TAVERN ? liveKeynote(v.keynotes, now) : null;
   for (const b of BOTS) {
     const p = s.players[b.id];
     const run = runOf(v, b.id, b.every, now);
-    if (p && GOERS.includes(b) && partyStep(s, v, p, run, live !== null)) continue;
+    if (p && GOERS.includes(b) && partyStep(v, p, run, live !== null)) continue;
     if (b.still || p?.room !== "town" || now < run.restUntil) continue;
     // An outage picnic: off to its seat on a blanket, and it sits there until it's over (`refreshOutage`).
     // A keynote on the Tavern's screen comes first for those going to it: they're on their way to the door.
@@ -2442,7 +2865,7 @@ function walkBots(s: WorldState, v: Vars & { bots: Map<number, BotRun> }, now: n
     const target = stepTarget(map, p.x, p.y, dir);
     p.facing = dir;
     // The town changed under it, or a game table went up: give up on this walk.
-    if (target.kind === "move" && !onProp(s, v, target.x, target.y))
+    if (target.kind === "move" && !onProp(s, v, target.x, target.y, now))
       Object.assign(p, { x: target.x, y: target.y });
     else Object.assign(run, { path: [], coffee: null });
     if (!leader && run.path.length === 0 && !run.coffee) run.restUntil = now + between(BOT_PAUSE_MS);
@@ -2459,11 +2882,12 @@ const GOERS = BOTS.filter((b) => !b.still && !b.home && b.id !== COP.id);
  * crowd facing the screen until it's over, when it comes back out the door. True when that's all it does
  * this step; false leaves it to the walk (`walkBots`), with its path to the door set.
  */
-function partyStep(s: WorldState, v: Vars, p: WorldPlayer, run: BotRun, live: boolean): boolean {
+function partyStep(v: Vars, p: WorldPlayer, run: BotRun, live: boolean): boolean {
   const door = outsideDoor("inn");
   if (p.room === "inn") {
     if (live) return true;
     Object.assign(p, door, { state: "idle" });
+    syncPlayerRoom(v, p);
     run.path = [];
     v.dirty.add(p.id);
     return true;
@@ -2483,13 +2907,11 @@ function partyStep(s: WorldState, v: Vars, p: WorldPlayer, run: BotRun, live: bo
     return false;
   }
   // At the door (or with no way to it): in, to the first free spot in the crowd.
-  const taken = new Set(
-    Object.values(s.players)
-      .filter((o) => o.room === "inn")
-      .map((o) => `${o.x},${o.y}`),
-  );
+  const taken = new Set<string>();
+  for (const o of roomPlayers(v, "inn")) taken.add(`${o.x},${o.y}`);
   const [x, y] = CROWD.find(([cx, cy]) => !taken.has(`${cx},${cy}`)) ?? CROWD[0]!;
   Object.assign(p, { room: "inn", x, y, facing: "left", state: "idle" });
+  syncPlayerRoom(v, p);
   run.path = [];
   v.dirty.add(p.id);
   return true;
@@ -2604,19 +3026,24 @@ function barkeepRemark(c: Sender & { vars: Vars }, text: string): void {
 
 /** Bots due a line say one over their heads (never in the chat), if anyone online is in the room to hear it. */
 function talkBots(c: Sender & { vars: Vars & { bots: Map<number, BotRun> } }, now: number): void {
-  const heard = new Set([...c.vars.online.keys()].map((id) => c.vars.state.players[id]?.room));
+  const v = c.vars;
+  const players = v.state.players;
   for (const b of BOTS) {
-    const p = c.vars.state.players[b.id];
-    const run = runOf(c.vars, b.id, b.every, now);
+    const p = players[b.id];
+    const run = runOf(v, b.id, b.every, now);
     if (!p || now < run.sayAt) continue;
     // In the Tavern, the watch party: the next keynote, or the one on (the crowd cheers more often).
-    const keynote = TAVERN && p.room === "inn" ? keynoteTalk(c.vars.keynotes, now) : undefined;
+    const keynote = TAVERN && p.room === "inn" ? keynoteTalk(v.keynotes, now) : undefined;
     run.sayAt = now + between(keynote?.live && GOERS.includes(b) ? CHEER_EVERY_MS : b.every);
-    const leader = run.following === null ? null : c.vars.state.players[run.following];
-    const crowd = [...c.vars.online.keys()].filter((id) => c.vars.state.players[id]?.room === p.room).length;
-    const text = lineFor(b, now, { leader, cups: run.cups, crowd, weather: c.vars.weather.kind, keynote });
+    const leader = run.following === null ? null : players[run.following];
+    let crowd = 0;
+    const inRoom = v.playersByRoom.get(p.room);
+    if (inRoom) {
+      for (const o of inRoom) if (v.online.has(o.id)) crowd++;
+    }
+    const text = lineFor(b, now, { leader, cups: run.cups, crowd, weather: v.weather.kind, keynote });
     run.cups = 0;
-    if (!heard.has(p.room)) continue;
+    if (crowd === 0) continue;
     run.restUntil = Math.max(run.restUntil, now + BOT_TALK_PAUSE_MS);
     sendToRoom(c, p.room, "bubble", { userId: b.id, text });
   }
@@ -2701,7 +3128,7 @@ function copBeat(
   if (dir) {
     const to = stepTarget(map, cop.x, cop.y, dir);
     cop.facing = dir;
-    if (to.kind === "move" && !onProp(c.vars.state, c.vars, to.x, to.y))
+    if (to.kind === "move" && !onProp(c.vars.state, c.vars, to.x, to.y, now))
       Object.assign(cop, { x: to.x, y: to.y });
     c.vars.dirty.add(cop.id);
     return;
@@ -2771,6 +3198,7 @@ function questEvent(
 /** In through `room`'s entry, on their feet. */
 function enter(c: { vars: Vars }, p: WorldPlayer, room: RoomId): StepResult {
   Object.assign(p, roomEntry(room), { state: "idle" });
+  syncPlayerRoom(c.vars, p);
   c.vars.dirty.add(p.id);
   return correction(p);
 }
@@ -2784,7 +3212,13 @@ const correction = (p: WorldPlayer): StepResult => ({
 });
 
 function occupancy(s: WorldState, online: Map<number, number>): Partial<Record<RoomId, number>> {
-  return countBy(compact([...online.keys()].map((id) => s.players[id]?.room)), (room) => room);
+  const counts: Partial<Record<RoomId, number>> = {};
+  const players = s.players;
+  for (const id of online.keys()) {
+    const room = players[id]?.room;
+    if (room !== undefined) counts[room] = (counts[room] ?? 0) + 1;
+  }
+  return counts;
 }
 
 /**
@@ -2794,37 +3228,58 @@ function occupancy(s: WorldState, online: Map<number, number>): Partial<Record<R
 const counted = (p: WorldPlayer, online: Map<number, number>) =>
   p.room === DORM && p.state === "away" && !online.has(p.id);
 
-const asleepAtInn = (s: WorldState, online: Map<number, number>) =>
-  Object.values(s.players).filter((p) => counted(p, online)).length;
+function asleepAtInn(v: IndexVars & { online: Map<number, number> }): number {
+  ensurePlayerIndex(v);
+  const dorm = v.playersByRoom.get(DORM);
+  if (!dorm) return 0;
+  const players = v.state.players;
+  let n = 0;
+  for (const p of dorm) {
+    if (players[p.id] === p && counted(p, v.online)) n++;
+  }
+  return n;
+}
 
 /** `SKY_SEASON`, read once: the town's season pinned for every client. */
 const SEASON_PIN = pinnedSeason();
 /** `THEME_PIN`, read once: the festive theme pinned for every client. */
 const THEME_PIN = pinnedTheme();
 
-async function snapshot(
-  s: WorldState,
-  online: Map<number, number>,
-  weather: Weather,
-  self: WorldPlayer,
-  chat: Promise<ChatLine[]>,
-): Promise<Snapshot> {
+function housesData(v: Vars): { inside: Houses; lights: number[] } {
+  if (v.cachedHouses && v.cachedHouses.rev === v.housesRev) return v.cachedHouses;
+  const inside = houses(v);
+  const lights = officeLights(v.state);
+  v.cachedHouses = { rev: v.housesRev, inside, lights };
+  return v.cachedHouses;
+}
+
+async function snapshot(v: Vars, self: WorldPlayer, chat: Promise<ChatLine[]>): Promise<Snapshot> {
+  const s = v.state;
+  const { online, weather } = v;
   // Now: by the time the chat is read, they may be somewhere else.
   const room = self.room;
   const owner = ownerOfOffice(room);
   const companyId = companyOfRoom(room);
+  ensurePlayerIndex(v);
+  const inRoom = v.playersByRoom.get(room);
+  const players: PlayerView[] = [];
+  if (inRoom) {
+    const map = s.players;
+    for (const p of inRoom) {
+      if (map[p.id] === p && p.room === room && !counted(p, online)) players.push(view(p, online.has(p.id)));
+    }
+  }
+  const townHouses = room === "town" ? housesData(v) : null;
   return {
     room,
     selfId: self.id,
-    players: Object.values(s.players)
-      .filter((p) => p.room === self.room && !counted(p, online))
-      .map((p) => view(p, online.has(p.id))),
-    asleep: self.room === DORM ? asleepAtInn(s, online) : 0,
+    players,
+    asleep: room === DORM ? asleepAtInn(v) : 0,
     companies: Object.values(s.companies),
     occupancy: occupancy(s, online),
     chat: await chat,
-    houses: room === "town" ? houses(s) : {},
-    officeLights: room === "town" ? officeLights(s) : [],
+    houses: townHouses ? townHouses.inside : {},
+    officeLights: townHouses ? townHouses.lights : [],
     games: Object.values(s.games ?? {}),
     owner:
       owner === null
@@ -2951,8 +3406,8 @@ async function refreshOutage(
   c.vars.outage = next;
   c.broadcast("outage", next);
   if (next) return;
-  for (const p of Object.values(c.vars.state.players)) {
-    if (p.room === "town" && p.state === "sit" && onBlanket(p.x, p.y)) {
+  for (const p of roomPlayers(c.vars, "town")) {
+    if (p.state === "sit" && onBlanket(p.x, p.y)) {
       p.state = "idle";
       c.vars.dirty.add(p.id);
     }
@@ -3051,8 +3506,8 @@ function lift(c: Sender & { vars: Vars }, d: Drop): void {
     d.room,
     dropsIn(d.room).filter((o) => o.id !== d.id),
   );
-  for (const p of Object.values(c.vars.state.players))
-    if (p.room === d.room && p.state === "sit" && dropCovers(d, p.x, p.y)) {
+  for (const p of roomPlayers(c.vars, d.room))
+    if (p.state === "sit" && dropCovers(d, p.x, p.y)) {
       p.state = "idle";
       c.vars.dirty.add(p.id);
     }
@@ -3146,27 +3601,32 @@ async function rebuildOffice(c: Sender & { vars: Vars; db: Sql }, userId: number
 const officeOf = (s: WorldState, userId: number): Office => s.offices?.[userId] ?? {};
 
 /** Everyone inside each company house, for drawing them through its walls from town. */
-function houses(s: WorldState): Houses {
+function houses(v: IndexVars): Houses {
+  ensurePlayerIndex(v);
   const out: Houses = {};
-  for (const p of Object.values(s.players)) {
-    const companyId = companyOfRoom(p.room);
+  const map = v.state.players;
+  for (const [room, set] of v.playersByRoom) {
+    const companyId = companyOfRoom(room);
     if (companyId === null) continue;
-    const list = out[companyId] ?? [];
-    list.push({ id: p.id, name: p.name, level: p.level, look: p.look, state: p.state });
-    out[companyId] = list;
+    const list: Houses[number] = [];
+    for (const p of set) {
+      if (map[p.id] === p && p.room === room)
+        list.push({ id: p.id, name: p.name, level: p.level, look: p.look, state: p.state });
+    }
+    if (list.length > 0) out[companyId] = list;
   }
   return out;
 }
 
 /** Only an aggregate is shown outside: office occupants and their identities stay private. */
 function officeLights(s: WorldState): number[] {
-  return [
-    ...new Set(
-      Object.values(s.players)
-        .filter((p) => p.state === "working" && p.companyId !== null)
-        .map((p) => p.companyId!),
-    ),
-  ].sort((a, b) => a - b);
+  const seen = new Set<number>();
+  const players = s.players;
+  for (const key in players) {
+    const p = players[key]!;
+    if (p.state === "working" && p.companyId !== null) seen.add(p.companyId);
+  }
+  return [...seen].sort((a, b) => a - b);
 }
 
 /**
@@ -3208,7 +3668,7 @@ const withLine = (lines: ChatLine[], line: ChatLine): ChatLine[] =>
 type Conn = { id: string; send(name: string, ...args: unknown[]): void };
 
 interface Sender {
-  vars: { state: WorldState; tabs: Map<string, Tab> };
+  vars: IndexVars;
 }
 
 /** A joined connection: whose it is, the room they are in, and whether it takes `moves` as text. */
@@ -3232,8 +3692,12 @@ function listeners(c: Sender): Listener[] {
   return out;
 }
 
-function sendToRoom(c: Sender, room: RoomId, event: string, payload: unknown, to = listeners(c)): void {
-  for (const l of to) if (l.room === room) l.conn.send(event, payload);
+function sendToRoom(c: Sender, room: RoomId, event: string, payload: unknown): void {
+  const v = c.vars;
+  ensureTabIndex(v);
+  const tabs = v.tabsByRoom.get(room);
+  if (!tabs) return;
+  for (const t of tabs) t.conn.send(event, payload);
 }
 
 /**
@@ -3254,37 +3718,55 @@ function sendToScreens(c: Sender, event: "game" | "gameOver", payload: unknown):
  * Visitors to their office also need the info so empty desks keep up with the owner's setup.
  */
 function sendInfo(
-  c: Sender & { vars: { announced: Map<number, RoomId> } },
+  c: Sender & { vars: Pick<Vars, "announced"> },
   p: WorldPlayer,
   payload: PlayerInfo,
   from = p.room,
 ): void {
-  const was = c.vars.announced.get(p.id);
+  const v = c.vars;
+  ensureTabIndex(v);
+  const was = v.announced.get(p.id);
   const at = p.room;
-  for (const { conn, userId, room } of listeners(c))
-    if (
-      userId === p.id ||
-      room === at ||
-      room === from ||
-      room === was ||
-      (room !== undefined && ownerOfOffice(room) === p.id)
-    )
-      conn.send("info", payload);
+  const office: RoomId = `office:${p.id}`;
+  // Fast path: staying in one room (no room transition) and nobody in their office.
+  const officeTabs = office !== at ? v.tabsByRoom.get(office) : undefined;
+  if (from === at && (was === undefined || was === at) && !officeTabs) {
+    const roomTabs = v.tabsByRoom.get(at);
+    if (roomTabs) for (const t of roomTabs) t.conn.send("info", payload);
+    const own = v.tabsByUser.get(p.id);
+    if (own) {
+      for (const t of own) if (!roomTabs?.has(t)) t.conn.send("info", payload);
+    }
+    return;
+  }
+  const sent = new Set<Tab>();
+  const sendSet = (set: Set<Tab> | undefined) => {
+    if (!set) return;
+    for (const t of set) {
+      if (sent.has(t)) continue;
+      sent.add(t);
+      t.conn.send("info", payload);
+    }
+  };
+  sendSet(v.tabsByUser.get(p.id));
+  sendSet(v.tabsByRoom.get(at));
+  if (from !== at) sendSet(v.tabsByRoom.get(from));
+  if (was !== undefined && was !== at && was !== from) sendSet(v.tabsByRoom.get(was));
+  if (officeTabs) sendSet(officeTabs);
 }
 
 /** To every tab `userId` has open. */
 function sendToUser(c: Sender, userId: number, event: string, payload: unknown): void {
-  for (const t of c.vars.tabs.values()) if (t.userId === userId) t.conn.send(event, payload);
+  const v = c.vars;
+  ensureTabIndex(v);
+  const tabs = v.tabsByUser.get(userId);
+  if (!tabs) return;
+  for (const t of tabs) t.conn.send(event, payload);
 }
 
 /** A player who changed room (a door, or sent to bed) gets the new room whole. */
 async function sendSnapshot(c: Sender & { vars: Vars; db: Sql }, p: WorldPlayer): Promise<void> {
-  sendToUser(
-    c,
-    p.id,
-    "snapshot",
-    await snapshot(c.vars.state, c.vars.online, c.vars.weather, p, chatOf(c, p.room)),
-  );
+  sendToUser(c, p.id, "snapshot", await snapshot(c.vars, p, chatOf(c, p.room)));
 }
 
 /**
@@ -3292,13 +3774,24 @@ async function sendSnapshot(c: Sender & { vars: Vars; db: Sql }, p: WorldPlayer)
  * the chat) for all of them; only who they are differs.
  */
 async function resend(c: Sender & { vars: Vars; db: Sql }, room: RoomId): Promise<void> {
-  const { online, weather } = c.vars;
-  const someone = Object.values(c.vars.state.players).find((p) => p.room === room && online.has(p.id));
+  const v = c.vars;
+  ensureTabIndex(v);
+  const tabs = v.tabsByRoom.get(room);
+  if (!tabs || tabs.size === 0) return;
+  let someone: WorldPlayer | undefined;
+  for (const t of tabs) {
+    const p = v.state.players[t.userId];
+    if (p && p.room === room && v.online.has(p.id)) {
+      someone = p;
+      break;
+    }
+  }
   if (!someone) return;
-  const snap = await snapshot(c.vars.state, online, weather, someone, chatOf(c, room));
+  const snap = await snapshot(v, someone, chatOf(c, room));
   // Whoever left meanwhile gets their new room from `flush`.
-  for (const l of listeners(c))
-    if (l.room === room) l.conn.send("snapshot", { ...snap, selfId: l.userId } satisfies Snapshot);
+  const current = v.tabsByRoom.get(room);
+  if (!current) return;
+  for (const t of current) t.conn.send("snapshot", { ...snap, selfId: t.userId } satisfies Snapshot);
 }
 
 /**
@@ -3316,15 +3809,16 @@ async function rebuildHq(c: Sender & { vars: Vars; db: Sql }, companyId: number)
 function flush(c: Sender & { vars: Vars; db: Sql; broadcast(name: string, ...args: unknown[]): void }): void {
   const v = c.vars;
   const { dirty, announced, online, hidden } = v;
-  const s = c.vars.state;
-  // Whoever is connected, looked up once for everything this tick sends.
-  let to: Listener[] | undefined;
-  const everyone = () => (to ??= listeners(c));
+  const s = v.state;
+  ensureTabIndex(v);
   if (dirty.size > 0) {
     const rooms = new Map<RoomId, Moves>();
     const at = (room: RoomId) => {
-      const m = rooms.get(room) ?? { room, join: [], m: [], leave: [] };
-      rooms.set(room, m);
+      let m = rooms.get(room);
+      if (!m) {
+        m = { room, join: [], m: [], leave: [] };
+        rooms.set(room, m);
+      }
       return m;
     };
     let recount = false;
@@ -3332,6 +3826,8 @@ function flush(c: Sender & { vars: Vars; db: Sql; broadcast(name: string, ...arg
     for (const id of dirty) {
       const p = s.players[id];
       if (!p) continue;
+      syncPlayerRoom(v, p);
+      v.kept.markDirty("players", id);
       if (seated) rouletteCheckSeat(c, p);
       const was = announced.get(id);
       // Unannounced since the world woke: they may have just left a house.
@@ -3342,7 +3838,7 @@ function flush(c: Sender & { vars: Vars; db: Sql; broadcast(name: string, ...arg
         ownerOfOffice(p.room) !== null ||
         (was !== undefined && ownerOfOffice(was) !== null)
       )
-        v.housesStale = true;
+        markHousesStale(v);
       // Counted asleep at the Inn, they're a number to the room: they leave it when they fall asleep
       // there and join it when they wake up or sit down to work.
       const hide = counted(p, online);
@@ -3359,8 +3855,10 @@ function flush(c: Sender & { vars: Vars; db: Sql; broadcast(name: string, ...arg
       // Unannounced since the world woke, they may have been asleep (and counted) where they were.
       recount ||= was === undefined || was === DORM || p.room === DORM;
       announced.set(id, p.room);
+      const justJoined = v.joinedRoom.get(id);
+      if (justJoined !== undefined) v.joinedRoom.delete(id);
       // Nothing awaits it: an uncaught rejection here (the database closing) would end the process.
-      if (online.has(id) && was !== p.room)
+      if (online.has(id) && was !== p.room && justJoined !== p.room)
         sendSnapshot(c, p)
           .then(() => {
             if (p.room === "basement") {
@@ -3374,51 +3872,62 @@ function flush(c: Sender & { vars: Vars; db: Sql; broadcast(name: string, ...arg
           .catch((err) => console.warn(`[world] snapshot for ${id}: ${String(err)}`));
     }
     dirty.clear();
-    if (recount) at(DORM).asleep = asleepAtInn(s, online);
-    // One pass over the connections for every room's moves, written once per room for those that read text.
-    const texts = new Map<RoomId, string>();
-    for (const l of everyone()) {
-      const m = rooms.get(l.room!);
-      if (!m) continue;
-      let wire: MovesWire = m;
-      if (l.text) {
-        wire = texts.get(m.room) ?? writeMoves(m);
-        texts.set(m.room, wire);
+    if (recount) at(DORM).asleep = asleepAtInn(v);
+    // Send each dirty room's moves only to the tabs in that room; text wire format is written once per room.
+    // When every live connection is a modern tab in one room, `broadcast` encodes CBOR once inside RivetKit.
+    for (const [room, m] of rooms) {
+      const tabs = v.tabsByRoom.get(room);
+      if (!tabs || tabs.size === 0) continue;
+      if (tabs.size === v.tabs.size && tabs.size === v.callers.size && tabs.size > 1 && v.legacyTabs === 0) {
+        c.broadcast("moves", writeMoves(m));
+        continue;
       }
-      l.conn.send("moves", wire);
+      let textWire: string | undefined;
+      for (const t of tabs) {
+        if (t.text) {
+          textWire ??= writeMoves(m);
+          t.conn.send("moves", textWire);
+        } else {
+          t.conn.send("moves", m);
+        }
+      }
     }
   }
   // Who's inside each house, when someone in one moved or changed (a rename or level-up too, from
   // `setPlayer`), for whoever is in town to see. Joining town, the snapshot has it anyway.
-  // ponytail: a pass over all players then. Track changes per house if the world gets big.
-  if (v.housesStale && everyone().some((l) => l.room === "town")) {
+  if (v.housesStale && someoneIn(c, "town")) {
     v.housesStale = false;
-    const inside = houses(s);
-    const lights = officeLights(s);
+    const { inside, lights } = housesData(v);
     const json = JSON.stringify([inside, lights]);
     if (json !== v.houses) {
       v.houses = json;
-      sendToRoom(c, "town", "houses", inside, everyone());
-      sendToRoom(c, "town", "officeLights", lights, everyone());
+      sendToRoom(c, "town", "houses", inside);
+      sendToRoom(c, "town", "officeLights", lights);
     }
   }
   // The dungeon's raiders, once a second, when someone there would see a change.
   const now = Date.now();
   if (now - v.raidersAt < RAIDERS_EVERY_MS) return;
   v.raidersAt = now;
-  if (!everyone().some((l) => l.room === "dungeon")) return;
+  if (!someoneIn(c, "dungeon")) return;
   const list = raiders(s, now);
   const json = JSON.stringify(list);
   if (json === v.raiders) return;
   v.raiders = json;
-  sendToRoom(c, "dungeon", "raiders", list, everyone());
+  sendToRoom(c, "dungeon", "raiders", list);
 }
 
 /** Everyone online in the Tavern: the jukebox's audience and electorate. */
-const inTavern = (c: { vars: Vars }): number[] => {
-  const players = c.vars.state.players;
-  return [...c.vars.online.keys()].filter((id) => players[id]?.room === "inn");
-};
+function inTavern(c: { vars: Vars }): number[] {
+  const v = c.vars;
+  ensurePlayerIndex(v);
+  const inn = v.playersByRoom.get("inn");
+  if (!inn) return [];
+  const players = v.state.players;
+  const out: number[] = [];
+  for (const p of inn) if (players[p.id] === p && p.room === "inn" && v.online.has(p.id)) out.push(p.id);
+  return out;
+}
 
 /** What the room last heard, to tell when it changed: the track, its votes and what skipping needs. */
 const jukeKey = (j: Jukebox, present: readonly number[]): string =>
@@ -3628,10 +4137,7 @@ function pokerWhy(err: unknown): string {
 function rouletteTaken(c: Sender & { vars: Vars }, p: WorldPlayer, spot: number): boolean {
   const [x, y] = rouletteSpots()[spot]!;
   return (
-    c.vars.roulette.seats.some((s) => s.spot === spot) ||
-    Object.values(c.vars.state.players).some(
-      (o) => o.id !== p.id && o.room === "basement" && o.x === x && o.y === y,
-    )
+    c.vars.roulette.seats.some((s) => s.spot === spot) || roomHasPlayerAt(c.vars, "basement", x, y, p.id)
   );
 }
 
@@ -3662,9 +4168,7 @@ async function pokerSitDown(c: PokerCtx, p: WorldPlayer, at: number): Promise<St
     return { notice: "🃏 You're at the table already." };
   if (t.owed.some((o) => o.userId === p.id))
     return { notice: "🃏 Your last stack is still being counted out. One moment." };
-  const taken = Object.values(c.vars.state.players).some(
-    (o) => o.room === p.room && o.x === chair.x && o.y === chair.y,
-  );
+  const taken = roomHasPlayerAt(c.vars, p.room, chair.x, chair.y);
   if (t.seats[at] || taken) return { notice: "Someone's already there." };
   sitDown(t, at, p.id);
   c.vars.pokerBusy.add(p.id);
@@ -3772,8 +4276,8 @@ function pokerBeat(c: PokerCtx, now: number): void {
 }
 
 /** Whether anyone online is in `room`. */
-const someoneIn = (c: { vars: Vars }, room: RoomId) => {
-  const players = c.vars.state.players;
-  for (const id of c.vars.online.keys()) if (players[id]?.room === room) return true;
-  return false;
-};
+function someoneIn(c: { vars: IndexVars }, room: RoomId): boolean {
+  const v = c.vars;
+  ensureTabIndex(v);
+  return (v.tabsByRoom.get(room)?.size ?? 0) > 0;
+}

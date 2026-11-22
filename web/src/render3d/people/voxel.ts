@@ -35,20 +35,28 @@ const SIDES = ([0, 1, 2] as const).flatMap((axis) =>
   }),
 );
 
+/** Packs integer voxel coordinates in [-128, 127] into one integer key (zero string allocations). */
+const voxKey = (x: number, y: number, z: number): number => ((x + 128) << 16) | ((y + 128) << 8) | (z + 128);
+
 /** A grid of coloured cubes; the cube at (x, y, z) fills [x, x+1] on each axis. */
 class Voxels {
-  private readonly cells = new Map<string, THREE.Color>();
+  private readonly cells = new Map<number, THREE.Color>();
 
   has(x: number, y: number, z: number): boolean {
-    return this.cells.has(`${x},${y},${z}`);
+    return this.cells.has(voxKey(x, y, z));
   }
 
   /** Fills the `w`×`h`×`d` box from (x, y, z). */
   fill(x: number, y: number, z: number, w: number, h: number, d: number, color: string): this {
     const c = new THREE.Color(color);
-    for (let i = x; i < x + w; i++) {
-      for (let j = y; j < y + h; j++) {
-        for (let k = z; k < z + d; k++) this.cells.set(`${i},${j},${k}`, c);
+    const xEnd = x + w;
+    const yEnd = y + h;
+    const zEnd = z + d;
+    for (let i = x; i < xEnd; i++) {
+      const ki = (i + 128) << 16;
+      for (let j = y; j < yEnd; j++) {
+        const kij = ki | ((j + 128) << 8);
+        for (let k = z; k < zEnd; k++) this.cells.set(kij | (k + 128), c);
       }
     }
     return this;
@@ -57,10 +65,16 @@ class Voxels {
   /** Recolours the cubes already in the box. */
   paint(x: number, y: number, z: number, w: number, h: number, d: number, color: string): this {
     const c = new THREE.Color(color);
-    for (let i = x; i < x + w; i++) {
-      for (let j = y; j < y + h; j++) {
-        for (let k = z; k < z + d; k++) {
-          if (this.has(i, j, k)) this.cells.set(`${i},${j},${k}`, c);
+    const xEnd = x + w;
+    const yEnd = y + h;
+    const zEnd = z + d;
+    for (let i = x; i < xEnd; i++) {
+      const ki = (i + 128) << 16;
+      for (let j = y; j < yEnd; j++) {
+        const kij = ki | ((j + 128) << 8);
+        for (let k = z; k < zEnd; k++) {
+          const key = kij | (k + 128);
+          if (this.cells.has(key)) this.cells.set(key, c);
         }
       }
     }
@@ -73,32 +87,77 @@ class Voxels {
     const normal: number[] = [];
     const color: number[] = [];
     const index: number[] = [];
-    for (const [key, c] of this.cells) {
-      const cell = key.split(",").map(Number) as V3;
-      for (const side of SIDES) {
-        const out: V3 = [...cell];
-        out[side.axis] += side.sign;
-        if (this.has(...out)) continue;
+    const ox = origin[0];
+    const oy = origin[1];
+    const oz = origin[2];
+    const cells = this.cells;
+    for (const [key, c] of cells) {
+      const cx = (key >>> 16) - 128;
+      const cy = ((key >>> 8) & 255) - 128;
+      const cz = (key & 255) - 128;
+      const cr = c.r;
+      const cg = c.g;
+      const cb = c.b;
+      for (let s = 0; s < SIDES.length; s++) {
+        const side = SIDES[s]!;
+        const nx = side.normal[0];
+        const ny = side.normal[1];
+        const nz = side.normal[2];
+        const outX = cx + nx;
+        const outY = cy + ny;
+        const outZ = cz + nz;
+        if (cells.has(voxKey(outX, outY, outZ))) continue;
         const base = position.length / 3;
-        for (const [du, dw] of side.corners) {
-          const p: V3 = [...cell];
-          if (side.sign > 0) p[side.axis] += 1;
-          p[side.u] += du!;
-          p[side.w] += dw!;
-          position.push((p[0] - origin[0]) * V, (p[1] - origin[1]) * V, (p[2] - origin[2]) * V);
-          normal.push(...side.normal);
+        const axis = side.axis;
+        const step = side.sign > 0 ? 1 : 0;
+        const uAxis = side.u;
+        const wAxis = side.w;
+        const corners = side.corners;
+        for (let ci = 0; ci < 4; ci++) {
+          const du = corners[ci]![0]!;
+          const dw = corners[ci]![1]!;
+          let px = cx;
+          let py = cy;
+          let pz = cz;
+          if (step) {
+            if (axis === 0) px++;
+            else if (axis === 1) py++;
+            else pz++;
+          }
+          if (du) {
+            if (uAxis === 0) px++;
+            else if (uAxis === 1) py++;
+            else pz++;
+          }
+          if (dw) {
+            if (wAxis === 0) px++;
+            else if (wAxis === 1) py++;
+            else pz++;
+          }
+          position.push((px - ox) * V, (py - oy) * V, (pz - oz) * V);
+          normal.push(nx, ny, nz);
           // A corner is darker for each cube beside it in the layer the face looks into.
-          const alongU: V3 = [...out];
-          alongU[side.u] += du ? 1 : -1;
-          const alongW: V3 = [...out];
-          alongW[side.w] += dw ? 1 : -1;
-          const diagonal: V3 = [...alongU];
-          diagonal[side.w] += dw ? 1 : -1;
-          const [blockU, blockW] = [this.has(...alongU), this.has(...alongW)];
-          const open =
-            blockU && blockW ? 0 : 3 - Number(blockU) - Number(blockW) - Number(this.has(...diagonal));
+          const su = du ? 1 : -1;
+          const sw = dw ? 1 : -1;
+          const ux = outX + (uAxis === 0 ? su : 0);
+          const uy = outY + (uAxis === 1 ? su : 0);
+          const uz = outZ + (uAxis === 2 ? su : 0);
+          const wx = outX + (wAxis === 0 ? sw : 0);
+          const wy = outY + (wAxis === 1 ? sw : 0);
+          const wz = outZ + (wAxis === 2 ? sw : 0);
+          const blockU = cells.has(voxKey(ux, uy, uz));
+          const blockW = cells.has(voxKey(wx, wy, wz));
+          let open: number;
+          if (blockU && blockW) {
+            open = 0;
+          } else {
+            const dx = ux + (wAxis === 0 ? sw : 0);
+            const dy = uy + (wAxis === 1 ? sw : 0);
+            const dz = uz + (wAxis === 2 ? sw : 0);
+            open = 3 - (blockU ? 1 : 0) - (blockW ? 1 : 0) - (cells.has(voxKey(dx, dy, dz)) ? 1 : 0);
+          }
           const f = 0.7 + (0.3 * open) / 3;
-          color.push(c.r * f, c.g * f, c.b * f);
+          color.push(cr * f, cg * f, cb * f);
         }
         index.push(base, base + 1, base + 2, base, base + 2, base + 3);
       }

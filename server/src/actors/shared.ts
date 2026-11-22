@@ -215,7 +215,12 @@ export function callerOf<T extends Caller = Caller>(c: {
   conn: { id: string };
   vars: { callers: Callers<T> };
 }): T {
-  const caller = c.vars.callers.get(c.conn.id);
+  return callerFrom(c.vars.callers, c.conn.id);
+}
+
+/** Same as `callerOf`, for hot handlers that already fetched `c.vars` (avoids an extra native FFI read). */
+export function callerFrom<T extends Caller = Caller>(callers: Callers<T>, connId: string): T {
+  const caller = callers.get(connId);
   // `onConnect` runs before a connection's first action, and a refused one never gets here.
   if (!caller) throw unauthorized();
   return caller;

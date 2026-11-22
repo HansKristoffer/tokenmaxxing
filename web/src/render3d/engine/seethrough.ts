@@ -1,7 +1,6 @@
 import * as THREE from "three";
 import { addPatch } from "../kit/patches.ts";
-import { occluderSphere, occlusionRaycast } from "./occlusion-ray.ts";
-import { pickable } from "./pick.ts";
+import { occluderSphere, occlusionBlocked } from "./occlusion-ray.ts";
 
 /**
  * A cutaway through foreground scenery when it hides most of the player's upper body.
@@ -75,14 +74,25 @@ const patch = (sh: Parameters<THREE.Material["onBeforeCompile"]>[0]) => {
     );
 };
 
+const middleVec = new THREE.Vector3();
+
 /** Puts the middle of `g`'s bounding box (in its own space) in every vertex's `seeAt`, once per geometry. */
 export function markMiddle(g: THREE.BufferGeometry): void {
   if (g.getAttribute("seeAt")) return;
   if (!g.boundingBox) g.computeBoundingBox();
-  const c = g.boundingBox!.getCenter(new THREE.Vector3());
+  const c = g.boundingBox!.getCenter(middleVec);
+  const cx = c.x;
+  const cy = c.y;
+  const cz = c.z;
   const n = g.getAttribute("position").count;
   const at = new Float32Array(n * 4);
-  for (let i = 0; i < n; i++) at.set([c.x, c.y, c.z, 2], i * 4);
+  for (let i = 0; i < n; i++) {
+    const o = i * 4;
+    at[o] = cx;
+    at[o + 1] = cy;
+    at[o + 2] = cz;
+    at[o + 3] = 2;
+  }
   g.setAttribute("seeAt", new THREE.BufferAttribute(at, 4));
 }
 
@@ -109,11 +119,12 @@ export class PlayerOcclusion {
   private readonly right = new THREE.Vector3();
   private readonly projected = new THREE.Vector3();
   private readonly ndc = new THREE.Vector2();
-  private readonly hits: THREE.Intersection[] = [];
-  private readonly seen: THREE.Object3D[] = [];
+  private readonly stack: THREE.Object3D[] = [];
   private readonly meshes: THREE.Mesh[] = [];
   /** The meshes a sample's ray could touch this probe: those near the line from the camera to the player. */
   private readonly near: THREE.Mesh[] = [];
+  /** Cached inverse world matrix for each `near` mesh during a single 9-ray probe. */
+  private readonly nearInv: THREE.Matrix4[] = [];
   private readonly forward = new THREE.Vector3();
   private readonly ball = new THREE.Sphere();
   private hidden = false;
@@ -136,31 +147,50 @@ export class PlayerOcclusion {
 
   constructor(private readonly root: THREE.Object3D) {}
 
+  /** Collects visible pickable meshes patched for cutaway directly without intermediate arrays or closures. */
+  private collectMeshes(): void {
+    const meshes = this.meshes;
+    const stack = this.stack;
+    meshes.length = 0;
+    stack.length = 0;
+    if (!this.root.visible || this.root.userData.nopick) return;
+    stack.push(this.root);
+    while (stack.length > 0) {
+      const o = stack.pop()!;
+      if ((o as THREE.Mesh).isMesh) {
+        const mesh = o as THREE.Mesh;
+        const mat = mesh.material;
+        if (
+          !Array.isArray(mat) &&
+          mat.userData.patches?.includes("see") &&
+          mesh.geometry.getAttribute("position")
+        ) {
+          meshes.push(mesh);
+        }
+      }
+      const children = o.children;
+      for (let i = children.length - 1; i >= 0; i--) {
+        const c = children[i]!;
+        if (c.visible && !c.userData.nopick) stack.push(c);
+      }
+    }
+  }
+
   update(at: THREE.Vector3, camera: THREE.OrthographicCamera, dt: number, calm: boolean): number {
     this.elapsed += dt;
     // About 12 probes a second: the cutaway eases over a fraction of a second, so finer probing buys nothing.
     if (this.elapsed >= 0.08) {
       this.elapsed = 0;
       this.root.updateMatrixWorld();
+      this.collectMeshes();
       const meshes = this.meshes;
-      meshes.length = 0;
-      this.seen.length = 0;
-      for (const o of pickable(this.root, this.seen)) {
-        const mesh = o as THREE.Mesh;
-        if (
-          mesh.geometry.getAttribute("position") &&
-          !Array.isArray(mesh.material) &&
-          mesh.material.userData.patches?.includes("see")
-        )
-          meshes.push(mesh);
-      }
-      this.seen.length = 0;
       let changed =
         !at.equals(this.lastAt) ||
         !camera.matrixWorld.equals(this.lastView) ||
         !camera.projectionMatrix.equals(this.lastProjection) ||
         meshes.length !== this.previous.length;
-      for (const [i, mesh] of meshes.entries()) {
+      for (let i = 0; i < meshes.length; i++) {
+        const mesh = meshes[i]!;
         const geometry = mesh.geometry;
         const attribute = geometry.getAttribute("position");
         const version =
@@ -170,17 +200,21 @@ export class PlayerOcclusion {
 
         // Any change to the piece's mesh, geometry, matrix or draw range makes the cutaway probe again.
         const old = this.previous[i];
-        changed ||=
-          !old ||
-          old.mesh !== mesh ||
-          old.geometry !== geometry ||
-          old.position !== attribute ||
-          old.index !== geometry.index ||
-          !old.matrix.equals(mesh.matrixWorld) ||
-          old.version !== version ||
-          old.indexVersion !== indexVersion ||
-          old.start !== geometry.drawRange.start ||
-          old.count !== geometry.drawRange.count;
+        if (
+          !changed &&
+          (!old ||
+            old.mesh !== mesh ||
+            old.geometry !== geometry ||
+            old.position !== attribute ||
+            old.index !== geometry.index ||
+            !old.matrix.equals(mesh.matrixWorld) ||
+            old.version !== version ||
+            old.indexVersion !== indexVersion ||
+            old.start !== geometry.drawRange.start ||
+            old.count !== geometry.drawRange.count)
+        ) {
+          changed = true;
+        }
 
         if (old) {
           old.mesh = mesh;
@@ -213,33 +247,47 @@ export class PlayerOcclusion {
         this.lastProjection.copy(camera.projectionMatrix);
         this.right.setFromMatrixColumn(camera.matrixWorld, 0);
         this.nearby(at, camera);
+        const near = this.near;
+        const nearLen = near.length;
+        // Invert each candidate mesh's world matrix once for all up-to-9 sample rays.
+        for (let i = 0; i < nearLen; i++) {
+          let inv = this.nearInv[i];
+          if (!inv) {
+            inv = new THREE.Matrix4();
+            this.nearInv[i] = inv;
+          }
+          inv.copy(near[i]!.matrixWorld).invert();
+        }
+        // Of the nine samples, five must be blocked to start a cutaway and four to keep one going.
+        // Stop as soon as the quorum is guaranteed reached or unreachable: mathematically identical verdicts.
+        const need = this.hidden ? 4 : 5;
         let blocked = 0;
-        for (let row = 0; row < 3; row++) {
-          for (let column = -1; column <= 1; column++) {
-            this.point.copy(at).addScaledVector(this.right, column * PROBE_SIDE);
-            this.point.y += PROBE_LOW + row * PROBE_RISE;
+        let remaining = 9;
+        if (nearLen > 0) {
+          probe: for (let row = 0; row < 3; row++) {
+            for (let column = -1; column <= 1; column++) {
+              remaining--;
+              this.point.copy(at).addScaledVector(this.right, column * PROBE_SIDE);
+              this.point.y += PROBE_LOW + row * PROBE_RISE;
 
-            // Depth from the camera sets how far the ray goes; the screen position aims it.
-            const depth = -this.projected.copy(this.point).applyMatrix4(camera.matrixWorldInverse).z;
-            this.projected.copy(this.point).project(camera);
-            this.ndc.set(this.projected.x, this.projected.y);
-            this.caster.setFromCamera(this.ndc, camera);
-            this.caster.far = depth - NEARER;
-            this.hits.length = 0;
-            for (const mesh of this.near) {
-              occlusionRaycast(mesh, this.caster, this.hits);
-              if (this.hits.some(aboveFloor)) {
-                blocked++;
-                break;
+              // Depth from the camera sets how far the ray goes; the screen position aims it.
+              const depth = -this.projected.copy(this.point).applyMatrix4(camera.matrixWorldInverse).z;
+              this.projected.copy(this.point).project(camera);
+              this.ndc.set(this.projected.x, this.projected.y);
+              this.caster.setFromCamera(this.ndc, camera);
+              this.caster.far = depth - NEARER;
+              for (let i = 0; i < nearLen; i++) {
+                if (occlusionBlocked(near[i]!, this.caster, FLOOR_TOP, this.nearInv[i])) {
+                  blocked++;
+                  break;
+                }
               }
-              this.hits.length = 0;
+              if (blocked >= need || blocked + remaining < need) break probe;
             }
           }
         }
-        this.near.length = 0;
-        // Of the nine samples, five must be blocked to start a cutaway and four to keep one going. The gap keeps a
-        // roof edge from flickering between adjacent samples while walking.
-        this.hidden = blocked >= (this.hidden ? 4 : 5);
+        near.length = 0;
+        this.hidden = blocked >= need;
       }
     }
     const target = this.hidden ? 1 : 0;
@@ -260,7 +308,8 @@ export class PlayerOcclusion {
     near.length = 0;
     const forward = camera.getWorldDirection(this.forward);
     const ball = this.ball;
-    for (const mesh of this.meshes) {
+    for (let i = 0; i < this.meshes.length; i++) {
+      const mesh = this.meshes[i]!;
       if (!occluderSphere(mesh, ball)) {
         near.push(mesh);
         continue;
@@ -275,5 +324,3 @@ export class PlayerOcclusion {
     }
   }
 }
-
-const aboveFloor = (hit: THREE.Intersection): boolean => hit.point.y > FLOOR_TOP;

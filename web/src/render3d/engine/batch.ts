@@ -9,6 +9,8 @@ export interface BatchOptions {
   samples: number;
   /** Whatever the room changes by itself and this can't see (it swaps a mesh's material, say). */
   keep?: (mesh: THREE.Mesh) => boolean;
+  /** Fold plain solid-colour toon/basic materials into one vertex-coloured batch per group. */
+  foldPlain?: boolean;
 }
 
 export interface BatchResult {
@@ -67,6 +69,38 @@ const same = (a: Snapshot, b: Snapshot): boolean => {
   return true;
 };
 
+type PlainMat = THREE.MeshToonMaterial & { flatShading?: boolean; fog?: boolean };
+
+function plainFoldable(m: THREE.Material): m is PlainMat {
+  const a = m as PlainMat;
+  if (m.type !== "MeshToonMaterial" && m.type !== "MeshBasicMaterial") return false;
+  if (a.map || m.alphaTest || m.opacity !== 1 || m.transparent || a.vertexColors) return false;
+  return !a.emissive || a.emissive.getHex() === 0;
+}
+
+function plainKey(m: PlainMat): string {
+  return [
+    "vc",
+    m.type,
+    m.gradientMap?.uuid ?? "-",
+    m.side,
+    m.flatShading ? 1 : 0,
+    m.fog ? 1 : 0,
+    m.depthWrite ? 1 : 0,
+    m.customProgramCacheKey?.() ?? "",
+  ].join(":");
+}
+
+function foldedPlain(m: PlainMat): THREE.Material {
+  const c = m.clone() as PlainMat;
+  c.vertexColors = true;
+  c.color.set(0xffffff);
+  c.onBeforeCompile = m.onBeforeCompile;
+  c.customProgramCacheKey = m.customProgramCacheKey;
+  if (m.gradientMap) (c as THREE.MeshToonMaterial).gradientMap = m.gradientMap;
+  return c;
+}
+
 /**
  * Merges everything in `root` that never moves into a few big meshes: one per material per patch of floor.
  * A town is some three thousand little boxes, and every one is a draw call (twice, with shadows); merged it
@@ -110,42 +144,69 @@ export function batchStatic(root: THREE.Object3D, o: BatchOptions): BatchResult 
   markMoving();
 
   // Group the still ones by material, shadow flags and patch of floor.
-  const groups = new Map<string, THREE.Mesh[]>();
+  const groups = new Map<string, { list: THREE.Mesh[]; fold: boolean }>();
   const centre = new THREE.Vector3();
+  const boxCenter = new THREE.Vector3();
   for (const m of candidates) {
     if (moving.has(m) || !first.get(m)!.visible) continue;
     const mat = m.material as THREE.Material;
     if (!m.geometry.boundingBox) m.geometry.computeBoundingBox();
-    centre.copy(m.geometry.boundingBox!.getCenter(new THREE.Vector3())).applyMatrix4(m.matrixWorld);
+    centre.copy(m.geometry.boundingBox!.getCenter(boxCenter)).applyMatrix4(m.matrixWorld);
     const shadows = `${+m.castShadow}${+m.receiveShadow}`;
     const patch = `${Math.floor(centre.x / o.chunk)},${Math.floor(centre.z / o.chunk)}`;
-    const key = [mat.uuid, shadows, m.renderOrder, patch].join("|");
-    const list = groups.get(key);
-    if (list) list.push(m);
-    else groups.set(key, [m]);
+    const fold = !!o.foldPlain && plainFoldable(mat);
+    const matId = fold ? plainKey(mat as PlainMat) : mat.uuid;
+    const key = [matId, shadows, m.renderOrder, patch].join("|");
+    const entry = groups.get(key);
+    if (entry) entry.list.push(m);
+    else groups.set(key, { list: [m], fold });
   }
 
   const inverse = new THREE.Matrix4().copy(root.matrixWorld).invert();
+  const localMat = new THREE.Matrix4();
   const out = new THREE.Group();
   out.name = "batched";
   let batches = 0;
-  for (const list of groups.values()) {
+  let mergedMeshes = 0;
+  for (const { list, fold } of groups.values()) {
     if (list.length < 2) continue;
+    const lead = list[0]!;
+    // Only bake vertex colours when multiple plain materials actually share this batch.
+    const bakeColor = fold && list.some((m) => m.material !== lead.material);
     const parts: THREE.BufferGeometry[] = [];
     for (const m of list) {
       const src = m.geometry;
       const g = src.index ? src.toNonIndexed() : src.clone();
       // The vertex colours stay when the material reads them (the voxel people's bodies are painted that way).
-      const colours = (m.material as THREE.MeshStandardMaterial).vertexColors === true;
+      const colours = bakeColor || (m.material as THREE.MeshStandardMaterial).vertexColors === true;
       for (const name of Object.keys(g.attributes))
-        if (name !== "position" && name !== "normal" && name !== "uv" && !(colours && name === "color"))
+        if (
+          name !== "position" &&
+          name !== "normal" &&
+          name !== "uv" &&
+          !(!bakeColor && colours && name === "color")
+        )
           g.deleteAttribute(name);
       const n = g.attributes.position!.count;
-      if (colours && !g.attributes.color)
+      if (bakeColor) {
+        const col = (m.material as PlainMat).color;
+        const c = new Float32Array(n * 3);
+        const r = col.r;
+        const gr = col.g;
+        const b = col.b;
+        for (let i = 0; i < n; i++) {
+          const j = i * 3;
+          c[j] = r;
+          c[j + 1] = gr;
+          c[j + 2] = b;
+        }
+        g.setAttribute("color", new THREE.BufferAttribute(c, 3));
+      } else if (colours && !g.attributes.color) {
         g.setAttribute("color", new THREE.BufferAttribute(new Float32Array(n * 3).fill(1), 3));
+      }
       if (!g.attributes.normal) g.computeVertexNormals();
       if (!g.attributes.uv) g.setAttribute("uv", new THREE.BufferAttribute(new Float32Array(n * 2), 2));
-      g.applyMatrix4(new THREE.Matrix4().multiplyMatrices(inverse, m.matrixWorld));
+      g.applyMatrix4(localMat.multiplyMatrices(inverse, m.matrixWorld));
       parts.push(g);
     }
     const merged = mergeGeometries(parts, false);
@@ -153,8 +214,7 @@ export function batchStatic(root: THREE.Object3D, o: BatchOptions): BatchResult 
     if (!merged) continue;
     merged.computeBoundingSphere();
     merged.computeBoundingBox();
-    const lead = list[0]!;
-    const mesh = new THREE.Mesh(merged, lead.material);
+    const mesh = new THREE.Mesh(merged, bakeColor ? foldedPlain(lead.material as PlainMat) : lead.material);
     mesh.castShadow = lead.castShadow;
     mesh.receiveShadow = lead.receiveShadow;
     mesh.renderOrder = lead.renderOrder;
@@ -168,8 +228,8 @@ export function batchStatic(root: THREE.Object3D, o: BatchOptions): BatchResult 
       if (saved?.geometry && !saved.geometry.userData.shared) saved.geometry.dispose();
     }
     batches++;
+    mergedMeshes += list.length;
   }
   root.add(out);
-  const mergedMeshes = [...groups.values()].filter((l) => l.length > 1).reduce((a, l) => a + l.length, 0);
   return { before: all.length, after: all.length - mergedMeshes + batches, batches };
 }
