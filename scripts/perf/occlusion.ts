@@ -11,6 +11,8 @@ const { disposeObject } = await import("../../web/src/render3d/engine/dispose.ts
 trackAdditions();
 await loadAllSlices();
 const world = new World();
+// Just past the probe's 0.08 s interval, so each call probes instead of reusing the last answer.
+const PROBE_STEP_S = 0.081;
 const percentile = (times: number[], p: number) => {
   times.sort((a, b) => a - b);
   return Math.round(times[Math.floor((times.length - 1) * p)]! * 100) / 100;
@@ -42,7 +44,7 @@ for (const id of ["town", "shop-clothes", "shop-pets", "inn"] as const) {
   };
 
   const cold = performance.now();
-  probe.update(at, camera, 0.081, false);
+  probe.update(at, camera, PROBE_STEP_S, false);
   const coldMs = performance.now() - cold;
 
   const moving: number[] = [];
@@ -53,14 +55,14 @@ for (const id of ["town", "shop-clothes", "shop-pets", "inn"] as const) {
     for (let i = 0; i < 40; i++) {
       stopAt(i);
       const start = performance.now();
-      probe.update(at, camera, 0.081, false);
+      probe.update(at, camera, PROBE_STEP_S, false);
       if (round) moving.push(performance.now() - start);
     }
   }
 
   for (let i = 0; i < 40; i++) {
     const start = performance.now();
-    probe.update(at, camera, 0.081, false);
+    probe.update(at, camera, PROBE_STEP_S, false);
     stationary.push(performance.now() - start);
   }
 
@@ -68,7 +70,7 @@ for (const id of ["town", "shop-clothes", "shop-pets", "inn"] as const) {
   let verdicts = "";
   for (let i = 0; i < 40; i++) {
     stopAt(i);
-    verdicts += new PlayerOcclusion(root).update(at, camera, 0.081, true);
+    verdicts += new PlayerOcclusion(root).update(at, camera, PROBE_STEP_S, true);
   }
   console.log(
     JSON.stringify({

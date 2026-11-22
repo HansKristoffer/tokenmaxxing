@@ -268,10 +268,8 @@ function usage(pid: number): { cpu: number; rss: number } {
     } catch {
       return { cpu: 0, rss: 0 }; // gone
     }
-  const [time = "0", rss = "0"] = Bun.spawnSync(["ps", "-o", "time=,rss=", "-p", String(pid)])
-    .stdout.toString()
-    .trim()
-    .split(/\s+/);
+  const psOutput = Bun.spawnSync(["ps", "-o", "time=,rss=", "-p", String(pid)]).stdout.toString();
+  const [time = "0", rss = "0"] = psOutput.trim().split(/\s+/);
   const cpu = time.split(/[:-]/).reduce((a, part) => a * 60 + Number(part), 0);
   return { cpu, rss: Number(rss) };
 }
@@ -377,13 +375,17 @@ async function* lines(stream: ReadableStream<Uint8Array>) {
 function spawnWorker(origin: string, tokens: string[]) {
   // The coordinator's own flags for the worker: each of these it was given, and --direct.
   const forwarded = ["doors", "chat"].filter((k) => process.argv.includes(`--${k}`));
-  const pass = [...forwarded.flatMap((k) => [`--${k}`, arg(k, "")]), ...(flag("direct") ? ["--direct"] : [])];
-  const proc = Bun.spawn(["bun", import.meta.path, "--worker", "--origin", origin, ...pass], {
-    env: { ...process.env, LOAD_TOKENS: JSON.stringify(tokens) },
-    stdin: "pipe",
-    stdout: "pipe",
-    stderr: "inherit",
-  });
+  const forwardedFlags = forwarded.flatMap((k) => [`--${k}`, arg(k, "")]);
+  const directFlag = flag("direct") ? ["--direct"] : [];
+  const proc = Bun.spawn(
+    ["bun", import.meta.path, "--worker", "--origin", origin, ...forwardedFlags, ...directFlag],
+    {
+      env: { ...process.env, LOAD_TOKENS: JSON.stringify(tokens) },
+      stdin: "pipe",
+      stdout: "pipe",
+      stderr: "inherit",
+    },
+  );
   const waiting: { prefix: string; resolve: (l: string) => void; reject: (e: Error) => void }[] = [];
   const seen: string[] = [];
   void (async () => {
