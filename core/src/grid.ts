@@ -98,7 +98,10 @@ export function co2From(body: unknown): Co2Reading[] | null {
   return out.sort((a, b) => a.at - b.at);
 }
 
-/** A `DayAheadPrices` response's quarters in kroner per kWh (it gives DKK per MWh), oldest first; null if it isn't one. */
+/**
+ * A `DayAheadPrices` response's quarters in kroner per kWh (the API gives DKK per MWh), oldest first. Null if
+ * it isn't one.
+ */
 export function pricesFrom(body: unknown): Quarter[] | null {
   const records = recordsOf(body);
   if (!records) return null;
@@ -220,7 +223,7 @@ export function presetGrid(name: string, at: number): Grid | null {
  */
 export const greenCoins = (tokens: number): number => Math.floor(legacyTokenCoins(tokens) / 4);
 
-/** World hours (0–23) `hours` (hour starts) are, by world day. */
+/** The world hour (0 to 23) of each hour start in `hours`, grouped by world day. */
 export function greenByDay(hours: readonly number[]): Map<string, number[]> {
   const out = new Map<string, number[]>();
   for (const h of hours) {

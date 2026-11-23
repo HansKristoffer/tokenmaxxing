@@ -42,6 +42,7 @@ export class LruCache<V> {
     this.total += this.costOf(v);
     for (const [k, w] of this.map) {
       if (this.map.size <= this.maxEntries && this.total <= this.maxCost) break;
+      // The entry just set stays even when it is over the cost limit on its own.
       if (k === key) continue;
       this.map.delete(k);
       this.total -= this.costOf(w);

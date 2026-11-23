@@ -64,11 +64,12 @@ export async function paperFacts(sql: Sql, day: string): Promise<PaperFacts> {
   );
   // One pet owner a day, the same one all day: the day's own seed picks them.
   const owners = users.filter((u) => lookOf(u).pet > 0).sort((a, b) => a.id - b.id);
-  const owner = owners[Math.floor(random(Number(day.replaceAll("-", "")))() * owners.length)];
+  const seed = Number(day.replaceAll("-", ""));
+  const owner = owners[Math.floor(random(seed)() * owners.length)];
   const shipper = activity[0];
   // A pet is at its owner's company when they have one, else at the Inn.
   const ownerCompany = owner?.companyId ?? null;
-  const petPlace = ownerCompany !== null && names.has(ownerCompany) ? names.get(ownerCompany)! : "the Inn";
+  const petPlace = (ownerCompany === null ? undefined : names.get(ownerCompany)) ?? "the Inn";
 
   // The days before: one query for the last two months, then every comparison is arithmetic.
   const from = addDays(day, -LOOKBACK);

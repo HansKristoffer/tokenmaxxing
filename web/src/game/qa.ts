@@ -19,27 +19,26 @@ import { self, showMyDance, world } from "./world.ts";
 export function exposeForQa(): void {
   if (!storage.getItem("tokenmaxxing.qa")) return;
   Object.defineProperty(window, "__tmTown", { get: () => town });
-  Object.assign(window, {
-    __tm: {
-      world,
-      self,
-      hud,
-      graphics,
-      camera,
-      viewHooks,
-      perf,
-      still: holdStill,
-      pickTile,
-      petTile: myPetTile,
-      walkTo,
-      route,
-      ghost,
-      undoStack,
-      dances: DANCES,
-      showMyDance,
-      conn: () => conn,
-    },
-  });
+  const tm = {
+    world,
+    self,
+    hud,
+    graphics,
+    camera,
+    viewHooks,
+    perf,
+    still: holdStill,
+    pickTile,
+    petTile: myPetTile,
+    walkTo,
+    route,
+    ghost,
+    undoStack,
+    dances: DANCES,
+    showMyDance,
+    conn: () => conn,
+  };
   // Live (Object.assign would copy the value): the festive theme now, `{ id, intensity, days }` or null.
-  Object.defineProperty((window as unknown as { __tm: object }).__tm, "festive", { get: festiveNow });
+  Object.defineProperty(tm, "festive", { get: festiveNow });
+  Object.assign(window, { __tm: tm });
 }

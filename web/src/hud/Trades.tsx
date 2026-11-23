@@ -27,13 +27,10 @@ export function TradePanel({ userId }: { userId: number }) {
   useEffect(() => {
     void refreshWallet();
     const load = (onError: (e: unknown) => void) => {
-      void town
-        .bag()
-        .then(
-          (b) =>
-            setMine(Object.fromEntries(b.filter((r) => isTradeable(r.item)).map((r) => [r.item, r.count]))),
-          onError,
-        );
+      void town.bag().then((b) => {
+        const tradeable = b.filter((r) => isTradeable(r.item));
+        setMine(Object.fromEntries(tradeable.map((r) => [r.item, r.count])));
+      }, onError);
       void town.tradeables(userId).then(setThem, onError);
     };
     load((e) => setFailed(errorText(e)));

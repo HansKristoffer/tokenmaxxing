@@ -70,10 +70,13 @@ export function surfaceAt(map: TownMap, x: number, y: number): Surface {
   if (ground !== "path") return ground;
   const wet = (dx: number, dy: number) => map.at(x + dx, y + dy) === "~";
   if ((wet(0, -1) && wet(0, 1)) || (wet(-1, 0) && wet(1, 0))) return "jetty";
-  for (let dy = -1; dy <= 1; dy++)
-    for (let dx = -1; dx <= 1; dx++)
-      if ((dx || dy) && map.contains(x + dx, y + dy) && groundAt(map, x + dx, y + dy) === "plaza")
+  for (let dy = -1; dy <= 1; dy++) {
+    for (let dx = -1; dx <= 1; dx++) {
+      if ((dx || dy) && map.contains(x + dx, y + dy) && groundAt(map, x + dx, y + dy) === "plaza") {
         return "street";
+      }
+    }
+  }
   return "path";
 }
 
@@ -110,9 +113,11 @@ export function groundTexture(map: TownMap, px: number): THREE.CanvasTexture {
     (g) => {
       const rnd = seeded(5);
       const surfaces: Surface[] = [];
-      for (let cy = 0; cy < D; cy++)
-        for (let cx = 0; cx < W; cx++)
+      for (let cy = 0; cy < D; cy++) {
+        for (let cx = 0; cx < W; cx++) {
           surfaces.push(surfaceAt(map, cx - MARGIN + map.x0, cy - MARGIN + map.y0));
+        }
+      }
       const at = (cx: number, cy: number): Surface =>
         cx < 0 || cy < 0 || cx >= W || cy >= D ? "grass" : surfaces[cy * W + cx]!;
       const soft = (s: Surface) => s === "grass" || s === "flowers";
@@ -175,7 +180,7 @@ export function groundTexture(map: TownMap, px: number): THREE.CanvasTexture {
         }
       };
 
-      for (let cy = 0; cy < D; cy++)
+      for (let cy = 0; cy < D; cy++) {
         for (let cx = 0; cx < W; cx++) {
           const tx = cx - MARGIN + map.x0;
           const ty = cy - MARGIN + map.y0;
@@ -272,12 +277,16 @@ export function groundTexture(map: TownMap, px: number): THREE.CanvasTexture {
             }
           }
         }
+      }
 
       // Lighter and darker drifts across the lawns, so a block of grass is not one flat sheet.
       g.save();
       g.beginPath();
-      for (let cy = 0; cy < D; cy++)
-        for (let cx = 0; cx < W; cx++) if (soft(at(cx, cy))) g.rect(cx * px, cy * px, px, px);
+      for (let cy = 0; cy < D; cy++) {
+        for (let cx = 0; cx < W; cx++) {
+          if (soft(at(cx, cy))) g.rect(cx * px, cy * px, px, px);
+        }
+      }
       g.clip();
       const drifts = seeded(31);
       for (let i = 0; i < (W * D) / 5; i++) {
@@ -325,22 +334,24 @@ function paveSquare(
   g.save();
   // Only the square's paving: not its planters and beds, not the gate's block north of it.
   g.beginPath();
-  for (let ty = top; ty < south; ty++)
+  for (let ty = top; ty < south; ty++) {
     for (let tx = left; tx < right; tx++) {
       const s = at(tx - map.x0 + MARGIN, ty - map.y0 + MARGIN);
       if (s === "plaza") g.rect(cxOf(tx), cyOf(ty), px, px);
     }
+  }
   g.clip();
 
   const slabs = (x: number, y: number, w: number, h: number, seed: number) => {
     const step = px / 2;
     g.fillStyle = SLAB_JOINT;
     g.fillRect(x, y, w, h);
-    for (let sy = 0; sy < h; sy += step)
+    for (let sy = 0; sy < h; sy += step) {
       for (let sx = 0; sx < w; sx += step) {
         g.fillStyle = SLAB[Math.floor(hash(Math.round(x + sx), Math.round(y + sy), seed) * SLAB.length)]!;
         g.fillRect(x + sx, y + sy, Math.min(step, w - sx) - 1, Math.min(step, h - sy) - 1);
       }
+    }
   };
   const line = u(1.5);
   // The axes: two tiles wide, edged in brick.
@@ -350,8 +361,8 @@ function paveSquare(
   slabs(fx - px, cyOf(top), px * 2, (south - top) * px, 51);
   slabs(cxOf(left), fy - px, (right - left) * px, px * 2, 52);
 
-  // A panel of basket weave in a brick frame in each quarter that has the room for one (the open paving south of
-  // the fountain), a tile in from the quarter's edges. In canvas tiles.
+  // A basket-weave panel in a brick frame, in each quarter with room for one (the open paving south of the
+  // fountain). Each sits a tile in from the quarter's edges. Units are canvas tiles.
   const [fxT, fyT] = [fx / px, fy / px];
   for (const [x0, x1] of [
     [cxOf(left) / px, fxT - 1],
@@ -367,7 +378,7 @@ function paveSquare(
       const cell = px / 2;
       g.fillStyle = WEAVE_JOINT;
       g.fillRect(ox, oy, w * px, h * px);
-      for (let j = 0; j < h * 2; j++)
+      for (let j = 0; j < h * 2; j++) {
         for (let i = 0; i < w * 2; i++) {
           const [x, y] = [ox + i * cell, oy + j * cell];
           for (let k = 0; k < 2; k++) {
@@ -376,12 +387,13 @@ function paveSquare(
             else g.fillRect(x, y + (k * cell) / 2, cell - 1, cell / 2 - 1);
           }
         }
+      }
       g.strokeStyle = BRICK[1]!;
       g.lineWidth = line;
       g.strokeRect(ox, oy, w * px, h * px);
     }
 
-  // The rosette, from the outside in: a brick ring, slabs cut like a fan, a ring of cobbles, the fountain's apron.
+  // The rosette, from the outside in: a brick ring, slabs cut like a fan, a ring of cobbles, then the fountain's apron.
   const disc = (r: number, fill: string) => {
     g.fillStyle = fill;
     g.beginPath();
@@ -424,7 +436,7 @@ function paveSquare(
 
   // The border: a course of bricks along every edge of the square's paving, a light line inside it.
   const band = u(4);
-  for (let ty = top; ty < south; ty++)
+  for (let ty = top; ty < south; ty++) {
     for (let tx = left; tx < right; tx++) {
       const [cx, cy] = [tx - map.x0 + MARGIN, ty - map.y0 + MARGIN];
       if (at(cx, cy) !== "plaza") continue;
@@ -448,6 +460,7 @@ function paveSquare(
         else g.fillRect(ox + px - band - u(1), oy, u(1), px);
       });
     }
+  }
 }
 
 /**
@@ -469,11 +482,12 @@ export function soilTexture(): THREE.CanvasTexture {
         g.fillRect(0, (i * h) / layers.length, w, h / layers.length + 1);
       });
       // The layers' edges wander a little.
-      for (let i = 1; i < layers.length; i++)
+      for (let i = 1; i < layers.length; i++) {
         for (let x = 0; x < w; x += 8) {
           g.fillStyle = layers[i]!;
           g.fillRect(x, (i * h) / layers.length - Math.floor(rnd() * 5), 8, 6);
         }
+      }
       for (let i = 0; i < 160; i++) {
         g.fillStyle = rnd() < 0.5 ? "rgba(0,0,0,0.12)" : "rgba(255,230,190,0.1)";
         g.fillRect(Math.floor(rnd() * w), 12 + Math.floor(rnd() * (h - 12)), 2 + Math.floor(rnd() * 5), 2);

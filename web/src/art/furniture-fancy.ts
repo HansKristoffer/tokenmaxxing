@@ -12,7 +12,7 @@ import { CASE_FURNITURE, HOME_FURNITURE, NUSANTARA_FURNITURE } from "./furniture
 import { JULEMARKED_FURNITURE } from "./furniture-julemarked.ts";
 import { RAGNAROK_FURNITURE } from "./furniture-ragnarok.ts";
 import { C, shade } from "./palette.ts";
-import { bake, cached, glyphPixels, type Pen } from "./pixels.ts";
+import { bake, box, cached, dots, glyphPixels, oval, type Pen, shadow } from "./pixels.ts";
 import { PRESTIGE_TROPHIES } from "./prestige-trophy.ts";
 
 export type Rarity = "common" | "uncommon" | "rare" | "epic" | "legendary";
@@ -67,27 +67,6 @@ const K = {
   coffee: "#6b4226",
 } as const;
 
-/** A filled rectangle with a one-pixel ink outline. */
-function box(p: Pen, x: number, y: number, w: number, h: number, fill: string): void {
-  p.rect(x, y, w, h, C.ink);
-  p.rect(x + 1, y + 1, w - 2, h - 2, fill);
-}
-
-const shadow = (p: Pen, x: number, y: number, w: number) => p.rect(x, y, w, 2, C.shadow);
-
-/** A filled ellipse, pixel-exact. */
-function oval(p: Pen, cx: number, cy: number, rx: number, ry: number, color: string): void {
-  for (let y = -ry; y <= ry; y++) {
-    const half = Math.floor(rx * Math.sqrt(1 - (y * y) / (ry * ry + 0.01)) + 0.3);
-    p.rect(cx - half, cy + y, half * 2 + 1, 1, color);
-  }
-}
-
-/** Pixels of a list. */
-const dots = (p: Pen, pts: readonly (readonly [number, number])[], color: string) => {
-  for (const [x, y] of pts) p.px(x, y, color);
-};
-
 // MARK: Pieces
 
 function espressoBar(p: Pen, f: number): void {
@@ -100,6 +79,7 @@ function espressoBar(p: Pen, f: number): void {
     p.rect(x, 15, 5, 8, C.wood);
     p.rect(x, 15, 5, 1, C.woodLight);
   }
+
   // The machine: chrome, two group heads, a pressure gauge, cups warming on top.
   box(p, 3, 1, 15, 11, C.metalLight);
   p.rect(4, 2, 13, 2, K.chrome);
@@ -112,6 +92,7 @@ function espressoBar(p: Pen, f: number): void {
   p.rect(4, 10, 13, 1, C.metal);
   p.rect(6, 9, 2, 1, C.white);
   for (const x of [5, 9, 13]) p.rect(x, 0, 2, 1, C.white);
+
   // Steam from the wand, drifting.
   const drift = f === 0 ? 0 : 1;
   dots(
@@ -124,6 +105,7 @@ function espressoBar(p: Pen, f: number): void {
     withAlpha(C.white, 0.8),
   );
   p.rect(17, 5, 2, 1, C.metal);
+
   // A bean jar and a cup on its saucer.
   box(p, 22, 3, 5, 8, K.glass);
   p.rect(23, 6, 3, 4, K.coffee);
@@ -138,10 +120,12 @@ function arcadeCabinet(p: Pen, f: number, t: string): void {
   shadow(p, 2, 28, 12);
   box(p, 2, 1, 12, 28, t);
   p.rect(3, 2, 10, 1, shade(t, 0.3));
+
   // Marquee.
   p.rect(3, 3, 10, 4, C.lamp);
   p.rect(4, 4, 8, 1, K.orange);
   p.rect(5, 5, 6, 1, K.red);
+
   // Screen, a space invader marching.
   p.rect(3, 8, 10, 9, C.ink);
   p.rect(4, 9, 8, 7, K.night);
@@ -149,6 +133,7 @@ function arcadeCabinet(p: Pen, f: number, t: string): void {
   p.grid([".1..1.", "111111", "1.11.1", "1....1"], { "1": K.green }, ox - 1, 10);
   p.rect(4, 15, 8, 1, K.nightLight);
   p.px(7, 14, C.white);
+
   // Control panel: stick and buttons.
   p.rect(2, 17, 12, 3, C.ink);
   p.rect(3, 17, 10, 2, dark);
@@ -156,6 +141,7 @@ function arcadeCabinet(p: Pen, f: number, t: string): void {
   p.px(5, 15, K.red);
   p.px(9, 18, K.amber);
   p.px(11, 18, K.blue);
+
   // Coin door.
   p.rect(6, 22, 4, 5, C.ink);
   p.rect(7, 23, 2, 3, C.metal);
@@ -170,6 +156,7 @@ function aquarium(p: Pen, f: number): void {
   p.rect(16, 17, 1, 5, C.ink);
   p.px(14, 19, K.brass);
   p.px(18, 19, K.brass);
+
   // The tank.
   p.rect(0, 0, 32, 16, C.ink);
   p.rect(1, 2, 30, 13, C.water);
@@ -177,6 +164,7 @@ function aquarium(p: Pen, f: number): void {
   p.rect(0, 0, 32, 2, C.metal);
   p.rect(1, 12, 30, 3, C.path);
   for (let x = 2; x < 30; x += 3) p.px(x + (x % 2), 13, C.pathDark);
+
   // Weed, swaying.
   for (const [x, h] of [
     [4, 8],
@@ -188,6 +176,7 @@ function aquarium(p: Pen, f: number): void {
   }
   p.disc(20, 12, 2, C.stoneDark);
   p.rect(18, 12, 5, 1, C.stone);
+
   // Fish: an orange one and two blue tetras.
   const fx = f === 0 ? 9 : 12;
   p.rect(fx, 5, 4, 3, K.orange);
@@ -210,6 +199,7 @@ function aquarium(p: Pen, f: number): void {
     p.rect(tx + dx, 7 + dy, 3, 1, K.blue);
     p.px(tx + dx + 1, 7 + dy, K.red);
   }
+
   // Bubbles.
   for (let i = 0; i < 3; i++) p.px(24 + ((i + f) % 2), 10 - i * 3 - f, C.foam);
   p.rect(2, 3, 1, 4, withAlpha(C.white, 0.6));
@@ -280,6 +270,7 @@ function beanbag(p: Pen, _f: number, t: string): void {
 
 function standingDesk(p: Pen): void {
   shadow(p, 1, 26, 30);
+
   // Legs and feet, with the height buttons.
   p.rect(4, 16, 2, 10, C.metal);
   p.rect(26, 16, 2, 10, C.metal);
@@ -288,11 +279,13 @@ function standingDesk(p: Pen): void {
   p.rect(2, 26, 6, 1, C.ink);
   p.rect(24, 26, 6, 1, C.ink);
   p.rect(6, 20, 20, 1, C.metal);
+
   // Top.
   p.rect(0, 11, 32, 6, C.ink);
   p.rect(1, 12, 30, 3, C.woodLight);
   p.rect(1, 15, 30, 1, C.wood);
   p.px(28, 15, K.green);
+
   // Two monitors, code on one and a graph on the other.
   for (const x of [2, 17]) {
     box(p, x, 0, 13, 10, C.ink);
@@ -325,6 +318,7 @@ function standingDesk(p: Pen): void {
     K.green,
   );
   p.rect(19, 8, 9, 1, K.nightLight);
+
   // Keyboard, mouse and a mug.
   p.rect(10, 13, 10, 2, C.metalLight);
   p.rect(10, 14, 10, 1, C.metal);
@@ -361,17 +355,20 @@ function pingPong(p: Pen): void {
   p.rect(0, 4, 48, 20, C.ink);
   p.rect(1, 5, 46, 15, top);
   p.rect(1, 20, 46, 3, "#2a4f85");
+
   // Lines: the edges and the middle.
   p.rect(2, 6, 44, 1, C.white);
   p.rect(2, 18, 44, 1, C.white);
   p.rect(2, 6, 1, 13, C.white);
   p.rect(45, 6, 1, 13, C.white);
   p.rect(2, 12, 44, 1, withAlpha(C.white, 0.7));
+
   // The net, standing up across the middle.
   p.rect(23, 1, 2, 20, C.ink);
   for (let y = 2; y < 20; y++) p.px(24, y, y % 2 ? C.white : C.stoneLight);
   p.rect(23, 1, 2, 1, C.metalLight);
   p.rect(23, 20, 2, 2, C.metal);
+
   // Two paddles and the ball.
   p.disc(10, 10, 3, C.ink);
   p.disc(10, 10, 2, K.red);
@@ -388,6 +385,7 @@ function plantWall(p: Pen): void {
   shadow(p, 1, 30, 30);
   box(p, 0, 0, 32, 31, C.woodDark);
   p.rect(1, 1, 30, 24, C.leafInk);
+
   // Clusters of leaves, packed and overlapping.
   const leafShades = [C.leafDark, C.leaf, C.leafLight, C.leaf];
   let k = 0;
@@ -419,6 +417,7 @@ function plantWall(p: Pen): void {
     ],
     C.flowerRed,
   );
+
   // Trailing vines over the planter.
   for (const x of [5, 14, 24]) {
     for (let y = 23; y < 27; y++) p.px(x + (y % 2), y, C.leaf);
@@ -433,6 +432,7 @@ function trophyCase(p: Pen): void {
   box(p, 0, 0, 32, 29, C.woodDark);
   p.rect(2, 2, 28, 22, "#4a3b44");
   for (const y of [9, 16]) p.rect(2, y, 28, 1, C.wood);
+
   // Top shelf: a big cup and two small ones.
   const cup = (x: number, y: number, s: number) => {
     p.rect(x, y, s * 2 + 1, s, K.brass);
@@ -445,6 +445,7 @@ function trophyCase(p: Pen): void {
   cup(13, 3, 3);
   cup(5, 5, 2);
   cup(23, 5, 2);
+
   // Middle: medals on ribbons, a star.
   for (const [x, c] of [
     [5, K.red],
@@ -456,12 +457,14 @@ function trophyCase(p: Pen): void {
   p.grid(["..1..", ".111.", "11111", ".1.1."], { "1": K.brassLight }, 18, 11);
   p.rect(25, 11, 3, 5, C.stoneLight);
   p.rect(25, 11, 3, 1, C.white);
+
   // Bottom: a silver plate and a golden duck.
   p.disc(8, 20, 3, C.stoneLight);
   p.disc(8, 20, 2, K.chrome);
   p.disc(20, 21, 2, K.brass);
   p.disc(22, 19, 1, K.brass);
   p.px(23, 19, K.orange);
+
   // Glass glints, then the plinth.
   dots(
     p,
@@ -485,6 +488,7 @@ function chandelier(p: Pen, f: number): void {
   oval(p, 16, 25, 8, 1, withAlpha(C.lamp, 0.25));
   p.rect(15, 0, 2, 6, K.brassDark);
   p.rect(15, 0, 1, 6, K.brass);
+
   // Arms with candles.
   p.rect(3, 11, 26, 2, C.ink);
   p.rect(4, 11, 24, 1, K.brass);
@@ -499,6 +503,7 @@ function chandelier(p: Pen, f: number): void {
   p.disc(16, 13, 3, K.brassDark);
   p.disc(16, 12, 3, K.brass);
   p.px(15, 11, K.brassLight);
+
   // Crystals.
   for (const x of [5, 8, 12, 20, 24, 27]) {
     p.px(x, 13, K.glassDark);
@@ -510,6 +515,7 @@ function chandelier(p: Pen, f: number): void {
 
 function loungeChair(p: Pen, _f: number, t: string): void {
   shadow(p, 2, 18, 12);
+
   // Splayed teak legs.
   dots(
     p,
@@ -523,6 +529,7 @@ function loungeChair(p: Pen, _f: number, t: string): void {
     ],
     K.teakDark,
   );
+
   // A curved shell back and a deep cushion, framed in teak.
   oval(p, 8, 6, 6, 5, C.ink);
   oval(p, 8, 6, 5, 4, shade(t, -0.2));
@@ -540,15 +547,18 @@ function loungeChair(p: Pen, _f: number, t: string): void {
 
 function recordPlayer(p: Pen, f: number): void {
   shadow(p, 1, 18, 14);
+
   // A low teak sideboard: records in a cubby, a speaker.
   box(p, 0, 7, 16, 11, K.teak);
   p.rect(1, 8, 14, 1, K.teakLight);
   p.rect(2, 10, 6, 6, K.teakDark);
-  for (let x = 2; x < 8; x++) p.rect(x, 11, 1, 5, [K.red, C.white, K.blue, K.amber, C.ink, K.green][x - 2]!);
+  const spines = [K.red, C.white, K.blue, K.amber, C.ink, K.green];
+  for (let x = 2; x < 8; x++) p.rect(x, 11, 1, 5, spines[x - 2]!);
   p.disc(12, 13, 2, C.ink);
   p.disc(12, 13, 1, C.metal);
   p.rect(2, 18, 1, 2, K.teakDark);
   p.rect(13, 18, 1, 2, K.teakDark);
+
   // The turntable on top, the record spinning.
   box(p, 1, 1, 14, 8, C.woodLight);
   oval(p, 7, 5, 4, 2, C.ink);
@@ -579,6 +589,7 @@ function bookshelf(p: Pen): void {
     p.rect(1, row + 6, 30, 2, C.wood);
   }
   p.rect(1, 26, 30, 2, C.wood);
+
   // A library ladder leaning on the front.
   for (const x of [21, 27]) {
     p.rect(x, 1, 1, 28, C.ink);
@@ -596,6 +607,7 @@ function whiteboard(p: Pen): void {
   }
   box(p, 0, 0, 32, 20, C.metalLight);
   p.rect(1, 1, 30, 18, C.white);
+
   // A flow chart, a rising line and a to-do list.
   box(p, 3, 3, 6, 4, C.white);
   box(p, 3, 11, 6, 4, C.white);
@@ -643,6 +655,7 @@ function foosball(p: Pen): void {
   p.rect(1, 6, 1, 4, C.ink);
   p.rect(30, 6, 1, 4, C.ink);
   p.rect(1, 12, 30, 3, C.wood);
+
   // Rods, with handles out the front and back; red and blue players alternate.
   [5, 10, 15, 21, 26].forEach((x, i) => {
     p.rect(x, 0, 1, 18, K.chrome);
@@ -665,6 +678,7 @@ function miniFridge(p: Pen, _f: number, t: string): void {
   p.rect(3, 17, 10, 1, shade(t, -0.25));
   p.rect(11, 3, 1, 3, K.chrome);
   p.rect(11, 9, 1, 5, K.chrome);
+
   // Stickers.
   p.rect(4, 9, 3, 3, K.amber);
   p.px(5, 10, C.ink);
@@ -678,6 +692,7 @@ function miniFridge(p: Pen, _f: number, t: string): void {
 
 function monstera(p: Pen): void {
   shadow(p, 2, 28, 12);
+
   // Stems from the pot.
   for (const [x0, x1] of [
     [7, 4],
@@ -687,6 +702,7 @@ function monstera(p: Pen): void {
   ] as const) {
     for (let y = 22; y > 12; y--) p.px(Math.round(x0 + ((x1 - x0) * (22 - y)) / 10), y, C.leafDark);
   }
+
   // Big split leaves: wide ovals with a midrib and the slits monsteras are named for.
   const leaf = (cx: number, cy: number, r: number, side: number) => {
     oval(p, cx, cy, r + 1, r, C.leafInk);
@@ -706,6 +722,7 @@ function monstera(p: Pen): void {
   leaf(7, 5, 5, 1);
   leaf(4, 20, 3, -1);
   leaf(11, 18, 3, 1);
+
   // A tall pot.
   box(p, 3, 21, 10, 8, K.pot);
   p.rect(4, 22, 8, 1, K.potLight);
@@ -717,6 +734,7 @@ function monstera(p: Pen): void {
 function rug(p: Pen, _f: number, t: string): void {
   const dark = shade(t, -0.3);
   const light = C.rugLight;
+
   // Fringes, then a bordered field with a medallion.
   for (let y = 3; y < 30; y += 2) {
     p.px(0, y, C.pillow);
@@ -751,6 +769,7 @@ function sofa(p: Pen, _f: number, t: string): void {
   const dark = shade(t, -0.25);
   const deep = shade(t, -0.45);
   shadow(p, 2, 20, 44);
+
   // Tufted back.
   box(p, 1, 0, 46, 11, dark);
   p.rect(2, 1, 44, 1, shade(t, 0.15));
@@ -758,6 +777,7 @@ function sofa(p: Pen, _f: number, t: string): void {
     p.px(x, 4, deep);
     p.px(x + 3, 7, deep);
   }
+
   // Three seat cushions, a front and two rolled arms.
   p.rect(1, 10, 46, 9, C.ink);
   for (let i = 0; i < 3; i++) {
@@ -781,6 +801,7 @@ function coffeeTable(p: Pen): void {
   oval(p, 16, 7, 15, 4, C.ink);
   oval(p, 16, 8, 14, 3, K.teak);
   oval(p, 16, 7, 14, 3, K.teakLight);
+
   // A stack of magazines, a mug and a tiny succulent.
   p.rect(5, 5, 7, 4, C.ink);
   p.rect(6, 5, 6, 3, K.red);
@@ -798,12 +819,14 @@ function coffeeTable(p: Pen): void {
 function lavaLamp(p: Pen, f: number, t: string): void {
   oval(p, 8, 9, 7, 7, withAlpha(t, 0.12));
   shadow(p, 4, 20, 8);
+
   // Cone base and cap.
   p.rect(4, 15, 8, 6, C.ink);
   p.rect(5, 15, 6, 5, C.metal);
   p.rect(5, 15, 2, 5, C.metalLight);
   p.rect(6, 1, 4, 3, C.ink);
   p.rect(7, 1, 2, 2, C.metalLight);
+
   // The bottle: narrow, wide, narrow.
   const rows = [3, 4, 4, 5, 5, 5, 6, 6, 6, 6, 5];
   rows.forEach((w, i) => {
@@ -811,6 +834,7 @@ function lavaLamp(p: Pen, f: number, t: string): void {
     p.rect(x - 1, 4 + i, w + 2, 1, C.ink);
     p.rect(x, 4 + i, w, 1, shade(t, 0.55));
   });
+
   // Blobs, rising and falling.
   const blob = shade(t, -0.05);
   p.disc(8, f ? 12 : 13, 1, blob);
@@ -825,6 +849,7 @@ function globe(p: Pen): void {
   p.rect(4, 19, 8, 2, C.ink);
   p.rect(5, 19, 6, 1, C.woodDark);
   p.rect(7, 15, 2, 4, C.woodDark);
+
   // The sphere with its brass meridian.
   p.disc(8, 8, 6, C.ink);
   p.disc(8, 8, 5, C.waterDark);
@@ -839,6 +864,7 @@ function globe(p: Pen): void {
 
 function gong(p: Pen, f: number): void {
   shadow(p, 2, 28, 28);
+
   // A lacquered frame with upturned ends.
   for (const x of [3, 27]) {
     p.rect(x, 3, 3, 25, C.ink);
@@ -851,6 +877,7 @@ function gong(p: Pen, f: number): void {
   p.px(0, 1, C.ink);
   p.px(31, 1, C.ink);
   p.rect(5, 6, 22, 1, C.roofRedDark);
+
   // Cords and the gong, still or just struck (a shimmer).
   p.px(12, 6, C.trunkDark);
   p.px(20, 6, C.trunkDark);
@@ -872,6 +899,7 @@ function gong(p: Pen, f: number): void {
       p.px(x, y, C.lamp);
     }
   }
+
   // The mallet leaning on the right post.
   p.rect(29, 14, 1, 13, K.teakLight);
   p.rect(28, 12, 3, 3, C.ink);
@@ -880,6 +908,7 @@ function gong(p: Pen, f: number): void {
 
 function duckStatue(p: Pen): void {
   shadow(p, 1, 24, 14);
+
   // A marble plinth with a brass plaque.
   box(p, 1, 15, 14, 10, K.marble);
   p.rect(2, 16, 12, 1, C.white);
@@ -888,6 +917,7 @@ function duckStatue(p: Pen): void {
   p.rect(6, 18, 4, 1, K.brassLight);
   p.rect(0, 14, 16, 2, C.ink);
   p.rect(1, 14, 14, 1, K.marble);
+
   // The duck.
   const yellow = "#f5d14a";
   const yellowDark = "#d9a92a";
@@ -910,6 +940,7 @@ function vending(p: Pen, f: number, t: string): void {
   shadow(p, 1, 28, 14);
   box(p, 1, 0, 14, 29, t);
   p.rect(2, 1, 12, 1, shade(t, 0.3));
+
   // Glass front with three rows of snacks.
   p.rect(2, 3, 8, 18, C.ink);
   p.rect(3, 4, 6, 16, "#d8eef8");
@@ -919,6 +950,7 @@ function vending(p: Pen, f: number, t: string): void {
     p.rect(3, 8 + r * 5, 6, 1, C.metal);
   }
   p.rect(3, 4, 1, 3, withAlpha(C.white, 0.8));
+
   // Keypad and slot.
   p.rect(11, 4, 2, 2, f ? K.green : shade(K.green, -0.5));
   for (let y = 7; y < 13; y += 2) p.rect(11, y, 2, 1, C.metalLight);
@@ -930,6 +962,7 @@ function vending(p: Pen, f: number, t: string): void {
 
 function waterCooler(p: Pen, f: number): void {
   shadow(p, 3, 24, 10);
+
   // The jug.
   p.rect(4, 0, 8, 10, C.ink);
   p.rect(5, 1, 6, 8, K.glass);
@@ -939,6 +972,7 @@ function waterCooler(p: Pen, f: number): void {
   p.px(8, f ? 4 : 5, C.foam);
   p.rect(6, 1, 1, 5, withAlpha(C.white, 0.6));
   p.rect(6, 9, 4, 2, C.ink);
+
   // The stand, its taps and a paper cup.
   box(p, 3, 10, 10, 15, C.white);
   p.rect(4, 11, 8, 1, C.stoneLight);
@@ -952,6 +986,7 @@ function waterCooler(p: Pen, f: number): void {
 function arcLamp(p: Pen): void {
   oval(p, 10, 28, 5, 1, withAlpha(C.lamp, 0.25));
   shadow(p, 0, 30, 7);
+
   // Marble base, the arc, a domed shade.
   p.rect(0, 28, 7, 3, C.ink);
   p.rect(1, 28, 5, 2, K.marble);
@@ -968,12 +1003,14 @@ function arcLamp(p: Pen): void {
 
 function bonsai(p: Pen): void {
   shadow(p, 3, 14, 10);
+
   // A shallow tray.
   p.rect(2, 11, 12, 4, C.ink);
   p.rect(3, 11, 10, 2, "#3c4454");
   p.rect(3, 11, 10, 1, C.metalLight);
   p.rect(4, 15, 1, 1, C.ink);
   p.rect(11, 15, 1, 1, C.ink);
+
   // A twisty trunk with three pads of leaves.
   dots(
     p,

@@ -25,14 +25,26 @@ function useFrameNow(on: boolean, now: number): number {
 /** A seed's verdict never changes, so each seed is hashed once, not on every render. */
 const checked = new Map<string, boolean>();
 const verified = (seed: string, hash: string) => {
-  if (!checked.has(seed)) checked.set(seed, sha256(seed) === hash);
-  return checked.get(seed)!;
+  let ok = checked.get(seed);
+  if (ok === undefined) {
+    ok = sha256(seed) === hash;
+    checked.set(seed, ok);
+  }
+  return ok;
 };
+
+/** A player's cell in one round: their cash-out, the crash for those still in, or a dot while it runs. */
+function roundCell(round: HypeView["rounds"][number], player: number): string {
+  const at = round.cashed[player];
+  if (at !== undefined) return `🪂 ${times(at)}`;
+  return round.endedAt !== null ? "💥" : "…";
+}
 
 export function Hype({ view, you, now, move, name }: GameProps<HypeView>) {
   // The last crash stays up for a moment before the next countdown.
   const next = view.rounds.length - 1;
-  const i = next > 0 && now < view.rounds[next]!.startsAt - COUNTDOWN_MS ? next - 1 : next;
+  const nextCountingDown = next > 0 && now < view.rounds[next]!.startsAt - COUNTDOWN_MS;
+  const i = nextCountingDown ? next - 1 : next;
   const round = view.rounds[i]!;
   const mine = you === null ? undefined : round.cashed[you];
 
@@ -72,9 +84,7 @@ export function Hype({ view, you, now, move, name }: GameProps<HypeView>) {
                 {view.forfeited.includes(p) && " 🏳️"}
               </td>
               {view.rounds.map((r) => (
-                <td key={r.hash}>
-                  {r.cashed[p] !== undefined ? `🪂 ${times(r.cashed[p]!)}` : r.endedAt !== null ? "💥" : "…"}
-                </td>
+                <td key={r.hash}>{roundCell(r, p)}</td>
               ))}
               <td>
                 <strong>{times(view.totals[p] ?? 0)}</strong>
@@ -131,19 +141,7 @@ function Live({
         cashed={round.cashed}
         name={name}
       />
-      <p className="hype-m">
-        {m !== null ? (
-          <span>📈 ×{m.toFixed(2)}</span>
-        ) : round.crash !== null && round.endedAt !== null ? (
-          multiplier(round.endedAt - round.startsAt) * 100 < round.crash - 1 ? (
-            <span className="muted">Everyone got out · it would have crashed at {times(round.crash)}</span>
-          ) : (
-            <span className="crashed">💥 {times(round.crash)}</span>
-          )
-        ) : (
-          <span className="muted">×1.00</span>
-        )}
-      </p>
+      <p className="hype-m">{readout(m, round)}</p>
       {m !== null && canCash && (
         <button type="button" className="primary hype-cash" onClick={cashOut}>
           🪂 Cash out at ×{m.toFixed(2)}
@@ -151,6 +149,17 @@ function Live({
       )}
     </>
   );
+}
+
+/** The multiplier line: the live ×, the crash, or, when everyone got out before it, what it would have crashed at. */
+function readout(m: number | null, round: HypeView["rounds"][number]) {
+  if (m !== null) return <span>📈 ×{m.toFixed(2)}</span>;
+  if (round.crash === null || round.endedAt === null) return <span className="muted">×1.00</span>;
+
+  const endedBeforeCrash = multiplier(round.endedAt - round.startsAt) * 100 < round.crash - 1;
+  if (endedBeforeCrash)
+    return <span className="muted">Everyone got out · it would have crashed at {times(round.crash)}</span>;
+  return <span className="crashed">💥 {times(round.crash)}</span>;
 }
 
 const W = 300;

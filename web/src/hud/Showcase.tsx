@@ -5,6 +5,7 @@ import { badgeFrame, FRAME_SIZE, TROPHY_H, TROPHY_W, trophySprite } from "../art
 import { town } from "../net.ts";
 import { dayText } from "./format.ts";
 import { ItemIcon } from "./ItemIcon.tsx";
+import { rarityStripe } from "./ItemTag.tsx";
 import { Pixels, useLoad, useRun } from "./ui.tsx";
 
 const SCALE = 3;
@@ -128,9 +129,7 @@ export function ShelfPicker({
                 aria-pressed={at >= 0}
                 aria-label={`${o.name}, ${o.rarity}${at >= 0 ? `, pinned ${at + 1}` : ""}`}
                 title={o.name}
-                style={{
-                  backgroundImage: `linear-gradient(to top, ${RARITY_COLOR[o.rarity]} 3px, transparent 3px)`,
-                }}
+                style={rarityStripe(RARITY_COLOR[o.rarity])}
                 onClick={() => toggle(o.id)}
               >
                 <PinIcon pin={o} />

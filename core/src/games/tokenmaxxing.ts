@@ -101,7 +101,9 @@ export const tokenmaxxing: GameDef<TokenmaxxingState, TokenmaxxingView> = {
     const was = s.tokens[player] ?? 0;
     const flag = flagged && !s.flagged.includes(player) ? [...s.flagged, player] : s.flagged;
     if (tokens === was && flag === s.flagged) return s;
-    let points = [...(s.history[player] ?? []), [Math.min(now, s.endsAt), tokens] as [number, number]];
+    const sample: [number, number] = [Math.min(now, s.endsAt), tokens];
+    let points = [...(s.history[player] ?? []), sample];
+    // Past the cap, keep every other point and always the newest, so the chart stays whole.
     if (points.length > MAX_POINTS) points = points.filter((_, i) => i % 2 === 0 || i === points.length - 1);
     return {
       ...s,

@@ -13,17 +13,22 @@ export const tierOf = (i: Item): Rarity => i.rarity ?? "common";
 /** The chance of landing in each tier. A tier with no items hands its chance down to the next lower tier with items (then up), as `rollCase` does. */
 export function tierChances(def: CaseDef): Record<Rarity, number> {
   const has = (i: number) => def.items.some((it) => tierOf(it) === RARITIES[i]);
+  // The nearest tier below with items, else the nearest above. Past the last tier is `RARITIES.length`.
+  const landingTier = (at: number) => {
+    let below = at;
+    while (below >= 0 && !has(below)) below--;
+    if (below >= 0) return below;
+
+    let above = at;
+    while (above < RARITIES.length && !has(above)) above++;
+    return above;
+  };
+
   const out = Object.fromEntries(RARITIES.map((r) => [r, 0])) as Record<Rarity, number>;
   // With every odd at zero the total is 1 rather than 0, so the chances come out 0 and not NaN.
   const total = RARITIES.reduce((a, r) => a + def.odds[r], 0) || 1;
   RARITIES.forEach((r, at) => {
-    let tier = at;
-    while (tier >= 0 && !has(tier)) tier--;
-    if (tier < 0) {
-      tier = at;
-      while (tier < RARITIES.length && !has(tier)) tier++;
-    }
-    const rarity = RARITIES[tier];
+    const rarity = RARITIES[landingTier(at)];
     if (rarity !== undefined) out[rarity] += def.odds[r] / total;
   });
   return out;

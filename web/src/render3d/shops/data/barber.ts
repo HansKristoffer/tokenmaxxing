@@ -52,14 +52,14 @@ const row = (
   ...extra,
 });
 
-export const STYLE_ROWS: readonly BarberRow[] = STYLE_NAMES.map((n, i) =>
-  row("style", i, n, 0, "Free from the character creator."),
+export const STYLE_ROWS: readonly BarberRow[] = STYLE_NAMES.map((name, index) =>
+  row("style", index, name, 0, "Free from the character creator."),
 );
-export const SKIN_ROWS: readonly BarberRow[] = SKIN_NAMES.map((n, i) =>
-  row("skin", i, `${n} skin`, 0, "Free from the character creator."),
+export const SKIN_ROWS: readonly BarberRow[] = SKIN_NAMES.map((name, index) =>
+  row("skin", index, `${name} skin`, 0, "Free from the character creator."),
 );
-export const HAIR_ROWS: readonly BarberRow[] = HAIR_NAMES.map((n, i) =>
-  row("hair", i, `${n} hair`, 0, "Free from the character creator."),
+export const HAIR_ROWS: readonly BarberRow[] = HAIR_NAMES.map((name, index) =>
+  row("hair", index, `${name} hair`, 0, "Free from the character creator."),
 );
 
 // prettier-ignore

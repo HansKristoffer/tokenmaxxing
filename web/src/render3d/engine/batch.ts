@@ -31,7 +31,10 @@ interface Snapshot {
 
 const isMesh = (o: THREE.Object3D): o is THREE.Mesh => (o as THREE.Mesh).isMesh === true;
 
-/** Whether `o` or anything above it (up to `root`) is set to stay out of the batches (`userData.nobatch`): a boss, a crowd, a gate's boards. */
+/**
+ * Whether `o` or anything above it (up to `root`) is set to stay out of the batches (`userData.nobatch`): a boss,
+ * a crowd, a gate's boards.
+ */
 function kept(o: THREE.Object3D, root: THREE.Object3D): boolean {
   for (let p: THREE.Object3D | null = o; p; p = p.parent) {
     if (p.userData.nobatch === true) return true;
@@ -179,26 +182,22 @@ export function batchStatic(root: THREE.Object3D, o: BatchOptions): BatchResult 
       const g = src.index ? src.toNonIndexed() : src.clone();
       // The vertex colours stay when the material reads them (the voxel people's bodies are painted that way).
       const colours = bakeColor || (m.material as THREE.MeshStandardMaterial).vertexColors === true;
-      for (const name of Object.keys(g.attributes))
-        if (
-          name !== "position" &&
-          name !== "normal" &&
-          name !== "uv" &&
-          !(!bakeColor && colours && name === "color")
-        )
-          g.deleteAttribute(name);
+      // Only position, normal and uv survive, and the colour attribute only where it is read and not baked.
+      const keepColour = !bakeColor && colours;
+      for (const name of Object.keys(g.attributes)) {
+        const isKept =
+          name === "position" || name === "normal" || name === "uv" || (keepColour && name === "color");
+        if (!isKept) g.deleteAttribute(name);
+      }
       const n = g.attributes.position!.count;
       if (bakeColor) {
         const col = (m.material as PlainMat).color;
         const c = new Float32Array(n * 3);
-        const r = col.r;
-        const gr = col.g;
-        const b = col.b;
         for (let i = 0; i < n; i++) {
           const j = i * 3;
-          c[j] = r;
-          c[j + 1] = gr;
-          c[j + 2] = b;
+          c[j] = col.r;
+          c[j + 1] = col.g;
+          c[j + 2] = col.b;
         }
         g.setAttribute("color", new THREE.BufferAttribute(c, 3));
       } else if (colours && !g.attributes.color) {

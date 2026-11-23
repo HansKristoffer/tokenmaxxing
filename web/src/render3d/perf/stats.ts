@@ -52,7 +52,7 @@ export function sceneStats(scene: THREE.Object3D): SceneStats {
     const instanced = m as THREE.InstancedMesh;
     const isInstanced = !!instanced.isInstancedMesh;
     const n = isInstanced ? instanced.count : 1;
-    if (n !== 1 || isInstanced) {
+    if (isInstanced) {
       s.instanced++;
       s.instances += n;
     }

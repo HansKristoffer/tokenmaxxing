@@ -16,7 +16,7 @@ const CLOAK_DARK = "#2a1646";
 const ORANGE = "#e8772a";
 const ECTO = "#7CFC5A";
 
-/** A soft round glow texture, white at the middle: one for everything that glows on the ground or in the air. */
+/** A soft round glow texture, white in the middle. One texture serves everything that glows, on the ground or in the air. */
 let blob: THREE.CanvasTexture | undefined;
 export function glowTexture(): THREE.CanvasTexture {
   blob ??= canvasTexture(
@@ -105,7 +105,10 @@ export interface GhostRig {
   mats: [THREE.MeshToonMaterial, THREE.MeshBasicMaterial, THREE.MeshBasicMaterial];
 }
 
-/** A ghost, blocky like the rest: a see-through sheet with a stepped hem, two dark eyes and an "oooh". `scale` makes a baby one. */
+/**
+ * A ghost, blocky like the rest: a see-through sheet with a stepped hem, two dark eyes and an "oooh".
+ * `scale` makes a baby one.
+ */
 export function ghostModel(hue: "white" | "blue", scale: number): GhostRig {
   const root = new Model();
   root.userData.live = true;
@@ -121,9 +124,11 @@ export function ghostModel(hue: "white" | "blue", scale: number): GhostRig {
   root.box([0.36, 0.08, 0.36], sheet, [0, 0.98, 0], 0.015);
   root.box([0.52, 0.56, 0.5], sheet, [0, 0.42, 0], 0.015);
   root.box([0.58, 0.2, 0.54], sheet, [0, 0.22, 0], 0.015);
-  for (const x of [-1, 0, 1])
-    for (const z of [-1, 0, 1])
+  for (const x of [-1, 0, 1]) {
+    for (const z of [-1, 0, 1]) {
       if ((x + z) % 2 === 0) root.box([0.16, 0.14, 0.16], sheet, [x * 0.21, 0.08, z * 0.19], 0.01);
+    }
+  }
   for (const s of [-1, 1]) root.box([0.12, 0.14, 0.14], sheet, [s * 0.33, 0.55, 0.08], 0.015);
   root.box([0.38, 0.4, 0.36], inner, [0, 0.5, 0], 0.01);
   for (const s of [-1, 1]) root.box([0.07, 0.11, 0.02], dark, [s * 0.1, 0.74, 0.25], 0.004);
@@ -161,14 +166,14 @@ export function cauldronModel(): CauldronRig {
   root.cyl(0.31, 0.01, glow(ECTO), [0, 0.73, 0], 0.31, 16).userData.live = true;
   const bubbles: THREE.Mesh[] = [];
   for (let i = 0; i < 4; i++) {
-    const b = root.ball(0.05, glow("#b8ff9a"), [0, 0.8, 0], [1, 1, 1], 6);
-    b.userData.live = true;
-    bubbles.push(b);
+    const bubble = root.ball(0.05, glow("#b8ff9a"), [0, 0.8, 0], [1, 1, 1], 6);
+    bubble.userData.live = true;
+    bubbles.push(bubble);
   }
   const flames: THREE.Mesh[] = [];
   for (let i = 0; i < 3; i++) {
     const a = (i / 3) * Math.PI * 2;
-    const f = root.cyl(
+    const flame = root.cyl(
       0.09,
       0.3,
       glow(i % 2 ? "#ffb43a" : "#e8582a"),
@@ -176,8 +181,8 @@ export function cauldronModel(): CauldronRig {
       0.01,
       5,
     );
-    f.userData.live = true;
-    flames.push(f);
+    flame.userData.live = true;
+    flames.push(flame);
   }
   const light = pool(ECTO, 2.6, 0.5);
   light.position.y = 0.04;
@@ -197,10 +202,10 @@ export function extraStoneModel(kind: StoneKind, text: string): Model {
     c.box([0.42, 0.13, 0.11], stone, [0, 0.42, 0], 0.02);
     c.rotation.z = 0.1;
   } else if (kind === "slab") {
-    const s = m.part([0, 0.04, -0.04]);
-    s.box([0.7, 0.5, 0.1], dark, [0, 0, 0], 0.02);
-    s.rotation.x = -0.22;
-    s.rotation.z = -0.05;
+    const slab = m.part([0, 0.04, -0.04]);
+    slab.box([0.7, 0.5, 0.1], dark, [0, 0, 0], 0.02);
+    slab.rotation.x = -0.22;
+    slab.rotation.z = -0.05;
   } else {
     m.box([0.7, 0.08, 0.22], dark, [0, 0.04, -0.06], 0.01);
     m.box([0.56, 0.5, 0.14], stone, [0, 0.1, -0.06], 0.02);
@@ -236,13 +241,16 @@ export function extraStoneModel(kind: StoneKind, text: string): Model {
 /** A wrapped sweet in one of `CANDY_COLORS`, lying down, in `into`. */
 export function candyInto(into: Model, c: number, at: [number, number, number], turn: number): void {
   const color = CANDY_COLORS[c % CANDY_COLORS.length]!;
-  const s = into.part(at, turn);
-  s.ball(0.04, color, [0, 0.035, 0], [1.3, 0.8, 0.8], 6);
-  for (const k of [-1, 1])
-    s.cyl(0.003, 0.02, "#fbf7ef", [k * 0.065, 0.035, 0], 0.03, 4).rotation.z = (k * Math.PI) / 2;
+  const piece = into.part(at, turn);
+  piece.ball(0.04, color, [0, 0.035, 0], [1.3, 0.8, 0.8], 6);
+  for (const k of [-1, 1]) {
+    piece.cyl(0.003, 0.02, "#fbf7ef", [k * 0.065, 0.035, 0], 0.03, 4).rotation.z = (k * Math.PI) / 2;
+  }
 }
 
-/** The cobweb material: spokes and sagging threads hanging from the top-left corner of a see-through plane. Shared. */
+/**
+ * The cobweb material: spokes and sagging threads, hung from the top-left corner of a see-through plane. Shared.
+ */
 let webMat: THREE.MeshBasicMaterial | undefined;
 export function cobwebMaterial(): THREE.MeshBasicMaterial {
   if (webMat) return webMat;
@@ -306,6 +314,7 @@ export function gerdaModel(_npc: FestiveNpc): THREE.Object3D {
     body.box([0.07, 0.014, 0.02], "#b87a6a", [0, 1.18, 0.195], 0.004);
   }
   body.ball(0.035, "#e8c39e", [0, 1.24, 0.2], [1, 1.2, 1], 6);
+
   // Her free hand, and the crook she holds, a staff taller than she is.
   body.ball(0.05, "#e8c39e", [-0.36, 0.72, 0.1], [1, 1, 1], 6);
   body.box([0.1, 0.4, 0.1], CLOAK, [-0.34, 0.6, 0.02], 0.03).rotation.z = 0.35;
@@ -315,6 +324,7 @@ export function gerdaModel(_npc: FestiveNpc): THREE.Object3D {
   body.ball(0.05, "#e8c39e", [0.38, 0.8, 0.12], [1, 1, 1], 6);
   root.add(body);
   mergeStill(body);
+
   // The lantern, swaying from the crook's end: frame and flame.
   const lantern = new THREE.Group();
   lantern.position.set(0.27, 1.47, 0.12);
@@ -326,8 +336,9 @@ export function gerdaModel(_npc: FestiveNpc): THREE.Object3D {
     [-0.06, 0.06],
     [0.06, -0.06],
     [-0.06, -0.06],
-  ] as const)
+  ] as const) {
     frame.box([0.012, 0.16, 0.012], BLACK, [x, 0, z], 0.002);
+  }
   frame.userData.live = true;
   lantern.add(frame);
   const flame = new Model();

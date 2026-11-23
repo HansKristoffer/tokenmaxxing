@@ -30,6 +30,7 @@ function easer(inS: number, outS: number): (target: boolean, now: number) => num
 }
 
 const snowEase = easer(SETTLE_S, MELT_S);
+// The pond ices over in half a minute and thaws in a minute.
 const iceEase = easer(30, 60);
 
 /** How snowy the town is, 0..1: eases in while snow falls (or in winter), melts away slowly after. */

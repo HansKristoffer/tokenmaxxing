@@ -10,7 +10,7 @@ test("the rollup carries sessions, subagents, hours by world clock and tokens by
   const { db, sql } = memorySql();
   try {
     await migrateEvents(sql);
-    let n = 0;
+    let messages = 0;
     const add = (
       at: number,
       day: string,
@@ -24,7 +24,7 @@ test("the rollup carries sessions, subagents, hours by world clock and tokens by
         `INSERT INTO events (source, session_id, agent_id, message_id, timestamp, day, model, message_type,
            input_tokens, output_tokens, cache_creation_tokens, cache_read_tokens)
          VALUES (?, ?, ?, ?, ?, ?, 'm', ?, ?, 0, 0, 0)`,
-        [source, session, agent, `m${n++}`, at, day, type, tokens],
+        [source, session, agent, `m${messages++}`, at, day, type, tokens],
       );
     // Summer (CEST, UTC+2): 21:30Z is 23:30 on the world's clock. Two sessions; in one bucket a main
     // agent and a subagent, in the next the main agent alone.

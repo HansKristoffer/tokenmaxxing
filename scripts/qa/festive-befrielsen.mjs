@@ -34,7 +34,9 @@ const fail = (why) => {
 };
 
 for (const tier of tiers) {
-  const page = await openGame(browser, await signUp("bf", 8_000_000, true), tier, {
+  // About 8M tokens a turn: enough usage for the company level the Office needs (see signUp).
+  const user = await signUp("bf", 8_000_000, true);
+  const page = await openGame(browser, user, tier, {
     viewport: { width: 1280, height: 800 },
   });
   await ready(page);

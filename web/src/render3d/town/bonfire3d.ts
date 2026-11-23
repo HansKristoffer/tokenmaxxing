@@ -39,12 +39,14 @@ export class Bonfire3d {
     this.group.position.set(x0 + (BONFIRE.w - 1) / 2, 0, z);
     const pile = pileModel();
     this.group.add(pile);
+
     // Merged off the origin, so it lies in one patch of floor (the batching splits at multiples of 100).
     pile.position.set(50, 0, 50);
     mergeStill(pile);
     pile.position.set(0, 0, 0);
+
     for (let i = 0; i < 6; i++) {
-      // A tongue of flame: a cone the town's own way (`Model.cyl` with a point), so the blocky look keeps its size.
+      // A tongue of flame: a cone built with `Model.cyl` like the rest of the town, so it keeps the blocky look.
       const flame = new Model();
       flame.cyl(0.2, 0.9, glow(FLAMES[i % 3]!), [0, 0, 0], 0.01, 6);
       const a = (i / 6) * Math.PI * 2;
@@ -56,6 +58,7 @@ export class Bonfire3d {
     this.group.traverse((o) => {
       o.userData.nopick = true;
     });
+
     // It comes and goes with the calendar, and burns: the room's batching leaves it as it is.
     this.group.userData.nobatch = true;
     this.group.visible = false;
@@ -65,6 +68,7 @@ export class Bonfire3d {
     const state = bonfireNow();
     this.group.visible = state !== null;
     const lit = state === "lit";
+
     for (const [i, f] of this.flames.entries()) {
       f.visible = lit;
       if (lit) f.scale.set(1, 0.8 + 0.5 * Math.abs(Math.sin(t * 7 + i * 1.7)), 1);

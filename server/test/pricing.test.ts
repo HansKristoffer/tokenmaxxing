@@ -64,7 +64,7 @@ describe("computeRowCostUsd", () => {
   });
 
   test("Claude Opus 4.7: hand-computed full-bucket scenario matches within $0.0001", () => {
-    // Real Opus 4.7 prices from src/server/pricing-fallback.json:
+    // Real Opus 4.7 prices from server/src/pricing-fallback.json:
     //   input_cost_per_token              = 5e-6   ($5 / 1M)
     //   output_cost_per_token             = 2.5e-5 ($25 / 1M)
     //   cache_creation_input_token_cost   = 6.25e-6 ($6.25 / 1M, 5m TTL)
@@ -97,18 +97,15 @@ describe("computeRowCostUsd", () => {
   });
 
   test("Codex gpt-5.5: hand-computed scenario with non-cached input + cached + output", () => {
-    // Real gpt-5.5 prices from src/server/pricing-fallback.json:
+    // Real gpt-5.5 prices from server/src/pricing-fallback.json:
     //   input_cost_per_token              = 5e-6   ($5 / 1M)
     //   cache_read_input_token_cost       = 5e-7   ($0.50 / 1M)
     //   output_cost_per_token             = 3e-5   ($30 / 1M)
     //   (no cache_creation for OpenAI: the Codex parser sets it to 0)
     //
-    // The Codex parser emits a raw token_count of
-    //   input=10000, cached=8000, output=2000, reasoning=500
-    // is emitted as:
-    //   inputTokens=2000 (non-cached), cacheReadTokens=8000,
-    //   outputTokens=2000, reasoningTokens=500
-    // and the cost formula is:
+    // The Codex parser turns a raw token_count of input=10000, cached=8000, output=2000,
+    // reasoning=500 into inputTokens=2000 (non-cached), cacheReadTokens=8000,
+    // outputTokens=2000, reasoningTokens=500. The cost formula is:
     //   2000 * 5e-6  = 0.01
     //   8000 * 5e-7  = 0.004
     //   2000 * 3e-5  = 0.06

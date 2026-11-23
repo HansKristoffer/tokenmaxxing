@@ -59,7 +59,10 @@ export const staticShadowEpoch = (): number => shadowEpoch;
 export const bumpStaticShadow = (): void => void shadowEpoch++;
 
 let epoch = 0;
-/** Bumps whenever anything is added to or removed from an object: cheap way to know the scene graph may have changed. */
+/**
+ * Bumps whenever anything is added to or removed from an object: a cheap way to know the scene graph may have
+ * changed.
+ */
 export const sceneEpoch = (): number => epoch;
 let patched = false;
 export function trackAdditions(): void {
@@ -89,7 +92,10 @@ export interface BakeStats {
   merged: Record<BakeMode, { meshes: number; triangles: number } | undefined>;
 }
 
-/** Batches of something that moves as a whole (a wall, a limb) stay on the default layer: they cast their own shadow every frame. */
+/**
+ * Batches of something that moves as a whole (a wall, a limb) stay on the default layer: they cast their own shadow
+ * every frame.
+ */
 function dynamicRoot(root: THREE.Object3D): boolean {
   for (let p: THREE.Object3D | null = root; p; p = p.parent)
     if (p.userData[RIGID] || p.userData.actor) return true;
@@ -98,8 +104,9 @@ function dynamicRoot(root: THREE.Object3D): boolean {
 
 function isLive(o: THREE.Object3D, root: THREE.Object3D): boolean {
   for (let p: THREE.Object3D | null = o; p; p = p.parent) {
-    if (p.userData[LIVE] || p.userData.nobatch || p.userData.noBake || (p !== root && p.userData[RIGID]))
-      return true;
+    const isKept = p.userData[LIVE] || p.userData.nobatch || p.userData.noBake;
+    const isOwnRigid = p !== root && p.userData[RIGID];
+    if (isKept || isOwnRigid) return true;
     if (p === root) break;
   }
   return false;
@@ -132,7 +139,10 @@ const tex = (t: THREE.Texture | null | undefined): string =>
 
 type Lit = THREE.MeshToonMaterial & { flatShading?: boolean; fog?: boolean };
 
-/** Plain colour materials (no texture, no glow tricks) fold into one material per kind; their colour moves to the vertices. */
+/**
+ * Plain colour materials (no texture, no glow tricks) fold into one material per kind; their colour moves to the
+ * vertices.
+ */
 function foldable(m: THREE.Material): boolean {
   const a = m as Lit;
   if (m.type !== "MeshToonMaterial" && m.type !== "MeshBasicMaterial") return false;
@@ -175,7 +185,9 @@ function folded(m: THREE.Material): THREE.Material {
   return c;
 }
 
-/** The material a batch draws `mat` with: plain colour materials share one folded stand-in, the rest keep their own. */
+/**
+ * The material a batch draws `mat` with: plain colour materials share one folded stand-in, the rest keep their own.
+ */
 function sharedMaterial(
   reps: Map<string, THREE.Material>,
   mat: THREE.Material,
@@ -424,15 +436,12 @@ export class BakedLayer {
     const isQuiet = (o: THREE.Object3D): boolean => {
       let q = quiet.get(o);
       if (q !== undefined) return q;
+      // Lights and sprites, and anything kept live, act on their own every frame, so they never sleep.
+      const actsOnItsOwn =
+        o.userData[LIVE] || o.userData.noBake || (o as THREE.Light).isLight || (o as THREE.Sprite).isSprite;
       if (o === this.group) q = false;
       else if ((o as THREE.Mesh).isMesh) q = own.has(o as THREE.Mesh);
-      else if (
-        o.userData[LIVE] ||
-        o.userData.noBake ||
-        (o as THREE.Light).isLight ||
-        (o as THREE.Sprite).isSprite
-      )
-        q = false;
+      else if (actsOnItsOwn) q = false;
       else q = o.children.every(isQuiet);
       quiet.set(o, q);
       return q;
@@ -492,7 +501,8 @@ export class BakedLayer {
     >();
     const items = this.sources.map((s) => {
       const m = s.mesh;
-      const geo = (mode === "block" && !this.options.literal ? blockStandIn(m) : null) ?? m.geometry;
+      const standIn = mode === "block" && !this.options.literal ? blockStandIn(m) : null;
+      const geo = standIn ?? m.geometry;
       return {
         s,
         geo,
@@ -706,8 +716,9 @@ export class BakedLayer {
       syncAtlas(a);
       // One that keeps changing (a screen the warm-up never saw move) is taken out of the atlas for good.
       if (a.repaints > 24) {
-        for (const t of a.rects.keys())
+        for (const t of a.rects.keys()) {
           if (a.seen.get(t) !== undefined && t.version > 2) t.userData.animated = true;
+        }
         a.repaints = 0;
         invalidateBaked(this.root);
         return;
@@ -827,6 +838,7 @@ function layerOf(
   });
   why.baked = new Set(sources.map((x) => x.mesh)).size;
   why.moving = meshes.length - why.baked;
+  // One merged mesh saves no draw calls over the original, so a single source is left alone.
   if (why.baked < 2) return null;
   const layer = new BakedLayer(root, sources);
   layer.liveCount = why.moving;
@@ -928,7 +940,9 @@ export function syncBaked(scene: THREE.Scene, mode: BakeMode): BakedLayer[] {
     };
     const look = (o: THREE.Object3D, depth: number) => {
       if (o.userData[BAKE]) watch(o);
-      else if (depth < 3) for (const c of o.children) look(c, depth + 1);
+      else if (depth < 3) {
+        for (const c of o.children) look(c, depth + 1);
+      }
     };
     look(scene, 0);
     s.epoch = epoch;
@@ -938,7 +952,7 @@ export function syncBaked(scene: THREE.Scene, mode: BakeMode): BakedLayer[] {
       let top: THREE.Object3D | null = root;
       while (top?.parent) top = top.parent;
       if (top !== scene) {
-        // Never reached the scene (or left it): don't carry it for ever.
+        // Never reached the scene (or left it) in 900 frames: stop carrying it.
         if (++w.orphan > 900) watching.delete(root);
         continue;
       }

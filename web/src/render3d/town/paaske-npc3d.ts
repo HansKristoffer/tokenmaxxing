@@ -3,11 +3,11 @@ import type * as THREE from "three";
 import { liveModel, type Model } from "../kit/kit.ts";
 
 /**
- * Gudrun the egg farmer in the 3D town (`NPC_MODELS.paaske`, registered in `festive-npc3d.ts`): a grey-bunned farmer in a
- * straw hat, a red scarf and blue overalls over a cream shirt, with a basket of painted eggs on her hip and a
- * painted egg in her raised hand. Built from the kit (not an `Avatar`: the people's idle freezing merges what is
- * under a `nobatch` group into nothing). Her name is a label from `Paaske3d.signs`. She breathes, nods and turns
- * her head, about 1.6 units tall, facing +z.
+ * Gudrun the egg farmer in the 3D town (`NPC_MODELS.paaske`, registered in `festive-npc3d.ts`): a grey-bunned
+ * farmer in a straw hat, a red scarf and blue overalls over a cream shirt, with a basket of painted eggs on her
+ * hip and a painted egg in her raised hand. She is built from the kit, not an `Avatar`: the people's idle freezing
+ * merges what is under a `nobatch` group into nothing. Her name is a label from `Paaske3d.signs`. She breathes,
+ * nods and turns her head, about 1.6 units tall, facing +z.
  */
 const SKIN = "#f1c9a5";
 const SHIRT = "#f4efe4";
@@ -18,11 +18,13 @@ const STRAW = "#e8c970";
 const STRAW_D = "#c9a24a";
 const EGGS = ["#f4a6c8", "#9ccff2", "#f7e27a", "#a6dc92", "#c8aaf0"];
 
+/** Her head, with its hat, as a part that turns on its own in the tick. */
 function head(m: Model): Model {
   const h = m.part([0, 1.1, 0]);
   h.box([0.32, 0.34, 0.3], SKIN, [0, -0.17, 0], 0.07);
+
   // Grey hair under the hat, a bun at the back.
-  h.box([0.36, 0.16, 0.12], "#cfcfd6", [0, 0.0, -0.12], 0.05);
+  h.box([0.36, 0.16, 0.12], "#cfcfd6", [0, 0, -0.12], 0.05);
   h.box([0.1, 0.2, 0.3], "#cfcfd6", [-0.17, -0.12, -0.02], 0.03);
   h.box([0.1, 0.2, 0.3], "#cfcfd6", [0.17, -0.12, -0.02], 0.03);
   h.ball(0.1, "#cfcfd6", [0, 0.1, -0.2], [1, 1, 1], 10);
@@ -35,7 +37,7 @@ function head(m: Model): Model {
   h.box([0.1, 0.02, 0.02], "#b4543a", [0, -0.27, 0.152], 0.008);
   h.box([0.05, 0.05, 0.04], "#e6aa86", [0, -0.2, 0.17], 0.01);
   // The straw hat: a wide brim, a dome, a red band.
-  h.cyl(0.38, 0.035, STRAW, [0, 0.0, 0], 0.38, 18);
+  h.cyl(0.38, 0.035, STRAW, [0, 0, 0], 0.38, 18);
   h.cyl(0.25, 0.14, STRAW, [0, 0.03, 0], 0.2, 16);
   h.cyl(0.255, 0.04, SCARF, [0, 0.04, 0], 0.255, 16);
   h.cyl(0.38, 0.012, STRAW_D, [0, -0.005, 0], 0.38, 18);
@@ -53,24 +55,31 @@ export function gudrun3d(_npc: FestiveNpc): THREE.Object3D {
     body.box([0.17, 0.5, 0.2], DENIM, [x, 0.1, 0], 0.03);
     body.box([0.19, 0.1, 0.3], "#5e3d28", [x, 0, 0.04], 0.03);
   }
+
   // Torso: cream shirt, overalls with a bib, straps and gold buttons.
   body.box([0.46, 0.56, 0.28], SHIRT, [0, 0.55, 0], 0.05);
   body.box([0.47, 0.26, 0.29], DENIM, [0, 0.5, 0], 0.04);
   body.box([0.32, 0.3, 0.04], DENIM_D, [0, 0.76, 0.14], 0.01);
   for (const x of [-0.12, 0.12]) {
-    body.box([0.05, 0.28, 0.05], DENIM, [x, 0.84, 0.0], 0.01);
+    body.box([0.05, 0.28, 0.05], DENIM, [x, 0.84, 0], 0.01);
     body.ball(0.02, "#e9b73d", [x, 0.8, 0.165], [1, 1, 1], 5);
   }
+
   // The scarf.
   body.box([0.38, 0.1, 0.32], SCARF, [0, 1.0, 0], 0.04);
   body.box([0.07, 0.2, 0.05], SCARF, [0.12, 0.84, 0.15], 0.015);
+
   // The basket on her left hip, with painted eggs in it.
   const basket = body.part([-0.32, 0.4, 0.12]);
   basket.box([0.24, 0.14, 0.18], "#a8763c", [0, 0, 0], 0.025);
   basket.box([0.26, 0.025, 0.2], "#d49c67", [0, 0.13, 0], 0.01);
-  EGGS.forEach((c, i) => {
-    basket.ball(0.05, c, [-0.08 + i * 0.04, 0.2 + (i % 2) * 0.02, (i % 3) * 0.04 - 0.04], [1, 1.25, 1], 8);
+  EGGS.forEach((colour, i) => {
+    const x = -0.08 + i * 0.04;
+    const y = 0.2 + (i % 2) * 0.02;
+    const z = (i % 3) * 0.04 - 0.04;
+    basket.ball(0.05, colour, [x, y, z], [1, 1.25, 1], 8);
   });
+
   // Arms: the left holds the basket, the right holds a painted egg up.
   const armL = body.part([-0.3, 0.98, 0]);
   armL.box([0.13, 0.46, 0.15], SHIRT, [0, -0.46, 0], 0.04);
@@ -83,11 +92,12 @@ export function gudrun3d(_npc: FestiveNpc): THREE.Object3D {
   egg.ball(0.06, "#f4a6c8", [0, 0, 0], [1, 1.28, 1], 10);
   egg.box([0.125, 0.024, 0.125], "#fbf7ef", [0, -0.01, 0], 0.01);
   egg.box([0.1, 0.02, 0.1], "#f7e27a", [0, 0.05, 0], 0.01);
-  const h = head(body);
+
+  const headPart = head(body);
   root.userData.tick = (t: number) => {
     body.scale.y = 1 + Math.sin(t * 1.9) * 0.008;
-    h.rotation.y = Math.sin(t * 0.5) * 0.4;
-    h.rotation.x = Math.sin(t * 0.9) * 0.05;
+    headPart.rotation.y = Math.sin(t * 0.5) * 0.4;
+    headPart.rotation.x = Math.sin(t * 0.9) * 0.05;
     armR.rotation.x = -1.1 + Math.sin(t * 1.3) * 0.12;
   };
   return root;

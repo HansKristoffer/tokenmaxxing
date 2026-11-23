@@ -2,7 +2,10 @@ import { type GameMap, MAPS, tileBounds } from "./maps.ts";
 import { SEATS } from "./poker.ts";
 import type { Facing } from "./world.ts";
 
-/** The poker table in the Tavern's basement net cafe, and its chairs on the map (`maps.ts`): the table is one run of `♠`, the chairs are `♣`. */
+/**
+ * The poker table in the Tavern's basement net cafe, and its chairs on the map (`maps.ts`): the table is one run
+ * of `♠`, and the chairs are `♣`.
+ */
 export const TABLE_CHAR = "♠";
 export const CHAIR_CHAR = "♣";
 

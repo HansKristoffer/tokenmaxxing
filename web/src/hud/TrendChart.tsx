@@ -110,8 +110,10 @@ export function TrendChart({
 
   const toggle = (key: string) =>
     setSlots((now) => {
-      const at = now.indexOf(key);
-      if (at >= 0) return now.map((k, i) => (i === at ? null : k));
+      // Drawn already: its slot is freed. Otherwise it takes the first free slot, if there is one.
+      const drawnAt = now.indexOf(key);
+      if (drawnAt >= 0) return now.map((k, i) => (i === drawnAt ? null : k));
+
       const free = now.findIndex((k) => k === null || !series.some((s) => s.key === k));
       return free < 0 ? now : now.map((k, i) => (i === free ? key : k));
     });
@@ -130,7 +132,10 @@ export function TrendChart({
   };
   const lines = series.flatMap((s) => {
     const color = colorOf(s.key);
-    return color ? [{ ...s, color, values: mode === "total" ? running(s.daily) : s.daily }] : [];
+    if (!color) return [];
+
+    const values = mode === "total" ? running(s.daily) : s.daily;
+    return [{ ...s, color, values }];
   });
   const yTicks = ticks(Math.max(0, ...lines.flatMap((l) => l.values)));
   const yMax = yTicks.at(-1)!;

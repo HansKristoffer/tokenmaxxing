@@ -294,6 +294,9 @@ export const LEGEND: Record<string, TileKind> = {
   ),
 };
 
+/** The doors a festive theme dresses (wreaths, pumpkins, nisser): the Tavern's `I`, each company's `D`, and each shop's. */
+export const FESTIVE_DOORS: readonly string[] = ["I", "D", ...Object.values(SHOP_DOOR_CHAR)];
+
 /** `GameMap.find`'s answers, kept outside the map so two maps with the same tiles still compare equal. */
 const found = new WeakMap<GameMap, Map<string, readonly [number, number][]>>();
 
@@ -349,9 +352,12 @@ export class GameMap {
     }
     const hit = byCh.get(ch);
     if (hit) return hit;
+
     const out: [number, number][] = [];
     this.rows.forEach((row, y) => {
-      for (let x = 0; x < row.length; x++) if (row[x] === ch) out.push([x + this.x0, y + this.y0]);
+      for (let x = 0; x < row.length; x++) {
+        if (row[x] === ch) out.push([x + this.x0, y + this.y0]);
+      }
     });
     byCh.set(ch, out);
     return out;
@@ -516,7 +522,10 @@ export function julemarkedBlock(plots: readonly number[]): [number, number] {
   return JULEMARKED_BLOCK;
 }
 
-/** A shop's block: a lawn with a tree in the back corner, its 5×4 front with the door in the middle of the bottom row, and the path down to the road. */
+/**
+ * A shop's block: a lawn with a tree in the back corner, its 5×4 front with the door in the middle of the
+ * bottom row, and the path down to the road.
+ */
 const shopLot = (id: ShopId): string[] => {
   const body = SHOP_BODY_CHAR.repeat(5);
   const front = `${SHOP_BODY_CHAR.repeat(2)}${SHOP_DOOR_CHAR[id]}${SHOP_BODY_CHAR.repeat(2)}`;
@@ -912,8 +921,8 @@ export const MAPS: Record<MapId, GameMap> = {
     "WWWWWWWWWWxWWWWWWWWWWW",
   ]),
   // Everyone's office, before what they dropped in it (`mapOf`): the first size (`OFFICE_SIZES`[0], office.ts:
-  // keep them in step). Bigger ones are bought, per owner (`officeMap`, office.ts). A pet bed (`Q`, a prop: nothing can be dropped on it)
-  // sits in the bottom right corner.
+  // keep them in step). Bigger ones are bought, per owner (`officeMap`, office.ts). A pet bed (`Q`, a prop:
+  // nothing can be dropped on it) sits in the bottom right corner.
   office: new GameMap("office", "Office", officeRows(14, 11)),
   // The four shops (`shoprooms.ts`): the 3D shops' interiors, tile for tile.
   "shop-furniture": new GameMap("shop-furniture", SHOPS.furniture.name, SHOPS.furniture.rows),

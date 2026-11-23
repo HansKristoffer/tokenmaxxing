@@ -1,5 +1,5 @@
 /**
- * Snapshot of 2D colour tables the 3D gear needs, so `gear3d.ts` doesn't pull in the pixel-art modules.
+ * Snapshot of 2D colour tables the 3D gear needs, so `people/gear3d.ts` doesn't pull in the pixel-art modules.
  * Sources: `web/src/art/wardrobe.ts` (OUTFITS 13-25: main, shade, trousers), `web/src/art/loot.ts`
  * (LOOT_OUTFITS), `web/src/art/merch.ts` (PAIRS) and `core/src/milestones.ts` (LEGENDARY_LEVEL).
  */
@@ -56,7 +56,8 @@ export const EXTRA_OUTFITS: Record<number, [string, string, string]> = {
   803: ["#c8102e", "#a50c25", "#3a4252"],
   804: ["#b8302c", "#8f2421", "#2a2226"],
   805: ["#f4f0e6", "#e4ddcc", "#e8e2d4"],
-  // The Julemarked's coin stalls (`core/src/julemarked-shop.ts`, from STALL_BASE = 900): Strikket sæt, Uldfrakke, Gul regnjakke, Flonelsskjorte.
+  // The Julemarked's coin stalls (`core/src/julemarked-shop.ts`, from STALL_BASE = 900): Strikket sæt, Uldfrakke,
+  // Gul regnjakke, Flonelsskjorte.
   900: ["#5f7f95", "#486577", "#3a3f4a"],
   901: ["#a8794a", "#86603a", "#3a3a42"],
   902: ["#f3c623", "#d19f12", "#2b3a52"],

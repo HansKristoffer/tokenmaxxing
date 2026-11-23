@@ -18,8 +18,9 @@ import { exitDoorway } from "./exits3d.ts";
 import { houseTile } from "./hq-layout.ts";
 import { type Placed, Room, type Turn } from "./room.ts";
 
+/** A small screen on a stand: a foot, a post and a lit code screen facing +z. */
 function screen(
-  m: Model,
+  model: Model,
   x: number,
   y: number,
   z: number,
@@ -28,50 +29,54 @@ function screen(
   seed: number,
   turn = 0,
 ): void {
-  const s = m.part([x, y, z], turn);
-  s.box([0.1, 0.012, 0.08], C.metal, [0, 0, 0]);
-  s.box([0.025, h * 0.35, 0.025], C.metal, [0, 0, -0.01]);
-  s.box([w, h, 0.03], "#2b2433", [0, h * 0.3, 0]);
-  s.plane(w - 0.03, h - 0.03, glow("#fff", codeScreen(seed)), [0, h * 0.3 + h / 2, 0.017]);
+  const stand = model.part([x, y, z], turn);
+  stand.box([0.1, 0.012, 0.08], C.metal, [0, 0, 0]);
+  stand.box([0.025, h * 0.35, 0.025], C.metal, [0, 0, -0.01]);
+  stand.box([w, h, 0.03], "#2b2433", [0, h * 0.3, 0]);
+  stand.plane(w - 0.03, h - 0.03, glow("#fff", codeScreen(seed)), [0, h * 0.3 + h / 2, 0.017]);
 }
 
 /** One tile of desk with the setup the company fleet (or a sitter) has (`DESKS`, by index), facing +z. */
 export function fleetDesk(tier: number, seed = 1, base = true): Model {
-  const m = new Model();
-  const t = Math.max(0, Math.min(tier, DESKS.length - 1));
+  const model = new Model();
+  const level = Math.max(0, Math.min(tier, DESKS.length - 1));
   const [w, d, h] = [0.96, 0.66, 0.62];
+
   // `base` false is the setup alone, to stand on a desk of another make (the raid's war desks).
   if (base) {
-    m.box([w, 0.05, d], C.woodLight, [0, h, 0], 0.015);
-    for (const sx of [-1, 1]) m.box([0.05, h, d - 0.08], C.wood, [sx * (w / 2 - 0.05), 0, 0]);
-    m.box([w - 0.12, 0.3, 0.02], C.wood, [0, h - 0.3, -d / 2 + 0.04]);
+    model.box([w, 0.05, d], C.woodLight, [0, h, 0], 0.015);
+    for (const sx of [-1, 1]) model.box([0.05, h, d - 0.08], C.wood, [sx * (w / 2 - 0.05), 0, 0]);
+    model.box([w - 0.12, 0.3, 0.02], C.wood, [0, h - 0.3, -d / 2 + 0.04]);
   }
+
   const top = h + 0.05;
+
   // Keyboard and a mouse, and a mug.
-  m.box([0.32, 0.015, 0.1], "#3c4454", [0, top, 0.16], 0.006);
-  m.box([0.05, 0.02, 0.07], "#3c4454", [0.26, top, 0.17], 0.01);
-  m.cyl(0.035, 0.07, "#e25d5d", [-0.36, top, 0.0], 0.035, 10);
-  if (t === 0) {
+  model.box([0.32, 0.015, 0.1], "#3c4454", [0, top, 0.16], 0.006);
+  model.box([0.05, 0.02, 0.07], "#3c4454", [0.26, top, 0.17], 0.01);
+  model.cyl(0.035, 0.07, "#e25d5d", [-0.36, top, 0.0], 0.035, 10);
+
+  if (level === 0) {
     // A laptop covered in stickers.
-    m.box([0.38, 0.018, 0.26], C.metalLight, [0, top, 0.0], 0.008);
-    const lid = m.part([0, top + 0.01, -0.12]);
+    model.box([0.38, 0.018, 0.26], C.metalLight, [0, top, 0.0], 0.008);
+    const lid = model.part([0, top + 0.01, -0.12]);
     lid.rotation.x = -0.25;
     lid.box([0.38, 0.26, 0.015], C.metalLight, [0, 0, 0], 0.006);
     lid.plane(0.34, 0.22, glow("#fff", codeScreen(seed)), [0, 0.13, 0.009]);
-  } else if (t === 1) {
-    screen(m, -0.22, top, -0.14, 0.4, 0.26, seed, 0.15);
-    screen(m, 0.22, top, -0.14, 0.4, 0.26, seed + 1, -0.15);
-  } else if (t === 2) {
-    screen(m, 0, top, -0.2, 0.3, 0.22, seed);
-    screen(m, -0.3, top, -0.14, 0.28, 0.22, seed + 1, 0.5);
-    screen(m, 0.3, top, -0.14, 0.28, 0.22, seed + 2, -0.5);
-  } else if (t === 3) {
+  } else if (level === 1) {
+    screen(model, -0.22, top, -0.14, 0.4, 0.26, seed, 0.15);
+    screen(model, 0.22, top, -0.14, 0.4, 0.26, seed + 1, -0.15);
+  } else if (level === 2) {
+    screen(model, 0, top, -0.2, 0.3, 0.22, seed);
+    screen(model, -0.3, top, -0.14, 0.28, 0.22, seed + 1, 0.5);
+    screen(model, 0.3, top, -0.14, 0.28, 0.22, seed + 2, -0.5);
+  } else if (level === 3) {
     // One long curved screen, edge to edge.
     const tex = codeScreen(seed);
-    m.box([0.07, 0.05, 0.09], C.metal, [0, top, -0.2]);
-    m.box([0.025, 0.15, 0.025], C.metal, [0, top, -0.22]);
+    model.box([0.07, 0.05, 0.09], C.metal, [0, top, -0.2]);
+    model.box([0.025, 0.15, 0.025], C.metal, [0, top, -0.22]);
     for (const [i, x] of [-0.28, 0, 0.28].entries()) {
-      const seg = m.part([x, top + 0.14, -0.24 + Math.abs(x) * 0.25], -x * 0.55);
+      const seg = model.part([x, top + 0.14, -0.24 + Math.abs(x) * 0.25], -x * 0.55);
       seg.box([0.3, 0.26, 0.025], "#1b1f2a", [0, 0, 0]);
       const face = seg.plane(0.28, 0.24, glow("#fff", tex.clone()), [0, 0.13, 0.014]);
       const map = (face.material as THREE.MeshBasicMaterial).map!;
@@ -81,26 +86,26 @@ export function fleetDesk(tier: number, seed = 1, base = true): Model {
     }
   } else {
     // The battlestation: three screens, a glowing tower with a rainbow, RGB under the keys.
-    screen(m, 0, top, -0.2, 0.32, 0.24, seed);
-    screen(m, -0.31, top, -0.14, 0.28, 0.22, seed + 1, 0.5);
-    screen(m, 0.31, top, -0.14, 0.28, 0.22, seed + 2, -0.5);
-    const tower = m.part([0.36, top, 0.0]);
+    screen(model, 0, top, -0.2, 0.32, 0.24, seed);
+    screen(model, -0.31, top, -0.14, 0.28, 0.22, seed + 1, 0.5);
+    screen(model, 0.31, top, -0.14, 0.28, 0.22, seed + 2, -0.5);
+    const tower = model.part([0.36, top, 0.0]);
     tower.box([0.14, 0.34, 0.3], "#1b1f2a", [0, 0, 0], 0.01);
     const rgb = tower.plane(0.26, 0.28, glow("#8fe3ff"), [0.075, 0.17, 0]);
     rgb.rotation.y = Math.PI / 2;
-    const strip = m.box([0.34, 0.012, 0.012], glow("#ff7ab6"), [0, top + 0.012, 0.22]);
+    const strip = model.box([0.34, 0.012, 0.012], glow("#ff7ab6"), [0, top + 0.012, 0.22]);
     ticks.push((time) => {
-      const c = new THREE.Color().setHSL((time * 0.25) % 1, 0.9, 0.6);
-      (strip.material as THREE.MeshBasicMaterial).color.copy(c);
-      (rgb.material as THREE.MeshBasicMaterial).color.copy(c);
+      const colour = new THREE.Color().setHSL((time * 0.25) % 1, 0.9, 0.6);
+      (strip.material as THREE.MeshBasicMaterial).color.copy(colour);
+      (rgb.material as THREE.MeshBasicMaterial).color.copy(colour);
     });
-    light(m, [0, top + 0.4, 0.2], "#b47cff", 0.6, 2);
+    light(model, [0, top + 0.4, 0.2], "#b47cff", 0.6, 2);
   }
-  return m;
+  return model;
 }
 
 const persianRug = (w: number, d: number) => (): Model => {
-  const m = new Model();
+  const model = new Model();
   const tex = canvasTexture(w * 16, d * 16, (g) => {
     const W = w * 16;
     const H = d * 16;
@@ -127,14 +132,14 @@ const persianRug = (w: number, d: number) => (): Model => {
     g.fillStyle = "#fbf7ef";
     for (let x = 6; x < W - 4; x += 5) g.fillRect(x, 3, 2, 1);
   });
-  m.box([w - 0.1, 0.025, d - 0.1], painted(tex), [0, 0, 0], 0.008);
-  return m;
+  model.box([w - 0.1, 0.025, d - 0.1], painted(tex), [0, 0, 0], 0.008);
+  return model;
 };
 
 const globe = (): Model => {
-  const m = new Model();
-  m.cyl(0.14, 0.04, "#5e3d28", [0, 0, 0], 0.16, 14);
-  m.cyl(0.02, 0.16, C.woodDark, [0, 0.04, 0], 0.02, 8);
+  const model = new Model();
+  model.cyl(0.14, 0.04, "#5e3d28", [0, 0, 0], 0.16, 14);
+  model.cyl(0.02, 0.16, C.woodDark, [0, 0.04, 0], 0.02, 8);
   const tex = canvasTexture(32, 16, (g) => {
     g.fillStyle = "#3f89c9";
     g.fillRect(0, 0, 32, 16);
@@ -149,36 +154,39 @@ const globe = (): Model => {
     g.fillStyle = "#e25d5d";
     g.fillRect(14, 6, 2, 2);
   });
-  const ball = m.ball(0.2, painted(tex), [0, 0.42, 0], [1, 1, 1], 16);
+  const ball = model.ball(0.2, painted(tex), [0, 0.42, 0], [1, 1, 1], 16);
   ball.rotation.z = 0.4;
   ticks.push((t) => (ball.rotation.y = t * 0.4));
+
   const ring = new THREE.Mesh(
     new THREE.TorusGeometry(0.24, 0.012, 6, 24, Math.PI * 1.3),
     new THREE.MeshToonMaterial({ color: "#d4a93a" }),
   );
   ring.position.set(0, 0.42, 0);
   ring.rotation.set(0, Math.PI / 2, 0.4);
-  m.add(ring);
-  return m;
+  model.add(ring);
+  return model;
 };
 
 const plantWall = (): Model => {
-  const m = new Model();
-  m.box([1.9, 1.5, 0.12], "#3d5a3a", [0, 0.4, -0.2], 0.03);
+  const model = new Model();
+  model.box([1.9, 1.5, 0.12], "#3d5a3a", [0, 0.4, -0.2], 0.03);
   const rnd = seeded(14);
   const greens = ["#3f8f3a", "#4fa544", "#5fb84f", "#2f7a32", "#6aa84a"];
-  for (let i = 0; i < 70; i++)
-    m.ball(
+  for (let i = 0; i < 70; i++) {
+    model.ball(
       0.09 + rnd() * 0.07,
       greens[i % greens.length]!,
       [(rnd() - 0.5) * 1.8, 0.5 + rnd() * 1.3, -0.1 + rnd() * 0.08],
       [1, 0.9, 0.7],
       8,
     );
-  for (let i = 0; i < 6; i++)
-    m.ball(0.04, "#ff7ab6", [(rnd() - 0.5) * 1.7, 0.7 + rnd() * 1.0, -0.04], [1, 1, 1], 6);
-  m.box([1.9, 0.32, 0.4], "#eeeae2", [0, 0, -0.1], 0.03);
-  return m;
+  }
+  for (let i = 0; i < 6; i++) {
+    model.ball(0.04, "#ff7ab6", [(rnd() - 0.5) * 1.7, 0.7 + rnd() * 1.0, -0.04], [1, 1, 1], 6);
+  }
+  model.box([1.9, 0.32, 0.4], "#eeeae2", [0, 0, -0.1], 0.03);
+  return model;
 };
 
 type Painter = (g: CanvasRenderingContext2D, w: number, h: number) => void;
@@ -249,8 +257,9 @@ const POSTER_ART: Record<string, Painter> = {
   "pipeline-valley": (g, w, h) => {
     fill(g, "#a8dcf7", 0, 0, w, h);
     fill(g, "#86c35e", 0, h * 0.45, w, h);
-    for (let i = 0; i < 8; i++)
+    for (let i = 0; i < 8; i++) {
       fill(g, i % 2 ? "#6aa84a" : "#a5d977", 4 + i * (w / 8), h * 0.55, w / 8 - 3, 22);
+    }
     fill(g, "#fbf7ef", w - 40, h * 0.4, 18, 10);
     fill(g, "#2b2433", w - 36, h * 0.42, 5, 5);
     fill(g, "#c8734a", 10, h * 0.28, 22, 18);
@@ -321,9 +330,9 @@ const POSTER_ART: Record<string, Painter> = {
 /** A game poster to hang on the wall row: `w` tiles wide. Face looks along +z. */
 function posterModel(art: string, w: number, name: string): Panel {
   const paint = POSTER_ART[art];
-  const pw = 0.9 * w - 0.1;
+  const panelWidth = 0.9 * w - 0.1;
   return panel(
-    pw,
+    panelWidth,
     1.1,
     (g, cw, ch) => {
       if (paint) {
@@ -333,7 +342,8 @@ function posterModel(art: string, w: number, name: string): Panel {
         title(g, cw, ch, name);
       }
     },
-    // The scenes are laid out for a canvas about 110 high (the 2D prints' size): any less and their lower parts are cut off.
+    // The scenes are laid out for a canvas about 110 high (the 2D prints' size). Any less and their lower parts
+    // are cut off.
     { frame: "#3c2a1e", px: 100, smooth: true },
   );
 }
@@ -364,12 +374,12 @@ export const HQ_ASSETS: readonly Asset[] = [
   { id: "rug-persian", name: "Persian rug", price: 60, w: 3, d: 2, build: persianRug(3, 2) },
 ];
 
-const own = new Map(HQ_ASSETS.map((a) => [a.id, a]));
+const ownAssets = new Map(HQ_ASSETS.map((a) => [a.id, a]));
 /** The asset for a 2D art name: `furniture.ts`'s piece if it has one, else this slice's. */
 function assetFor(art: string): Asset | undefined {
   return (
     assetById.get(art) ??
-    own.get(art) ??
+    ownAssets.get(art) ??
     (art === "bookshelf-library" ? assetById.get("bookshelf") : undefined)
   );
 }
@@ -379,35 +389,38 @@ function assetFor(art: string): Asset | undefined {
  * on its face and "OFFICES" over them. Facing south, where you stand to read it.
  */
 export function directoryBoard(): Model {
-  const m = new Model();
-  for (const x of [-0.42, 0.42]) m.box([0.07, 1.2, 0.07], C.woodDark, [x, 0, 0], 0.015);
+  const board = new Model();
+  for (const x of [-0.42, 0.42]) board.box([0.07, 1.2, 0.07], C.woodDark, [x, 0, 0], 0.015);
+
   const face = panel(
     1.15,
     0.8,
     (g, w, h) => {
-      const p = new Pen(g);
-      p.rect(0, 0, w, h, "#c89460");
-      p.rect(0, 0, w, 1, "#dcab76");
-      const title = "OFFICES";
-      p.text(title, Math.round((w - (title.length * 4 - 1)) / 2), 3, C.ink);
+      const pen = new Pen(g);
+      pen.rect(0, 0, w, h, "#c89460");
+      pen.rect(0, 0, w, 1, "#dcab76");
+      const heading = "OFFICES";
+      pen.text(heading, Math.round((w - (heading.length * 4 - 1)) / 2), 3, C.ink);
       for (let i = 0; i < 5; i++) {
         const x = 7 + i * 10;
-        p.rect(x, 11, 5, 9, C.woodDark);
-        p.rect(x + 1, 12, 3, 7, i % 2 ? "#f8c43a" : "#8a5a36");
-        p.px(x + 3, 16, C.ink);
+        pen.rect(x, 11, 5, 9, C.woodDark);
+        pen.rect(x + 1, 12, 3, 7, i % 2 ? "#f8c43a" : "#8a5a36");
+        pen.px(x + 3, 16, C.ink);
       }
     },
     { frame: "#4a3a26", lift: 0.5, px: 52 },
   );
   face.position.z = 0.05;
-  m.add(face);
-  return m;
+  board.add(face);
+  return board;
 }
 
 export interface HqOptions {
   /** The wallet's desk tier (`CompanyInfo.deskFleet`), 0 the laptop. */
   fleet?: number;
-  /** The company's dropped pieces and posters, by map character and tile (`Placed`, `rot`: turned); none: the plain floor. */
+  /**
+   * The company's dropped pieces and posters, by map character and tile (`rot`: turned). None: the plain floor.
+   */
   placed?: { ch: string; x: number; y: number; rot?: Rot }[];
   /** Walls and floor; the company's own colours by default. */
   floor?: string;
@@ -450,14 +463,9 @@ export function buildHq(opts: HqOptions = {}): Hq {
   const chairs: Placed[] = [];
   const beds: Placed[] = [];
   const posters: Placed[] = [];
-  const get = (id: string) => assetById.get(id);
-  const put = (
-    id: string,
-    x: number,
-    y: number,
-    turn: Turn = 0,
-    asset: Asset | undefined = get(id),
-  ): Placed | null => {
+
+  const put = (id: string, x: number, y: number, turn: Turn = 0): Placed | null => {
+    const asset = assetById.get(id);
     if (!asset) return null;
     const [rx, rz] = tile(x, y);
     if (!room.fits(asset, rx, rz, turn)) return null;
@@ -474,13 +482,14 @@ export function buildHq(opts: HqOptions = {}): Hq {
     d: 1,
     build: () => fleetDesk(fleet),
   };
-  let seed = 3;
+  let deskSeed = 3;
   const seen = new Set<string>();
   rows.forEach((row, y) => {
     for (let x = 0; x < row.length; x++) {
-      const ch = row[x]!;
+      const ch = row.charAt(x);
       const key = `${x},${y}`;
       if (seen.has(key)) continue;
+
       switch (ch) {
         case "k":
           put("shelf", x, y);
@@ -498,13 +507,13 @@ export function buildHq(opts: HqOptions = {}): Hq {
           break;
         case "d": {
           const [rx, rz] = tile(x, y);
-          const m = fleetDesk(fleet, seed++);
-          if (room.fits(deskAsset, rx, rz, 0)) room.place(deskAsset, rx, rz, 0, m);
+          const setup = fleetDesk(fleet, deskSeed++);
+          if (room.fits(deskAsset, rx, rz, 0)) room.place(deskAsset, rx, rz, 0, setup);
           break;
         }
         case "c": {
-          const c = put("chair", x, y, 2);
-          if (c) chairs.push(c);
+          const chair = put("chair", x, y, 2);
+          if (chair) chairs.push(chair);
           break;
         }
         case "t":
@@ -518,31 +527,34 @@ export function buildHq(opts: HqOptions = {}): Hq {
       }
     }
   });
+
   // The rug under the tv and sofas, drawn as one.
   const [rugX, rugZ] = tile(3, 9);
   room.place(flatBig, rugX, rugZ, 0);
 
   // The company's own pieces and posters.
   for (const p of opts.placed ?? []) {
-    const poster = POSTERS.find((q) => q.ch === p.ch);
+    const poster = POSTERS.find((entry) => entry.ch === p.ch);
     if (poster) {
-      const a = assetFor(`poster:${poster.art}`) ?? wallAsset(poster);
-      const model = a.build();
+      const asset = assetFor(`poster:${poster.art}`) ?? wallAsset(poster);
+      const model = asset.build();
       room.hang(model, p.x - 1 + poster.w / 2, 0.95);
-      posters.push({ asset: a, x: p.x - 1, z: 0, turn: 0, model });
+      posters.push({ asset, x: p.x - 1, z: 0, turn: 0, model });
       continue;
     }
-    const piece = COMPANY_FURNITURE.find((q) => q.ch === p.ch);
+
+    const piece = COMPANY_FURNITURE.find((entry) => entry.ch === p.ch);
     if (!piece) continue;
-    const a = assetFor(piece.art);
-    if (!a) continue;
+    const asset = assetFor(piece.art);
+    if (!asset) continue;
+
     const [rx, rz] = tile(p.x, p.y);
-    // Turned (F): a quarter turn lies it down its column, half or three quarters round it stays along its row.
+    // Turned (F): a quarter turn lies it down its column. Half or three quarters round, it stays along its row.
     const rot = p.rot ?? 0;
     const tiles = piece.w ?? 1;
-    const [fw, fd] = rot % 2 ? [1, tiles] : Room.footprint(a, 0);
-    if (!room.fits({ ...a, w: fw, d: fd }, rx, rz, 0)) continue;
-    room.placeTurned(a, rx, rz, 0, rot, tiles);
+    const [footW, footD] = rot % 2 ? [1, tiles] : Room.footprint(asset, 0);
+    if (!room.fits({ ...asset, w: footW, d: footD }, rx, rz, 0)) continue;
+    room.placeTurned(asset, rx, rz, 0, rot, tiles);
   }
 
   // The exit: the front door in the south wall's door tile, opening on daylight, with its lamp and mat.

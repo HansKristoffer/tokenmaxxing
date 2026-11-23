@@ -3,7 +3,10 @@ import { characterFrame } from "./characters.ts";
 import { C, shade } from "./palette.ts";
 import { bake, cached } from "./pixels.ts";
 
-/** The launch stand (`game/launch.ts`): a striped awning in the provider's colour (or a rainbow, for several) over a counter. */
+/**
+ * The launch stand (`game/launch.ts`): a striped awning in the provider's colour (or a rainbow, for several)
+ * over a counter.
+ */
 
 /** The rainbow awning's stripes, when more than one provider has something out. */
 const RAINBOW = ["#e8434b", "#f28c28", "#f5d14a", "#58b36a", "#3f89c9", "#8e63d8"];

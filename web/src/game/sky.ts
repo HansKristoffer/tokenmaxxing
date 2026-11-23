@@ -51,8 +51,6 @@ export function weatherNow(): Weather {
   return shown.weather;
 }
 
-// MARK: Light
-
 let light: Light = lightAt(skyNow());
 let lightCheckedAt = -Infinity;
 
@@ -65,7 +63,7 @@ function currentLight(now: number): Light {
   return light;
 }
 
-type RGB = [number, number, number];
+type RGB = readonly [number, number, number];
 const WHITE: RGB = [255, 255, 255];
 const WARM: RGB = [255, 168, 105];
 const NIGHT: RGB = [66, 80, 140];
@@ -84,7 +82,7 @@ function tint(l: Light, w: Weather): string {
   const f = festiveNow();
   if (f) {
     const grade = festiveGrade(f, l.darkness, l.warmth);
-    c = mix(c, grade.rgb as RGB, grade.k);
+    c = mix(c, grade.rgb, grade.k);
   }
   const grey = (c[0] + c[1] + c[2]) / 3;
   const murk = w.cloud * 0.35 + (w.kind === "storm" ? 0.2 : 0) + 0.1 * fogOf(w);
@@ -97,8 +95,6 @@ function tint(l: Light, w: Weather): string {
 function glowOf(l: Light, w: Weather): number {
   return Math.min(1, Math.max(l.darkness, l.warmth * 0.5, w.cloud * 0.25 * (w.kind === "storm" ? 2 : 1)));
 }
-
-// MARK: Baked bits
 
 let glow: HTMLCanvasElement | undefined;
 let mistBlob: HTMLCanvasElement | undefined;
@@ -130,8 +126,6 @@ function moonSprite(age: number): HTMLCanvasElement {
   moons.set(key, c);
   return c;
 }
-
-// MARK: Overlays
 
 const STARS = Array.from({ length: 60 }, (_, i) => ({
   x: hash(i, 1, 90),
@@ -250,8 +244,6 @@ export function drawNightSky(
   );
   g.restore();
 }
-
-// MARK: Weather particles
 
 interface Drop {
   x: number;
@@ -442,8 +434,6 @@ export function drawWeather(
     }
   }
 }
-
-// MARK: Wind
 
 /** Bands of a sprite, top to bottom: rows [from, to) that lean by `factor` of the full lean. */
 const SWAY: Record<string, [number, number, number][]> = {

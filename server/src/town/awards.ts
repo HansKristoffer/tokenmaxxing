@@ -131,6 +131,7 @@ export async function backfillStep(
   const cursor = Number(
     (await one<{ value: string }>(sql, "SELECT value FROM raid_meta WHERE key = ?", marker))?.value ?? 0,
   );
+  // The marker reads "done" once the last chunk is in: that is not a number, so nothing is left.
   if (Number.isNaN(cursor)) return true;
   const ids = await all<{ id: number }>(
     sql,

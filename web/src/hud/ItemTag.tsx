@@ -16,8 +16,11 @@ export function ItemTag({ item }: { item: Item }) {
   );
 }
 
-/** A bag square's rarity stripe along the bottom. */
+/** A square's rarity stripe along the bottom, in the rarity's colour. */
+export const rarityStripe = (color: string): CSSProperties => ({
+  backgroundImage: `linear-gradient(to top, ${color} 3px, transparent 3px)`,
+});
+
+/** A bag square's rarity stripe, or nothing for furniture, which has no rarity. */
 export const rarityRing = (item: Item): CSSProperties | undefined =>
-  item.slot === "furniture"
-    ? undefined
-    : { backgroundImage: `linear-gradient(to top, ${RARITY_COLOR[rarityOf(item)]} 3px, transparent 3px)` };
+  item.slot === "furniture" ? undefined : rarityStripe(RARITY_COLOR[rarityOf(item)]);

@@ -20,7 +20,7 @@ export interface BadgeFacts {
   wins: number;
   biggestPot: number;
   founder: boolean;
-  // Optional, so callers and tests written before these facts existed still type-check.
+  // Optional, so a caller that does not track a fact still type-checks. Each one reads as zero when left out.
   /** Outage picnics sat in. */
   picnics?: number;
   /** Keynote watch parties dropped in on. */
@@ -497,17 +497,19 @@ const stateOf = (b: BadgeDef, f: BadgeFacts): Badge => {
   const value = b.of(f);
   const tier = b.tiers.filter((t) => value >= t.at).length;
   const frame = frameOf(tier, b.tiers.length);
+  const reached = tier > 0 ? b.tiers[tier - 1] : undefined;
+
   return {
     id: b.id,
     emoji: b.emoji,
-    label: tier ? b.tiers[tier - 1]!.label : b.name,
+    label: reached?.label ?? b.name,
     tier,
     tiers: b.tiers.length,
     frame,
     rarity: FRAME_RARITY[frame],
     value,
     next: b.tiers[tier] ?? null,
-    prev: tier ? b.tiers[tier - 1]!.at : 0,
+    prev: reached?.at ?? 0,
   };
 };
 

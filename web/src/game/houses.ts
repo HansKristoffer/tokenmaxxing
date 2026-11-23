@@ -24,8 +24,9 @@ export function buildings(map: GameMap): Building[] {
   if (list) return list;
   list = [];
   if (map.id === "town") {
-    for (const [dx, dy] of map.find("D"))
+    for (const [dx, dy] of map.find("D")) {
       list.push({ x: dx - 3, y: dy - 4, w: PLOT_W, h: PLOT_H, plot: plotId(...blockOf(dx, dy)) });
+    }
     const [ix, iy] = map.find("I")[0]!;
     list.push({ x: ix - 3, y: iy - 3, w: 7, h: 4, plot: null });
   }
@@ -53,8 +54,9 @@ const BUILDING_MAX_TILES = 120;
 export function doorOf(map: GameMap, x: number, y: number): [number, number] | null {
   if (!map.contains(x, y) || map.walkable(x, y)) return null;
   const k = map.kind(x, y);
-  if (k.portal || k.seat || k.pours || k.serves || k.tosses || k.shop || k.counter || k.poker || k.roulette)
-    return null;
+  const hasOwnUse =
+    k.portal || k.seat || k.pours || k.serves || k.tosses || k.shop || k.counter || k.poker || k.roulette;
+  if (hasOwnUse) return null;
   const seen = new Set([`${x},${y}`]);
   const queue: [number, number][] = [[x, y]];
   // Walked through the building's own tiles; a portal (a door) ends the walk.

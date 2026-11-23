@@ -21,11 +21,15 @@ const browser = await pw.chromium.launch({
   headless: true,
   args: ["--use-angle=metal", "--ignore-gpu-blocklist", "--enable-unsafe-swiftshader"],
 });
-const page = await openGame(browser, await signUp("ex", 8_000_000, true), tier, {
+// About 8M tokens a turn: enough usage for the company level the Office needs (see signUp).
+const user = await signUp("ex", 8_000_000, true);
+const page = await openGame(browser, user, tier, {
   viewport: { width: vw, height: vh },
 });
 await ready(page);
 const inventory = [];
+// The map glyphs of the four shop doors.
+const SHOP_DOORS = ["ƒ", "Ç", "Ð", "ð"];
 
 /** A walkable tile beside (x, y), nearest to where we stand. */
 const beside = (x, y) =>
@@ -113,7 +117,7 @@ const ownDoor = await page.evaluate(() => {
   return c ? c.plot : null;
 });
 console.log("own plot", ownDoor);
-await shootHere(["I", "G", "ƒ", "Ç", "Ð", "ð"]);
+await shootHere(["I", "G", ...SHOP_DOORS]);
 // Our house's door, from core's plot-to-door rule.
 const houseDoor = doorOf(ownDoor);
 {
@@ -176,7 +180,7 @@ if ((await take("G")) === "dungeon") {
 }
 
 // The four shops.
-for (const ch of ["ƒ", "Ç", "Ð", "ð"]) {
+for (const ch of SHOP_DOORS) {
   const r = await take(ch);
   if (r?.startsWith("shop-")) {
     await shootHere();

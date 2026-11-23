@@ -8,15 +8,9 @@ import {
   STALL_HELD,
   STALL_OUTFITS,
 } from "../src/art/julemarked-stall-wear.ts";
+import { checkRows } from "./support.ts";
 
 const of = (slot: string) => STALL_WEARABLES.filter((i) => i.slot === slot);
-
-const checkRows = (what: string, rows: readonly string[], pal: Record<string, string>, width: number) => {
-  for (const [y, row] of rows.entries()) {
-    expect(row.length, `${what} row ${y} is ${row.length} wide`).toBeLessThanOrEqual(width);
-    for (const c of row) if (c !== ".") expect(pal[c], `${what} row ${y}: "${c}"`).toBeDefined();
-  }
-};
 
 test("the stall hat has art on 16 columns, merged into the case hats", () => {
   for (const it of of("hat")) {

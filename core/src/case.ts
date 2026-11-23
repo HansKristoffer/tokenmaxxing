@@ -13,7 +13,10 @@ import { PRESTIGE_ITEMS } from "./prestige.ts";
 import type { Rarity } from "./rarity.ts";
 import type { Item } from "./shop.ts";
 
-/** Look indices from here up, in a case slot, are case items. Above the merchant's editions (100) and the holiday costumes (200). */
+/**
+ * Look indices from here up, in a case slot, are case items. The merchant's editions sit below (100) and the
+ * holiday costumes (200).
+ */
 export const CASE_BASE = 300;
 
 export type CaseSlot = "outfit" | "glasses" | "hat" | "held" | "back" | "pet" | "aura";

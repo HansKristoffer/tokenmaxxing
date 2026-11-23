@@ -35,6 +35,7 @@ export const pakBudiSprite = cached(
       const side = facing === "left" || facing === "right";
       const flip = facing === "left";
       p.g.drawImage(characterFrame(PAK_BUDI_LOOK, facing, "stand"), 0, 4);
+
       // The sash, from the shoulder down across the chest (not seen from behind, where it is a thin line).
       if (facing === "down") {
         p.px(5, 14, RED);
@@ -42,7 +43,9 @@ export const pakBudiSprite = cached(
         p.px(7, 16, RED);
         p.px(8, 17, WHITE);
       } else if (side) {
-        for (const [i, c] of [RED, WHITE, RED, WHITE].entries()) p.px(flip ? 9 - i : 6 + i, 14 + i, c);
+        for (const [i, c] of [RED, WHITE, RED, WHITE].entries()) {
+          p.px(flip ? 9 - i : 6 + i, 14 + i, c);
+        }
       } else {
         p.px(6, 14, RED);
         p.px(7, 15, WHITE);

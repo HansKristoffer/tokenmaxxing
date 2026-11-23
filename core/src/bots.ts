@@ -320,7 +320,8 @@ export function lineFor(bot: BotDef, at: number, ctx: Context = {}, rand = Math.
   // Watching a keynote, most of what anyone says is at the screen.
   if (ctx.keynote?.live && rand() < 0.7) return say(pick(bot.keynoteLines?.live ?? CHEERS, rand));
   // "0 tokens i dag? Gå hjem." doesn't land: skip token lines for someone with none.
-  const toLeader = (bot.followLines ?? []).filter((l) => ctx.leader?.todayTokens || !l.includes("{tokens}"));
+  const leaderHasTokens = Boolean(ctx.leader?.todayTokens);
+  const toLeader = (bot.followLines ?? []).filter((l) => leaderHasTokens || !l.includes("{tokens}"));
   if (ctx.leader && toLeader.length && rand() < 0.6) return say(pick(toLeader, rand));
   // The room, the weather and the day's special: a third of the time they apply.
   const room = [

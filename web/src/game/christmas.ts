@@ -71,8 +71,6 @@ export const christmasNow = (): Festive | null => {
   return f?.id === "christmas" ? f : null;
 };
 
-// MARK: What the map gives
-
 let spots: { map: GameMap; wreaths: DoorSpot[]; nisser: NisseSpot[] } | null = null;
 function placed(): NonNullable<typeof spots> {
   if (spots?.map !== world.map)
@@ -82,8 +80,6 @@ function placed(): NonNullable<typeof spots> {
 
 /** The tree's trunk and Knud's tile are not walked through. */
 export const blocksChristmas = (x: number, y: number): boolean => christmasNow() !== null && blocksTile(x, y);
-
-// MARK: The player's own hearts
 
 const HEARTS_KEY = "tokenmaxxing.christmas.hearts";
 
@@ -126,6 +122,7 @@ function hangHeart(): void {
     });
     return;
   }
+  // Only the latest 40 days are kept, so the stored list stays small.
   storage.setItem(HEARTS_KEY, JSON.stringify([...days, t].slice(-40)));
   heartsShown = null;
   const n = ownHearts();
@@ -157,8 +154,6 @@ export function christmasInteract(x: number, y: number): boolean {
   }
   return false;
 }
-
-// MARK: Drawing
 
 /** Whether the star glows for this player: on the eve, or once they have hung three hearts. */
 const starSparkles = (f: Festive): boolean => eveOn(f) || ownHearts() >= NISSE_FRIEND;
@@ -210,7 +205,7 @@ export function drawChristmas(f: Frame): void {
 
   // The gifts: up to four on each side of the trunk, the stacks growing a box a day.
   const boxes = giftsShown(p);
-  for (const [side, tile] of GIFT_TILES.entries())
+  for (const [side, tile] of GIFT_TILES.entries()) {
     for (let k = 0; k < SLOTS.length; k++) {
       if (side + k * 2 >= boxes) continue;
       const [sx, sy] = SLOTS[k]!;
@@ -221,6 +216,7 @@ export function drawChristmas(f: Frame): void {
         draw: () => g.drawImage(spr, px, tile.y * TILE + sy + 3),
       });
     }
+  }
 
   // Snowmen on the lawns.
   for (const m of SNOWMEN.slice(0, snowmenShown(p))) {
@@ -319,20 +315,23 @@ export function lightChristmas(g: CanvasRenderingContext2D, strength: number, no
       strength * (starSparkles(c) ? 0.8 : 0.45) * pulse,
     );
   }
-  for (const gar of GARLANDS)
-    for (const [k, b] of garlandBulbs(gar).entries())
-      if (bulbOn(b.i, p))
-        drawGlow(
-          g,
-          b.x + 1,
-          b.y + 2,
-          5,
-          ["255,120,110", "255,214,110", "120,230,160", "130,190,255"][k % 4]!,
-          strength * 0.4 * flicker(now, b.i),
-        );
+  for (const gar of GARLANDS) {
+    for (const [k, b] of garlandBulbs(gar).entries()) {
+      if (!bulbOn(b.i, p)) continue;
+      drawGlow(
+        g,
+        b.x + 1,
+        b.y + 2,
+        5,
+        ["255,120,110", "255,214,110", "120,230,160", "130,190,255"][k % 4]!,
+        strength * 0.4 * flicker(now, b.i),
+      );
+    }
+  }
+
   // The candles in the windows beside each door, and a warm spill from the wreaths.
-  for (const w of placed().wreaths)
-    for (const side of [-1, 1])
+  for (const w of placed().wreaths) {
+    for (const side of [-1, 1]) {
       drawGlow(
         g,
         w.x * TILE + TILE / 2 + side * 14,
@@ -341,4 +340,6 @@ export function lightChristmas(g: CanvasRenderingContext2D, strength: number, no
         "255,214,110",
         strength * 0.6 * flicker(now, w.x + side),
       );
+    }
+  }
 }

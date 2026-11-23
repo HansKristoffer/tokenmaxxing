@@ -30,8 +30,6 @@ const GLOW = "#ffe38a";
 const BLUE = "#6f98d0";
 const BLUE_DARK = "#3f68a8";
 
-// MARK: Outfit
-
 /** A blueprint drawn in cells (three canvas pixels each) on the 19×14 chest. */
 const cell = (g: CanvasRenderingContext2D, color: string, x: number, y: number, w = 1, h = 1) =>
   px(g, color, x * 3, y * 3, w * 3, h * 3);
@@ -162,8 +160,6 @@ const OUTFITS: Record<number, (c: BodyCtx) => void> = {
   },
 };
 for (const [n, build] of Object.entries(OUTFITS)) OUTFIT_BUILDERS[Number(n)] = build;
-
-// MARK: Back
 
 type Cell = [number, number];
 

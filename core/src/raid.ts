@@ -2,9 +2,9 @@
  * The weekly raid: a ladder of bosses in the town square that the whole town fights together. Every
  * token anyone syncs that week hits the boss on the current rung, and every PR they open is a special
  * attack. When a boss falls the next, harder one appears at once and the overflow carries over; when the
- * fifth falls the ladder is cleared and the town waits for next Monday. Like
- * coins, nothing is stored: a week's damage, the ladder, its kills and who gets paid are worked out
- * from the daily rollups, so a late sync still lands its hits. Pure functions, shared by server and client.
+ * fifth falls the ladder is cleared and the town waits for next Monday. Like coins, nothing is stored: a
+ * week's damage, the ladder, its kills and who gets paid are worked out from the daily rollups, so a late
+ * sync still lands its hits. Pure functions, shared by server and client.
  */
 import { groupBy, sumBy } from "hanzio";
 import { addDays, dayKey } from "./range.ts";
@@ -17,7 +17,10 @@ interface Boss {
   taunts: readonly string[];
 }
 
-/** The ladder's order, easiest first. A week has just these, once each; clearing them all earns a harder ladder, "II", "III"… */
+/**
+ * The ladder's order, easiest first. A week has just these, once each. Clearing them all earns a harder
+ * ladder, "II", "III" and so on.
+ */
 export const BOSSES: readonly Boss[] = [
   {
     id: "rate-limit",
@@ -137,10 +140,10 @@ export function bossAt(rung: number, level = 1): RungBoss {
 export const hpFor = (lastWeekDamage: number): number =>
   Math.max(MIN_HP, Math.round(lastWeekDamage * HP_SHARE));
 
-/** Whether a week's kills got through every boss (the 5 of `BOSSES`): that's what earns the next level's ladder, 10% tougher. */
+/** Whether a week's kills got through every boss (the 5 of `BOSSES`). That is what earns the next level's ladder, 10% tougher. */
 export const ladderCleared = (kills: number): boolean => kills >= BOSSES.length;
 
-/** Rung 1's HP the week after one whose rung 1 had `hp` and which had `kills` kills: +10% if it cleared the ladder, else the same. */
+/** Rung 1's HP the week after one whose rung 1 had `hp` and which had `kills` kills: +10% if the ladder was cleared, else the same. */
 export const nextWeekHp = (hp: number, kills: number): number =>
   ladderCleared(kills) ? Math.round(hp * WEEKLY_GROWTH) : hp;
 

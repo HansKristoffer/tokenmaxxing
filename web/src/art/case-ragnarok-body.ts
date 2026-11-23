@@ -1,5 +1,6 @@
 import { RAGNAROK_BASE } from "@tokenmaxxing/core/case-ragnarok.ts";
-import type { Back, BackView, Held, Outfit } from "./wardrobe.ts";
+import { frameAt, frontView, nudge } from "./prestige-types.ts";
+import type { Back, Held, Outfit } from "./wardrobe.ts";
 
 /**
  * The Ragnarok Eve case's outfits, held things and back items in 2D (`core/src/case-ragnarok.ts`). Same shapes as
@@ -112,12 +113,6 @@ export const RAGNAROK_HELD: Record<number, Held> = {
 
 // MARK: On the back
 
-/** An empty 16×16 frame, then `rows` dropped in at row `y`. */
-const frameAt = (rows: string[], y: number): string[] => [...Array<string>(y).fill(""), ...rows];
-/** `rows` shifted a column to the right, for a flap. */
-const nudge = (rows: string[]): string[] => rows.map((r) => (r ? `.${r.slice(0, 15)}` : r));
-const view = (front: string[]): BackView => ({ front });
-
 // Fur mantle: a shaggy grey cape with a ragged hem, pinned with a gold brooch.
 const MANTLE_DOWN = frameAt(
   [
@@ -211,7 +206,7 @@ export const RAGNAROK_BACKS: Record<number, Back> = {
     views: {
       down: { behind: MANTLE_DOWN, front: frameAt(["....fFfyyfFf...."], 9) },
       side: { behind: MANTLE_SIDE, front: frameAt([".....fFfy......."], 9) },
-      up: view(MANTLE_UP),
+      up: frontView(MANTLE_UP),
     },
     pal: { o: "#2b2433", f: "#9aa3ad", F: "#6f7884", l: "#d3dae0", y: "#e9b73d" },
   },
@@ -220,9 +215,9 @@ export const RAGNAROK_BACKS: Record<number, Back> = {
     views: {
       down: { front: SHIP_DOWN },
       side: { behind: SHIP_SIDE },
-      up: view(SHIP_UP),
+      up: frontView(SHIP_UP),
     },
-    walk: { side: { behind: SHIP_SIDE_B }, up: view(SHIP_UP_B) },
+    walk: { side: { behind: SHIP_SIDE_B }, up: frontView(SHIP_UP_B) },
     pal: { o: "#2b2433", m: "#7a5230", r: "#a8322e", w: "#efe6d0", F: "#b8a98a", B: "#6b4a2e", b: "#3f2a1a", d: "#e9b73d", k: "#4a3219" },
   },
 };

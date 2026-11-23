@@ -1,8 +1,8 @@
 /**
  * Street-life models for the 3D town (2D: `art/cop.ts`, `art/cart.ts`, `art/picnic.ts`, `art/street.ts`): Officer
- * 429's light bar and notepad, the roaming merchant's cart and signpost, the picnic blanket and basket, touched grass,
- * the build snail and its goal flag, the paperboy's bike and paper, the graveyard's tombstones. `town-events.ts` and `cop3d.ts` use them;
- * `FX_ASSETS` lists them for the catalogue.
+ * 429's light bar and notepad, the roaming merchant's cart and signpost, the picnic blanket and basket, touched
+ * grass, the build snail and its goal flag, the paperboy's bike and paper, and the graveyard's tombstones.
+ * `town-events.ts` and `cop3d.ts` use them. `FX_ASSETS` lists them for the catalogue.
  */
 
 import * as THREE from "three";
@@ -25,7 +25,9 @@ export function dressCop(a: Avatar) {
   const blue = new THREE.MeshBasicMaterial({ color: "#4a9bff" });
   const l = cap.box([0.085, 0.06, 0.06], red, [-0.052, 0.08, 0], 0.01);
   const r = cap.box([0.085, 0.06, 0.06], blue, [0.052, 0.08, 0], 0.01);
-  const b = a.body;
+  const body = a.body;
+
+  // The notepad is hidden until the officer writes a ticket.
   const pad = new Model();
   pad.box([0.13, 0.17, 0.02], "#fbf7ef", [0, 0, 0], 0.01);
   pad.box([0.1, 0.01, 0.005], "#8fb3d9", [0, 0.06, 0.012]);
@@ -33,12 +35,14 @@ export function dressCop(a: Avatar) {
   pad.position.set(0.1, 0.55, 0.2);
   pad.rotation.x = -0.4;
   pad.visible = false;
-  b.add(pad);
+  body.add(pad);
+
+  // A pencil for the pad, hidden with it.
   const pencil = new Model();
   pencil.box([0.012, 0.11, 0.012], "#f0b53c", [0, 0, 0]);
   pencil.box([0.012, 0.02, 0.012], "#f19a8b", [0, 0.11, 0]);
   pencil.visible = false;
-  b.add(pencil);
+  body.add(pencil);
   return { red, blue, l, r, pad, pencil };
 }
 
@@ -46,18 +50,20 @@ export function dressCop(a: Avatar) {
 export function blanketModel(w: number, d: number, i: number): Model {
   const palette = i % 2 ? { main: "#6f7fc9", mix: "#b3bde6" } : { main: "#e2443a", mix: "#ec9c8f" };
   const tex = canvasTexture(8, 8, (g) => {
-    for (let y = 0; y < 8; y++)
+    for (let y = 0; y < 8; y++) {
       for (let x = 0; x < 8; x++) {
         // Both checks on: the main colour. One of them: the mix. Neither: cream.
-        const a = Math.floor(x / 2) % 2 === 0;
-        const b = Math.floor(y / 2) % 2 === 0;
-        if (a && b) g.fillStyle = palette.main;
-        else if (a || b) g.fillStyle = palette.mix;
+        const evenColumn = Math.floor(x / 2) % 2 === 0;
+        const evenRow = Math.floor(y / 2) % 2 === 0;
+        if (evenColumn && evenRow) g.fillStyle = palette.main;
+        else if (evenColumn || evenRow) g.fillStyle = palette.mix;
         else g.fillStyle = "#fbf7ef";
         g.fillRect(x, y, 1, 1);
       }
+    }
   });
-  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  tex.wrapS = THREE.RepeatWrapping;
+  tex.wrapT = THREE.RepeatWrapping;
   tex.repeat.set(w * 1.5, d * 1.5);
   const m = new Model();
   m.box([w, 0.03, d], painted(tex), [0, 0, 0], 0.008);
@@ -91,15 +97,16 @@ export function basketModel(): Model {
 
 const PENNANT = ["#e2443a", "#f5d14a", "#6f7fc9", "#a5d977", "#fbf7ef", "#f2a6c8"];
 
-/** A string of bunting from `a` to `b`, sagging in the middle, a pennant every ~0.35. */
+/** A string of bunting from `a` to `b`, sagging in the middle, a pennant every ~0.36. */
 export function buntingModel(a: V3, b: V3, sag = 0.3): THREE.Group {
   const g = new THREE.Group();
-  const A = v3(...a);
-  const B = v3(...b);
-  const len = A.distanceTo(B);
+  const start = v3(...a);
+  const end = v3(...b);
+  const len = start.distanceTo(end);
   const at = (f: number) =>
-    A.clone()
-      .lerp(B, f)
+    start
+      .clone()
+      .lerp(end, f)
       .add(v3(0, -4 * sag * f * (1 - f), 0));
   const segs = Math.max(6, Math.round(len * 3));
   const cord = toon("#5e3d28");
@@ -122,7 +129,7 @@ export function buntingModel(a: V3, b: V3, sag = 0.3): THREE.Group {
   const geo = new THREE.ShapeGeometry(tri);
   const flags: THREE.Mesh[] = [];
   const n = Math.max(2, Math.round(len / 0.36));
-  const dir = Math.atan2(B.x - A.x, B.z - A.z) - Math.PI / 2;
+  const dir = Math.atan2(end.x - start.x, end.z - start.z) - Math.PI / 2;
   for (let i = 1; i < n; i++) {
     const mat = new THREE.MeshToonMaterial({
       color: PENNANT[i % PENNANT.length]!,
@@ -185,18 +192,21 @@ function gingham(c: string): THREE.CanvasTexture {
   );
 }
 
-/** The traveling merchant's wagon: striped awning, curtain, goods on the counter, an LTD board, a lantern. Faces +z. */
+/**
+ * The traveling merchant's wagon: a striped awning, a curtain, goods on the counter, an LTD board and a lantern.
+ * Faces +z.
+ */
 export function merchantCart(goods: readonly string[] = ["#c9b6ff", "#f5d14a", "#8fe3ff", "#ff7ab6"]): {
   model: Model;
   flame: THREE.Mesh;
   halo: THREE.Mesh;
 } {
   const m = new Model();
-  const W = 1.9;
-  const D = 0.95;
+  const width = 1.9;
+  const depth = 0.95;
   // The wheels, on the sides.
   for (const s of [-1, 1]) {
-    const wheel = m.part([s * (W / 2 + 0.05), 0.3, 0.05]);
+    const wheel = m.part([s * (width / 2 + 0.05), 0.3, 0.05]);
     const rim = wheel.cyl(0.3, 0.07, "#5e3d28", [0, -0.035, 0], 0.3, 18);
     rim.rotation.z = Math.PI / 2;
     const hub = wheel.cyl(0.12, 0.1, "#2b2433", [0, -0.05, 0], 0.12, 10);
@@ -210,9 +220,9 @@ export function merchantCart(goods: readonly string[] = ["#c9b6ff", "#f5d14a", "
     }
   }
   // Body: a wooden box with a lid line, the board on the front.
-  m.box([W, 0.5, D], "#a87648", [0, 0.22, 0], 0.03);
-  m.box([W + 0.06, 0.06, D + 0.06], "#c9a36a", [0, 0.72, 0], 0.02);
-  for (const y of [0.34, 0.5]) m.box([W + 0.01, 0.02, D + 0.01], "#8a5f38", [0, y, 0]);
+  m.box([width, 0.5, depth], "#a87648", [0, 0.22, 0], 0.03);
+  m.box([width + 0.06, 0.06, depth + 0.06], "#c9a36a", [0, 0.72, 0], 0.02);
+  for (const y of [0.34, 0.5]) m.box([width + 0.01, 0.02, depth + 0.01], "#8a5f38", [0, y, 0]);
   const board = canvasTexture(
     60,
     28,
@@ -229,19 +239,21 @@ export function merchantCart(goods: readonly string[] = ["#c9b6ff", "#f5d14a", "
     },
     true,
   );
-  m.plane(0.62, 0.3, glow("#fff", board), [0, 0.47, D / 2 + 0.012]);
+  m.plane(0.62, 0.3, glow("#fff", board), [0, 0.47, depth / 2 + 0.012]);
   // Posts, curtain and awning.
-  for (const sx of [-1, 1])
-    for (const sz of [-1, 1])
-      m.cyl(0.035, 1.12, "#5e3d28", [sx * (W / 2 - 0.05), 0.75, sz * (D / 2 - 0.05)], 0.035, 8);
-  m.box([W - 0.1, 0.95, 0.04], "#4b3f7a", [0, 0.75, -D / 2 + 0.05], 0.01);
-  for (let x = -0.8; x <= 0.81; x += 0.2) m.box([0.025, 0.9, 0.05], "#6a5aa8", [x, 0.78, -D / 2 + 0.06]);
+  for (const sx of [-1, 1]) {
+    for (const sz of [-1, 1]) {
+      m.cyl(0.035, 1.12, "#5e3d28", [sx * (width / 2 - 0.05), 0.75, sz * (depth / 2 - 0.05)], 0.035, 8);
+    }
+  }
+  m.box([width - 0.1, 0.95, 0.04], "#4b3f7a", [0, 0.75, -depth / 2 + 0.05], 0.01);
+  for (let x = -0.8; x <= 0.81; x += 0.2) m.box([0.025, 0.9, 0.05], "#6a5aa8", [x, 0.78, -depth / 2 + 0.06]);
   const stripes = gingham("#e2443a");
   stripes.wrapS = THREE.RepeatWrapping;
   stripes.repeat.set(2, 1);
-  const awn = m.box([W + 0.3, 0.06, D + 0.35], painted(stripes), [0, 1.86, 0.08], 0.01);
+  const awn = m.box([width + 0.3, 0.06, depth + 0.35], painted(stripes), [0, 1.86, 0.08], 0.01);
   awn.rotation.x = 0.1;
-  const val = canvasTexture(
+  const valance = canvasTexture(
     32,
     6,
     (g) => {
@@ -255,19 +267,23 @@ export function merchantCart(goods: readonly string[] = ["#c9b6ff", "#f5d14a", "
     false,
   );
   const front = new THREE.Mesh(
-    new THREE.PlaneGeometry(W + 0.3, 0.24),
+    new THREE.PlaneGeometry(width + 0.3, 0.24),
     new THREE.MeshToonMaterial({
-      map: val,
+      map: valance,
       transparent: true,
       alphaTest: 0.5,
       gradientMap: toon("#fff").gradientMap,
     }),
   );
-  front.position.set(0, 1.72, D / 2 + 0.26);
+  front.position.set(0, 1.72, depth / 2 + 0.26);
   front.castShadow = true;
   m.add(front);
   // Bunting across the curtain.
-  const bunt = buntingModel([-W / 2 + 0.1, 1.55, -D / 2 + 0.12], [W / 2 - 0.1, 1.55, -D / 2 + 0.12], 0.12);
+  const bunt = buntingModel(
+    [-width / 2 + 0.1, 1.55, -depth / 2 + 0.12],
+    [width / 2 - 0.1, 1.55, -depth / 2 + 0.12],
+    0.12,
+  );
   ALL_FLAT(bunt);
   m.add(bunt);
   // Goods on the counter.
@@ -279,7 +295,7 @@ export function merchantCart(goods: readonly string[] = ["#c9b6ff", "#f5d14a", "
   m.ball(0.09, goods[3]!, [0.65, 0.84, 0.05]);
 
   // The lantern on the right post.
-  const post = m.part([W / 2 - 0.05, 1.3, D / 2 - 0.05]);
+  const post = m.part([width / 2 - 0.05, 1.3, depth / 2 - 0.05]);
   post.box([0.02, 0.1, 0.02], ink, [0, 0.0, 0]);
   post.box([0.14, 0.02, 0.14], ink, [0, -0.2, 0], 0.005);
   const flame = post.box([0.09, 0.14, 0.09], glow("#ffe28a"), [0, -0.19, 0], 0.02);
@@ -294,9 +310,9 @@ export function merchantCart(goods: readonly string[] = ["#c9b6ff", "#f5d14a", "
       blending: THREE.AdditiveBlending,
     }),
   );
-  halo.position.set(W / 2 - 0.05, 1.2, D / 2 - 0.05);
+  halo.position.set(width / 2 - 0.05, 1.2, depth / 2 - 0.05);
   m.add(halo);
-  light(m, [W / 2 - 0.05, 1.2, D / 2 - 0.05], "#ffd27a", 3, 5);
+  light(m, [width / 2 - 0.05, 1.2, depth / 2 - 0.05], "#ffd27a", 3, 5);
   return { model: m, flame, halo };
 }
 
@@ -357,11 +373,12 @@ export function goalFlag(): Model {
   m.ball(0.05, "#cfd3da", [0, 1.5, 0]);
   const flag = m.part([0.28, 1.2, 0]);
   const tex = canvasTexture(8, 6, (g) => {
-    for (let y = 0; y < 6; y++)
+    for (let y = 0; y < 6; y++) {
       for (let x = 0; x < 8; x++) {
         g.fillStyle = (x + y) % 2 ? ink : "#fbf7ef";
         g.fillRect(x, y, 1, 1);
       }
+    }
   });
   const cloth = new THREE.Mesh(
     new THREE.PlaneGeometry(0.52, 0.36),
@@ -395,11 +412,11 @@ export function bikeModel(): { model: Model; wheels: THREE.Object3D[] } {
   }
   const red = "#d8343c";
   const bar = (a: V3, b: V3, c = red) => {
-    const A = v3(...a);
-    const B = v3(...b);
-    const mesh = new THREE.Mesh(new THREE.BoxGeometry(A.distanceTo(B), 0.03, 0.03), toon(c));
-    mesh.position.copy(A.clone().add(B).multiplyScalar(0.5));
-    mesh.rotation.z = Math.atan2(B.y - A.y, B.x - A.x);
+    const start = v3(...a);
+    const end = v3(...b);
+    const mesh = new THREE.Mesh(new THREE.BoxGeometry(start.distanceTo(end), 0.03, 0.03), toon(c));
+    mesh.position.copy(start.clone().add(end).multiplyScalar(0.5));
+    mesh.rotation.z = Math.atan2(end.y - start.y, end.x - start.x);
     mesh.castShadow = true;
     m.add(mesh);
   };
@@ -438,8 +455,8 @@ const RAINBOW = ["#e8434b", "#f28c28", "#f5d14a", "#58b36a", "#3f89c9", "#8e63d8
  */
 export function launchStand(accent: string | null): Model {
   const m = new Model();
-  const W = 1.7;
-  const D = 1.1;
+  const width = 1.7;
+  const depth = 1.1;
   const colour = (i: number) => accent ?? RAINBOW[i % RAINBOW.length]!;
   // The awning's stripes: the accent and white for a stand with one colour, the rainbow for several.
   const stripeColour = (i: number) => {
@@ -447,8 +464,8 @@ export function launchStand(accent: string | null): Model {
     return i % 2 ? "#fbf7ef" : accent;
   };
   // The counter, at the front, with a band in the stand's colours.
-  m.box([W, 0.8, 0.6], "#a87648", [0, 0.4, D / 2 - 0.3], 0.03);
-  m.box([W + 0.08, 0.06, 0.7], "#c9a36a", [0, 0.83, D / 2 - 0.3], 0.02);
+  m.box([width, 0.8, 0.6], "#a87648", [0, 0.4, depth / 2 - 0.3], 0.03);
+  m.box([width + 0.08, 0.06, 0.7], "#c9a36a", [0, 0.83, depth / 2 - 0.3], 0.02);
   const band = canvasTexture(
     24,
     2,
@@ -460,7 +477,7 @@ export function launchStand(accent: string | null): Model {
     },
     false,
   );
-  m.plane(W, 0.1, glow("#fff", band), [0, 0.72, D / 2 + 0.011]);
+  m.plane(width, 0.1, glow("#fff", band), [0, 0.72, depth / 2 + 0.011]);
   // The NEW board, with a star.
   const board = canvasTexture(
     64,
@@ -482,11 +499,13 @@ export function launchStand(accent: string | null): Model {
     },
     true,
   );
-  m.plane(0.72, 0.32, glow("#fff", board), [0, 0.4, D / 2 + 0.012]);
+  m.plane(0.72, 0.32, glow("#fff", board), [0, 0.4, depth / 2 + 0.012]);
   // Four posts.
-  for (const sx of [-1, 1])
-    for (const sz of [-1, 1])
-      m.cyl(0.035, 1.6, "#5e3d28", [sx * (W / 2 - 0.05), 0.8, sz * (D / 2 - 0.05)], 0.035, 8);
+  for (const sx of [-1, 1]) {
+    for (const sz of [-1, 1]) {
+      m.cyl(0.035, 1.6, "#5e3d28", [sx * (width / 2 - 0.05), 0.8, sz * (depth / 2 - 0.05)], 0.035, 8);
+    }
+  }
   // The awning: stripes, and a scalloped valance along the front.
   const stripes = canvasTexture(
     48,
@@ -499,9 +518,9 @@ export function launchStand(accent: string | null): Model {
     },
     false,
   );
-  const awn = m.box([W + 0.3, 0.06, D + 0.3], painted(stripes), [0, 1.66, 0.05], 0.01);
+  const awn = m.box([width + 0.3, 0.06, depth + 0.3], painted(stripes), [0, 1.66, 0.05], 0.01);
   awn.rotation.x = 0.1;
-  const val = canvasTexture(
+  const valance = canvasTexture(
     48,
     6,
     (g) => {
@@ -514,20 +533,22 @@ export function launchStand(accent: string | null): Model {
     false,
   );
   const front = new THREE.Mesh(
-    new THREE.PlaneGeometry(W + 0.3, 0.22),
+    new THREE.PlaneGeometry(width + 0.3, 0.22),
     new THREE.MeshToonMaterial({
-      map: val,
+      map: valance,
       transparent: true,
       alphaTest: 0.5,
       gradientMap: toon("#fff").gradientMap,
     }),
   );
-  front.position.set(0, 1.52, D / 2 + 0.22);
+  front.position.set(0, 1.52, depth / 2 + 0.22);
   front.castShadow = true;
   m.add(front);
   // A stack of pamphlets on the counter.
-  for (let i = 0; i < 3; i++)
-    m.box([0.22, 0.015, 0.16], i % 2 ? "#fbf7ef" : colour(i), [0.55, 0.875 + i * 0.016, D / 2 - 0.3], 0.004);
+  for (let i = 0; i < 3; i++) {
+    const y = 0.875 + i * 0.016;
+    m.box([0.22, 0.015, 0.16], i % 2 ? "#fbf7ef" : colour(i), [0.55, y, depth / 2 - 0.3], 0.004);
+  }
   return m;
 }
 
@@ -626,7 +647,7 @@ export function statueModel(accent: string, bare = false): Model {
   );
   m.plane(0.48, 0.24, glow("#fff", plate), [0, 0.38, 0.371]);
   if (bare) return m;
-  // The figure: a robe belted in the maker's colour, shoulders, the head with a laurel, an arm holding a cup up.
+  // The figure: a robe belted in the maker's colour, shoulders, a laurelled head, and an arm holding a cup up.
   const fig = m.part([0, STATUE_TOP, 0]);
   fig.cyl(0.27, 0.6, MARBLE, [0, 0, 0], 0.17, 14);
   fig.cyl(0.22, 0.09, accent, [0, 0.25, 0], 0.205, 14);

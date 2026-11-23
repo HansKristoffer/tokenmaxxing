@@ -5,8 +5,8 @@ import { bake, type Palette, type Pen } from "./pixels.ts";
 /**
  * The pond's fish (`core/src/fishing.ts`), side on and facing right, on a 16x10 grid: the journal draws them, the
  * panel holds up a catch, and the 2D town lifts it out of the water (the 3D town has its own sculptures,
- * `render3d/town/fish3d.ts`). `o` is the outline; `.` is clear. `shift` slides the columns from there one pixel
- * down: the off-by-one bass is never quite where you drew it.
+ * `render3d/town/fish3d.ts`). `o` is the outline; `.` is clear. `shift` moves every column from that index on one
+ * pixel down: the off-by-one bass is never quite where you drew it.
  */
 interface FishArt {
   rows: readonly string[];
@@ -131,6 +131,7 @@ export function drawFish(p: Pen, id: string, ox = 0, oy = 0, ghost = false): voi
     p.grid(art.rows, pal, ox, oy);
     return;
   }
+
   // The columns before `shift` stay where they are; the rest sit a pixel lower.
   const back = art.rows.map((r) => r.slice(0, shift).padEnd(FISH_W, "."));
   const front = art.rows.map((r) => ".".repeat(shift) + r.slice(shift));
@@ -144,7 +145,7 @@ const baked = new Map<string, HTMLCanvasElement>();
 
 /** A fish baked once at `scale`, for the HUD (`ghost`: the dark silhouette). One pixel of headroom for the shift. */
 export function fishCanvas(id: string, scale: number, ghost = false): HTMLCanvasElement {
-  const key = `${id}:${scale}:${+ghost}`;
+  const key = `${id}:${scale}:${ghost}`;
   let c = baked.get(key);
   if (!c) {
     c = bake(FISH_W * scale, (FISH_H + 1) * scale, (p) => {

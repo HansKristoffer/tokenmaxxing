@@ -39,39 +39,37 @@ type Art = (p: Pen, ox: number, oy: number, x: number, y: number) => void;
 
 function herringbone(p: Pen, ox: number, oy: number, x: number, y: number, base: string, line: string): void {
   p.rect(ox, oy, TILE, TILE, base);
-  for (let j = 0; j < TILE; j++)
+  for (let j = 0; j < TILE; j++) {
     for (let i = 0; i < TILE; i++) {
       const top = j % 8 < 4;
       const d = top ? i + j : i - j + 16;
       if (d % 4 === 0) p.px(ox + i, oy + j, line);
       else if (hash(x * TILE + i, y * TILE + j, 43) < 0.04) p.px(ox + i, oy + j, line);
     }
+  }
 }
 
 // Keyed by look id; `floorLook` takes one of these keys, so a missing painter is a compile error.
 const FLOOR_ART = {
   linoleum: (p, ox, oy, x, y) => {
     p.rect(ox, oy, TILE, TILE, "#7fa88a");
-    for (let j = 0; j < TILE; j++)
+    for (let j = 0; j < TILE; j++) {
       for (let i = 0; i < TILE; i++) {
         const h = hash(x * TILE + i, y * TILE + j, 41);
         if (h < 0.06) p.px(ox + i, oy + j, "#6d9578");
         else if (h < 0.1) p.px(ox + i, oy + j, "#93bb9d");
       }
+    }
     p.rect(ox, oy + 7, TILE, 1, "#6d9578");
     p.rect(ox + 7, oy, 1, TILE, "#6d9578");
   },
   parquet: (p, ox, oy, x, y) => herringbone(p, ox, oy, x, y, "#8a5733", "#5e3519"),
   fiskebenet: (p, ox, oy, x, y) => herringbone(p, ox, oy, x, y, "#dcc08e", "#b8935c"),
   checker: (p, ox, oy) => {
-    for (let q = 0; q < 4; q++)
-      p.rect(
-        ox + (q % 2) * 8,
-        oy + Math.floor(q / 2) * 8,
-        8,
-        8,
-        (q % 2) + Math.floor(q / 2) === 1 ? "#2b2b33" : "#ece8e0",
-      );
+    for (let q = 0; q < 4; q++) {
+      const isDark = (q % 2) + Math.floor(q / 2) === 1;
+      p.rect(ox + (q % 2) * 8, oy + Math.floor(q / 2) * 8, 8, 8, isDark ? "#2b2b33" : "#ece8e0");
+    }
   },
   terrazzo: (p, ox, oy, x, y) => {
     p.rect(ox, oy, TILE, TILE, "#e9e2d6");
@@ -85,14 +83,17 @@ const FLOOR_ART = {
   },
   klinker: (p, ox, oy, x, y) => {
     p.rect(ox, oy, TILE, TILE, "#c4a79a");
-    for (let j = 0; j < 2; j++)
+    for (let j = 0; j < 2; j++) {
       for (let i = 0; i < 2; i++) {
         const h = hash(x * 2 + i, y * 2 + j, 74);
-        const base = h < 0.33 ? "#a8553f" : h < 0.66 ? "#b4634a" : "#9a4a38";
+        let base = "#9a4a38";
+        if (h < 0.33) base = "#a8553f";
+        else if (h < 0.66) base = "#b4634a";
         p.rect(ox + i * 8 + 1, oy + j * 8 + 1, 7, 7, base);
         p.rect(ox + i * 8 + 1, oy + j * 8 + 1, 7, 1, "#c27658");
         p.px(ox + i * 8 + 1 + Math.floor(h * 5), oy + j * 8 + 4, "#8a3f30");
       }
+    }
   },
   datacentre: (p, ox, oy) => {
     p.rect(ox, oy, TILE, TILE, "#9aa3ae");
@@ -125,12 +126,13 @@ const FLOOR_ART = {
   },
   bornholm: (p, ox, oy, x, y) => {
     p.rect(ox, oy, TILE, TILE, "#6a6f78");
-    for (let j = 0; j < 2; j++)
+    for (let j = 0; j < 2; j++) {
       for (let i = 0; i < 2; i++) {
         const h = hash(x * 2 + i, y * 2 + j, 42);
         p.rect(ox + i * 8 + 1, oy + j * 8 + 1, 6, 6, h < 0.5 ? "#8d939c" : "#7c828c");
         p.rect(ox + i * 8 + 1, oy + j * 8 + 1, 6, 1, "#a3a9b2");
       }
+    }
   },
 } satisfies Record<string, Art>;
 
@@ -188,12 +190,13 @@ const WALL_ART = {
   },
   kanban: (p, ox, oy, x, y) => {
     p.rect(ox, oy, TILE, TILE, "#b88a58");
-    for (let k = 0; k < 6; k++)
+    for (let k = 0; k < 6; k++) {
       p.px(
         ox + Math.floor(hash(x * 6 + k, y, 79) * 15),
         oy + Math.floor(hash(x, y * 6 + k, 80) * 12),
         "#a07548",
       );
+    }
     const notes = ["#f5d14a", "#f28bb2", "#7fe3ff", "#9fe08a"];
     p.rect(ox + 3, oy + 3, 5, 5, notes[(x * 3 + 1) % notes.length]!);
     p.px(ox + 5, oy + 2, "#e8584f");
@@ -205,12 +208,13 @@ const WALL_ART = {
   },
   tivoli: (p, ox, oy, x, y) => {
     p.rect(ox, oy, TILE, TILE, "#1f2a54");
-    for (let k = 0; k < 4; k++)
+    for (let k = 0; k < 4; k++) {
       p.px(
         ox + 1 + Math.floor(hash(x, y, 60 + k) * 14),
         oy + 3 + Math.floor(hash(y, x, 64 + k) * 9),
         "#f2c94c",
       );
+    }
   },
 } satisfies Record<string, Art>;
 
@@ -249,8 +253,9 @@ const floorLook = (
     const art = FLOOR_ART[id];
     const t = canvasTexture(TILE * FLOOR_SPAN, TILE * FLOOR_SPAN, (g) => {
       const p = penOf(g);
-      for (let y = 0; y < FLOOR_SPAN; y++)
+      for (let y = 0; y < FLOOR_SPAN; y++) {
         for (let x = 0; x < FLOOR_SPAN; x++) art(p, x * TILE, y * TILE, x, y);
+      }
     });
     t.wrapS = t.wrapT = RepeatWrapping;
     return t;
@@ -258,7 +263,14 @@ const floorLook = (
 });
 
 export const FLOORS: readonly Look[] = [
-  { id: "boards", name: "Boards", price: 0, color: C.floor, span: 4, texture: () => planks(C.floor, 4) },
+  {
+    id: "boards",
+    name: "Boards",
+    price: 0,
+    color: C.floor,
+    span: FLOOR_SPAN,
+    texture: () => planks(C.floor, FLOOR_SPAN),
+  },
   floorLook("linoleum", "Linoleum", 60, "#7fa88a"),
   floorLook("parquet", "Parquet", 150, "#8a5733"),
   floorLook("fiskebenet", "Fiskebenet", 270, "#dcc08e"),

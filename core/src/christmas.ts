@@ -5,11 +5,10 @@
  * from the clock's build-up (`progress`) and the map, so the server keeps nothing. The 2D draw is
  * `web/src/game/christmas.ts`, the 3D one `web/src/render3d/town/christmas3d.ts`; both read this.
  * The advent calendar itself stays `december.ts`. Scenery on the grass or the paving blocks nothing, bar the
- * trunk and Knud (`blocksChristmas`).
+ * trunk and Knud (`blocksTile`).
  */
 import type { Festive, FestiveNpc } from "./festive.ts";
-import type { GameMap } from "./maps.ts";
-import { SHOP_DOOR_CHAR } from "./shoprooms.ts";
+import { FESTIVE_DOORS, type GameMap } from "./maps.ts";
 
 /** The tree, on the square's paving south of the fountain: it blocks its own tile. */
 export const TREE = { x: 10, y: 12 } as const;
@@ -28,7 +27,7 @@ export const GIFT_TILES: readonly { x: number; y: number }[] = [
 /** The most boxes under the tree (on the 24th evening). */
 export const GIFTS_MAX = 8;
 
-/** The square's four lamps (CORE's `L`), top-left to bottom-right: the lights are strung between them. */
+/** The square's four lamps (`L` on the map), top-left to bottom-right: the lights are strung between them. */
 export const SQUARE_LAMPS: readonly [number, number][] = [
   [1, 7],
   [19, 7],
@@ -48,10 +47,7 @@ export const SNOWMEN: readonly { x: number; y: number }[] = [
   { x: 8, y: 17 },
 ];
 
-/** The doors that get a wreath and a nisse: the Tavern's (`I`), each company's (`D`) and each shop's. */
-const DOORS = ["I", "D", ...Object.values(SHOP_DOOR_CHAR)];
-
-/** The build-up through the window, 0 on 18 December to 1 from 24 December 18:00 (continuous): from the theme's ramp. */
+/** The theme's build-up, from 0 on 18 December to 1 from 24 December at 18:00, rising in between. */
 export const progress = (f: Festive | null): number =>
   f?.id === "christmas" ? Math.min(1, Math.max(0, (f.intensity - 0.15) / 0.85)) : 0;
 
@@ -82,7 +78,7 @@ const SETS: readonly { set: OrnamentSet; n: number; lo: number; hi: number; spre
   { set: "tinsel", n: 12, lo: 0.08, hi: 0.9, spread: 2.5 },
 ];
 
-// The golden angle in radians (pi times 3 minus root 5): successive ornaments spread evenly round the trunk.
+// The golden angle in radians, pi times (3 minus the square root of 5). Successive ornaments spread evenly round the trunk.
 const GOLDEN = 2.399963;
 
 /** All the ornaments, set by set (so showing the first `n` is "the days so far"): fixed, the same in both renderers. */
@@ -133,7 +129,7 @@ export interface DoorSpot {
 
 /** Where the wreaths hang: each door in `map` (the town). */
 export function wreathSpots(map: GameMap): DoorSpot[] {
-  return DOORS.flatMap((ch) =>
+  return FESTIVE_DOORS.flatMap((ch) =>
     map.find(ch).map(([x, y]) => ({
       x,
       y,
@@ -169,7 +165,7 @@ export interface NisseSpot {
  */
 export function nisseSpots(map: GameMap): NisseSpot[] {
   const out: NisseSpot[] = [];
-  for (const ch of DOORS) {
+  for (const ch of FESTIVE_DOORS) {
     for (const [x, y] of map.find(ch)) {
       const right = map.at(x + 1, y + 1) === ".";
       const left = map.at(x - 1, y + 1) === ".";

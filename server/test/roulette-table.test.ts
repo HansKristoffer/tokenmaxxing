@@ -43,7 +43,8 @@ async function approach(c: Tab, i: number): Promise<Facing> {
     await walk(c.conn, way);
     return facing;
   }
-  // Hemmed in by the table and its neighbours (the middle of the row against the wall): walk onto the spot itself.
+  // Hemmed in by the table and its neighbours (the middle of the row against the wall): walk onto
+  // the spot itself.
   const onto = route(map, [me.x, me.y], [sx, sy]);
   if (!onto) throw new Error(`no way to spot ${i}`);
   await walk(c.conn, onto);
@@ -147,7 +148,7 @@ describe("the net cafe's roulette table", () => {
     expect((await a.town.wallet()).balance).toBe(100);
     await ca.conn.rouletteBet([{ on: "red", stake: 10 }]);
     expect((await a.town.wallet()).balance).toBe(90);
-    // Nobody is Ready yet; one is not enough.
+    // One Ready is not enough: the spin waits for both players.
     await ca.conn.rouletteReady(true);
     await Bun.sleep(300);
     expect(last()?.phase).toBe("betting");

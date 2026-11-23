@@ -13,13 +13,15 @@ export function warmNearShops(map: GameMap, x: number, y: number): void {
     list = SHOP_IDS.map((id): Doors[number] => [id, map.find(SHOP_DOOR_CHAR[id])]);
     doors.set(map, list);
   }
+  // Distance in tiles, Chebyshev: a diagonal step counts as one.
+  const distanceFromPlayer = (tiles: readonly (readonly [number, number])[]) =>
+    Math.min(...tiles.map(([dx, dy]) => Math.max(Math.abs(dx - x), Math.abs(dy - y))));
+
   const nearby = list
-    .map(([id, tiles]) => ({
-      id,
-      distance: Math.min(...tiles.map(([dx, dy]) => Math.max(Math.abs(dx - x), Math.abs(dy - y)))),
-    }))
+    .map(([id, tiles]) => ({ id, distance: distanceFromPlayer(tiles) }))
     .filter((d) => d.distance <= NEAR)
     .sort((a, b) => a.distance - b.distance);
+
   for (const { id } of nearby) {
     if (!shopNeedsWarm(id)) continue;
     warmShop(id);

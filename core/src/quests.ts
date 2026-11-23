@@ -128,7 +128,7 @@ const span = (buckets: number): string => {
 const one = (): number => 1;
 
 export const POOL: readonly QuestDef[] = [
-  // Tier 1: 1 coin.
+  // Tier 1: a base of 1 coin (see `coinsOf`).
   {
     id: "warm",
     tier: 1,
@@ -184,7 +184,7 @@ export const POOL: readonly QuestDef[] = [
     target: one,
     value: (_f, c) => c.fountain,
   },
-  // Tier 2: 2 coins.
+  // Tier 2: a base of 2 coins (see `coinsOf`).
   {
     id: "parallel",
     tier: 2,
@@ -215,7 +215,7 @@ export const POOL: readonly QuestDef[] = [
     target: one,
     value: (f) => f.gamesPlayed,
   },
-  // Tier 3: 3 coins.
+  // Tier 3: a base of 3 coins (see `coinsOf`).
   {
     id: "haul",
     tier: 3,

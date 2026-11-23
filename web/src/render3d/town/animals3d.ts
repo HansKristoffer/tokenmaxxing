@@ -15,12 +15,14 @@ export class TownCat {
     const stripe = "#93512e";
     const cream = "#fff0d1";
     m.box([0.43, 0.3, 0.48], fur, [0, 0.08, -0.08], 0);
+
     // White chest and two front paws, with a darker haunch behind them.
     m.box([0.27, 0.23, 0.08], cream, [0, 0.1, 0.18], 0);
     for (const x of [-0.14, 0.14]) {
       m.box([0.13, 0.1, 0.2], cream, [x, 0, 0.18], 0);
       m.box([0.08, 0.16, 0.06], stripe, [x, 0.17, -0.21], 0);
     }
+
     this.head = m.part([0, 0.32, 0.19]);
     this.head.box([0.4, 0.3, 0.3], fur, [0, 0, 0], 0);
     // Pointed ears with contrasting pink centres.
@@ -36,10 +38,12 @@ export class TownCat {
     this.head.box([0.06, 0.045, 0.035], "#cf7d83", [0, 0.09, 0.2], 0);
     this.head.box([0.018, 0.04, 0.015], "#71453d", [0, 0.05, 0.225], 0);
     for (const x of [-0.09, 0, 0.09]) this.head.box([0.035, 0.07, 0.04], stripe, [x, 0.235, 0.135], 0);
+
     this.tail = m.part([0.21, 0.12, -0.2]);
     this.tail.box([0.09, 0.13, 0.3], fur, [0.1, 0, -0.03], 0);
     this.tail.box([0.09, 0.3, 0.09], fur, [0.1, 0.08, -0.14], 0);
     this.tail.box([0.16, 0.09, 0.09], stripe, [0.065, 0.33, -0.14], 0);
+
     // Bake each rigid part separately; head and tail retain their animation pivots.
     mergeStill(this.head);
     mergeStill(this.tail);
@@ -47,8 +51,11 @@ export class TownCat {
   }
 
   update(now: number, petted: boolean, calm: boolean): void {
+    // A petted cat tilts its head and flicks its tail faster and wider.
+    const tailPeriod = petted ? 160 : 850;
+    const tailSwing = petted ? 0.18 : 0.07;
     this.head.rotation.z = petted ? -0.16 : 0;
-    this.tail.rotation.z = calm ? 0 : Math.sin(now / (petted ? 160 : 850)) * (petted ? 0.18 : 0.07);
+    this.tail.rotation.z = calm ? 0 : Math.sin(now / tailPeriod) * tailSwing;
   }
 }
 
@@ -63,6 +70,7 @@ export class TownPigeon {
     for (const x of [-0.065, 0.065]) m.box([0.065, 0.04, 0.13], "#cf8a83", [x, 0, 0.065], 0);
     m.box([0.25, 0.19, 0.32], "#8897a4", [0, 0.05, 0], 0);
     m.box([0.15, 0.045, 0.22], "#505d70", [0, 0.1, -0.2], 0);
+
     this.head = m.part([0, 0.19, 0.1]);
     this.head.box([0.13, 0.1, 0.13], "#63978d", [0, 0, 0], 0);
     this.head.box([0.17, 0.15, 0.17], "#738394", [0, 0.065, 0.02], 0);
@@ -76,6 +84,7 @@ export class TownPigeon {
       mergeStill(wing);
       this.wings.push(wing);
     }
+
     mergeStill(this.head);
     mergeStill(m, (mesh) => mesh.parent !== m);
   }
@@ -86,8 +95,10 @@ export class TownPigeon {
     const idleYaw = -0.35 + index * 0.5;
     const flightYaw = Math.atan2(direction * 0.7, 0.2) + (pose.returning ? Math.PI : 0);
     const turn = Math.atan2(Math.sin(flightYaw - idleYaw), Math.cos(flightYaw - idleYaw));
+
     this.root.rotation.y = idleYaw + turn * Math.min(1, pose.lift * 5);
     this.head.rotation.x = flying || calm ? 0 : pose.peck * 0.55;
+
     for (const [i, wing] of this.wings.entries()) {
       const side = i === 0 ? -1 : 1;
       // Fold against the body on the ground; both wings lift from their shoulders.

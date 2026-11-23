@@ -1,12 +1,14 @@
 /**
  * Snapshot of the 2D raid/dungeon data for the 3D world. Sources: web/src/art/{bosses,minions,loot,editions,trophies}.ts
- * and core/src/{raid,loot,editions,trophies,badges,rarity}.ts. Pixel grids are kept as they are, so the 3D models can extrude them.
+ * and core/src/{raid,loot,editions,trophies,badges,rarity}.ts. Pixel grids are kept as they are, so the 3D models
+ * can extrude them.
  */
 // biome-ignore-all format: pixel art reads as a grid
 
 import { TROPHIES } from "@tokenmaxxing/core/trophies.ts";
 import { C } from "../../art/palette.ts";
 import { TROPHY_ART } from "../../art/trophy-art.ts";
+
 export type Palette = Record<string, string>;
 export type View = "down" | "side" | "up";
 export interface Art {

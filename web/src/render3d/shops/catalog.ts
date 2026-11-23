@@ -38,7 +38,7 @@ export const SHOP_IDS: ShopId[] = ["furniture", "clothes", "barber", "pets", "na
 /** The rooms and the storefronts' door tiles are the game's own (`core/src/shoprooms.ts`). */
 export { SHOP_DOOR_CHAR, SHOP_ROOM } from "@tokenmaxxing/core/shoprooms.ts";
 export const shopOfRoom = (room: string): ShopId | null =>
-  SHOP_IDS.find((s) => SHOP_ROOM[s] === room) ?? null;
+  SHOP_IDS.find((shopId) => SHOP_ROOM[shopId] === room) ?? null;
 
 export interface ShopDisplay {
   item: ShopItem;
@@ -69,7 +69,10 @@ export const forgetShopRoom = (id: ShopId): void => {
   cache.delete(id);
 };
 
-/** Interiors being built ahead, a slice at a time (`warmShop`), and those finished and waiting for the player to walk in. */
+/**
+ * Interiors being built ahead, a slice at a time (`warmShop`), and those finished and waiting for the player to
+ * walk in.
+ */
 const warming = new Map<
   ShopId,
   {
@@ -112,12 +115,14 @@ export function warmShop(id: ShopId): boolean {
   return false;
 }
 
+/** Hands the scopes that built a warm interior over to its room, so disposing the room drops their work too. */
 function ownWarmScopes(built: ReturnType<ShopSpec["buildInterior"]>, scopes: TickScope[]): void {
   const root = built.room.group;
   for (const scope of scopes) scope.root = root;
-  const off = root.userData.onDispose as (() => void) | undefined;
+
+  const previousDispose = root.userData.onDispose as (() => void) | undefined;
   root.userData.onDispose = () => {
-    off?.();
+    previousDispose?.();
     for (const scope of scopes) dropTickScope(scope);
   };
 }
@@ -126,6 +131,7 @@ function ownWarmScopes(built: ReturnType<ShopSpec["buildInterior"]>, scopes: Tic
 export function dropWarmedShops(): void {
   const cancelled = new Error("Shop preparation cancelled");
   for (const pending of warming.values()) {
+    // Throwing into the generator runs the rest of its build code, which ends in the `cancelled` error we expect.
     try {
       pending.slices.throw(cancelled);
     } catch (error) {
@@ -140,11 +146,14 @@ export function dropWarmedShops(): void {
 }
 
 export function shopRoom(id: ShopId): ShopRoom {
-  let s = cache.get(id);
-  if (s) return s;
+  const cached = cache.get(id);
+  if (cached) return cached;
+
   const spec = SHOP_SPECS[id];
   let ahead = warmed.get(id);
   warmed.delete(id);
+
+  // A warm interior the player has not reached yet is finished now, in one go.
   const pending = warming.get(id);
   warming.delete(id);
   if (pending) {
@@ -159,12 +168,13 @@ export function shopRoom(id: ShopId): ShopRoom {
       endTickScope(scope, ahead?.room.group ?? pending.dormant);
     }
   }
+
   const built = ahead ?? spec.buildInterior();
   const { room } = built;
 
   // The furniture shop's tiles carry the inset; the others are the room's own.
   const shift: [number, number] = id === "furniture" ? INSET : [0, 0];
-  const local = (t: [number, number]): [number, number] => [t[0] - shift[0], t[1] - shift[1]];
+  const local = (tile: [number, number]): [number, number] => [tile[0] - shift[0], tile[1] - shift[1]];
   const door = local(built.door);
 
   // The walkable map: a wall column on each side, two wall rows above the room and one below it.
@@ -172,54 +182,54 @@ export function shopRoom(id: ShopId): ShopRoom {
   for (let y = 0; y < room.D + 3; y++) {
     let row = "";
     for (let x = 0; x < room.W + 2; x++) {
-      const rx = x - 1;
-      const rz = y - 2;
-      if (rx < 0 || rz < 0 || rx >= room.W || rz >= room.D) {
+      const roomX = x - 1;
+      const roomZ = y - 2;
+      if (roomX < 0 || roomZ < 0 || roomX >= room.W || roomZ >= room.D) {
         row += "W";
         continue;
       }
-      if (rx === door[0] && rz === door[1]) {
+      if (roomX === door[0] && roomZ === door[1]) {
         row += "x";
         continue;
       }
-      if (room.open(rx, rz)) {
+      if (room.open(roomX, roomZ)) {
         row += "_";
         continue;
       }
-      const p = room.at(rx, rz);
-      if (p?.asset.bed) row += "b";
-      else if (p?.asset.seat) row += "c";
+      const piece = room.at(roomX, roomZ);
+      if (piece?.asset.bed) row += "b";
+      else if (piece?.asset.seat) row += "c";
       else row += "H";
     }
     rows.push(row);
   }
 
-  const seen = new Map<string, number>();
-  const sampleIdx = { Wallpaper: 0, Floors: 0 };
-  const displays = built.displays.map((d): ShopDisplay => {
-    const tile = local(d.at);
+  const stackedOnTile = new Map<string, number>();
+  const wallSampleCount = { Wallpaper: 0, Floors: 0 };
+  const displays = built.displays.map((display): ShopDisplay => {
+    const tile = local(display.at);
     const onWall = tile[0] <= 0 || tile[1] <= 0;
-    const g = d.item.group as keyof typeof sampleIdx;
+    const group = display.item.group as keyof typeof wallSampleCount;
 
     let pos: THREE.Vector3;
-    if (d.world) {
-      pos = new THREE.Vector3(d.world[0], d.world[1], d.world[2]);
-    } else if (id === "furniture" && g in sampleIdx) {
+    if (display.world) {
+      pos = new THREE.Vector3(display.world[0], display.world[1], display.world[2]);
+    } else if (id === "furniture" && group in wallSampleCount) {
       // The wall samples: two rows of five panels on the west wall, 1.55 apart.
-      const i = sampleIdx[g]++;
-      const firstZ = g === "Wallpaper" ? 1.675 : 10.375;
-      pos = new THREE.Vector3(0.2, 0.62 + Math.floor(i / 5) * 1.12, firstZ + (i % 5) * 1.55);
+      const sample = wallSampleCount[group]++;
+      const firstZ = group === "Wallpaper" ? 1.675 : 10.375;
+      pos = new THREE.Vector3(0.2, 0.62 + Math.floor(sample / 5) * 1.12, firstZ + (sample % 5) * 1.55);
     } else {
       // Items sharing a tile stand on shelf tiers: spread them up the wall so they can each be picked.
       const key = `${tile[0]},${tile[1]}`;
-      const n = seen.get(key) ?? 0;
-      seen.set(key, n + 1);
-      pos = new THREE.Vector3(tile[0] + 0.5, (onWall ? 0.5 : 0.4) + n * 0.4, tile[1] + 0.5);
+      const stacked = stackedOnTile.get(key) ?? 0;
+      stackedOnTile.set(key, stacked + 1);
+      pos = new THREE.Vector3(tile[0] + 0.5, (onWall ? 0.5 : 0.4) + stacked * 0.4, tile[1] + 0.5);
     }
-    return { item: d.item, tile, pos };
+    return { item: display.item, tile, pos };
   });
 
-  s = {
+  const shop: ShopRoom = {
     id,
     spec,
     room,
@@ -230,8 +240,8 @@ export function shopRoom(id: ShopId): ShopRoom {
     map: new GameMap(SHOP_ROOM[id], spec.name, rows),
     extra: built,
   };
-  cache.set(id, s);
-  return s;
+  cache.set(id, shop);
+  return shop;
 }
 
 /** The storefront model for the town. */

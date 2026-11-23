@@ -16,12 +16,15 @@ export function danceOf(a: Pick<Avatar, "info" | "state">): Dance | undefined {
 export function battlers(avatars: Iterable<Pick<Avatar, "info" | "state" | "x" | "y">>): Set<number> {
   const dancing = [...avatars].filter((a) => danceOf(a));
   const out = new Set<number>();
-  for (let i = 0; i < dancing.length; i++)
-    for (let j = i + 1; j < dancing.length; j++)
-      if (inBattle(dancing[i]!, dancing[j]!)) {
-        out.add(dancing[i]!.info.id);
-        out.add(dancing[j]!.info.id);
-      }
+
+  // Each pair is checked once: a dancer is only compared with the ones after it in the list.
+  for (const [i, a] of dancing.entries()) {
+    for (const b of dancing.slice(i + 1)) {
+      if (!inBattle(a, b)) continue;
+      out.add(a.info.id);
+      out.add(b.info.id);
+    }
+  }
   return out;
 }
 

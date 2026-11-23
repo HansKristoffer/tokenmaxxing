@@ -24,6 +24,7 @@ export const frameSprite = once(() =>
     p.rect(2, 1, 45, 4, C.ink);
     p.rect(3, 2, 43, 2, WOOD);
     p.rect(23, 5, 2, 5, "#d9c7a0");
+
     // Paper streamers on the bar.
     for (const [x, c] of [
       [8, "#e8584f"],
@@ -47,12 +48,15 @@ export const barrelSprite = cached(
       for (const x of [3, 6, 9]) p.rect(x, 1, 1, 13, WOOD_DARK);
       p.rect(1, 3, 10, 1, BAND);
       p.rect(1, 11, 10, 1, BAND);
+
       // The cat: ears, a head, two yellow eyes.
       p.rect(4, 5, 4, 4, C.ink);
       p.px(4, 4, C.ink);
       p.px(7, 4, C.ink);
       p.px(5, 6, "#f5d14a");
       p.px(6, 6, "#f5d14a");
+
+      // Each crack is a short line down the staves; `cracks` says how many show.
       const lines: [number, number, number][] = [
         [2, 8, 3],
         [9, 2, 4],

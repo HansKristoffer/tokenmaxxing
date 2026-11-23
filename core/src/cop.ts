@@ -19,7 +19,7 @@ export const BURN_WINDOW_MS = 3_600_000;
 export const SPEED_LIMIT = 200_000_000;
 /** A burn older than this (no sync since) is stale: they've stopped, or closed the app. */
 export const BURN_FRESH_MS = 10 * 60_000;
-/** He reads his own: tickets start with this, and the web turns his siren on for them. */
+/** The siren. Tickets start with it, and the web turns the siren on for them. */
 export const SIREN = "🚨";
 
 export const COP: BotDef = {
@@ -128,6 +128,7 @@ export const writeTicket = (day: string, tokens: number, rand = Math.random): Ti
 export const ticketKey = (t: Ticket): string => `ticket:${t.day}:${t.rate}:${t.charge}`;
 
 export function parseTicket(key: string): Ticket | null {
+  // The key written by `ticketKey`: a day, then the rate and the charge as whole numbers.
   const m = /^ticket:(\d{4}-\d{2}-\d{2}):(\d+):(\d+)$/.exec(key);
   return m ? { day: m[1]!, rate: Number(m[2]), charge: Number(m[3]) } : null;
 }

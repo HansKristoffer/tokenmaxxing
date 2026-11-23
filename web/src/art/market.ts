@@ -157,10 +157,10 @@ export const marketCase = cached(
     }),
 );
 
-/** The shine over what is in a case, drawn after it: a pale stripe or two across the glass. */
 /** Where the glint sits on the glass, by the tile's place in its run. */
 const GLINT_X = { l: 4, m: 6, r: 9, s: 6 } as const satisfies Record<Part, number>;
 
+/** The shine over what is in a case, drawn after it: a pale stripe or two across the glass. */
 export const caseGlass = cached(
   (part: Part) => part,
   (part: Part) =>
@@ -193,7 +193,10 @@ export const marketShelf = cached(
     }),
 );
 
-/** The counter, one tile of a run: a pale scrubbed top over a green-and-cream front, with the scale on one and the till on another. */
+/**
+ * The counter, one tile of a run: a pale scrubbed top over a green-and-cream front, with the scale on one and the
+ * till on another.
+ */
 export const marketCounter = cached(
   (kind: "plain" | "till" | "scale") => kind,
   (kind: "plain" | "till" | "scale") =>
@@ -261,6 +264,7 @@ export const priceTag = cached(
   (price: number, mine: boolean) => `${price}${mine}`,
   (price: number, mine: boolean) => {
     const text = tagText(price);
+    // The text, with a two-pixel margin either side.
     const w = text.length * 4 - 1 + 4;
     return bake(w, 7, (p) => {
       p.rect(0, 0, w, 7, C.ink);

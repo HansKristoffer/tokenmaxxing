@@ -33,13 +33,19 @@ const CHUNK = 64 * 3;
 const versionOf = (a: THREE.BufferAttribute | THREE.InterleavedBufferAttribute): number =>
   (a as THREE.BufferAttribute).version ?? (a as THREE.InterleavedBufferAttribute).data.version;
 
-/** A mesh whose shape is not its geometry's alone: three's own raycast knows how, and its bounds are not the geometry's. */
+/**
+ * A mesh whose shape is not its geometry's alone: three's own raycast knows how, and its bounds are not the
+ * geometry's.
+ */
 const deforms = (mesh: THREE.Mesh): boolean =>
   (mesh as THREE.InstancedMesh).isInstancedMesh ||
   (mesh as THREE.SkinnedMesh).isSkinnedMesh ||
   !!mesh.morphTargetInfluences?.some((v) => v !== 0);
 
-/** Brings `source`'s bounds up to date with its buffers and draw range (and drops the chunks cut from the old ones). */
+/**
+ * Brings `source`'s bounds up to date with its buffers and draw range (and drops the chunks cut from the old
+ * ones).
+ */
 function measure(source: THREE.BufferGeometry): void {
   const position = source.getAttribute("position");
   const positionVersion = versionOf(position);
@@ -207,6 +213,15 @@ function rayHitsBox(
   return tmax >= 0;
 }
 
+/** Whether three's own raycast of `mesh` has a hit above `minY`; the scratch list is emptied either way. */
+function raycastAbove(mesh: THREE.Mesh, caster: THREE.Raycaster, minY: number): boolean {
+  scratchHits.length = 0;
+  mesh.raycast(caster, scratchHits);
+  const blocked = scratchHits.some((hit) => hit.point.y > minY);
+  scratchHits.length = 0;
+  return blocked;
+}
+
 /**
  * Returns true as soon as `mesh` blocks `caster`'s ray above `minY`, without allocating `Intersection` records.
  * Accepts a pre-inverted `mesh.matrixWorld` (`invMatrix`) so a 9-ray probe inverts each mesh at most once.
@@ -217,34 +232,12 @@ export function occlusionBlocked(
   minY: number,
   invMatrix?: THREE.Matrix4,
 ): boolean {
-  if (deforms(mesh)) {
-    scratchHits.length = 0;
-    mesh.raycast(caster, scratchHits);
-    for (let i = 0; i < scratchHits.length; i++) {
-      if (scratchHits[i]!.point.y > minY) {
-        scratchHits.length = 0;
-        return true;
-      }
-    }
-    scratchHits.length = 0;
-    return false;
-  }
+  if (deforms(mesh)) return raycastAbove(mesh, caster, minY);
   const source = mesh.geometry;
   measure(source);
   const position = source.getAttribute("position");
   const count = source.index?.count ?? position.count;
-  if (count <= CHUNK) {
-    scratchHits.length = 0;
-    mesh.raycast(caster, scratchHits);
-    for (let i = 0; i < scratchHits.length; i++) {
-      if (scratchHits[i]!.point.y > minY) {
-        scratchHits.length = 0;
-        return true;
-      }
-    }
-    scratchHits.length = 0;
-    return false;
-  }
+  if (count <= CHUNK) return raycastAbove(mesh, caster, minY);
   const inv = invMatrix ?? inverse.copy(mesh.matrixWorld).invert();
   localRay.copy(caster.ray).applyMatrix4(inv);
   if (!localRay.intersectsBox(source.boundingBox!)) return false;
@@ -289,6 +282,7 @@ export function occlusionBlocked(
         vB.fromBufferAttribute(position, ib);
         vC.fromBufferAttribute(position, ic);
       }
+      // A back-facing material is seen from inside, so its triangles are tested with the winding reversed.
       const hit = isBack
         ? localRay.intersectTriangle(vC, vB, vA, true, hitLocal)
         : localRay.intersectTriangle(vA, vB, vC, cull, hitLocal);
@@ -300,18 +294,4 @@ export function occlusionBlocked(
     }
   }
   return false;
-}
-
-export function occlusionRaycast(
-  mesh: THREE.Mesh,
-  caster: THREE.Raycaster,
-  hits: THREE.Intersection[],
-): void {
-  if (occlusionBlocked(mesh, caster, -Infinity)) {
-    hits.push({
-      distance: caster.ray.origin.distanceTo(hitWorld),
-      point: hitWorld.clone(),
-      object: mesh,
-    });
-  }
 }

@@ -51,8 +51,6 @@ export function paaskeNow(): number | null {
   return f?.id === "paaske" && world.room === "town" ? f.intensity : null;
 }
 
-// MARK: What is where
-
 interface Layout {
   map: GameMap;
   day: string;
@@ -65,7 +63,7 @@ let layout: Layout | null = null;
 /** The day's scenery in the town: the same for everyone, worked out once per map and world day. */
 export function paaskeLayout(): Layout {
   const day = dayKey(skyNow());
-  if (layout?.map !== world.map || layout.day !== day)
+  if (layout?.map !== world.map || layout.day !== day) {
     layout = {
       map: world.map,
       day,
@@ -73,10 +71,9 @@ export function paaskeLayout(): Layout {
       eggs: eggSpots(world.map, day),
       bunting: buntingStrings(world.map),
     };
+  }
   return layout;
 }
-
-// MARK: The egg hunt
 
 const eggsKey = (day: string) => `paaske-eggs:${day}`;
 const chickKey = () => `paaske-chick:${worldWall(skyNow()).y}`;
@@ -89,7 +86,7 @@ function read(day: string): Set<string> {
   }
 }
 
-export interface Hunt {
+interface Hunt {
   found: number;
   total: number;
   /** Everything of the day found: the chick follows. */
@@ -150,8 +147,6 @@ export function paaskeTick(): void {
   for (const fn of listeners) fn();
 }
 
-// MARK: The chick that follows
-
 const chick = { x: Number.NaN, y: Number.NaN, right: true, at: 0 };
 
 /** The follower's place in tiles, moved on to now: null when it is not out. Both renderers ask each frame. */
@@ -183,8 +178,6 @@ export function followerNow(now: number): { x: number; y: number; right: boolean
   };
 }
 
-// MARK: Blocking and E
-
 /** Whether Gudrun is on (x, y): the client keeps you off her. */
 export const blocksPaaske = (x: number, y: number): boolean => paaskeNow() !== null && isPaaskeSolid(x, y);
 
@@ -206,8 +199,6 @@ export function paaskeInteract(x: number, y: number): boolean {
   return true;
 }
 
-// MARK: Drawing (2D)
-
 /** A sprite standing on its base row with a shadow under it, lifted `lift` pixels for a hop. */
 function standing(f: Frame, s: HTMLCanvasElement, px: number, base: number, lift: number): void {
   f.items.push({
@@ -223,11 +214,8 @@ function standing(f: Frame, s: HTMLCanvasElement, px: number, base: number, lift
 /** A critter's place at `ms`, and its sprite. */
 function critterDraw(f: Frame, c: Critter, ms: number): void {
   const p = critterAt(c, ms);
-  const s = critterSprite(
-    c.kind,
-    p.right,
-    c.kind === "bunny" || c.kind === "chick" ? (p.hop > 0.5 ? 1 : 0) : 0,
-  );
+  const hopFrame = p.hop > 0.5 ? 1 : 0;
+  const s = critterSprite(c.kind, p.right, c.kind === "bunny" || c.kind === "chick" ? hopFrame : 0);
   const lift = c.kind === "lamb" ? p.hop : p.hop * (c.kind === "bunny" ? 4 : 3);
   const px = Math.round(p.x * TILE + (TILE - s.width) / 2);
   const base = Math.round((p.y + 1) * TILE - 2);

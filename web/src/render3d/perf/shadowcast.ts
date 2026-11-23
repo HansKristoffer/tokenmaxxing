@@ -113,11 +113,16 @@ export function classifyCasters(scene: THREE.Scene): boolean {
         changed = true;
         why.unfix++;
       }
-    } else if (!c.fixed && vis && ++c.calm >= (c.flips > 0 ? CALM_AFTER_TRAVEL : CALM)) {
-      c.fixed = true;
-      m.layers.set(STATIC_LAYER);
-      changed = true;
-      why.fix++;
+    } else if (!c.fixed && vis) {
+      c.calm++;
+      // A mesh that has travelled before needs a longer rest before it goes back to the baked map.
+      const calmNeeded = c.flips > 0 ? CALM_AFTER_TRAVEL : CALM;
+      if (c.calm >= calmNeeded) {
+        c.fixed = true;
+        m.layers.set(STATIC_LAYER);
+        changed = true;
+        why.fix++;
+      }
     }
   }
   if (changed) bumpStaticShadow();

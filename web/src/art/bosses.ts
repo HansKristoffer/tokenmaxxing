@@ -180,9 +180,9 @@ export const bossSilhouette = cached(
   },
 );
 
-/** The town's trophy, on the dais by a fallen boss. */
 // Pixel art reads as a grid.
 // prettier-ignore
+/** The town's trophy, on the dais by a fallen boss. */
 const TROPHY = [
   ".oooooooooo.",
   "oyyyyyyyyyyo",

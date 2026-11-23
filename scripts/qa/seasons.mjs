@@ -8,7 +8,8 @@ const out = process.env.OUT ?? "/tmp/seasons";
 mkdirSync(out, { recursive: true });
 const pw = await playwright();
 const browser = await pw.chromium.launch({ headless: true, args: ["--ignore-gpu-blocklist"] });
-const page = await openGame(browser, await signUp("s"), tier, { viewport: { width: 1100, height: 700 } });
+const user = await signUp("s");
+const page = await openGame(browser, user, tier, { viewport: { width: 1100, height: 700 } });
 await ready(page);
 const go = async (ch) => {
   const p = (await portals(page)).find((q) => q.ch === ch);

@@ -21,6 +21,7 @@ const TABLE_SEATS: readonly { at: V3; turn: number }[] = [
   { at: [0, 0.38, -0.78], turn: 0 },
 ];
 
+/** A stool at `z`, on either side of the table, with its back on the far side. */
 function stool(m: Model, z: number, color: string): void {
   const back = z > 0 ? 1 : -1;
   m.cyl(0.03, 0.3, C.metalLight, [0, 0, z], 0.03, 8);
@@ -52,8 +53,9 @@ function topOf(m: Model, game: TableGame, h: number): void {
         [11, 5],
         [14, 3],
         [17, 2],
-      ] as const)
+      ] as const) {
         g.fillRect(x, y, 2, 2);
+      }
     });
     m.box([0.34, 0.03, 0.2], C.metal, [0, h, 0]);
     m.box([0.04, 0.12, 0.04], C.metal, [0, h, -0.06]);
@@ -62,14 +64,16 @@ function topOf(m: Model, game: TableGame, h: number): void {
   } else if (game === "sprint") {
     // A keyboard with a few keys lit.
     m.box([0.5, 0.04, 0.2], C.ink, [0, h, 0.05], 0.015);
-    for (let i = 0; i < 9; i++)
-      for (const r of [0, 1])
+    for (let i = 0; i < 9; i++) {
+      for (const r of [0, 1]) {
         m.box(
           [0.04, 0.02, 0.04],
           i % 3 === r ? C.lamp : C.metalLight,
           [-0.2 + i * 0.05, h + 0.04, r * 0.07],
           0.005,
         );
+      }
+    }
     m.box([0.3, 0.015, 0.03], C.white, [0, h + 0.04, 0.12]);
   } else {
     // A desk bell between two founders.
@@ -87,7 +91,10 @@ const TABLE_TOP: Record<TableGame, { top: string; rim: string }> = {
   tokenmaxxing: { top: C.woodLight, rim: C.wood },
 };
 
-/** A stool at the origin: the seat of someone at a table (`gameTable` with `stools` off leaves the seating to the caller). */
+/**
+ * A stool at the origin, the seat of someone at a table. `gameTable` with `stools` off leaves the seating to the
+ * caller, who places this.
+ */
 export function seatStool(): Model {
   const m = new Model();
   m.cyl(0.03, 0.3, C.metalLight, [0, 0, 0], 0.03, 8);
@@ -95,7 +102,10 @@ export function seatStool(): Model {
   return m;
 }
 
-/** A square table for `game`, footprint 2×2, with a stool on two sides (unless `stools` is off) and the watcher billboard. */
+/**
+ * A square table for `game`, footprint 2×2, with a stool on two sides (unless `stools` is off) and the watcher
+ * billboard.
+ */
 export const gameTable =
   (game: TableGame, stools = true) =>
   (): GameTable => {
@@ -116,14 +126,14 @@ export const gameTable =
       0.7,
       0.26,
       0,
-      (g, w, hh, n) => {
+      (g, width, height, watchers) => {
         g.fillStyle = "#1b1f2a";
-        g.fillRect(0, 0, w, hh);
+        g.fillRect(0, 0, width, height);
         g.fillStyle = "#ffe28a";
-        g.font = `700 ${hh * 0.62}px 'Trebuchet MS', Arial, sans-serif`;
+        g.font = `700 ${height * 0.62}px 'Trebuchet MS', Arial, sans-serif`;
         g.textAlign = "center";
         g.textBaseline = "middle";
-        g.fillText(`👀 ${n}`, w / 2, hh / 2 + 1);
+        g.fillText(`👀 ${watchers}`, width / 2, height / 2 + 1);
       },
       { px: 48, frame: "#2b2433", lift: 0, lit: true },
     );
@@ -149,8 +159,9 @@ export interface ArenaDesk extends Model {
 export const arenaDesk = (): ArenaDesk => {
   const m = new Model() as ArenaDesk;
   m.box([0.9, 0.05, 0.6], C.woodLight, [0, 0.5, 0], 0.02);
-  for (const sx of [-1, 1])
+  for (const sx of [-1, 1]) {
     for (const sz of [-1, 1]) m.box([0.06, 0.5, 0.06], C.woodDark, [sx * 0.4, 0, sz * 0.24]);
+  }
   m.box([0.42, 0.015, 0.3], C.metalLight, [0, 0.55, 0.05], 0.005);
   const lid = m.box([0.42, 0.3, 0.02], C.ink, [0, 0.56, -0.1], 0.008);
   lid.rotation.x = -0.15;

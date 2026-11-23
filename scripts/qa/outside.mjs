@@ -14,7 +14,8 @@ const browser = await pw.chromium.launch({
   headless: true,
   args: ["--use-angle=metal", "--ignore-gpu-blocklist", "--enable-gpu"],
 });
-const page = await openGame(browser, await signUp("o"), tier);
+const user = await signUp("o");
+const page = await openGame(browser, user, tier);
 let glErrors = 0;
 page.on("console", (m) => m.text().includes("GL_INVALID") && glErrors++);
 await ready(page);

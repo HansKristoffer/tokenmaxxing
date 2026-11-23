@@ -168,8 +168,9 @@ export function tarsier(): Built {
       TAN,
       2,
     );
-    for (const dx of [-1, 0, 1])
+    for (const dx of [-1, 0, 1]) {
       g.box(s * 0.2 + dx, s * 0.2 + dx, -4.4, -3.8, 3.2, 4.6, FUR).set(s * 0.2 + dx, -4.4, 5, PAD);
+    }
     put(j, g, [0, 0, 0], 6);
     return j;
   });
@@ -311,9 +312,11 @@ export function enggang(): Built {
     const k = (z - 3) / 8;
     const top = Math.round(1.6 - k * 1.7);
     const hw = k < 0.6 ? 1 : 0;
-    for (let x = -hw; x <= hw; x++)
-      for (let y = -1; y <= top; y++)
+    for (let x = -hw; x <= hw; x++) {
+      for (let y = -1; y <= top; y++) {
         hg.set(x, y, z, y < 0 && k > 0.2 ? "#d8bd72" : x === 0 && y === top ? lighten(CREAM, 0.2) : CREAM);
+      }
+    }
   }
   hg.set(0, -1, 11, "#b89a52").set(0, -1, 12, "#b89a52");
   // The casque: a thick red-orange slab along the bill's top that sweeps up at the front like a horn.
@@ -321,8 +324,10 @@ export function enggang(): Built {
     const k = (z - 1) / 10;
     const rise = z >= 8 ? Math.round((z - 7) * 1.2) : 0;
     const base = Math.round(1.6 - Math.max(0, z - 3) * 0.21);
-    for (let y = base + 1; y <= base + 2 + rise; y++)
-      hg.box(-1, 1, y, y, z, z, y > base + 1 + rise ? lighten(CASQUE, 0.15) : k < 0.12 ? "#7a2a14" : CASQUE);
+    for (let y = base + 1; y <= base + 2 + rise; y++) {
+      const shade = y > base + 1 + rise ? lighten(CASQUE, 0.15) : k < 0.12 ? "#7a2a14" : CASQUE;
+      hg.box(-1, 1, y, y, z, z, shade);
+    }
   }
   hg.box(0, 0, 4, 5, 4, 4, "#2a1a14");
   put(head, hg, [0, 0, 0], 2);
@@ -610,12 +615,10 @@ export function orangutan(): Built {
   const DEEP = "#a24a14";
   const FACE = "#7a4e36";
   const MUZZLE = "#b58762";
-  const fur = (c: { x: number; y: number; z: number }, seed: number) =>
-    noise(c.x * 0.5, c.y * 0.5, c.z * 0.5, seed) > 0.62
-      ? LIGHT
-      : hash(c.x, c.y, c.z, seed) < 0.22
-        ? DEEP
-        : ORANGE;
+  const fur = (c: { x: number; y: number; z: number }, seed: number) => {
+    if (noise(c.x * 0.5, c.y * 0.5, c.z * 0.5, seed) > 0.62) return LIGHT;
+    return hash(c.x, c.y, c.z, seed) < 0.22 ? DEEP : ORANGE;
+  };
   const bg = new Grid();
   bg.ell(0, 8, 0, 6.2, 5.8, 5.6, (c) => fur(c, 2), 2.2);
   bg.fluff(0.35, 3, 0.08, [

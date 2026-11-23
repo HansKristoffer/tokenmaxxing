@@ -29,8 +29,8 @@ export const levelUpCoins = (level: number): number => {
 
 /**
  * What reaching tier 1 to 6 of a badge pays (Bronze, Silver, Gold, Diamond, Mythic, Cosmic): each tier once.
- * Only the longer ladders reach the last two. Tiers are paid from the rows a sweep recorded, by these
- * numbers when the wallet is read, so changing them pays everyone who holds a tier the new amount.
+ * Only the longer ladders reach the last two. Nothing is stored: the wallet reads the tiers a player holds
+ * and pays these numbers, so a change here changes the coins of everyone who holds that tier.
  */
 export const BADGE_TIER_COINS: readonly number[] = [40, 100, 200, 400, 1000, 2000];
 
@@ -165,7 +165,10 @@ export function streakNow(days: readonly string[], today: string): number {
   // Today isn't active yet: what today would be worth, one step on from the last active day's run.
   const lastMultiplier = all.get(last)!;
   const steps = Math.min((lastMultiplier - 1) / STREAK_STEP + 1, STREAK_STEPS);
-  return 1 + STREAK_STEP * (between(last, today) > 1 ? 0 : steps);
+
+  // A missed day since the last active one resets the run, so today starts again at one step.
+  const runBroken = between(last, today) > 1;
+  return 1 + STREAK_STEP * (runBroken ? 0 : steps);
 }
 
 // MARK: The new-model launch bonus

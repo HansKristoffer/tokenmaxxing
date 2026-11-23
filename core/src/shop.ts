@@ -38,7 +38,10 @@ export const TOKEN_COINS_FROM = "2026-10-27";
  * 2.5 rate they were paid at, so no balance moves backwards.
  */
 export const TOKEN_COIN_MULT_FROM = "2026-10-28";
-/** Today's curve: `TOKEN_COIN_MULT` × the millions to the power `TOKEN_COIN_EXP`. 1.5B tokens earn 120, 600M 69, 120M 26, 10M 5. */
+/**
+ * Today's curve: `TOKEN_COIN_MULT` times the millions to the power `TOKEN_COIN_EXP`. 1.5B tokens earn 120,
+ * 600M earn 69, 120M earn 26, and 10M earn 5.
+ */
 export const TOKEN_COIN_EXP = 0.6;
 export const TOKEN_COIN_MULT = 1.5;
 /** The multiplier the days before `TOKEN_COIN_MULT_FROM` were paid at. */
@@ -172,9 +175,10 @@ export const ITEMS: readonly Item[] = [
     blurb: l.blurb,
     loot: { boss: l.boss, rarity: l.rarity },
   })),
-  // The case's own: given by an opening, never sold, tradeable after a short lock (`case.ts`).
+  // The case's own: given by an opening, never sold, and tradeable as soon as it is opened (`case.ts`).
   ...ALL_CASE_ITEMS,
-  // The case's furniture (`case-furniture.ts`): given by an opening, tradeable, and put down only in your own office.
+  // The case's furniture (`case-furniture.ts`): given by an opening, tradeable, and put down only in your
+  // own office.
   ...ALL_CASE_PIECES.map((f, index): Item => ({
     id: `furn.${f.ch}`,
     slot: "furniture",

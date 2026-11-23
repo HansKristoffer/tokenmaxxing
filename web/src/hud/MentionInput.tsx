@@ -17,13 +17,14 @@ function useSuggestions(query: string | null, myName: string | undefined): strin
     return () => clearTimeout(id);
   }, [query]);
   if (query === null) return [];
+
   const nearby = [
     ...[...world.avatars.values()].map((a) => a.info.name),
     ...Object.values(world.houses).flatMap((list) => list.map((p) => p.name)),
   ];
-  return [...new Set([...nearby, ...remote])]
-    .filter((name) => name !== myName && name.startsWith(query))
-    .slice(0, 6);
+  const candidates = [...new Set([...nearby, ...remote])];
+  const matches = candidates.filter((name) => name !== myName && name.startsWith(query));
+  return matches.slice(0, 6);
 }
 
 /**

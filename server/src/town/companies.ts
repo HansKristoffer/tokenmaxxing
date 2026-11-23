@@ -323,13 +323,13 @@ export async function listings(sql: Sql): Promise<Listing[]> {
 }
 
 /** The company `userId` is waiting to hear from, if any. */
-export const applicationOf = (sql: Sql, userId: number) =>
-  one<{ companyId: number; name: string }>(
+export const applicationOf = async (sql: Sql, userId: number) =>
+  (await one<{ companyId: number; name: string }>(
     sql,
     `SELECT a.company_id AS companyId, c.name FROM applications a JOIN companies c ON c.id = a.company_id
      WHERE a.user_id = ?`,
     userId,
-  ).then((r) => r ?? null);
+  )) ?? null;
 
 async function applicants(sql: Sql, companyId: number): Promise<MyCompany["applicants"]> {
   const rows = await all<{ userId: number; name: string; at: number }>(

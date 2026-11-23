@@ -241,7 +241,7 @@ const holoTown = (): Model => {
     holo.add(wire);
     holo.box([w, 0.012, d], edge, [x, h, z], 0.002);
     // Windows.
-    for (let wy = 0.1; wy < h - 0.05; wy += 0.1)
+    for (let wy = 0.1; wy < h - 0.05; wy += 0.1) {
       for (const side of [-1, 1]) {
         const win = holo.box(
           [0.03, 0.03, 0.01],
@@ -251,6 +251,7 @@ const holoTown = (): Model => {
         );
         lit.push(win);
       }
+    }
   };
   bldg(0, 0, 0.2, 0.2, 0.75);
   holo.box([0.012, 0.2, 0.012], edge, [0, 0.75, 0], 0.002);

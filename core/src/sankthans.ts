@@ -25,4 +25,4 @@ export const isBonfire = (x: number, y: number, ms: number): boolean =>
 export const bonfireSays = (state: "pile" | "lit"): string =>
   state === "pile"
     ? "🔥 The Sankt Hans bonfire, waiting for dark. It's lit at 21:00; the witch on top is straw."
-    : "🔥 Sankt Hans! The bonfire is lit and the town sings Midsommervisen: “Vi elsker vort land…”";
+    : "🔥 Sankt Hans! The bonfire is lit and the town sings Midsommervisen: 'Vi elsker vort land…'";

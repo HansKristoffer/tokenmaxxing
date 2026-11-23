@@ -53,7 +53,9 @@ function enginePid(storage: string, enginePort: number): number | null {
           readFileSync(`/proc/${pid}/cmdline`, "utf8").includes("rivet-engine")
         )
           return Number(pid);
-      } catch {} // gone, or someone else's
+      } catch {
+        // Gone, or someone else's: not the engine we are looking for.
+      }
     }
     return null;
   }
@@ -72,12 +74,14 @@ const send = (pid: number, signal: NodeJS.Signals | 0) => {
 };
 
 async function healthy(origin: string, ms: number): Promise<boolean> {
-  for (const end = Date.now() + ms; Date.now() < end; await Bun.sleep(50)) {
+  const end = Date.now() + ms;
+  while (Date.now() < end) {
     const ok = await fetch(`${origin}/health`, { signal: AbortSignal.timeout(5_000) }).then(
       (r) => r.ok,
       () => false,
     );
     if (ok) return true;
+    await Bun.sleep(50);
   }
   return false;
 }
@@ -87,7 +91,10 @@ const output = (path: string) =>
     .text()
     .catch(() => "");
 
-/** Starts the server; another try on fresh ports if it dies first (a port taken in the meantime, or a machine too busy for the engine to come up). */
+/**
+ * Starts the server; another try on fresh ports if it dies first (a port taken in the meantime, or a
+ * machine too busy for the engine to come up).
+ */
 async function start(attempts = 5): Promise<string> {
   for (let attempt = 1; ; attempt++) {
     const port = freePort();
@@ -162,14 +169,14 @@ export const client = createClient<typeof Registry>({ endpoint: `${origin}/api/r
 export const from = (ip: string) =>
   createClient<typeof Registry>({ endpoint: `${origin}/api/rivet`, headers: { "x-real-ip": ip } });
 
-let n = 0;
+let signUps = 0;
 /** Tokens of users signed up during the current test. */
 const fresh: string[] = [];
 
 /** A fresh user; names are unique per run since `town` is shared by every test. */
 export async function signUp(prefix = "u") {
-  const name = `${prefix}${Date.now().toString(36)}${n++}`;
-  const r = await from(`10.1.${Math.floor(n / 250)}.${n % 250}`)
+  const name = `${prefix}${Date.now().toString(36)}${signUps++}`;
+  const r = await from(`10.1.${Math.floor(signUps / 250)}.${signUps % 250}`)
     .town.getOrCreate(["main"])
     .signUp(name);
   fresh.push(r.token);

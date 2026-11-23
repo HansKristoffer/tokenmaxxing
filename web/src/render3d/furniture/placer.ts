@@ -4,11 +4,14 @@ import { assetOfChar, turnOfChar } from "../rooms/room-furnished.ts";
 import type { RoomView } from "../rooms/rooms.ts";
 import type { Asset } from "./furniture.ts";
 
-/** A tile of the room's map, with the piece's own footprint. */
-export interface Aim {
+/** The tile of the room's map under the pointer. */
+interface Aim {
   x: number;
   y: number;
 }
+
+/** Item ids of furniture pieces are `furn.<ch>`, where `<ch>` is the piece's map character. */
+const FURN_PREFIX = "furn.";
 
 /** The see-through copy of the piece being placed, with what the aim needs to place it. */
 interface Ghost {
@@ -39,7 +42,7 @@ export class Placer {
   /** Starts placing `itemId` (`furn.<ch>`) in `scene`; false when no art for it exists to show. */
   begin(itemId: string, scene: THREE.Scene): boolean {
     this.cancel();
-    const ch = itemId.startsWith("furn.") ? itemId.slice(5) : null;
+    const ch = itemId.startsWith(FURN_PREFIX) ? itemId.slice(FURN_PREFIX.length) : null;
     if (!ch) return false;
 
     const piece = pieceOf(ch);

@@ -25,6 +25,10 @@ const QUIET: PaperFacts = {
   light: null,
 };
 
+/** `count` dates from `first` in a 2026 month, as the paper's day keys. */
+const dates = (month: string, count: number, first = 1) =>
+  Array.from({ length: count }, (_, i) => `2026-${month}-${String(first + i).padStart(2, "0")}`);
+
 const BUSY: PaperFacts = {
   ...QUIET,
   tokens: 9_300_000_000,
@@ -67,8 +71,7 @@ test("a busy day leads with the biggest burner, filled in", () => {
 
 test("the same day reads the same; another day can read differently", () => {
   expect(headlines(BUSY)).toEqual(headlines(BUSY));
-  const days = Array.from({ length: 10 }, (_, i) => `2026-10-${String(i + 10).padStart(2, "0")}`);
-  const fronts = new Set(days.map((day) => JSON.stringify(headlines({ ...BUSY, day }))));
+  const fronts = new Set(dates("10", 10, 10).map((day) => JSON.stringify(headlines({ ...BUSY, day }))));
   expect(fronts.size).toBeGreaterThan(1);
 });
 
@@ -80,8 +83,7 @@ test("a quiet day still fills the front page, with no stories about nothing", ()
 });
 
 test("a pet sighting names its owner and the place", () => {
-  const days = Array.from({ length: 20 }, (_, i) => `2026-11-${String(i + 1).padStart(2, "0")}`);
-  const pets = days
+  const pets = dates("11", 20)
     .flatMap((day) => headlines({ ...QUIET, day, pet: BUSY.pet }))
     .filter((h) => /Duck/.test(h.title));
   expect(pets.length).toBeGreaterThan(0);
@@ -90,8 +92,7 @@ test("a pet sighting names its owner and the place", () => {
 });
 
 test("the paper chains the day onto the weeks and months before it", () => {
-  const days = Array.from({ length: 30 }, (_, i) => `2026-09-${String(i + 1).padStart(2, "0")}`);
-  const text = days
+  const text = dates("09", 30)
     .flatMap((day) => headlines({ ...BUSY, day }))
     .map((h) => `${h.title} ${h.deck}`)
     .join("\n");
@@ -106,9 +107,10 @@ test("the paper chains the day onto the weeks and months before it", () => {
 
 test("a record day is a story", () => {
   const record = { ...BUSY, tokens: 20e9 };
-  const days = Array.from({ length: 30 }, (_, i) => `2026-09-${String(i + 1).padStart(2, "0")}`);
   expect(
-    days.some((day) => headlines({ ...record, day }).some((h) => /record|all-time/i.test(h.title))),
+    dates("09", 30).some((day) =>
+      headlines({ ...record, day }).some((h) => /record|all-time/i.test(h.title)),
+    ),
   ).toBe(true);
 });
 

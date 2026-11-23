@@ -5,9 +5,9 @@ export const LABEL_NEAR = 5;
 /** ...fade out to here, and are hidden past it. */
 export const LABEL_FAR = 8;
 /** A hover (or a tap) brings back the labels within this many tiles of the pointed tile. */
-export const HOVER_REACH = 2.5;
+const HOVER_REACH = 2.5;
 /** How long a reveal takes to come or go, so nothing pops. */
-export const LABEL_FADE_MS = 150;
+const LABEL_FADE_MS = 150;
 
 /** 1 within `LABEL_NEAR` tiles, down to 0 at `LABEL_FAR`. */
 export const nearAlpha = (dist: number): number =>

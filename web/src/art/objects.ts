@@ -361,7 +361,7 @@ const chair = once(() =>
 );
 
 const sofa = cached(
-  (left: boolean, right: boolean) => `sofa${+left}${+right}`,
+  (left: boolean, right: boolean) => `sofa${left}${right}`,
   (left: boolean, right: boolean) =>
     bake(16, 16, (p) => {
       p.rect(0, 1, 16, 14, C.ink);
@@ -588,7 +588,9 @@ function tilesLeft(map: GameMap, x: number, y: number, ch: string): number {
   return n;
 }
 
-/** The tiles of the same letter to the left of (x, y): none for the top tile of a piece lying down its column. */
+/**
+ * The tiles of the same letter to the left of (x, y). A piece lying down its column has none from its top tile.
+ */
 function runLeft(map: GameMap, x: number, y: number, ch: string): number {
   const turn = turnAt(map, x, y);
   if (turn && sideways(turn.rot)) return 0;
@@ -596,7 +598,7 @@ function runLeft(map: GameMap, x: number, y: number, ch: string): number {
 }
 
 function placeObject(map: GameMap, x: number, y: number): Placed | null {
-  // A piece lying down its column (turned a quarter) is one picture from its top tile; the tiles below it have none.
+  // A piece lying down its column (turned a quarter) is one picture from its top tile. The tiles below it draw nothing.
   const turn = turnAt(map, x, y);
   if (turn && sideways(turn.rot) && (turn.x !== x || turn.y !== y)) return null;
   const ch = map.at(x, y);
@@ -641,7 +643,8 @@ function placeObject(map: GameMap, x: number, y: number): Placed | null {
       }
       return at(map.id === "shop-natmarked" ? natCounter(n === 3) : shopCounter(n % 3 === 1));
     }
-    // Torvehallen's slots, empty: a shelf against the back wall, else one piece of a glass case (`game/market.ts` fills them).
+    // Torvehallen's slots, empty: a shelf against the back wall, else one piece of a glass case. `game/market.ts`
+    // fills them.
     case "Ƙ":
       return map.at(x, y - 1) === "W"
         ? at(marketShelf(x))
@@ -790,7 +793,7 @@ function placeObject(map: GameMap, x: number, y: number): Placed | null {
       // `w` tiles each, from the left of a run of them.
       const n = runLeft(map, x, y, ch);
       if (n % fancy.w !== 0) return null;
-      // Standing on its row; a deeper one reaches back over the row behind.
+      // The piece stands on the tile's bottom row, and a taller one reaches up over the tiles behind it.
       return { canvas: fancySprite(fancy.art.id), dx: 0, dy: TILE - fancy.art.height, fancy: fancy.art };
     }
   }
@@ -801,6 +804,7 @@ export const sortY = (ch: string): number => {
   // Posters hang behind everyone, like a rug under them.
   if (isPoster(ch)) return -TILE;
   const placement = FANCY.get(ch)?.art.placement;
+
   // A rug lies under everyone, a chandelier hangs over them; a personal office's wall pieces hang behind.
   const hangsBehind = placement === "wall" && (isHomePiece(ch) || isCasePiece(ch));
   if (placement === "flat" || hangsBehind) return -TILE;
@@ -809,6 +813,7 @@ export const sortY = (ch: string): number => {
     return TILE * 3 - 2;
   if (ch === JULE_TREE) return TILE * 2 - 2;
   if (ch === "F" || ch === WINDMILL) return TILE * 2 - 2;
+
   // Beds and sofas sit on the floor; everything else stands on its tile's bottom edge.
   if (ch === "b" || ch === "s" || ch === "Q") return 0;
   return TILE - 1;

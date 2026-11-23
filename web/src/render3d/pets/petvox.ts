@@ -102,21 +102,26 @@ export class Grid {
 
   /** A solid box, corners inclusive. */
   box(x0: number, x1: number, y0: number, y1: number, z0: number, z1: number, p: Paint): this {
-    for (let x = Math.round(x0); x <= Math.round(x1); x++)
-      for (let y = Math.round(y0); y <= Math.round(y1); y++)
+    for (let x = Math.round(x0); x <= Math.round(x1); x++) {
+      for (let y = Math.round(y0); y <= Math.round(y1); y++) {
         for (let z = Math.round(z0); z <= Math.round(z1); z++) this.fill(x, y, z, p);
+      }
+    }
     return this;
   }
 
   /** A (super)ellipsoid centred on (cx, cy, cz) with radii in cells; `p` 2 is round, more is boxier. */
   ell(cx: number, cy: number, cz: number, rx: number, ry: number, rz: number, p: Paint, pow = 2.4): this {
-    for (let x = Math.ceil(cx - rx); x <= Math.floor(cx + rx); x++)
-      for (let y = Math.ceil(cy - ry); y <= Math.floor(cy + ry); y++)
+    for (let x = Math.ceil(cx - rx); x <= Math.floor(cx + rx); x++) {
+      for (let y = Math.ceil(cy - ry); y <= Math.floor(cy + ry); y++) {
         for (let z = Math.ceil(cz - rz); z <= Math.floor(cz + rz); z++) {
           const d =
             Math.abs((x - cx) / rx) ** pow + Math.abs((y - cy) / ry) ** pow + Math.abs((z - cz) / rz) ** pow;
+          // The 0.0001 keeps the cells on the surface in, against float error.
           if (d <= 1.0001) this.fill(x, y, z, p);
         }
+      }
+    }
     return this;
   }
 
@@ -221,8 +226,10 @@ export class Grid {
         const ny = y + d[1];
         const nz = z + d[2];
         if (this.has(nx, ny, nz)) continue;
-        if (hash(nx, ny, nz, seed) < prob)
-          add.push([key(nx, ny, nz), [nx, ny, nz], hash(x, y, z, seed + 7) < 0.5 ? lighten(c, light) : c]);
+        if (hash(nx, ny, nz, seed) >= prob) continue;
+
+        const tone = hash(x, y, z, seed + 7) < 0.5 ? lighten(c, light) : c;
+        add.push([key(nx, ny, nz), [nx, ny, nz], tone]);
       }
     });
     for (const [k, , c] of add) if (!this.cells.has(k)) this.cells.set(k, c);
@@ -290,6 +297,7 @@ const FACES = [
   { n: [0, 0, 1], u: [1, 0, 0], w: [0, 1, 0], shade: 0.98 },
   { n: [0, 0, -1], u: [0, 1, 0], w: [1, 0, 0], shade: 0.78 },
 ] as const;
+// Occlusion at a corner by how many of its three neighbours are solid: 0 open (1), 3 closed in (0.66).
 const AO = [0.66, 0.8, 0.92, 1];
 
 let vertexToon: THREE.MeshToonMaterial | undefined;

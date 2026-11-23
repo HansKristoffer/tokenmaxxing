@@ -44,6 +44,7 @@ export function merchColours(c: MerchCompany): MerchColours {
       design: c.merch,
     };
   const [main, accent] = c.brand ? [c.brand.roof, c.brand.plaque] : PAIRS[c.id % PAIRS.length]!;
+
   // A plaque the colour of the roof would leave the logo invisible.
   const logo = accent.toLowerCase() === main.toLowerCase() ? C.white : accent;
   return {
@@ -196,7 +197,10 @@ function thumb(d: MerchDesign): string[] {
   return out;
 }
 
-/** The print, centred on `cx`, from row `y`: the drawing at full size on a shirt, shrunk (`small`) on the rest; else the initials. */
+/**
+ * The print, centred on `cx`, from row `y`: the drawing at full size on a shirt, shrunk (`small`) on the rest;
+ * else the initials.
+ */
 function print(p: Pen, m: MerchColours, cx: number, y: number, color = m.accent, small = false) {
   if (m.design) {
     const rows = small ? thumb(m.design) : m.design.rows;
@@ -259,6 +263,7 @@ function mug(p: Pen, m: MerchColours) {
   p.rect(13, 7, 1, 4, m.shade);
   p.rect(12, 7, 1, 4, m.main);
   print(p, m, 7, 6, m.accent, true);
+
   // Steam.
   p.px(5, 1, C.stoneLight);
   p.px(6, 0, C.stoneLight);

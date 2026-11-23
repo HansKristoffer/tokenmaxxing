@@ -37,7 +37,10 @@ export interface Stone extends Plot {
 
 /** Missing from every read for this long, and it's buried. */
 export const GRACE_MS = 3 * 24 * 3_600_000;
-/** A read with fewer than this share of the living models is a list gone wrong, not a mass extinction: nobody goes missing. */
+/**
+ * A read with fewer than this share of the living models is a list gone wrong, not a mass extinction, so
+ * nobody goes missing.
+ */
 const PARTIAL = 0.5;
 
 const samePrice = (a: Price, b: Price): boolean =>
@@ -174,7 +177,10 @@ const dateOf = (ms: number): string => new Date(ms).toLocaleDateString("en-GB", 
 /** A string's own small number: which epitaph a stone gets. */
 const hashOf = (s: string): number => [...s].reduce((n, c) => (n * 31 + c.charCodeAt(0)) >>> 0, 7);
 
-/** What a tombstone says: who lies here (as OpenRouter named them), who made them, the dates they were listed, and what they last cost. */
+/**
+ * What a tombstone says: who lies here (as OpenRouter named them), who made them, the dates they were
+ * listed, and what they last cost.
+ */
 export function epitaphOf(s: Stone) {
   const p = providerOf(s.provider);
   return {

@@ -154,7 +154,7 @@ export const isUmbul = (i: number): boolean => i % 3 === 2;
 
 // MARK: The lomba
 
-/** Panjat pinang: climb 10 steps up the greased pole; each press of E is a try that slips back one in three. */
+/** Panjat pinang: climb 10 steps up the greased pole. Each press of E is one try: a step up, or a slip back. */
 export const PANJAT_TOP = 10;
 /** The chance a try gets a step higher. */
 export const PANJAT_GRIP = 0.62;

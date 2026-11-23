@@ -117,7 +117,7 @@ describe("companies", () => {
   });
 
   test("everyone leaving at once closes it in the world too", async () => {
-    // Enough of them that, pushed out of order, one closed company used to stay standing.
+    // Many companies, so that a close pushed out of order would leave one of them standing.
     const company = async (i: number) => {
       const owner = await signUp("lv");
       const co = await owner.town.createCompany(`Leavers ${i}`);
@@ -307,7 +307,8 @@ describe("leaderboard", () => {
     await a.town.createCompany("Badge Co");
     const ids = async () => (await a.town.profile(a.userId, "today")).badges.map((b) => b.id);
     expect(await ids()).toEqual(["founder"]);
-    // A minute counts for at most 200M, so the 3B comes over fifteen, on an old day so it can't straddle midnight.
+    // A minute counts for at most 200M, so the 3B comes over fifteen, on an old day so it can't
+    // straddle midnight.
     const day = Date.UTC(2023, 5, 14, 12);
     await as(a.token)
       .player(a.userId)

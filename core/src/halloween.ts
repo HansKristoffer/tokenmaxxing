@@ -6,16 +6,12 @@
  * `costumes.ts`.
  */
 import { near } from "./holidays.ts";
-import type { GameMap } from "./maps.ts";
-import { SHOP_DOOR_CHAR } from "./shoprooms.ts";
+import { FESTIVE_DOORS, type GameMap } from "./maps.ts";
 
 /** Out from this many days before Halloween to this many after. */
 export const PUMPKINS = { before: 7, after: 1 } as const;
 
 export const pumpkinsOut = (ms: number): boolean => near("halloween", ms, PUMPKINS.before, PUMPKINS.after);
-
-/** The doors that get one: the Tavern's (`I`), each company's (`D`) and each shop's. */
-const DOORS = ["I", "D", ...Object.values(SHOP_DOOR_CHAR)];
 
 /** The patch among the graveyard's stones, in town tiles. */
 export const PATCH: readonly [number, number][] = [
@@ -44,7 +40,7 @@ export interface Doorstep {
  */
 export function doorSteps(map: GameMap): Doorstep[] {
   const out: Doorstep[] = [];
-  for (const ch of DOORS) {
+  for (const ch of FESTIVE_DOORS) {
     for (const [x, y] of map.find(ch)) {
       const left: [number, number] = [x - 1, y + 1];
       const right: [number, number] = [x + 1, y + 1];

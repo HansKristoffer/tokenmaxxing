@@ -1,6 +1,6 @@
 import { afterAll, expect, test } from "bun:test";
 import { plotId, townMap } from "@tokenmaxxing/core/maps.ts";
-import { NYTAR_CHAIR, NYTAR_CLOCK, NYTAR_TABLE } from "@tokenmaxxing/core/nytar.ts";
+import { NYTAR_CHAIR, NYTAR_CLOCK, NYTAR_NPC, NYTAR_TABLE } from "@tokenmaxxing/core/nytar.ts";
 import * as THREE from "three";
 import { installHeadlessGlobals } from "../src/render3d/perf/stubs.ts";
 
@@ -12,7 +12,6 @@ const { festiveNow } = await import("../src/game/festive.ts");
 const { hud } = await import("../src/store.ts");
 const { world } = await import("../src/game/world.ts");
 const { Nytar3d, nytarNpcModel } = await import("../src/render3d/town/nytar3d.ts");
-const { NYTAR_NPC } = await import("@tokenmaxxing/core/nytar.ts");
 const { confetti, burstConfetti, nytarTick, nytarBlocks, nytarOn } = await import("../src/game/nytar.ts");
 const { clockSprite, tableSprite, chairSprite, balloonSprite, nytarNpcSprite } =
   await import("../src/art/nytar.ts");

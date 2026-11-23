@@ -70,7 +70,7 @@ describe("drops", () => {
 
   test("a dropped desk blocks; it's taken from the next tile, facing it, not from further or off a hat", async () => {
     const { owner, room, o, m, ownerAt, mateAt } = await house("furn.d", "hat.1");
-    // Furniture goes on the free tile you face: here, below (5, 4).
+    // Furniture goes on the free tile you face: standing at (5, 4) facing down, that is (5, 5).
     await walk(o.conn, [...route(mapOf(room), [ownerAt.x, ownerAt.y], [5, 3])!, "down"]);
     const desk = await drop(owner, "furn.d");
     expect(desk).toMatchObject({ x: 5, y: 5 });

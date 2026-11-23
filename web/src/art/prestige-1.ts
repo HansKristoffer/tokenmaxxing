@@ -141,6 +141,7 @@ const sparks = (p: Pen, f: number): void => {
   p.rect(9, 23, 10, 1, "rgba(160, 120, 255, 0.45)");
   p.rect(7, 24, 14, 1, "rgba(139, 92, 246, 0.3)");
   p.rect(10, 25, 8, 1, "rgba(139, 92, 246, 0.18)");
+
   // The halo: a thin ring over the head, swelling and fading on the beat.
   const beat = 0.5 + 0.5 * Math.sin((f / 8) * TAU);
   const ring = `rgba(214, 200, 255, ${0.45 + beat * 0.4})`;
@@ -155,7 +156,8 @@ const sparks = (p: Pen, f: number): void => {
     const y = Math.round(25 - k * 24);
     // Born dim, brightest in the middle of the climb, gone at the top.
     const a = Math.min(1, 0.25 + k * 5, (1 - k) * 2.2);
-    p.px(x, y, k > 0.55 ? `rgba(228, 232, 242, ${a})` : `rgba(196, 168, 255, ${a})`);
+    const core = k > 0.55 ? `rgba(228, 232, 242, ${a})` : `rgba(196, 168, 255, ${a})`;
+    p.px(x, y, core);
     if (k > 0.08 && k < 0.85) p.px(x, y + 1, `rgba(150, 100, 250, ${a * 0.8})`);
     if (k > 0.15 && k < 0.7 && i % 2 === 0) p.px(x, y + 2, `rgba(139, 92, 246, ${a * 0.5})`);
     // Every fourth is a little cross of light.

@@ -1,9 +1,10 @@
 /**
- * Performance budgets, in hardware-independent counts. A room is counted on its own (no people or effects) after batching,
- * freezing the people and pets who stand about, and atlasing the small pictures: that is what `web/test/perf-budget.test.ts`
- * checks (Ultra draws what High does) and what `bun scripts/perf/counts.ts medium --check` checks for Medium's plainer
- * geometry. `triangles` is one pass over the room's smooth variant (the Voxel style's blocks are fewer); `textureMB` is the
- * room's canvas textures, uncompressed with mipmaps. Raise a number only with a reason in the commit.
+ * Performance budgets, in hardware-independent counts. A room is counted on its own (no people or effects) after
+ * batching, freezing the people and pets who stand about, and atlasing the small pictures: that is what
+ * `web/test/perf-budget.test.ts` checks (Ultra draws what High does) and what `bun scripts/perf/counts.ts medium
+ * --check` checks for Medium's plainer geometry. `triangles` is one pass over the room's smooth variant (the Voxel
+ * style's blocks are fewer); `textureMB` is the room's canvas textures, uncompressed with mipmaps. Raise a number
+ * only with a reason in the commit.
  */
 export interface RoomBudget {
   drawCalls: number;
@@ -21,9 +22,9 @@ const room = (drawCalls: number, triangles: number, materials: number, textureMB
   textureMB,
 });
 
-// The counts include the town's shop fronts and the Julemarked gate; the live layers (gate, tables, events) are budgeted
-// apart. The office's shelf is budgeted with most trophies earned, which is what the counts assume: a shelf of unearned
-// trophies is flat dark boxes and costs less.
+// The counts include the town's shop fronts and the Julemarked gate; the live layers (gate, tables, events) are
+// budgeted apart. The office's shelf is budgeted with most trophies earned, which is what the counts assume: a shelf
+// of unearned trophies is flat dark boxes and costs less.
 export const BUDGETS: Record<BudgetTier, Record<string, RoomBudget>> = {
   // Plain boxes and round things with fewer segments.
   medium: {

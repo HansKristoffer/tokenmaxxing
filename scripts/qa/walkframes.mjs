@@ -10,7 +10,8 @@ const browser = await pw.chromium.launch({
   headless: true,
   args: ["--use-angle=metal", "--ignore-gpu-blocklist"],
 });
-const page = await openGame(browser, await signUp("j"), tier, {
+const user = await signUp("j");
+const page = await openGame(browser, user, tier, {
   viewport: { width: 1280, height: 800 },
   dpr: 2,
 });
@@ -32,15 +33,12 @@ if ((await room(page)) !== want) throw new Error(`in ${await room(page)}`);
 await page.waitForTimeout(3000);
 // A straight walkable run of 8 tiles from where we stand, along x.
 const run = await page.evaluate(() => {
-  const m = window.__tm.world.map,
-    me = window.__tm.self();
+  const m = window.__tm.world.map;
+  const me = window.__tm.self();
   for (let y = me.y; y < m.y0 + m.height; y++) {
     for (let x = m.x0; x < m.x0 + m.width - 8; x++) {
-      let ok = true;
-      for (let i = 0; i < 8; i++) {
-        if (!m.walkable(x + i, y)) ok = false;
-      }
-      if (ok && window.__tm.route(m, [me.x, me.y], [x, y])) return [x, y];
+      const straight = Array.from({ length: 8 }, (_, i) => m.walkable(x + i, y)).every(Boolean);
+      if (straight && window.__tm.route(m, [me.x, me.y], [x, y])) return [x, y];
     }
   }
   return null;

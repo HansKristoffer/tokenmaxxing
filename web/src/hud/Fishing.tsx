@@ -83,6 +83,8 @@ export function Fishing() {
   }, []);
   const now = Date.now() - skew;
   const phase = cast ? fishingPhase(cast, now) : null;
+  const biting = phase === "bite";
+  const casting = cast !== null;
   const pond = state ?? data;
   const castLine = run(async () => {
     const me = self();
@@ -149,16 +151,22 @@ export function Fishing() {
     );
   }
 
+  let tabBody: ReactNode;
+  if (!pond) tabBody = <p className="muted">Loading…</p>;
+  else if (tab === "journal") tabBody = <Journal journal={pond.journal} records={pond.records} />;
+  else if (tab === "records") tabBody = <Records records={pond.records} />;
+  else tabBody = <Treasures found={pond.treasures} />;
+
   return (
     <Modal title="🎣 Pond fishing" wide>
       <p className="muted">
         Free rod and bait. Catch and release: your journal keeps every species and personal best.
       </p>
-      <div className={`fishing-scene ${phase === "bite" ? "biting" : ""}`}>
+      <div className={biting ? "fishing-scene biting" : "fishing-scene"}>
         <span className="fishing-reeds" aria-hidden="true">
           🌾
         </span>
-        <span className={`fishing-bobber ${cast ? "cast" : ""}`} aria-hidden="true" />
+        <span className={casting ? "fishing-bobber cast" : "fishing-bobber"} aria-hidden="true" />
         {fish && (
           <span key={`${fish.id}:${caught.fish.cm}:${caught.line}`} className="fishing-catch leap">
             <FishPic id={fish.id} scale={5} />
@@ -170,12 +178,12 @@ export function Fishing() {
       </p>
       {caught?.record && <p className="fishing-record">🏆 A new pond record for the {fish?.name}!</p>}
       {caught?.treasure && <TreasureFound id={caught.treasure} />}
-      {phase === "bite" && (
+      {biting && cast && (
         <progress
           className="fishing-timer"
           aria-label="Time left to reel"
           max={BITE_WINDOW_MS}
-          value={Math.max(0, cast!.endsAt - now)}
+          value={Math.max(0, cast.endsAt - now)}
         />
       )}
       <div className="actions">
@@ -184,23 +192,15 @@ export function Fishing() {
             Cast a line
           </button>
         ) : (
-          <button type="button" disabled={busy || phase !== "bite"} onClick={reel}>
-            {phase === "bite" ? "Reel it in!" : "Waiting for a bite…"}
+          <button type="button" disabled={busy || !biting} onClick={reel}>
+            {biting ? "Reel it in!" : "Waiting for a bite…"}
           </button>
         )}
       </div>
       {(error || loadError) && <p className="error">{error || loadError}</p>}
       {pond && <LuckLine luck={pond.luck} />}
       <Pills value={tab} options={TABS} onChange={setTab} />
-      {!pond ? (
-        <p className="muted">Loading…</p>
-      ) : tab === "journal" ? (
-        <Journal journal={pond.journal} records={pond.records} />
-      ) : tab === "records" ? (
-        <Records records={pond.records} />
-      ) : (
-        <Treasures found={pond.treasures} />
-      )}
+      {tabBody}
     </Modal>
   );
 }
@@ -298,15 +298,17 @@ function Records({ records }: { records: readonly PondRecord[] }) {
     <ul className="fishing-journal">
       {ranked.map((f) => {
         const r = records.find((x) => x.fish === f.id);
+        let rowClass = "";
+        if (!r) rowClass = "unseen";
+        else if (r.userId === meId) rowClass = "mine";
+        const holder = r?.userId === meId ? "you!" : r?.name;
         return (
-          <li key={f.id} className={r ? (r.userId === meId ? "mine" : "") : "unseen"}>
+          <li key={f.id} className={rowClass}>
             <FishPic id={f.id} scale={2} ghost={!r} />
             <span className="fishing-entry">
               <strong>{r ? f.name : "???"}</strong>
               <span className="muted small">
-                {r
-                  ? `${lengthOf(r)} · ${r.userId === meId ? "you!" : r.name}`
-                  : "No record yet: be the first"}
+                {r ? `${lengthOf(r)} · ${holder}` : "No record yet: be the first"}
               </span>
             </span>
             {r && <span className="fishing-medals">🏆</span>}

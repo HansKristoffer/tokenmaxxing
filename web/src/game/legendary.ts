@@ -40,8 +40,9 @@ export function drawPetCrown(
   const worn =
     rank && prestigePetwear(rank, a.info.look.pet, left, hop, now, petHatRows(a.info.look.petwear));
   if (worn) g.drawImage(worn[0], x + worn[1], y + worn[2]);
-  const crown =
-    !(worn && !wornAtNeck(rank)) && a.info.level >= LEGENDARY_LEVEL && petCrown(a.info.look.pet, left, hop);
+  // A worn accessory stands in for the crown, unless it sits at the neck.
+  const standsInForCrown = Boolean(worn) && !wornAtNeck(rank);
+  const crown = !standsInForCrown && a.info.level >= LEGENDARY_LEVEL && petCrown(a.info.look.pet, left, hop);
   if (crown) g.drawImage(crown[0], x + crown[1], y + crown[2]);
 }
 

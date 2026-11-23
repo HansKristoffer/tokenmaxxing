@@ -24,11 +24,11 @@ ${existsSync(petFile) ? `import * as pw from "${petFile}";` : "const pw = {} as 
 ${existsSync(trophyFile) ? `import * as tr from "${trophyFile}";` : "const tr = {} as Record<string, unknown>;"}
 import type * as THREE from "three";
 export function optionalPetwear(rank: number, neckR: number): THREE.Object3D | null {
-  const f = (pw as any).petwear3d;
+  const f = (pw as Record<string, unknown>).petwear3d;
   return typeof f === "function" ? (f(rank, neckR) as THREE.Object3D) : null;
 }
 export function optionalTrophy(rank: number): THREE.Object3D | null {
-  const f = (tr as any).prestigeTrophy3d;
+  const f = (tr as Record<string, unknown>).prestigeTrophy3d;
   return typeof f === "function" ? (f(rank) as THREE.Object3D) : null;
 }
 `,

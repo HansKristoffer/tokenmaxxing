@@ -66,18 +66,21 @@ function base(map: GameMap, scale: number): HTMLCanvasElement {
     ...(wallColor && { W: wallColor }),
     ...(floorColor && { _: floorColor }),
   };
-  for (let y = 0; y < map.height; y++)
+  for (let y = 0; y < map.height; y++) {
     for (let x = 0; x < map.width; x++) {
       const worldX = map.x0 + x;
       const worldY = map.y0 + y;
       const ch = map.at(worldX, worldY);
+
       // Only a wall's face has the wallpaper (the game's own rule); a wall whose tile below is wall, roof or
       // outside the map is its top, and stays plain.
       const below = map.at(worldX, worldY + 1);
       const isPlainWall = ch === "W" && ("WR".includes(below) || !map.contains(worldX, worldY + 1));
-      g.fillStyle = (isPlainWall ? COLORS[ch] : colors[ch]) ?? (map.id === "town" ? C.grass : C.woodDark);
+      const fallback = map.id === "town" ? C.grass : C.woodDark;
+      g.fillStyle = (isPlainWall ? COLORS[ch] : colors[ch]) ?? fallback;
       g.fillRect(x * scale, y * scale, scale, scale);
     }
+  }
   bases.set(map, canvas);
   return canvas;
 }

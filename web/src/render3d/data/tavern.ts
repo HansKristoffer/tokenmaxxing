@@ -67,12 +67,12 @@ const COPENHAGEN = new Intl.DateTimeFormat("en-CA", {
 });
 
 /** Copenhagen's date at `at` (the Tavern's clock), as days since 1970-01-01. */
-export const aarhusDay = (at: Date): number =>
+export const copenhagenDay = (at: Date): number =>
   Math.round(Date.parse(`${COPENHAGEN.format(at)}T00:00:00Z`) / 86_400_000);
 
 /** The special on Copenhagen's date at `at`. */
 export const specialOn = (at: Date): string => {
-  const index = (aarhusDay(at) * STRIDE) % SPECIALS.length;
+  const index = (copenhagenDay(at) * STRIDE) % SPECIALS.length;
 
   // The modulo keeps the index inside the list.
   return SPECIALS[index]!;

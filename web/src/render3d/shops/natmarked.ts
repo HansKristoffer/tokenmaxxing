@@ -22,8 +22,6 @@ import { Room, type Turn } from "../rooms/room.ts";
 import { nightGlow } from "../town/props.ts";
 import type { ShopItem, ShopSpec } from "./furniture.ts";
 
-// MARK: Palette
-
 const TIMBER = "#4a3226";
 const TIMBER_D = "#2f2019";
 const TIMBER_L = "#6e4b38";
@@ -42,8 +40,6 @@ const SHELF_GLOW = ["#ffb347", "#5fd7ff", "#ff6fb5", "#9b7bff", "#6bffb0", "#ffd
 
 const W = 18;
 const D = 12;
-
-// MARK: Pieces
 
 /** A paper lantern hanging with its top at y = 0: lit red, a gold cap and foot, a tassel. */
 function lantern(m: Model, at: [number, number, number], r = 0.1, color = RED): void {
@@ -270,8 +266,6 @@ function menu(w: number, h: number, title: string, rows: [string, string][]): Re
   );
 }
 
-// MARK: The street side
-
 /** The striped stall canopy, sloping from the back (high) to the front (low). */
 function canopy(m: Model, w: number, y: number, back: number, front: number, drop: number): void {
   const n = 8;
@@ -417,8 +411,6 @@ function exterior(): Model {
   return m;
 }
 
-// MARK: Interior pieces
-
 const asset = (
   id: string,
   name: string,
@@ -481,7 +473,10 @@ function silhouette(m: Model, i: number, y: number): void {
   }
 }
 
-/** One lit shelf unit, 2x1, facing +z against the north wall. Shelf `i` shows `CASES[i]`; a shelf with no case yet is locked. */
+/**
+ * One lit shelf unit, 2x1, facing +z against the north wall. Shelf `i` shows `CASES[i]`; a shelf with no case
+ * yet is locked.
+ */
 function shelf(i: number): Model {
   const m = new Model();
   const glowColor = SHELF_GLOW[i % SHELF_GLOW.length]!;
@@ -522,7 +517,10 @@ function shelf(i: number): Model {
   return m;
 }
 
-/** The counter: black lacquer with a red front and gold bands; the current case on its stand, an abacus and a lucky cat. */
+/**
+ * The counter: black lacquer with a red front and gold bands; the current case on its stand, an abacus and a
+ * lucky cat.
+ */
 function counter(): Model {
   const m = new Model();
   const w = 6;
@@ -572,12 +570,17 @@ function counter(): Model {
   cat.box([0.06, 0.04, 0.02], RED, [0, 0.27, 0.1], 0.006);
   const paw = cat.part([0.11, 0.2, 0.08]);
   paw.box([0.05, 0.14, 0.05], "#f3efe2", [0, 0, 0], 0.012);
-  ticks.push((t) => (paw.rotation.z = Math.sin(t * 2.4) * 0.35));
+  ticks.push((t) => {
+    paw.rotation.z = Math.sin(t * 2.4) * 0.35;
+  });
   light(m, [0, 1.9, 0], "#ffd9a8", 1.0, 5);
   return m;
 }
 
-/** The frame every stall shares: a back wall, a counter facing +z (`front` is its colour), a canopy and a cooking bench. */
+/**
+ * The frame every stall shares: a back wall, a counter facing +z (`front` is its colour), a canopy and a
+ * cooking bench.
+ */
 function stallFrame(m: Model, front: string): void {
   // 2 wide (x), 3 deep (z): the customers' side is z = +1.5.
   m.box([1.9, 1.8, 0.1], TIMBER_D, [0, 0, -1.4], 0.01);
@@ -654,8 +657,6 @@ function runner(): Model {
   return m;
 }
 
-// MARK: The keepers
-
 /** Mei: a deep-blue happi coat over a white shirt, a red headband, an abacus-quick hand. */
 function makeKeeper(): Avatar {
   const look = personLook({
@@ -674,6 +675,7 @@ function makeKeeper(): Avatar {
   return a;
 }
 
+/** A cook behind a stall. The tall one wears a white hat and apron; the other, a red coat and an indigo apron. */
 function makeCook(skin: string, hair: string, tall: boolean): Avatar {
   const a = new Avatar(
     personLook({
@@ -689,8 +691,6 @@ function makeCook(skin: string, hair: string, tall: boolean): Avatar {
   a.body.box([0.3, 0.34, 0.02], tall ? "#fbf7ef" : INDIGO, [0, 0.14, 0.1], 0.008);
   return a;
 }
-
-// MARK: The room
 
 function buildInterior(): ReturnType<ShopSpec["buildInterior"]> {
   const room = new Room(W, D, { floor: "#33261f", wall: "#43302b", stripe: "#35241f", bare: true });

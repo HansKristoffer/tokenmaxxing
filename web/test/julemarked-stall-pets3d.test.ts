@@ -1,18 +1,10 @@
 import { expect, test } from "bun:test";
 import { STALL_BASE } from "@tokenmaxxing/core/julemarked-shop.ts";
-import type * as THREE from "three";
 import { JULEMARKED_STALL_PET_SPECIES, PET_NAME, speciesAt } from "../src/render3d/data/pets.ts";
 import { installHeadlessGlobals } from "../src/render3d/perf/stubs.ts";
+import { countMeshes } from "./support.ts";
 
 installHeadlessGlobals();
-
-const meshes = (o: THREE.Object3D) => {
-  let n = 0;
-  o.traverse((c) => {
-    if ((c as THREE.Mesh).isMesh) n++;
-  });
-  return n;
-};
 
 test("the stall pets resolve at 900 and stand, walk and sleep", async () => {
   const { petFrom2D } = await import("../src/render3d/pets/pets3d.ts");
@@ -24,7 +16,7 @@ test("the stall pets resolve at 900 and stand, walk and sleep", async () => {
     const pet = petFrom2D(STALL_BASE + i);
     expect(pet.species).toBe(species);
     expect(pet.label).toBe(PET_NAME[species]);
-    expect(meshes(pet.root)).toBeGreaterThan(3);
+    expect(countMeshes(pet.root)).toBeGreaterThan(3);
     pet.update(1);
     pet.moving = true;
     for (let t = 1; t < 2; t += 0.1) pet.update(t, 0.05);

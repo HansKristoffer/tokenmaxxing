@@ -8,7 +8,8 @@ const browser = await pw.chromium.launch({
   args: ["--use-angle=metal", "--ignore-gpu-blocklist"],
 });
 const tier = process.argv[2] ?? "high";
-const page = await openGame(browser, await signUp("ht", 400_000), tier);
+const user = await signUp("ht", 400_000);
+const page = await openGame(browser, user, tier);
 await ready(page);
 await page.evaluate(() => {
   window.__gaps = [];
@@ -29,8 +30,7 @@ const go = async (ch) => {
   const p = (await portals(page)).find((q) => q.ch === ch);
   if (!p) return null;
   await worst();
-  const r = await through(page, p.x, p.y);
-  return r;
+  return through(page, p.x, p.y);
 };
 await go("x");
 for (const [name, door] of [

@@ -56,7 +56,10 @@ export interface ShopLayout {
   keeper: [number, number];
   keeperName: string;
   rows: readonly string[];
-  /** Tiles that sell something, with the tab E opens. Tiles of the map's own coordinates; wall samples sit on the wall row/column. */
+  /**
+   * Tiles that sell something, with the tab E opens. Tiles of the map's own coordinates; wall samples sit on
+   * the wall row or column.
+   */
   displays: readonly (readonly [number, number, ShopTab])[];
 }
 
@@ -98,7 +101,7 @@ export const SHOP_ROOM: Record<ShopId, ShopRoomId> = {
 export const shopOfRoom = (room: string): ShopId | null =>
   SHOP_IDS.find((s) => SHOP_ROOM[s] === room) ?? null;
 
-/** Møbelhuset's company-supplies catalogue desk: two tiles wide, its left tile (a desk with a ledger and poster tubes). */
+/** Møbelhuset's company-supplies catalog desk: two tiles wide, its left tile (a desk with a ledger and poster tubes). */
 export const SUPPLIES_DESK: readonly [number, number] = [18, 17];
 
 /** The tiles of `rows` that are `ch`, row by row and left to right, as displays for `tab`. */
@@ -489,7 +492,7 @@ export const SHOPS: Record<ShopId, ShopLayout> = {
     keeper: [11, 9],
     keeperName: "Torvald",
     rows: MARKET_ROWS,
-    // A display is a slot: its number is its place in this list, row by row (`marketSlots`).
+    // A display is a slot: its number is its place in this list, row by row (`slotAt` in market.ts).
     displays: displaysOf(MARKET_ROWS, SHOP_DISPLAY_CHAR.market, "market"),
   },
 };
@@ -500,8 +503,8 @@ export function displayTab(shop: ShopId, x: number, y: number): ShopTab | null {
 }
 
 /**
- * Which of Natmarked's shelves, left to right from 0, the display tile (x, y) belongs to, or null if it isn't one.
- * A shelf is two display tiles wide, and shelf `n` shows the case in slot `n` of `NATMARKED_CASES`.
+ * Which of Natmarked's shelves, left to right from 0, the display tile (x, y) belongs to, or null if it isn't
+ * one. A shelf is two display tiles wide, and shelf `n` shows the case in slot `n` of `NATMARKED_CASES`.
  */
 export function shelfAt(x: number, y: number): number | null {
   const i = SHOPS.natmarked.displays.findIndex(([dx, dy]) => dx === x && dy === y);
@@ -540,7 +543,7 @@ export function shopForSlot(slot: string): ShopId | null {
   }
 }
 
-/** The shop for a ShopTab (E on a display), so the Shop page can be filtered to it. */
+/** The tabs each shop's Shop page shows. E on one of its displays opens the page on that display's tab. */
 export const SHOP_TABS: Record<ShopId, readonly ShopTab[]> = {
   furniture: ["furniture", "decor", "desk", "company"],
   clothes: ["outfit", "hat", "glasses", "held", "back", "dance"],

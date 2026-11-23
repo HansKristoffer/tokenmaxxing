@@ -8,8 +8,6 @@ import { canvasTexture, glass, glow, Model, ticks, tint } from "../kit/kit.ts";
 import { panel } from "../kit/panel.ts";
 import type { Pet3D, PetPose } from "../pets/pets3d.ts";
 
-// MARK: Ticks
-
 /**
  * Runs `fn` every frame. `transient` ones (item previews, built on demand) drop out once their model has
  * been out of every scene for a while; the store's own pets keep going.
@@ -30,8 +28,6 @@ export function live(m: THREE.Object3D, fn: (t: number) => void, transient = fal
   };
   ticks.push(tick);
 }
-
-// MARK: Pets
 
 export type Mood = "lively" | "sleepy" | PetPose;
 
@@ -59,8 +55,6 @@ export function animate(pet: Pet3D, seed: number, mood: Mood, transient = false)
     transient,
   );
 }
-
-// MARK: Labels
 
 /** A camera-facing quad (a Mesh, so the outline pass leaves it out). */
 function billboard(w: number, h: number, tex: THREE.Texture): THREE.Mesh {
@@ -148,8 +142,6 @@ export function bubble(lines: readonly string[]): THREE.Mesh {
   return q;
 }
 
-// MARK: Price tags
-
 export type TagKind = "price" | "variant" | "level" | "gear" | "info";
 
 /**
@@ -213,8 +205,6 @@ export function tag(
   tilt.rotation.x = lean;
   return m;
 }
-
-// MARK: Surfaces
 
 /** Straw, or any speckled floor, `w`×`d` tiles. */
 export function speckle(
@@ -303,8 +293,6 @@ export function postSign(title: string, line: string, accent: string, w = 1.5): 
   m.add(p);
   return m;
 }
-
-// MARK: Props
 
 /** A food or water bowl: steel, with kibble or water in it. */
 export function bowl(kind: "kibble" | "water" | "fish", color = "#c8ced6"): Model {

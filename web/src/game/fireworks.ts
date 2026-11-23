@@ -38,7 +38,7 @@ if (typeof location !== "undefined" && new URLSearchParams(location.search).has(
 }
 
 /** The shows with something in the air at `now` (the world's clock), in the town only. */
-export function showsNow(now = serverNow()): Fireworks[] {
+function showsNow(now = serverNow()): Fireworks[] {
   if (world.room !== "town") return [];
   const out: Fireworks[] = [];
   for (const source of sources) {

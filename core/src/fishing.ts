@@ -267,7 +267,7 @@ const QUIPS: Record<string, readonly string[]> = {
   float: ["0.1 + 0.2 metres of fish. Close enough."],
   kraken: ["One tentacle. The sprint after next is going to be about the rest of it."],
   ghost: ["It slipped back into the pond without a splash."],
-  puffer: ["It puffed up the second you said “quick fix”.", "Rolled back into the pond."],
+  puffer: ["It puffed up the second you said 'quick fix'.", "Rolled back into the pond."],
   leet: ["Pwned. It nods at you and swims off."],
   notfound: ["Your hook came up empty. 404: fish not found. The journal logged it anyway."],
   golden: ["It glints, winks and slips away. You feel lucky."],
@@ -287,7 +287,7 @@ export const WAITING_LINES: readonly string[] = [
 export const MISSED_LINES: readonly string[] = [
   "It got away. Cast again when you're ready.",
   "It got away. UnhandledPromiseRejection: fish.",
-  "Timed out after 2400 ms. The fish did not respond.",
+  `Timed out after ${BITE_WINDOW_MS} ms. The fish did not respond.`,
 ];
 
 // MARK: Medals

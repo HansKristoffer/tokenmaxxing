@@ -80,20 +80,21 @@ export class Drops {
       }
 
       // A drop that is gone from the world leaves the floor.
-      for (const [id, s] of this.shown)
-        if (!ids.has(id)) {
-          s.root.removeFromParent();
-          disposeObject(s.root);
-          this.shown.delete(id);
-        }
+      for (const [id, s] of this.shown) {
+        if (ids.has(id)) continue;
+        s.root.removeFromParent();
+        disposeObject(s.root);
+        this.shown.delete(id);
+      }
     }
 
     // Pets stand on the floor; other parcels bob a little, each out of step with the next.
     for (const s of this.shown.values()) {
       s.root.position.y = s.pet ? 0 : 0.04 + Math.abs(Math.sin(t * 2 + s.drop.id)) * 0.05;
       s.pet?.update(t);
-      if (s.beam)
+      if (s.beam) {
         (s.beam.material as THREE.MeshBasicMaterial).opacity = 0.3 + 0.12 * Math.sin(t * 3 + s.drop.id);
+      }
     }
   }
 

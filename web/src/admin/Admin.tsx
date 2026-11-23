@@ -189,6 +189,11 @@ function Overview({ o }: { o: AdminOverview }) {
     ["Coins in wallets", o.coins.toLocaleString()],
     ["Flagged", o.flagged.toLocaleString(), "past the per-minute cap, 30 days"],
   ];
+  return <Tiles tiles={tiles} />;
+}
+
+/** A row of label, value and optional note tiles. */
+function Tiles({ tiles }: { tiles: [string, string, string?][] }) {
   return (
     <div className="tiles">
       {tiles.map(([label, value, sub]) => (
@@ -675,15 +680,7 @@ function Statue({ s, conn, act }: { s: StatueAdmin; conn: AdminConn; act: Act })
   ];
   return (
     <>
-      <div className="tiles">
-        {tiles.map(([label, value, sub]) => (
-          <div key={label} className="tile">
-            <div className="muted">{label}</div>
-            <div className="value">{value}</div>
-            {sub && <div className="muted small">{sub}</div>}
-          </div>
-        ))}
-      </div>
+      <Tiles tiles={tiles} />
       <form className="pin" onSubmit={pin}>
         <h2>Pin a model</h2>
         <p className="muted small">

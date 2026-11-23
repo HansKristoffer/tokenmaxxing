@@ -334,10 +334,13 @@ const CORNERS: Corner[] = [
   { kicker: "Classifieds", text: "LOST: variable named 'temp'. Answers to 'temp2'. Reward: a refactor." },
   {
     kicker: "Letters",
-    text: "'Dear Tidende, why is my agent so confident and so wrong? — Concerned, 3rd floor'",
+    text: "'Dear Tidende, why is my agent so confident and so wrong?' Signed, Concerned, 3rd floor.",
   },
-  { kicker: "Letters", text: "'Dear Tidende, is it normal to talk to the AI like a colleague? — Polite'" },
-  { kicker: "Letters", text: "'Dear Tidende, the fountain has no cache reads. Fix it. — Thirsty'" },
+  {
+    kicker: "Letters",
+    text: "'Dear Tidende, is it normal to talk to the AI like a colleague?' Signed, Polite.",
+  },
+  { kicker: "Letters", text: "'Dear Tidende, the fountain has no cache reads. Fix it.' Signed, Thirsty." },
   { kicker: "Obituary", text: "Here lies feature/final-final-v2. Merged in a hurry. Survived by 14 TODOs." },
   { kicker: "Obituary", text: "Here lies the build that was green yesterday. We hardly knew why." },
   { kicker: "Sport", text: "Cache reads beat fresh input 4–1 in a match everyone watched at 3x speed." },

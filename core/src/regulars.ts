@@ -70,6 +70,6 @@ export interface Regular {
 export interface Regulars {
   top: Regular[];
   me: { minutes: number } | null;
-  /** Last week's winner, who wears a chalk crown this week; null with no one (older servers omit it). */
+  /** Last week's winner, who wears a chalk crown this week; null with no one, and absent when the server does not send it. */
   last?: { userId: number; name: string } | null;
 }

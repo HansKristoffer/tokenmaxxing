@@ -56,6 +56,8 @@ const PLAY_LIFT = 0.4;
 const NAME_RANGE = LABEL_FAR;
 /** A step that has stopped keeps the walk going this long, so a gap between two steps doesn't flicker. */
 const WALK_HOLD_MS = 140;
+/** A speech bubble fades over its last 400 ms. */
+const BUBBLE_FADE_MS = 400;
 
 interface Rig {
   id: number;
@@ -151,8 +153,22 @@ const ascending = (a: number, b: number): number => a - b;
 /** Where someone alone on their tile stands: its middle. */
 const ALONE: readonly [number, number] = [0, 0];
 
-const lookSig = (info: GameAvatar["info"], look: GameAvatar["info"]["look"] = info.look): string =>
-  `${JSON.stringify(look)}|${info.level >= LEGENDARY_LEVEL}|${info.id === COP_ID}|${look.merch && look.merchWorn ? merchKey(look.merch) : ""}`;
+const lookSig = (info: GameAvatar["info"], look: GameAvatar["info"]["look"] = info.look): string => {
+  const legendary = info.level >= LEGENDARY_LEVEL;
+  const cop = info.id === COP_ID;
+  const merch = look.merch && look.merchWorn ? merchKey(look.merch) : "";
+  return `${JSON.stringify(look)}|${legendary}|${cop}|${merch}`;
+};
+
+/** Whether `a` is near enough to `me` for their name tag; with no `me` in the room, everyone is. */
+const nearMe = (a: GameAvatar, me: GameAvatar | undefined): boolean =>
+  !me || Math.hypot(a.x - me.x, a.y - me.y) <= NAME_RANGE;
+
+/** Takes a pet's model off the group and frees it. */
+function freePet(pet: NonNullable<Rig["pet"]>): void {
+  pet.root.removeFromParent();
+  disposeObject(pet.root);
+}
 
 /** Everyone in the room: their voxel bodies, pets and the labels over them, keyed by player id. */
 export class Entities {
@@ -172,6 +188,7 @@ export class Entities {
   private readonly tagged: Rig[] = [];
   /** Everyone drawn this frame: the room's people, and those popping out of it. */
   private readonly list: GameAvatar[] = [];
+  /** Emoji bursts on screen this frame, counted against `maxBursts`. */
   /** Who stands on each tile (`tileKey`), lowest id first; `crowded` is the tiles in use this frame. */
   private readonly crowds = new Map<number, number[]>();
   private readonly crowded: number[][] = [];
@@ -316,8 +333,7 @@ export class Entities {
     // The pet's model hangs on the group beside the person, not on them: take it away too, or a rebuilt rig
     // (a new look, a stale one swept) leaves the old pet standing in the world.
     if (r.pet) {
-      r.pet.root.removeFromParent();
-      disposeObject(r.pet.root);
+      freePet(r.pet);
       r.pet = null;
     }
     r.stack.remove();
@@ -348,8 +364,6 @@ export class Entities {
     this.chill = view.outdoors ? chillOf(weatherNow()) : null;
     this.breathPool.reset();
     const frame = ++this.frame;
-    const dtS = dt / 1000;
-    const t = now / 1000;
     const unow = Date.now();
     const me = world.avatars.get(world.selfId);
     // This runs every frame for everyone: the lists below are kept and refilled, not built anew.
@@ -394,7 +408,7 @@ export class Entities {
       r.merch = merchVersion();
       const crowd = crowds.get(tileKey(a.x, a.y));
       const spread = crowd && crowd.length > 1 ? crowdOffset(crowd.indexOf(a.info.id), crowd.length) : ALONE;
-      this.step(r, a, me, view, camera, now, unow, dt, dtS, t, spread);
+      this.step(r, a, me, view, camera, now, unow, dt, spread);
     }
     list.length = 0;
     // Deleting the entry a Map's iteration is on is safe: nobody left is the usual case, and needs no copy.
@@ -461,11 +475,11 @@ export class Entities {
     now: number,
     unow: number,
     dt: number,
-    dtS: number,
-    t: number,
     spread: readonly [number, number],
   ): void {
     const info = a.info;
+    const dtS = dt / 1000;
+    const t = now / 1000;
     // Where they are: the 2D game's own step interpolation, eased so corners round off.
     // In a Sprint Race they run laps of the square instead of standing at their table.
     const lap = racing(info.id, now);
@@ -611,7 +625,7 @@ export class Entities {
     }
 
     this.pet(r, a, me, view, camera, dt, t, now, near);
-    const close = !me || Math.hypot(a.x - me.x, a.y - me.y) <= NAME_RANGE;
+    const close = nearMe(a, me);
     this.labels(r, a, camera, now, near, close, bubbleOn, pose, y, me);
   }
 
@@ -631,26 +645,25 @@ export class Entities {
     if (!look.pet || a.warp) {
       if (mine) raidPet.at = null;
       if (r.pet) {
-        r.pet.root.removeFromParent();
-        disposeObject(r.pet.root);
+        freePet(r.pet);
         r.pet = null;
       }
       return;
     }
+    const legendary = a.info.level >= LEGENDARY_LEVEL;
     const prestigeWear = petwearRank((a.info as { prestige?: PrestigeBadge }).prestige);
     const sig =
       r.pet && !r.changed
         ? r.pet.sig
-        : `${look.pet}|${look.petVariant}|${look.petName ?? ""}|${look.petwear}|${a.info.level >= LEGENDARY_LEVEL}|${prestigeWear}`;
+        : `${look.pet}|${look.petVariant}|${look.petName ?? ""}|${look.petwear}|${legendary}|${prestigeWear}`;
     if (r.pet && r.pet.sig !== sig) {
-      r.pet.root.removeFromParent();
-      disposeObject(r.pet.root);
+      freePet(r.pet);
       r.pet = null;
     }
     if (!r.pet) {
       const model = petFrom2D(look.pet, look.petVariant, look.petName ?? "");
       model.wear = look.petwear;
-      model.crown = a.info.level >= LEGENDARY_LEVEL;
+      model.crown = legendary;
       model.prestigeWear = prestigeWear;
       const root = new THREE.Group();
       model.root.scale.setScalar(PET_SCALE);
@@ -701,8 +714,7 @@ export class Entities {
     if (near) pet.model.update(t, came);
     // Its name, for mine and for those close to me.
     const name = look.petName;
-    const close = !me || Math.hypot(a.x - me.x, a.y - me.y) <= NAME_RANGE;
-    if (name && close && near) {
+    if (name && nearMe(a, me) && near) {
       if (!r.petLabel) {
         r.petLabel = this.overlay.make("r3-pet");
         r.petLabel.style.transform = "translate(-9999px, -9999px)";
@@ -759,6 +771,7 @@ export class Entities {
     // The name tag: name, level, rarity ring, company; yours is left off, you know who you are.
     const company = info.companyId === null ? undefined : world.companies.get(info.companyId);
     const isMe = info.id === world.selfId;
+    const prestige = prestigeOf(info);
     if (close && !isMe) this.showcase.want(info.id, now);
     const pins = isMe ? null : this.showcase.get(info.id);
     const from = r.tagFrom;
@@ -766,14 +779,15 @@ export class Entities {
       from[0] = info;
       from[1] = company;
       from[2] = pins;
-      r.tagKey = `${info.name}|${info.level}|${info.online}|${company?.name ?? ""}|${company?.brand?.roof ?? ""}|${info.look.hat}|${info.look.outfit}|${prestigeOf(info).rank}|${prestigeOf(info).runLevel}|${pins?.key ?? ""}`;
+      const roof = company?.brand?.roof ?? "";
+      r.tagKey = `${info.name}|${info.level}|${info.online}|${company?.name ?? ""}|${roof}|${info.look.hat}|${info.look.outfit}|${prestige.rank}|${prestige.runLevel}|${pins?.key ?? ""}`;
     }
     if (!isMe && (!r.tag || r.tagMade !== r.tagKey)) {
       r.tag?.remove();
       r.tag = nameTag({
         name: info.name,
         level: info.level,
-        prestige: prestigeOf(info),
+        prestige,
         rarity: wornBy(info.look).rarity,
         online: info.online,
         company: company ? { name: company.name, color: company.brand?.roof ?? "#3f7a78" } : undefined,
@@ -798,7 +812,8 @@ export class Entities {
         r.bubble.textContent = said.text.length > 120 ? `${said.text.slice(0, 119)}…` : said.text;
       }
       r.bubble.style.display = "";
-      r.bubble.style.opacity = said.left < 400 ? String(Math.max(0, said.left / 400)) : "1";
+      r.bubble.style.opacity =
+        said.left < BUBBLE_FADE_MS ? String(Math.max(0, said.left / BUBBLE_FADE_MS)) : "1";
     } else r.bubble.style.display = "none";
     show(r.pills.polse, hasPolse(info.polseUntil, Date.now()) ? "🌭" : null);
     show(r.pills.battle, this.fights.has(info.id) ? "⚔️ Aura battle" : null);

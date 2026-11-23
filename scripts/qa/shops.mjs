@@ -8,7 +8,8 @@ const browser = await pw.chromium.launch({
   args: ["--use-angle=metal", "--ignore-gpu-blocklist"],
 });
 const tier = process.argv[2] ?? "high";
-const page = await openGame(browser, await signUp("sh", 400_000), tier);
+const user = await signUp("sh", 400_000);
+const page = await openGame(browser, user, tier);
 await ready(page);
 const go = async (ch) => {
   const p = (await portals(page)).find((q) => q.ch === ch);
@@ -41,12 +42,10 @@ for (const door of ["ƒ", "Ç", "Ð", "ð", "Ñ"]) {
       window.__tm.hud.set({ panel: null, dialog: null });
       document.querySelector("#shopcard .x")?.click();
     });
-    // 1280 x 800 is the viewport openGame uses by default.
+    // openGame's default viewport, 1280 x 800.
     const onScreen =
       d.screen && d.screen[0] >= 0 && d.screen[0] <= 1280 && d.screen[1] >= 0 && d.screen[1] <= 800;
-    if (!onScreen) {
-      continue;
-    }
+    if (!onScreen) continue;
     const top = await page.evaluate(([x, y]) => document.elementFromPoint(x, y)?.tagName, d.screen);
     if (top !== "CANVAS") {
       covered++;

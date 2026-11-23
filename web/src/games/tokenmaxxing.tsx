@@ -85,7 +85,7 @@ function Chart({ view, color, now }: { view: TokenmaxxingView; color: (p: number
   return (
     <svg className="tmx-chart" viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Tokens over the battle">
       {view.players.map((p) => {
-        const points = [...(view.history[p] ?? []), [until, view.tokens[p] ?? 0] as [number, number]];
+        const points: [number, number][] = [...(view.history[p] ?? []), [until, view.tokens[p] ?? 0]];
         return (
           <polyline
             key={p}

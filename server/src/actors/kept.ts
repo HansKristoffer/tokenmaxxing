@@ -149,6 +149,17 @@ export class Kept<T extends object> {
     return run;
   }
 
+  /** Writes the rows in one transaction, so a failure leaves the disk as it was. */
+  private persist(changed: [string, string][], gone: string[]): Promise<void> {
+    return this.db.transaction(
+      async (tx) => {
+        await upsert(tx, changed);
+        await deleteRows(tx, gone);
+      },
+      { name: "keep" },
+    );
+  }
+
   private async write(): Promise<void> {
     if (this.tracked.size === 0) {
       const rows = keptRows(this.value, this.byEntry);
@@ -160,17 +171,7 @@ export class Kept<T extends object> {
       const gone = [...this.written.keys()].filter((name) => !rows.has(name));
       if (changed.length === 0 && gone.length === 0) return;
 
-      await this.db.transaction(
-        async (tx) => {
-          await upsert(tx, changed);
-          for (let i = 0; i < gone.length; i += BATCH) {
-            const names = gone.slice(i, i + BATCH);
-            const placeholders = names.map(() => "?").join(", ");
-            await tx.execute(`DELETE FROM kept WHERE name IN (${placeholders})`, ...names);
-          }
-        },
-        { name: "keep" },
-      );
+      await this.persist(changed, gone);
 
       // What is on disk is recorded only after the transaction commits, so a failed write is retried in full.
       for (const [name, json] of changed) {
@@ -256,17 +257,7 @@ export class Kept<T extends object> {
     if (changed.length === 0 && gone.length === 0) return;
 
     try {
-      await this.db.transaction(
-        async (tx) => {
-          await upsert(tx, changed);
-          for (let i = 0; i < gone.length; i += BATCH) {
-            const names = gone.slice(i, i + BATCH);
-            const placeholders = names.map(() => "?").join(", ");
-            await tx.execute(`DELETE FROM kept WHERE name IN (${placeholders})`, ...names);
-          }
-        },
-        { name: "keep" },
-      );
+      await this.persist(changed, gone);
     } catch (err) {
       // Restore dirty state so a failed write is retried in full on the next save.
       for (const key of retriedFull) this.fullScan.add(key);
@@ -297,6 +288,14 @@ async function upsert(db: Sql, rows: [string, string][]): Promise<void> {
        ON CONFLICT (name) DO UPDATE SET json = excluded.json`,
       ...batch.flat(),
     );
+  }
+}
+
+async function deleteRows(db: Sql, names: string[]): Promise<void> {
+  for (let i = 0; i < names.length; i += BATCH) {
+    const batch = names.slice(i, i + BATCH);
+    const placeholders = batch.map(() => "?").join(", ");
+    await db.execute(`DELETE FROM kept WHERE name IN (${placeholders})`, ...batch);
   }
 }
 

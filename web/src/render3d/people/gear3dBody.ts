@@ -44,7 +44,7 @@ export const px = (g: CanvasRenderingContext2D, c: string, x: number, y: number,
 
 /** Raised marks on the chest, and (when given) the back. `lightIt` makes them shine. */
 export function marks(c: BodyCtx, front?: Paint2D, back?: Paint2D, lightIt = false): void {
-  const patch = (draw: Paint2D, z: number, turn: number, lit2: boolean) => {
+  const patch = (draw: Paint2D, z: number, turn: number, shine: boolean) => {
     const o = pixelPatch(c.body, {
       cols: CHEST_COLS,
       rows: CHEST_ROWS,
@@ -52,7 +52,7 @@ export function marks(c: BodyCtx, front?: Paint2D, back?: Paint2D, lightIt = fal
       depth: 0.011,
       draw,
       at: [0, CHEST_Y, z],
-      lit: lit2,
+      lit: shine,
       fill: 0.3,
     });
     o.rotation.y = turn;
@@ -96,7 +96,8 @@ export function tails(c: BodyCtx, color: string, len = 3.2, trim?: string): void
     if (trim) v.b(x, -len, -0.6, 3.1, 0.5, 0.6, trim);
   }
   c.tick((t, walking) => {
-    pivot.rotation.x = walking ? 0.12 + Math.abs(Math.sin(t * 11)) * 0.16 : 0.03 + Math.sin(t * 1.5) * 0.02;
+    const swing = walking ? 0.12 + Math.abs(Math.sin(t * 11)) * 0.16 : 0.03 + Math.sin(t * 1.5) * 0.02;
+    pivot.rotation.x = swing;
   });
 }
 
@@ -137,6 +138,12 @@ export function sleeveStripes(c: BodyCtx, color: string): void {
   });
 }
 
+/** A band of colour round each arm, `y` cubes down from the shoulder, `pad` cubes wider than the arm. */
+export const armBand = (c: BodyCtx, color: string, y: number, h: number, pad = 0) =>
+  c.arms.forEach((arm) => {
+    new Vx(vpart(arm)).b(-1.22 - pad, y, -1.22 - pad, 2.44 + 2 * pad, h, 2.44 + 2 * pad, color);
+  });
+
 /** Stepped caps over the shoulders (armour, a cape's mantle). */
 function pauldrons(c: BodyCtx, color: string, trim: string): void {
   c.arms.forEach((arm, i) => {
@@ -164,11 +171,10 @@ const text = (g: CanvasRenderingContext2D, s: string, x: number, y: number, size
   g.fillText(s, x, y);
 };
 
-// MARK: Capes
-
 interface CapeLook {
-  /** Cubes across at the shoulders, and how much wider each step gets. */
+  /** Cubes across at the shoulders. */
   w: number;
+  /** How much wider each step gets, in cubes. */
   flare: number;
   /** Steps, and each one's height in cubes. */
   steps: number;
@@ -201,6 +207,7 @@ function steppedCape(parent: VoxModel, o: CapeLook, tick: BodyCtx["tick"], z: nu
       ]);
       x += colW[col]!;
     }
+
     const next = vpart(at, [0, -o.h * U, 0]);
     steps.push(at);
     at = next;
@@ -217,8 +224,6 @@ function steppedCape(parent: VoxModel, o: CapeLook, tick: BodyCtx["tick"], z: nu
   return top;
 }
 
-// MARK: Outfits
-
 type OutfitBuilder = (c: BodyCtx) => void;
 
 // biome-ignore format: a catalogue reads best one to a line
@@ -230,6 +235,7 @@ export const OUTFIT_BUILDERS: Record<number, OutfitBuilder> = {
         px(g, "#3ddc84", x, 0, 2, 13);
         px(g, "#3ddc84", x - 1, 13, 4, 3);
       }
+
       text(g, "</>", 29, 31, 11, "#3ddc84");
     });
     hood(c, c.dark, "#101814");
@@ -256,8 +262,8 @@ export const OUTFIT_BUILDERS: Record<number, OutfitBuilder> = {
       c,
       (g, w, h) => {
         for (let i = 0; i < 20; i++) {
-          const x = Math.floor(rnd() * (w - 4)),
-            y = Math.floor(rnd() * (h - 6));
+          const x = Math.floor(rnd() * (w - 4));
+          const y = Math.floor(rnd() * (h - 6));
           px(g, i % 3 ? "#ffd1f4" : "#ffffff", x, y, 2, 2);
         }
         px(g, "#e86bd8", 27, 0, 3, h);
@@ -324,6 +330,7 @@ export const OUTFIT_BUILDERS: Record<number, OutfitBuilder> = {
   },
   // Hoodie of infinite context: a glowing infinity on the chest, hood down the back.
   13: (c) => {
+    // A figure of eight traced in 40 steps across the chest patch.
     const lemniscate = (g: CanvasRenderingContext2D, w: number, h: number, lw: number, col: string) => {
       g.strokeStyle = col;
       g.lineWidth = lw;
@@ -517,8 +524,8 @@ export const OUTFIT_BUILDERS: Record<number, OutfitBuilder> = {
     const rnd = seeded(23);
     const stars = (g: CanvasRenderingContext2D, w: number, h: number, n: number) => {
       for (let i = 0; i < n; i++) {
-        const x = 3 + Math.floor(rnd() * (w - 8)),
-          y = 3 + Math.floor(rnd() * (h - 8));
+        const x = 3 + Math.floor(rnd() * (w - 8));
+        const y = 3 + Math.floor(rnd() * (h - 8));
         px(g, "#f5d14a", x, y, 2, 2);
         if (i % 3 === 0) {
           px(g, "#f5d14a", x - 2, y, 6, 2);
@@ -705,8 +712,6 @@ export const OUTFIT_BUILDERS: Record<number, OutfitBuilder> = {
   },
 };
 
-// MARK: Company merch
-
 export interface MerchLook {
   main: string;
   shade: string;
@@ -760,19 +765,20 @@ export function merchTop(c: BodyCtx, m: MerchLook, hoodie: boolean): void {
 
 export function merchCap(h: Model, m: MerchLook): void {
   dome(h, m.main, 0.275, 0.03, 0.42);
-  h.box([0.34, 0.025, 0.2], m.shade, [0, 0.11, 0.24], 0.01).rotation.x = -0.12;
+  const visor = h.box([0.34, 0.025, 0.2], m.shade, [0, 0.11, 0.24], 0.01);
+  visor.rotation.x = -0.12;
   h.ball(0.025, m.shade, [0, 0.3, 0]);
   sign(
     h,
     0.1,
     0.07,
-    (g, w, hh) => {
-      // The badge is the print's 8×6: what its people drew, a pixel to a cell, where there is a drawing.
+    (g, w, height) => {
+      // A drawn logo fills the badge one pixel to a cell; without one, the badge shows the initials.
       if (m.design?.length) {
         const pal = merchPalette(m);
-        const [cw, ch] = [w / m.design[0]!.length, hh / m.design.length];
+        const [cw, ch] = [w / m.design[0]!.length, height / m.design.length];
         g.fillStyle = m.main;
-        g.fillRect(0, 0, w, hh);
+        g.fillRect(0, 0, w, height);
         m.design.forEach((row, y) => {
           [...row].forEach((c, x) => {
             if (!pal[c]) return;
@@ -783,19 +789,17 @@ export function merchCap(h: Model, m: MerchLook): void {
         return;
       }
       g.fillStyle = m.accent;
-      g.fillRect(2, 2, w - 4, hh - 4);
+      g.fillRect(2, 2, w - 4, height - 4);
       g.fillStyle = m.shade;
-      g.font = `700 ${hh * 0.6}px ui-monospace, Menlo, monospace`;
+      g.font = `700 ${height * 0.6}px ui-monospace, Menlo, monospace`;
       g.textAlign = "center";
       g.textBaseline = "middle";
-      g.fillText(m.initials.slice(0, 2), w / 2, hh / 2 + 1);
+      g.fillText(m.initials.slice(0, 2), w / 2, height / 2 + 1);
     },
     [0, 0.19, 0.262],
     80,
   );
 }
-
-// MARK: Held
 
 export type HeldBuilder = (h: Model, tick: (fn: (t: number) => void) => void) => void;
 
@@ -859,15 +863,17 @@ export const HELD_BUILDERS: Record<string, HeldBuilder> = {
         h.box([0.028, 0.012, 0.022], cols[(i + r) % 6]!, [-0.088 + i * 0.035, 0.03, 0.04 + r * 0.027], 0.004);
   },
   "Pizza slice": (h) => {
-    const wedge2 = new THREE.Shape();
-    wedge2.moveTo(0, 0.1);
-    wedge2.lineTo(-0.065, -0.07);
-    wedge2.lineTo(0.065, -0.07);
-    wedge2.closePath();
-    const cheese = shaped(h, "pizza", wedge2, 0.014, "#f5d14a", [0, 0.03, 0.09]);
+    const slice = new THREE.Shape();
+    slice.moveTo(0, 0.1);
+    slice.lineTo(-0.065, -0.07);
+    slice.lineTo(0.065, -0.07);
+    slice.closePath();
+    const cheese = shaped(h, "pizza", slice, 0.014, "#f5d14a", [0, 0.03, 0.09]);
     cheese.rotation.x = -Math.PI / 2;
     cheese.rotation.z = Math.PI;
-    h.box([0.15, 0.022, 0.02], "#c98e3c", [0, 0.0, 0.145], 0.008).position.y = 0.02;
+
+    const crust = h.box([0.15, 0.022, 0.02], "#c98e3c", [0, 0.0, 0.145], 0.008);
+    crust.position.y = 0.02;
     for (const [x, z] of [
       [0, 0.1],
       [-0.025, 0.065],
@@ -883,15 +889,15 @@ export const HELD_BUILDERS: Record<string, HeldBuilder> = {
       h,
       0.05,
       0.07,
-      (g, w, hh) => {
+      (g, w, height) => {
         g.fillStyle = "#f5f542";
         g.beginPath();
         g.moveTo(w * 0.6, 0);
-        g.lineTo(w * 0.2, hh * 0.55);
-        g.lineTo(w * 0.48, hh * 0.55);
-        g.lineTo(w * 0.35, hh);
-        g.lineTo(w * 0.85, hh * 0.4);
-        g.lineTo(w * 0.55, hh * 0.4);
+        g.lineTo(w * 0.2, height * 0.55);
+        g.lineTo(w * 0.48, height * 0.55);
+        g.lineTo(w * 0.35, height);
+        g.lineTo(w * 0.85, height * 0.4);
+        g.lineTo(w * 0.55, height * 0.4);
         g.fill();
       },
       [0, 0.055, 0.0925],
@@ -915,7 +921,8 @@ export const HELD_BUILDERS: Record<string, HeldBuilder> = {
     h.ball(0.045, "#e0473f", [0, 0.14, 0.06], [1, 0.6, 1], 10);
     h.cyl(0.018, 0.04, "#2b2433", [0, 0.16, 0.06], 0.018, 8);
     h.box([0.1, 0.018, 0.02], "#2b2433", [0.03, 0.2, 0.06], 0.006);
-    ring(h, "#2b2433", 0.04, 0.007, [0.05, 0.12, 0.06], false).rotation.y = Math.PI / 2;
+    const hose = ring(h, "#2b2433", 0.04, 0.007, [0.05, 0.12, 0.06], false);
+    hose.rotation.y = Math.PI / 2;
     h.box([0.07, 0.05, 0.005], "#f4f4f0", [0, 0.06, 0.1075], 0.002);
   },
   Baguette: (h) => {
@@ -924,12 +931,12 @@ export const HELD_BUILDERS: Record<string, HeldBuilder> = {
     b.rotation.x = -0.2;
     b.cyl(0.03, 0.34, "#e8b464", [0, -0.1, 0.0], 0.03, 10);
     b.ball(0.03, "#e8b464", [0, 0.24, 0], [1, 0.7, 1], 8);
-    for (let i = 0; i < 4; i++)
-      b.box([0.052, 0.008, 0.012], "#a86e2a", [0, 0.01 + i * 0.065, 0.026], 0.003).rotation.z = 0.5;
+    for (let i = 0; i < 4; i++) {
+      const score = b.box([0.052, 0.008, 0.012], "#a86e2a", [0, 0.01 + i * 0.065, 0.026], 0.003);
+      score.rotation.z = 0.5;
+    }
   },
 };
-
-// MARK: Back
 
 export type BackBuilder = (b: VoxModel, tick: (fn: (t: number, walking: boolean) => void) => void) => void;
 
@@ -965,7 +972,7 @@ export const BACK_BUILDERS: Record<string, BackBuilder> = {
     const v = new Vx(b);
     v.b(-2.6, -6, -0.9, 5.2, 5, 0.9, "#7c8592");
     v.b(-2.1, -5.4, -1.2, 4.2, 0.6, 0.3, "#5d6470");
-    const flames: THREE.Mesh[][] = [];
+    const flames: [THREE.Mesh, THREE.Mesh, THREE.Mesh, THREE.Mesh][] = [];
     for (const s of [-1, 1]) {
       const x = s > 0 ? 0.35 : -2.55;
       v.b(x, -7.3, -3, 2.2, 6.3, 2.1, "#c4ccd6");
@@ -983,9 +990,9 @@ export const BACK_BUILDERS: Record<string, BackBuilder> = {
     tick((t, walking) =>
       flames.forEach((f, i) => {
         const k = Math.sin(t * 22 + i * 2.1) > 0 ? 1 : 0;
-        f[1]!.visible = walking || k === 1;
-        f[2]!.visible = walking && k === 1;
-        f[3]!.visible = true;
+        f[1].visible = walking || k === 1;
+        f[2].visible = walking && k === 1;
+        f[3].visible = true;
       }),
     );
   },

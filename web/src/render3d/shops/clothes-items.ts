@@ -52,28 +52,28 @@ const RARITY_ORDER: Rarity[] = ["common", "uncommon", "rare", "epic", "legendary
 
 /** Can the player not simply buy it? A level reward or a boss drop. */
 export const isLocked = (id: string): boolean => {
-  const m = metaOf.get(id);
-  return !!m && (m.level !== undefined || m.boss !== undefined);
+  const meta = metaOf.get(id);
+  return !!meta && (meta.level !== undefined || meta.boss !== undefined);
 };
-
-// MARK: Previews
 
 /** Keeps `fn` running while `obj` is in a scene; stops once it has left (or never arrived). */
 function alive(obj: Model, fn: (t: number) => void): void {
   let seen = false;
   let waited = 0;
   const tick = (t: number) => {
-    let o: Model["parent"] = obj;
-    while (o?.parent) o = o.parent;
-    const inScene = !!o && (o as { isScene?: boolean }).isScene === true;
+    let top: Model["parent"] = obj;
+    while (top?.parent) top = top.parent;
+    const inScene = !!top && (top as { isScene?: boolean }).isScene === true;
     if (inScene) {
       seen = true;
       fn(t);
       return;
     }
+
+    // Gives up on an object that never reaches the scene: 900 ticks of waiting, then it is dropped.
     if (seen || ++waited > 900) {
-      const i = ticks.indexOf(tick);
-      if (i >= 0) ticks.splice(i, 1);
+      const at = ticks.indexOf(tick);
+      if (at >= 0) ticks.splice(at, 1);
     }
   };
   ticks.push(tick);
@@ -90,7 +90,8 @@ function bust(m: Model): Model {
   return m.part([0, HEAD_Y, 0]);
 }
 
-const CTX = (m: Model) => ({
+/** The colours and the ticker the avatar builders expect, for a display head or a mannequin. */
+const previewContext = (m: Model) => ({
   skin: MANNEQUIN.skin,
   hair: MANNEQUIN.hair,
   outfit: ["#8aa0c8", "#6b82ad"] as [string, string],
@@ -106,21 +107,27 @@ const OWN_HATS: Record<string, (h: Model) => void> = {
     h.ball(0.05, "#f4efe4", [0, 0.28, 0]);
   },
   Headphones: (h) => {
-    for (let i = 0; i <= 8; i++) {
-      const a = (i / 8) * Math.PI;
-      h.box([0.045, 0.045, 0.06], "#2b2f3a", [Math.cos(a) * 0.27, Math.sin(a) * 0.27 - 0.02, 0], 0.01);
+    for (let step = 0; step <= 8; step++) {
+      const angle = (step / 8) * Math.PI;
+      h.box(
+        [0.045, 0.045, 0.06],
+        "#2b2f3a",
+        [Math.cos(angle) * 0.27, Math.sin(angle) * 0.27 - 0.02, 0],
+        0.01,
+      );
     }
-    for (const s of [-1, 1]) {
-      const cup = h.cyl(0.095, 0.07, "#e0584f", [s * 0.27, -0.12, 0], 0.095, 14);
+
+    for (const side of [-1, 1]) {
+      const cup = h.cyl(0.095, 0.07, "#e0584f", [side * 0.27, -0.12, 0], 0.095, 14);
       cup.rotation.z = Math.PI / 2;
     }
   },
   Crown: (h) => {
     band(h, "#f5c842", 0.2, 0.1, 0.2);
-    for (let i = 0; i < 5; i++) {
-      const a = (i / 5) * Math.PI * 2;
-      h.cyl(0.04, 0.1, "#f5c842", [Math.cos(a) * 0.19, 0.3, Math.sin(a) * 0.19], 0, 4);
-      h.ball(0.022, i % 2 ? "#e0584f" : "#4fa8ff", [Math.cos(a) * 0.19, 0.4, Math.sin(a) * 0.19]);
+    for (let point = 0; point < 5; point++) {
+      const angle = (point / 5) * Math.PI * 2;
+      h.cyl(0.04, 0.1, "#f5c842", [Math.cos(angle) * 0.19, 0.3, Math.sin(angle) * 0.19], 0, 4);
+      h.ball(0.022, point % 2 ? "#e0584f" : "#4fa8ff", [Math.cos(angle) * 0.19, 0.4, Math.sin(angle) * 0.19]);
     }
   },
 };
@@ -128,23 +135,23 @@ const OWN_HATS: Record<string, (h: Model) => void> = {
 export function hatPreview(name: string): Model {
   const m = new VoxModel();
   const head = bust(m);
-  // Match the worn voxel hat's position relative to the top of the head. The mannequin head is
-  // larger than an avatar head and the builder frame here is unscaled (see headFit in gear3d.ts).
+  // Match the worn voxel hat's position relative to the top of the head. The mannequin head is larger than an
+  // avatar head and the builder frame here is unscaled. The constants are the voxel head fit in `headFit`
+  // (gear3d.ts): 0.1575 plus 0.025, the top at 0.36 and a scale of 0.63.
   const lift = voxelHatLift(name);
   // Santa's low band needs a little more room on the solid display head.
-  const previewLift = lift
-    ? Math.max(0, 0.239 + (0.1825 + lift - 0.36) / 0.63) + (name === "Santa hat" ? 0.025 : 0)
-    : 0;
+  const santaRoom = name === "Santa hat" ? 0.025 : 0;
+  const previewLift = lift ? Math.max(0, 0.239 + (0.1825 + lift - 0.36) / 0.63) + santaRoom : 0;
   const hat = head.part([0, previewLift, 0]);
   hat.name = "hat-preview-gear";
-  (OWN_HATS[name] ?? HAT_BUILDERS[name])?.(hat, CTX(m));
+  (OWN_HATS[name] ?? HAT_BUILDERS[name])?.(hat, previewContext(m));
   return m;
 }
 
 function facePreview(name: string): Model {
   const m = new VoxModel();
   const head = bust(m);
-  FACE_BUILDERS[name]?.(head.part(), CTX(m));
+  FACE_BUILDERS[name]?.(head.part(), previewContext(m));
   return m;
 }
 
@@ -172,27 +179,29 @@ function backPreview(name: string): Model {
 
 /** A mannequin: a voxel person in the shop's wood colours, dressed by `lookFrom2D`, in a neutral stance. */
 export function mannequin(look: Look2D, opts?: LookOptions): Avatar {
-  const l = lookFrom2D(look, opts);
-  l.skin = MANNEQUIN.skin;
-  l.hair = MANNEQUIN.hair;
-  const a = new Avatar(l, "voxel");
-  if (a.look.gear?.animated) {
-    alive(a.root, (t) => a.look.gear?.update?.(a, 0, t));
-  } else {
-    // Static mannequins are posed once on their podiums and never animate: bake them into the room.
-    delete a.root.userData.live;
-    delete a.root.userData.bake;
-    delete a.root.userData.actor;
-    delete a.root.userData.sample;
-    a.root.traverse((o) => {
-      delete o.userData.rigid;
-      const m = o as { isMesh?: boolean; material?: { userData?: { dynamic?: boolean } } | unknown[] };
-      if (m.isMesh && m.material && !Array.isArray(m.material) && m.material.userData?.dynamic) {
-        delete m.material.userData.dynamic;
-      }
-    });
+  const fullLook = lookFrom2D(look, opts);
+  fullLook.skin = MANNEQUIN.skin;
+  fullLook.hair = MANNEQUIN.hair;
+
+  const avatar = new Avatar(fullLook, "voxel");
+  if (avatar.look.gear?.animated) {
+    alive(avatar.root, (t) => avatar.look.gear?.update?.(avatar, 0, t));
+    return avatar;
   }
-  return a;
+
+  // Static mannequins are posed once on their podiums and never animate: bake them into the room.
+  delete avatar.root.userData.live;
+  delete avatar.root.userData.bake;
+  delete avatar.root.userData.actor;
+  delete avatar.root.userData.sample;
+  avatar.root.traverse((node) => {
+    delete node.userData.rigid;
+    const mesh = node as { isMesh?: boolean; material?: { userData?: { dynamic?: boolean } } | unknown[] };
+    if (mesh.isMesh && mesh.material && !Array.isArray(mesh.material) && mesh.material.userData?.dynamic) {
+      delete mesh.material.userData.dynamic;
+    }
+  });
+  return avatar;
 }
 
 const BASE: Look2D = { style: 0, skin: 0, hair: 1, outfit: 1 };
@@ -207,8 +216,6 @@ export const MERCH_COMPANIES = [
   { id: 3, name: "Fern AI", brand: { roof: "#3f8c50", plaque: "#f4efe4" } },
   { id: 4, name: "Nordlys", brand: { roof: "#5b3fbf", plaque: "#3ddc84" } },
 ] as const;
-
-// MARK: The list
 
 const GROUP: Record<string, string> = {
   outfit: "Outfits",
@@ -234,47 +241,54 @@ function previewOf(r: ClothesRow): () => Model {
   }
 }
 
-function fromRow(r: ClothesRow): ShopItem {
-  metaOf.set(r.id, { slot: r.slot, index: r.index, rarity: r.rarity, level: r.level, boss: r.boss });
+function fromRow(row: ClothesRow): ShopItem {
+  metaOf.set(row.id, {
+    slot: row.slot,
+    index: row.index,
+    rarity: row.rarity,
+    level: row.level,
+    boss: row.boss,
+  });
   return {
-    id: r.id,
-    name: r.name,
-    price: r.price,
-    ...(r.level !== undefined && { level: r.level }),
-    group: r.boss ? `${GROUP[r.slot]} · ${r.boss} drop` : GROUP[r.slot],
-    preview: previewOf(r),
+    id: row.id,
+    name: row.name,
+    price: row.price,
+    ...(row.level !== undefined && { level: row.level }),
+    group: row.boss ? `${GROUP[row.slot]} · ${row.boss} drop` : GROUP[row.slot],
+    preview: previewOf(row),
   };
 }
 
 /** Cheapest, commonest first: a shelf reads as a climb through the rarities. */
 const bySale = (a: ClothesRow, b: ClothesRow) => {
-  const rarity = RARITY_ORDER.indexOf(a.rarity) - RARITY_ORDER.indexOf(b.rarity);
-  return rarity || a.price - b.price || a.index - b.index;
+  const byRarity = RARITY_ORDER.indexOf(a.rarity) - RARITY_ORDER.indexOf(b.rarity);
+  return byRarity || a.price - b.price || a.index - b.index;
 };
 
 /** A slot's rows, the holiday costumes only in their season (the shop is built once a page). */
-const rows = (slot: ClothesRow["slot"]) =>
-  CLOTHES.filter((r) => r.slot === slot && onSale(itemById(r.id) ?? {}, Date.now()));
+const slotRows = (slot: ClothesRow["slot"]) =>
+  CLOTHES.filter((row) => row.slot === slot && onSale(itemById(row.id) ?? {}, Date.now()));
 
 function freeOutfits(): ShopItem[] {
-  return FREE_OUTFIT_NAMES.map((name, i) => {
-    const id = `outfit.${i}`;
-    metaOf.set(id, { slot: "outfit", index: i, rarity: "common", free: true });
-    return { id, name, price: 0, group: "Outfits", preview: () => outfitPreview(i) };
+  return FREE_OUTFIT_NAMES.map((name, index) => {
+    const id = `outfit.${index}`;
+    metaOf.set(id, { slot: "outfit", index, rarity: "common", free: true });
+    return { id, name, price: 0, group: "Outfits", preview: () => outfitPreview(index) };
   });
 }
 
 function merchItems(): ShopItem[] {
-  return MERCH_PIECES.map((p, i) => {
-    const c = MERCH_COMPANIES[i % MERCH_COMPANIES.length]!;
-    const id = `merch.${c.id}.${p.kind}`;
-    metaOf.set(id, { slot: "merch", index: p.bit, rarity: "common" });
+  return MERCH_PIECES.map((piece, index) => {
+    // The companies take the pieces in turn: piece `index` is sold by company `index` mod the company count.
+    const company = MERCH_COMPANIES[index % MERCH_COMPANIES.length]!;
+    const id = `merch.${company.id}.${piece.kind}`;
+    metaOf.set(id, { slot: "merch", index: piece.bit, rarity: "common" });
     return {
       id,
-      name: `${c.name} ${p.name.toLowerCase()}`,
-      price: p.price,
+      name: `${company.name} ${piece.name.toLowerCase()}`,
+      price: piece.price,
       group: "Merch",
-      preview: () => merchProp(c, p.kind),
+      preview: () => merchProp(company, piece.kind),
     };
   });
 }
@@ -289,18 +303,16 @@ export function buildClothesItems(): {
   merch: ShopItem[];
 } {
   metaOf.clear();
-  const outfits = [...freeOutfits(), ...rows("outfit").map(fromRow)];
+  const outfits = [...freeOutfits(), ...slotRows("outfit").map(fromRow)];
   return {
     outfits,
-    hats: rows("hat").sort(bySale).map(fromRow),
-    faces: rows("glasses").sort(bySale).map(fromRow),
-    held: rows("held").sort(bySale).map(fromRow),
-    backs: rows("back").sort(bySale).map(fromRow),
+    hats: slotRows("hat").sort(bySale).map(fromRow),
+    faces: slotRows("glasses").sort(bySale).map(fromRow),
+    held: slotRows("held").sort(bySale).map(fromRow),
+    backs: slotRows("back").sort(bySale).map(fromRow),
     merch: merchItems(),
   };
 }
-
-// MARK: The fitting room
 
 const SLOT_OF = /^(outfit|hat|glasses|held|back)\.(\d+)$/;
 const MERCH_OF = /^merch\.(\d+)\.([a-z]+)$/;
@@ -312,13 +324,15 @@ export function tryOnLook2D(item: Pick<ShopItem, "id">, look: Look2D): Look2D {
   const merch = MERCH_OF.exec(item.id);
   const piece = merch && MERCH_PIECES.find((p) => p.kind === merch[2]);
   if (merch && piece) {
-    const same = look.merch === Number(merch[1]);
-    const bits = same ? (look.merchWorn ?? 0) : 0;
+    const sameCompany = look.merch === Number(merch[1]);
+    const wornBits = sameCompany ? (look.merchWorn ?? 0) : 0;
 
-    // A hoodie goes over a tee: wearing one clears the other. The tee is bit 1 and the hoodie bit 2 (`MERCH_PIECES`).
-    let merchWorn = bits | piece.bit;
-    if (piece.kind === "hoodie") merchWorn = (bits & ~1) | 2;
-    else if (piece.kind === "tee") merchWorn = (bits & ~2) | 1;
+    // A hoodie goes over a tee: wearing one clears the other. The tee is bit 1 and the hoodie bit 2
+    // (`MERCH_PIECES`).
+    let merchWorn = wornBits | piece.bit;
+    if (piece.kind === "hoodie") merchWorn = (wornBits & ~1) | 2;
+    else if (piece.kind === "tee") merchWorn = (wornBits & ~2) | 1;
+
     return { ...look, merch: Number(merch[1]), merchWorn };
   }
   return { ...look };

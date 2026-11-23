@@ -8,8 +8,7 @@
  * the stand goes up.
  */
 import { clockMinutes } from "./street.ts";
-import type { Facing } from "./world.ts";
-import { DIRS } from "./world.ts";
+import { DIRS, type Facing } from "./world.ts";
 
 /** Who can launch: the pool the stand draws from. Add one here to give it a stand. */
 export const PROVIDERS = [
@@ -108,7 +107,7 @@ function priceOf(pricing: unknown): Price {
   return { input: per(p.prompt), output: per(p.completion), cache: per(p.input_cache_read) };
 }
 
-/** One of the pool's models in OpenRouter's list: who made it, its name and id, its price and pitch, when it was listed. */
+/** One of the pool's models in OpenRouter's list: who made it, its name and id, its price and pitch, and when it was listed. */
 export interface PoolModel {
   provider: ProviderId;
   name: string;
@@ -116,6 +115,15 @@ export interface PoolModel {
   price: Price;
   description: string;
   at: number;
+}
+
+/** One entry of OpenRouter's list as it arrives: every field is checked before it is used. */
+interface ListedModel {
+  id?: unknown;
+  name?: unknown;
+  created?: unknown;
+  description?: unknown;
+  pricing?: unknown;
 }
 
 /**
@@ -128,13 +136,7 @@ export function poolModels(body: unknown): PoolModel[] | null {
   const data = (body as { data?: unknown } | null)?.data;
   if (!Array.isArray(data)) return null;
   const models: PoolModel[] = [];
-  for (const m of data as {
-    id?: unknown;
-    name?: unknown;
-    created?: unknown;
-    description?: unknown;
-    pricing?: unknown;
-  }[]) {
+  for (const m of data as ListedModel[]) {
     if (typeof m?.id !== "string" || typeof m.created !== "number" || typeof m.name !== "string") continue;
     if (m.id.startsWith("~") || m.id.includes(":")) continue;
     const prefix = m.id.split("/")[0];
@@ -223,7 +225,8 @@ function nextClock(at: number, minutes: number): number {
   const end = Math.round((at + ahead * 60_000) / 1000) * 1000;
 
   // On a clock change the guess can land an hour off. The gap, wrapped to half a day either way, is the fix.
-  const gap = ((((clockMinutes(end) - minutes) % 1440) + 1440 + 720) % 1440) - 720;
+  const drift = clockMinutes(end) - minutes;
+  const gap = (((drift % 1440) + 1440 + 720) % 1440) - 720;
   return end - gap * 60_000;
 }
 
@@ -270,8 +273,11 @@ export function standOf(ls: readonly Launch[]): { accent: string | null; sign: s
     .map((l) => `${l.provider}:${l.at}`)
     .sort()
     .join("|");
-  if (providers.length > 1)
-    return { accent: null, sign: `🌈 NEW: ${providers.map((p) => providerOf(p).name).join(" · ")}`, key };
+  if (providers.length > 1) {
+    const names = providers.map((p) => providerOf(p).name).join(" · ");
+    return { accent: null, sign: `🌈 NEW: ${names}`, key };
+  }
+
   const more = modelsIn(ls) - 1;
   return {
     accent: providerOf(providers[0]!).accent,

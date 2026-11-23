@@ -38,7 +38,11 @@ export const CASE_PIECES: readonly CasePiece[] = [
   entry("Ц", "night-torii", "Torii gate", "rare", "A vermilion gate lit by lanterns: the way into the night market.", 3),
 ];
 
-/** Every case's furniture: the Night Market's (`CASE_PIECES`), then the Nusantara's, then Ragnarok Eve's, then the Julemarked's, then the prestige trophies (earned, not cases; a later case adds its own here). */
+/**
+ * Every case's furniture, in this order: the Night Market's (`CASE_PIECES`), the Nusantara's, Ragnarok Eve's,
+ * the Julemarked's, then the prestige trophies, which are earned rather than from a case. A new case adds its
+ * own list here.
+ */
 export const ALL_CASE_PIECES: readonly CasePiece[] = [
   ...CASE_PIECES,
   ...NUSANTARA_PIECES,

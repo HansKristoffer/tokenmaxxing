@@ -181,12 +181,7 @@ export function CompanyPanel() {
                 <a href={`https://${co.website}`} target="_blank" rel="noreferrer noopener">
                   {co.website}
                 </a>{" "}
-                is on your sign.{" "}
-                {co.branding === "working"
-                  ? "Painting your house in its colours…"
-                  : co.branding === "failed"
-                    ? "Couldn't read its colours and logo; the house keeps its own."
-                    : ""}
+                is on your sign. {brandingNote(co.branding)}
               </>
             ) : (
               "Add your website: it goes on your sign, and your house gets your brand's colours and logo."
@@ -286,11 +281,25 @@ function CompanyForm({
   );
 }
 
+/** What the house is doing with the website's colours and logo, or nothing. */
+function brandingNote(branding: string | null | undefined): string {
+  if (branding === "working") return "Painting your house in its colours…";
+  if (branding === "failed") return "Couldn't read its colours and logo; the house keeps its own.";
+  return "";
+}
+
 /** Which way a block lies from the square: "north-east". */
 function direction(plot: number): string {
   const [bx, by] = plotBlock(plot);
-  const ns = by < 0 ? "north" : by > 1 ? "south" : "";
-  const ew = bx < 0 ? "west" : bx > 1 ? "east" : "";
+
+  let ns = "";
+  if (by < 0) ns = "north";
+  else if (by > 1) ns = "south";
+
+  let ew = "";
+  if (bx < 0) ew = "west";
+  else if (bx > 1) ew = "east";
+
   return [ns, ew].filter(isTruthy).join("-");
 }
 

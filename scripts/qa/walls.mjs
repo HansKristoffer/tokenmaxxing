@@ -11,7 +11,8 @@ const browser = await pw.chromium.launch({
   headless: true,
   args: ["--use-angle=metal", "--ignore-gpu-blocklist"],
 });
-const page = await openGame(browser, await signUp("w"), tier);
+const user = await signUp("w");
+const page = await openGame(browser, user, tier);
 await ready(page);
 const go = async (ch) => {
   const p = (await portals(page)).find((q) => q.ch === ch);
@@ -61,6 +62,7 @@ await page.waitForTimeout(3000);
 const result = await page.evaluate(() => {
   const { frames } = window.__walls;
   const walls = new Set();
+  // Counted below 15% of full height, so a wall is caught on its way down, not only at 6%.
   for (const [, row] of frames) for (const [o, y] of row) if (y < 0.15) walls.add(o);
   const series = [...walls].map((o) => frames.map(([, row]) => +(row.get(o) ?? 1).toFixed(3)));
   const times = frames.map(([t]) => Math.round(t));

@@ -354,12 +354,14 @@ export function marcipangris(): Built {
   tg.set(1, 2, -1, "#e8a898");
   put(tail, tg, [0, 0, 0], 3);
   const legs: { j: Model; phase: number }[] = [];
-  for (const [zi, z] of [3.8, -3.8].entries())
-    for (const [si, s] of SIDES.entries())
+  for (const [zi, z] of [3.8, -3.8].entries()) {
+    for (const [si, s] of SIDES.entries()) {
       legs.push({
         j: leg(body, [s * 3.1, 3.6, z], 3.6, 3, (c) => (c.t > 0.5 ? MARZ : MARZ_D), "#a97a5e", 5 + zi),
         phase: (zi + si) * Math.PI,
       });
+    }
+  }
   const head = joint(body, [0, 8, 6]);
   const hg = new Grid();
   hg.ell(0, 0, 0, 3.9, 3.6, 3.4, MARZ, 2.2);
@@ -471,12 +473,14 @@ export function nissekat(): Built {
   bg.box(-1, 1, 5, 8, 6, 7, LIGHT);
   put(body, bg, [0, 0, 0], 1);
   const legs: { j: Model; phase: number }[] = [];
-  for (const [zi, z] of [4.4, -4.4].entries())
-    for (const [si, s] of SIDES.entries())
+  for (const [zi, z] of [4.4, -4.4].entries()) {
+    for (const [si, s] of SIDES.entries()) {
       legs.push({
         j: leg(body, [s * 2.4, 4, z], 4, 2, (c) => (c.t > 0.5 ? GREY : LIGHT), LIGHT, 5 + zi),
         phase: (zi + si) * Math.PI,
       });
+    }
+  }
   const head = joint(body, [0, 10.5, 6.2]);
   const hg = new Grid();
   hg.ell(0, 0, 0, 3.4, 3, 3, GREY, 2.2);
@@ -719,7 +723,7 @@ export function julebuk(): Built {
   put(tail, tg, [0, 0, 0], 4);
   put(big, bg, [0, 0, 0], 1);
   const legs: { j: Model; phase: number }[] = [];
-  for (const [zi, z] of [4.4, -4.4].entries())
+  for (const [zi, z] of [4.4, -4.4].entries()) {
     for (const [si, s] of SIDES.entries()) {
       const lj = leg(
         big,
@@ -737,6 +741,7 @@ export function julebuk(): Built {
       put(lj, band, [0, -3, 0], 9);
       legs.push({ j: lj, phase: (zi + si) * Math.PI });
     }
+  }
   const head = joint(big, [0, 17.6, 7.8]);
   const hg = new Grid();
   hg.ell(0, 0, 0, 2.9, 3.1, 3.2, (c) => straw(c, 3), 2.6);
@@ -891,11 +896,12 @@ export function lygtenisse(): Built {
   bg.ell(0, 11.4, 0.4, 3, 1, 2.8, NISSE_RED, 2.2);
   put(body, bg, [0, 0, 0], 1);
   const legs: { j: Model; phase: number }[] = [];
-  for (const [si, s] of SIDES.entries())
+  for (const [si, s] of SIDES.entries()) {
     legs.push({
       j: leg(body, [s * 1.7, 4.2, 0], 4, 2, (c) => (c.t > 0.5 ? WOOL_D : "#a06a3c"), "#a06a3c", 5 + si),
       phase: si * Math.PI,
     });
+  }
   // Arms: the left one hangs, the right one holds the lantern out.
   const armR = joint(body, [3.4, 10, 0.4]);
   const ag = new Grid();

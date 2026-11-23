@@ -8,7 +8,8 @@ const browser = await pw.chromium.launch({
   args: ["--use-angle=metal", "--ignore-gpu-blocklist"],
 });
 const tier = process.argv[2] ?? "medium";
-const page = await openGame(browser, await signUp("i"), tier);
+const user = await signUp("i");
+const page = await openGame(browser, user, tier);
 await ready(page);
 for (const ch of (process.argv[3] ?? "").split(",").filter(Boolean)) {
   const p = (await portals(page)).find((q) => q.ch === ch);

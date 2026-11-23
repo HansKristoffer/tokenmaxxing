@@ -30,12 +30,14 @@ import { Model, toon } from "../kit/kit.ts";
 import type { Sign } from "../rooms/rooms.ts";
 
 /**
- * Påske in the 3D town (`core/src/paaske.ts`; the 2D one is `game/paaske.ts`, and both ask it what is out and what has
- * been found): flowers coming up in eight waves, the påskeris, Gudrun's stall, the påskefrokost table, pastel bunting between
- * the square's lamps, the day's hidden eggs, lambs, bunnies and chicks, and the chick that follows whoever found them all.
+ * Påske in the 3D town (`core/src/paaske.ts`; the 2D one is `game/paaske.ts`, and both ask it what is out and
+ * what has been found): flowers coming up in eight waves, the påskeris, Gudrun's stall, the påskefrokost table,
+ * pastel bunting between the square's lamps, the day's hidden eggs, lambs, bunnies and chicks, and the chick that
+ * follows whoever found them all.
  *
- * Built lazily the first frame Påske is on, taken down (geometry and all) when it ends while the page stays open. The
- * still parts are merged into a few meshes per wave; only the eggs, critters and the follower are separate.
+ * Built lazily the first frame Påske is on, and taken down (geometry and all) when it ends while the page stays
+ * open. The still parts are merged into a few meshes per wave. Only the eggs, critters and the follower are
+ * separate.
  */
 
 const GREEN = "#4f9b3d";
@@ -153,8 +155,9 @@ function treeModel(): Model {
 function stallModel(): Model {
   const m = new Model();
   m.box([0.9, 0.06, 0.55], "#d49c67", [0, 0.62, 0], 0.01);
-  for (const x of [-0.38, 0.38])
+  for (const x of [-0.38, 0.38]) {
     for (const z of [-0.2, 0.2]) m.box([0.06, 0.62, 0.06], "#8c5c36", [x, 0, z], 0.01);
+  }
   m.box([0.7, 0.04, 0.04], "#8c5c36", [0, 0.2, 0.2], 0.01);
   const pots: [string, number][] = [
     ["#e8584f", -0.3],
@@ -166,10 +169,13 @@ function stallModel(): Model {
     m.cyl(0.05, 0.012, WHITE, [x, 0.775, -0.08], 0.05, 8);
   }
   m.cyl(0.008, 0.2, "#8c5c36", [0.1, 0.68, -0.05], 0.008, 4).rotation.z = 1.1;
-  [0, 3, 1, 4].forEach((c, i) => {
-    const [base, stripe] = EGG_COLOURS[c]!;
-    m.ball(0.045, base, [0.2 + (i % 2) * 0.1, 0.73, -0.1 + Math.floor(i / 2) * 0.14], [1, 1.28, 1], 8);
-    m.cyl(0.043, 0.014, stripe, [0.2 + (i % 2) * 0.1, 0.72, -0.1 + Math.floor(i / 2) * 0.14], 0.043, 8);
+  // Four eggs drying on the plank, in a 2 by 2 block.
+  [0, 3, 1, 4].forEach((colour, i) => {
+    const [base, stripe] = EGG_COLOURS[colour]!;
+    const x = 0.2 + (i % 2) * 0.1;
+    const z = -0.1 + Math.floor(i / 2) * 0.14;
+    m.ball(0.045, base, [x, 0.73, z], [1, 1.28, 1], 8);
+    m.cyl(0.043, 0.014, stripe, [x, 0.72, z], 0.043, 8);
   });
   return m;
 }
@@ -186,8 +192,9 @@ function frokostModel(): Model {
     m.box([0.1, 0.07, 0.014], PASTEL[i % PASTEL.length]!, [x, 0.4, 0.44], 0.004);
     m.box([0.1, 0.07, 0.014], PASTEL[(i + 2) % PASTEL.length]!, [x, 0.4, -0.44], 0.004);
   }
-  for (const x of [-0.85, 0.85])
+  for (const x of [-0.85, 0.85]) {
     for (const z of [-0.3, 0.3]) m.box([0.07, 0.68, 0.07], "#8c5c36", [x, 0, z], 0.01);
+  }
   // Herring on a plate, with onion and dill.
   m.cyl(0.17, 0.03, "#4a7bc4", [-0.65, 0.76, 0], 0.17, 12);
   m.cyl(0.15, 0.022, "#eaf1fb", [-0.65, 0.79, 0], 0.15, 12);
@@ -230,9 +237,9 @@ function buntingModel(strings: { a: THREE.Vector3; b: THREE.Vector3; sag: number
   tri.lineTo(0.11, 0);
   tri.lineTo(0, -0.3);
   const flag = new THREE.ShapeGeometry(tri);
-  const m = new THREE.Matrix4();
-  const q = new THREE.Quaternion();
-  const e = new THREE.Euler();
+  const matrix = new THREE.Matrix4();
+  const quaternion = new THREE.Quaternion();
+  const euler = new THREE.Euler();
   const one = new THREE.Vector3(1, 1, 1);
   const colour = new THREE.Color();
   for (const s of strings) {
@@ -247,26 +254,30 @@ function buntingModel(strings: { a: THREE.Vector3; b: THREE.Vector3; sag: number
       const p = at(i / segs);
       const n = at((i + 1) / segs);
       const g = new THREE.BoxGeometry(p.distanceTo(n), 0.025, 0.025);
-      e.set(
+      euler.set(
         0,
         -Math.atan2(n.z - p.z, n.x - p.x),
         Math.atan2(n.y - p.y, Math.hypot(n.x - p.x, n.z - p.z)),
         "YXZ",
       );
-      m.compose(p.clone().add(n).multiplyScalar(0.5), q.setFromEuler(e), one);
-      g.applyMatrix4(m);
+      matrix.compose(p.clone().add(n).multiplyScalar(0.5), quaternion.setFromEuler(euler), one);
+      g.applyMatrix4(matrix);
       cords.push(g);
     }
     const yaw = Math.atan2(s.b.x - s.a.x, s.b.z - s.a.z);
     const count = Math.max(2, Math.round(len / 0.34));
     for (let i = 1; i < count; i++) {
       const g = flag.clone();
+      // Each pennant is one pastel, painted onto every vertex.
       colour.set(PASTEL[i % PASTEL.length]!);
       const colours = new Float32Array(g.attributes.position!.count * 3);
-      for (let k = 0; k < colours.length; k += 3) colours.set([colour.r, colour.g, colour.b], k);
+      for (let k = 0; k < colours.length; k += 3) {
+        colours.set([colour.r, colour.g, colour.b], k);
+      }
       g.setAttribute("color", new THREE.BufferAttribute(colours, 3));
-      m.compose(at(i / count), q.setFromEuler(e.set(0, yaw, 0)), one);
-      g.applyMatrix4(m);
+
+      matrix.compose(at(i / count), quaternion.setFromEuler(euler.set(0, yaw, 0)), one);
+      g.applyMatrix4(matrix);
       flags.push(g);
     }
   }
@@ -275,6 +286,7 @@ function buntingModel(strings: { a: THREE.Vector3; b: THREE.Vector3; sag: number
   const cord = mergeGeometries(cords);
   const pennants = mergeGeometries(flags);
   for (const g of [...cords, ...flags]) g.dispose();
+
   if (cord) group.add(new THREE.Mesh(cord, toon("#7a5a40")));
   if (pennants) {
     const mesh = new THREE.Mesh(
@@ -332,8 +344,9 @@ function lambModel(): Model {
     [-0.08, 0.38, -0.1],
     [0.07, 0.36, -0.15],
     [-0.07, 0.37, 0.14],
-  ] as const)
+  ] as const) {
     m.ball(0.08, WHITE, [x, y, z], [1, 0.9, 1], 8);
+  }
   m.ball(0.07, "#4a3f48", [0, 0.36, 0.26], [0.9, 1.05, 1.15], 8);
   for (const s of [-1, 1]) {
     m.ball(0.03, "#4a3f48", [s * 0.075, 0.4, 0.24], [1.6, 0.5, 0.8], 5);
@@ -363,6 +376,7 @@ interface Built {
   follower: THREE.Group;
 }
 
+/** Flowers come up in this many waves. */
 const WAVES = 8;
 
 export class Paaske3d {
@@ -386,30 +400,33 @@ export class Paaske3d {
       return;
     }
     this.built ??= this.build();
-    const b = this.built;
+    const built = this.built;
     this.group.visible = true;
     paaskeTick();
+
     // Flowers come up wave by wave.
-    const n = shown(b.total, intensity);
-    for (const w of b.waves) w.model.visible = w.from < n;
-    b.buntingShort.visible = intensity >= 0.45;
-    this.eggs(b);
-    const out = shown(b.walkers.length, intensity);
-    const ms = skyNow();
-    b.walkers.forEach((w, i) => {
-      w.root.visible = i < out;
-      if (i >= out) return;
-      const p = critterAt(w.c, ms);
+    const flowersShown = shown(built.total, intensity);
+    for (const w of built.waves) w.model.visible = w.from < flowersShown;
+    built.buntingShort.visible = intensity >= 0.45;
+    this.eggs(built);
+
+    const walkersShown = shown(built.walkers.length, intensity);
+    const nowMs = skyNow();
+    built.walkers.forEach((w, i) => {
+      w.root.visible = i < walkersShown;
+      if (i >= walkersShown) return;
+      const p = critterAt(w.c, nowMs);
       const [x, z] = this.toWorld(p.x, p.y);
       w.root.position.set(x, p.hop * HOP[w.c.kind], z);
       w.root.rotation.y = p.right ? Math.PI / 2 : -Math.PI / 2;
     });
-    const fol = followerNow(t * 1000);
-    b.follower.visible = fol !== null;
-    if (fol) {
-      const [x, z] = this.toWorld(fol.x, fol.y);
-      b.follower.position.set(x, fol.hop * HOP.chick, z);
-      b.follower.rotation.y = fol.right ? Math.PI / 2 : -Math.PI / 2;
+
+    const step = followerNow(t * 1000);
+    built.follower.visible = step !== null;
+    if (step) {
+      const [x, z] = this.toWorld(step.x, step.y);
+      built.follower.position.set(x, step.hop * HOP.chick, z);
+      built.follower.rotation.y = step.right ? Math.PI / 2 : -Math.PI / 2;
     }
   }
 
@@ -443,7 +460,7 @@ export class Paaske3d {
       for (const e of layout.eggs) {
         const m = eggModel(e.colour);
         m.userData.egg = true;
-        // Bigger than an egg: the town is seen from far off, and they are meant to be found.
+        // Scaled up: the town is seen from far off, and the eggs are meant to be found.
         m.scale.setScalar(1.6);
         const [x, z] = this.toWorld(e.x, e.y);
         m.position.set(x + (noise(e.x, e.y, 3) - 0.5) * 0.4, 0, z + (noise(e.x, e.y, 4) - 0.5) * 0.3);
@@ -464,10 +481,10 @@ export class Paaske3d {
     group.name = "paaske-scene";
     // Flowers, in waves of the order they come up.
     const flowers = flowerSpots(map);
-    const per = Math.ceil(flowers.length / WAVES);
+    const perWave = Math.ceil(flowers.length / WAVES);
     const waves: Built["waves"] = [];
-    for (let i = 0; i < flowers.length; i += per) {
-      const model = flowerWave(flowers.slice(i, i + per), toWorld);
+    for (let i = 0; i < flowers.length; i += perWave) {
+      const model = flowerWave(flowers.slice(i, i + perWave), toWorld);
       group.add(model);
       waves.push({ from: i, model });
     }
@@ -488,7 +505,7 @@ export class Paaske3d {
     mergeStill(props);
     // The waves merge too, in place (their parts are in world space).
     for (const w of waves) mergeStill(w.model);
-    // Bunting.
+    // The first two strings always show; the rest come in from intensity 0.45 (see `update`).
     const strings = buntingStrings(map).map((s: Bunting) => {
       const [ax, az] = toWorld(s.ax, s.ay);
       const [bx, bz] = toWorld(s.bx, s.by);

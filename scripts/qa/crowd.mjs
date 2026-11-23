@@ -10,7 +10,8 @@ const browser = await pw.chromium.launch({
 const tiers = (process.argv[2] ?? "high,low,medium,high,medium,low").split(",");
 const pages = [];
 for (const t of tiers) {
-  const p = await openGame(browser, await signUp("m"), t, { viewport: { width: 900, height: 600 } });
+  const user = await signUp("m");
+  const p = await openGame(browser, user, t, { viewport: { width: 900, height: 600 } });
   await ready(p);
   pages.push(p);
 }

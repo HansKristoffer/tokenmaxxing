@@ -433,12 +433,14 @@ export const characterFrame = cached(
     return bake(16, 16, (p) => {
       const merch = worn(look);
       const colours = coloursOf(look.merch);
+
       drawWardrobe(p, look, view, pose, "behind", pal.s!, flip);
       p.grid(BODIES[view][pose], pal, 0, 9, flip);
       if (look.outfit === 12 && !merch.top) p.grid(RACK[view], RACK_COLORS, 0, 9, flip);
       const loot = lootOutfit(look.outfit);
       if (loot && !merch.top) p.grid(loot.over[view], loot.pal, 0, 9, flip);
       if (!merch.top) drawWardrobe(p, look, view, pose, "body", pal.s!, flip);
+
       p.grid(HEADS[view][look.style] ?? HEADS[view][0]!, pal, 0, 0, flip);
       if (merch.top) drawTop(p, colours, view, merch.hoodie, flip);
       wearOn(p, faceArt(look.glasses), view, pal, 0, flip);
@@ -446,6 +448,7 @@ export const characterFrame = cached(
       if (merch.cap) p.grid(CAP[view], capPalette(colours), 0, 0, flip);
       else wearOn(p, hatArt(look.hat), view, pal, 0, flip);
       drawWardrobe(p, look, view, pose, "front", pal.s!, flip);
+
       // One right hand: a held item keeps it, as in 3D.
       if (merch.mug && !look.held) drawMug(p, colours, view, flip);
       drawEditions(p, look, view, flip);
@@ -488,9 +491,9 @@ export const itemFrame = cached(
     const w = slot === "hat" ? hatArt(i) : slot === "glasses" ? faceArt(i) : undefined;
     if (w) return bake(16, w.down.length, (p) => wearOn(p, { ...w, y: 0 }, "down", ON_THE_FLOOR));
     const loot = lootOutfit(i);
-    const [c, shade] = OUTFITS[i] ?? loot?.colors ?? OUTFITS[0]!;
+    const [c, outfitShade] = OUTFITS[i] ?? loot?.colors ?? OUTFITS[0]!;
     return bake(16, 4, (p) => {
-      p.grid(BODIES.down.stand.slice(0, 4), { o: C.ink, c, C: shade, ...wardrobePalette(i), p: C.ink });
+      p.grid(BODIES.down.stand.slice(0, 4), { o: C.ink, c, C: outfitShade, ...wardrobePalette(i), p: C.ink });
       if (i === 12) p.grid(RACK.down, RACK_COLORS);
       outfitMarks(p, i, "down", 0);
       if (loot) p.grid(loot.over.down.slice(0, 4), loot.pal);
@@ -520,5 +523,7 @@ export const sleeperFrame = cached(
 export function poseFor(state: PlayerState, walking: boolean, t: number): Pose {
   if (state === "sit" || state === "working") return "sit";
   if (!walking) return "stand";
+
+  // Each foot holds for 110 ms of the walk.
   return Math.floor(t / 110) % 2 === 0 ? "walkA" : "walkB";
 }

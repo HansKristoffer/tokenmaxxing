@@ -9,6 +9,7 @@ import { JULEMARKED_BASE } from "@tokenmaxxing/core/case-julemarked.ts";
 import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import {
+  armBand,
   BACK_BUILDERS,
   type BackBuilder,
   type BodyCtx,
@@ -32,12 +33,6 @@ const WOOD_DARK = "#7a4e2a";
 const WHITE = "#ffffff";
 const BLACK = "#2a2226";
 const BROWN = "#6b4a2e";
-
-/** A band of colour round an arm: a cuff, a stripe. */
-const armBand = (c: BodyCtx, color: string, y: number, h: number, pad = 0) =>
-  c.arms.forEach((arm) => {
-    new Vx(vpart(arm)).b(-1.22 - pad, y, -1.22 - pad, 2.44 + 2 * pad, h, 2.44 + 2 * pad, color);
-  });
 
 /** A ribbed cuff: a thick band with darker ribs standing proud of it. */
 function ribCuff(c: BodyCtx, color: string, rib: string, y: number, h: number): void {
@@ -150,14 +145,14 @@ const OUTFITS: Record<number, (c: BodyCtx) => void> = {
         px(g, CREAM, 15, 0, 27, 9);
         px(g, CREAM, 6, 9, 45, h - 9);
         px(g, CREAM_DARK, 9, 30, 39, 2);
-        for (const [x, y, w, hh] of [
+        for (const [x, y, w, rectH] of [
           [24, 14, 12, 3],
           [21, 17, 3, 9],
           [24, 26, 12, 3],
           [33, 17, 3, 6],
           [27, 20, 6, 3],
         ] as const)
-          px(g, "#8a4a26", x, y, w, hh);
+          px(g, "#8a4a26", x, y, w, rectH);
         for (const [x, y, s] of [
           [10, 4, 3],
           [44, 6, 3],
@@ -204,6 +199,7 @@ const OUTFITS: Record<number, (c: BodyCtx) => void> = {
     });
     // Flour, puffing up off the apron.
     const dust = Array.from({ length: 5 }, (_, i) => {
+      // `see(..., true)` builds a MeshBasicMaterial, so the cast to set its opacity is safe.
       const mat = see(WHITE, 0.6, true);
       return {
         mat: mat as THREE.MeshBasicMaterial,
@@ -422,8 +418,6 @@ const OUTFITS: Record<number, (c: BodyCtx) => void> = {
 for (const [n, build] of Object.entries(OUTFITS)) {
   OUTFIT_BUILDERS[JULEMARKED_BASE + Number(n)] = build;
 }
-
-// MARK: Back
 
 /** A pixel pattern as blocks, row 0 at the top, in two colours merged into one mesh each. */
 function pixels(

@@ -5,8 +5,8 @@
  *    from a level, and you pick which one you own to use (`users.desk`);
  *  - the company's fleet: a house-wide tier bought from the company wallet, one step at a time.
  * A personal room keeps its owner's setup; a company house shows the better of the sitter's setup and
- * the fleet (`effectiveDesk`). The art is in
- * `web/src/art/desks.ts`, by index into `DESKS`; an index nobody knows is the laptop.
+ * the fleet (`effectiveDesk`). The art is in `web/src/art/desks.ts`, by index into `DESKS`; an index nobody
+ * knows is the laptop.
  */
 export interface DeskSetup {
   id: string;

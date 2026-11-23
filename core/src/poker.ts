@@ -62,6 +62,7 @@ export function shuffle<T>(cards: T[], rnd: (n: number) => number = randomInt): 
   return cards;
 }
 
+// A score is a category digit over five base-13 rank digits: the ranks that decide a hand, most important first.
 const BASE = 13 ** 5;
 
 /** The high rank of the best straight in a set of ranks (a bitmask), the wheel (A to 5) being a five-high one; -1 for none. */

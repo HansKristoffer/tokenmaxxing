@@ -23,7 +23,7 @@ import {
   ring,
   see,
 } from "./gear3dHead.ts";
-import { isVox, place, squarePane } from "./voxgear.ts";
+import { isVox, place, roundAt, squarePane } from "./voxgear.ts";
 
 const FUR = "#9aa3ad";
 const FUR_LIGHT = "#cfd5db";
@@ -40,21 +40,10 @@ const EMBER = "#ff9a3c";
 const WOAD = "#3b6fb8";
 const FROST = "#cfe8f2";
 
-/** A point at angle `a` round a head: on a circle for smooth models, on the square band for blocky ones. */
-function roundAt(m: THREE.Object3D, a: number, r: number): [number, number] {
-  const x = Math.sin(a);
-  const z = Math.cos(a);
-  if (!isVox(m)) return [x * r, z * r];
-  const k = (r * 0.92) / Math.max(Math.abs(x), Math.abs(z));
-  return [x * k, z * k];
-}
-
 /** Cubes along a path, as [centre x, centre y, size]; each one hangs below its centre. */
 function path(m: Model, p: Paint, pts: [number, number, number][]): void {
   for (const [x, y, sz] of pts) m.box([sz, sz, sz], p, [x, y - sz / 2, 0], 0.004);
 }
-
-// MARK: Hats
 
 /**
  * A crown over the head: on a blocky head (which ignores a thin dome: its hair block pokes through) two stacked
@@ -189,14 +178,12 @@ function operaHorns(m: Model): void {
 }
 
 Object.assign(HAT_BUILDERS, {
-  "Fur hood": (m: Model) => furHood(m),
-  "Nasal helm": (m: Model) => nasalHelm(m),
-  "Beaded braids": (m: Model, c: Ctx) => beadedBraids(m, c),
-  "Opera horns": (m: Model) => operaHorns(m),
+  "Fur hood": furHood,
+  "Nasal helm": nasalHelm,
+  "Beaded braids": beadedBraids,
+  "Opera horns": operaHorns,
 });
 for (const n of ["Fur hood", "Nasal helm", "Opera horns"]) COVERS_HAIR.add(n);
-
-// MARK: Glasses
 
 /** A round lens (a square pane on a blocky face) in a rim. */
 function roundLens(e: Model, frame: string, glass: string, r = 0.062, opacity = 0.5): THREE.Mesh {
@@ -292,7 +279,7 @@ Object.assign(FACE_BUILDERS, {
       const fall = (t * 0.5) % 1;
       drops.position.y = -0.1 - fall * 0.05;
       drops.scale.setScalar(1 - fall);
-      (lens.material as THREE.MeshBasicMaterial).opacity = 0.34 + Math.sin(t * 2) * 0.06;
+      (lens.material as THREE.Material).opacity = 0.34 + Math.sin(t * 2) * 0.06;
     });
   },
 });

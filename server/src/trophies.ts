@@ -118,13 +118,11 @@ export async function backfillTrophies(
 ): Promise<void> {
   if (await trophiesReady(sql)) return;
 
-  // The defaults cover a fresh backfill: its table has no row until the first step writes one.
-  const [{ last } = { last: 0 }] = (await sql.execute("SELECT last_id AS last FROM trophy_backfill")) as {
-    last: number;
-  }[];
-  const [{ max } = { max: 0 }] = (await sql.execute("SELECT COALESCE(MAX(id), 0) AS max FROM events")) as {
-    max: number;
-  }[];
+  // A fresh backfill has no row in `trophy_backfill` until its first step writes one.
+  const [progress] = (await sql.execute("SELECT last_id AS last FROM trophy_backfill")) as { last: number }[];
+  const [newest] = (await sql.execute("SELECT COALESCE(MAX(id), 0) AS max FROM events")) as { max: number }[];
+  const last = progress?.last ?? 0;
+  const max = newest?.max ?? 0;
 
   for (let from = last; from < max; from += BACKFILL_IDS) {
     signal?.throwIfAborted();

@@ -268,7 +268,7 @@ export function duck(variant: string): { rig: Rig; body: Model; fore: Model } {
   tail.position.set(0, U(cy + 0.3 * k), U(-7 * k));
   body.add(tail);
   const feet: THREE.Mesh[] = [];
-  if (!s.ghost)
+  if (!s.ghost) {
     for (const sd of SIDES) {
       const fg = new Grid();
       const fw = Math.max(1, Math.round(1.5 * k));
@@ -281,7 +281,7 @@ export function duck(variant: string): { rig: Rig; body: Model; fore: Model } {
       sg.box(0, 0, 0, Math.round(cy - 1), 0, 0, s.feet);
       put(body, sg, [sd * 3.2 * k, 1, 1.5 * k], [0, 0, 0], 5);
     }
-  else {
+  } else {
     // A ghost has no feet: a wavy hem.
     const hem = new Grid();
     for (let i = 0; i < 8; i++) {
@@ -303,15 +303,16 @@ export function duck(variant: string): { rig: Rig; body: Model; fore: Model } {
     float: s.ghost ? 0.1 : undefined,
     span: U(15.5 * k),
   };
-  if (variant === "ghost")
+  if (variant === "ghost") {
     rig.fx = (t) => {
       head.rotation.z = Math.sin(t * 2) * 0.05;
     };
-  else
+  } else {
     rig.fx = (t, moving) => {
       // A little beak-dip every so often, and a waddle of the head when it walks.
       head.rotation.z = moving ? Math.sin(t * 12) * 0.08 : Math.sin(t * 1.1) * 0.02;
     };
+  }
   return { rig, body, fore };
 }
 
@@ -473,7 +474,7 @@ export function dragon(variant: string): { rig: Rig; body: Model; fore: Model } 
   // Legs.
   const fores: THREE.Mesh[] = [];
   const hinds: THREE.Mesh[] = [];
-  for (const sd of SIDES)
+  for (const sd of SIDES) {
     for (const [parent, list, z0] of [
       [body, hinds, 0],
       [fore, fores, zF],
@@ -489,6 +490,7 @@ export function dragon(variant: string): { rig: Rig; body: Model; fore: Model } 
       const m = put(parent, lg, [sd * 4.2 * k, 0.5, z0], [0, 0.5, 0], 7);
       list.push(m);
     }
+  }
 
   // Wings: arm, three finger bones and a membrane.
   const wings: THREE.Object3D[] = [];
@@ -510,10 +512,13 @@ export function dragon(variant: string): { rig: Rig; body: Model; fore: Model } 
     }
     return c;
   };
-  for (let x = 0; x <= 16 * k; x++)
-    for (let z = -14 * k; z <= 1; z++)
-      if (inside(x, z) && (!bone || hash(x, 0, z, 9) < 0.5))
+  for (let x = 0; x <= 16 * k; x++) {
+    for (let z = -14 * k; z <= 1; z++) {
+      if (inside(x, z) && (!bone || hash(x, 0, z, 9) < 0.5)) {
         wg.set(x, 0, z, mixed(d.w, lighten(d.w, 0.18), { x, y: 0, z }, 3, 0.3));
+      }
+    }
+  }
   wg.tube(
     [
       [0, 0.5, 0],
@@ -971,13 +976,14 @@ export function orb(): { rig: Rig; body: Model; fore: Model } {
       const t = (a / 90) * Math.PI * 2;
       const x = Math.round(Math.cos(t) * r);
       const z = Math.round(Math.sin(t) * r);
-      for (let j = 0; j < th; j++)
+      for (let j = 0; j < th; j++) {
         rg.set(
           x,
           y + j,
           z,
           hash(x, 0, z, soft) < 0.2 ? lighten(col.replace("*", ""), 0.25).replace("#", "*#") : col,
         );
+      }
     }
   };
   ringTone(10, 0, "*#9b6fd6", 2);

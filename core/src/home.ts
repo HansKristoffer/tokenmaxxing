@@ -2,7 +2,7 @@
  * Furniture for personal offices only: plants, a keyboard in a glass case, a whiteboard and the like.
  * Bought from the shop with coins like the rest of `FURNITURE`, but only ever put down in your own
  * office (`canDropIn`), never in the company building, and purely cosmetic: nothing here earns, buffs
- * or rewards anything. Each is one map character (Danish letters: nothing else uses them), `art` its
+ * or rewards anything. Each is one map character, unique across the pieces, `art` its
  * sprite in `web/src/art/furniture-home.ts`, `text` the line E shows. The ones flagged `wall` hang on
  * the office's top wall (`canHang`), like posters do in the building.
  */

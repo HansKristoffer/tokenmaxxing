@@ -54,7 +54,7 @@ export function drawPumpkins(f: Frame): void {
 export function lightPumpkins(g: CanvasRenderingContext2D, strength: number, now: number): void {
   lightSpooky(g, strength, now);
   if (!candlesLit(now)) return;
-  for (const [i, { x, y, big }] of pumpkinsNow().entries())
+  for (const [i, { x, y, big }] of pumpkinsNow().entries()) {
     drawGlow(
       g,
       x * TILE + TILE / 2,
@@ -63,4 +63,5 @@ export function lightPumpkins(g: CanvasRenderingContext2D, strength: number, now
       "255,150,40",
       strength * 0.75 * flicker(now, i),
     );
+  }
 }

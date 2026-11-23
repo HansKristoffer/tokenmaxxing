@@ -86,14 +86,19 @@ export const OFFICE_LEVEL = 10;
 /** Every piece an office can hold: the shop's, then the raid's trophies (`loot.ts`), never sold. */
 export const PIECES: readonly Piece[] = [...FURNITURE, ...TROPHIES];
 
+// The first piece with a character wins; a later one with the same character is ignored.
 const BY_CH = new Map<string, Piece>();
-for (const f of [...PIECES, ...COMPANY_FURNITURE, ...HOME_PIECES, ...ALL_CASE_PIECES])
+for (const f of [...PIECES, ...COMPANY_FURNITURE, ...HOME_PIECES, ...ALL_CASE_PIECES]) {
   if (!BY_CH.has(f.ch)) BY_CH.set(f.ch, f);
+}
 
 export const pieceOf = (ch: unknown): Piece | undefined =>
   typeof ch === "string" ? BY_CH.get(ch) : undefined;
 
-/** How far a piece is turned, in quarter turns clockwise seen from above: 0 as it comes, 1 faces left, 2 away, 3 right. */
+/**
+ * How far a piece is turned, in quarter turns clockwise seen from above: 0 as it comes, 1 faces left, 2 away,
+ * 3 right.
+ */
 export type Rot = 0 | 1 | 2 | 3;
 
 /** `n` as a `Rot` (whole quarter turns, any number, so 4 is 0 and -1 is 3); anything else is 0. */
@@ -103,7 +108,7 @@ export const rotOf = (n: unknown): Rot =>
 /** Whether a piece turned `rot` lies down a column, not along a row. */
 export const sideways = (rot?: number): boolean => rot === 1 || rot === 3;
 
-/** The tiles a `w`-tile piece anchored (top-left) at (x, y) covers when turned `rot`: along its row, or down its column. */
+/** The tiles a `w`-tile piece anchored (top-left) at (x, y) covers when turned `rot`: along its row or down its column. */
 export const tilesOf = (x: number, y: number, w: number, rot?: number): [number, number][] =>
   Array.from({ length: w }, (_, i): [number, number] => (sideways(rot) ? [x, y + i] : [x + i, y]));
 
@@ -123,7 +128,7 @@ export interface Turn {
   rot: Rot;
 }
 
-/** Each tile of a turned piece in a map `withPieces` made, to that piece's `Turn`. The letters are the same either way. */
+/** Each tile of a turned piece in a map that `withPieces` made, mapped to that piece's `Turn`. The map's letters stay the same. */
 const TURNED = new WeakMap<GameMap, ReadonlyMap<string, Turn>>();
 
 /** The turned piece on (x, y), if there is one: the renderers draw it turned about the middle of its footprint. */

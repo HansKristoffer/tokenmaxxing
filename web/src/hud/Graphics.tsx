@@ -1,4 +1,4 @@
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useSyncExternalStore } from "react";
 import { perf } from "../game/stage.ts";
 import { gpuName } from "../settings/detect.ts";
 import {
@@ -12,7 +12,7 @@ import {
   TIERS,
   type TierChoice,
 } from "../settings/graphics.ts";
-import { Modal, Pills, useFresh } from "./ui.tsx";
+import { Modal, Pills, useFresh, useTicker } from "./ui.tsx";
 
 function useGraphics<T>(select: (s: GraphicsState) => T): T {
   return useSyncExternalStore(graphics.subscribe, () => select(graphics.get()));
@@ -160,12 +160,7 @@ export function GraphicsPanel() {
 /** A small FPS and frame-time readout, when the meter is on. */
 export function FpsMeter() {
   const on = useGraphics((s) => s.meter);
-  const [, tick] = useState(0);
-  useEffect(() => {
-    if (!on) return;
-    const id = setInterval(() => tick((n) => n + 1), 500);
-    return () => clearInterval(id);
-  }, [on]);
+  useTicker(500, on);
   if (!on) return null;
   return (
     <div className="panel fps-meter" aria-hidden="true">

@@ -122,7 +122,7 @@ interface Score {
   drums: Map<number, "k" | "s" | "h">;
 }
 
-const byStep = (list: Note[]) => new Map(list.map((n) => [n.step, n]));
+export const byStep = (list: Note[]) => new Map(list.map((n) => [n.step, n]));
 
 function scoreOf(tune: Tune): Score {
   return {

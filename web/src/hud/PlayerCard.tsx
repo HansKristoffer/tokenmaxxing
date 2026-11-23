@@ -110,6 +110,7 @@ export function PlayerCard({ userId }: { userId: number }) {
   // What the next levels bring, on hover of the "Lv7 in …" line.
   const rewardText = reward ? `Reward at Lv${reward.level}: ${reward.name}` : "";
   const milestoneLine = next ? `Lv${next.level} milestone: ${milestoneText(next)}` : "";
+  const hoverText = [rewardText, milestoneLine].filter(Boolean).join("\n") || undefined;
 
   const visit = () => {
     hud.set({ panel: null });
@@ -153,7 +154,7 @@ export function PlayerCard({ userId }: { userId: number }) {
                 color={PRESTIGE_TRACKS[pres.rank - 1]?.colors.main}
               />
               <p className="card-xp muted small">
-                <span title={[rewardText, milestoneLine].filter(Boolean).join("\n") || undefined}>
+                <span title={hoverText}>
                   {atMax
                     ? "Max level"
                     : `Lv${shownLevel + 1} in ${compact(barStart + barSpan - p.lifetimeTokens)} tokens`}
@@ -182,7 +183,7 @@ export function PlayerCard({ userId }: { userId: number }) {
               </p>
             </div>
           </div>
-          <Bio userId={userId} bio={p.bio ?? null} mine={mine} />
+          <Bio userId={userId} initialBio={p.bio ?? null} mine={mine} />
           <Badges badges={p.badges} />
           <Tickets tickets={p.tickets} />
           {picking ? (
@@ -285,8 +286,9 @@ function Badges({ badges }: { badges: Profile["badges"] }) {
 }
 
 /** The line under the name: their words, with Edit on my own card and Report on someone else's. */
-function Bio({ userId, bio, mine }: { userId: number; bio: string | null; mine: boolean }) {
-  const [text, setText] = useState(bio);
+function Bio({ userId, initialBio, mine }: { userId: number; initialBio: string | null; mine: boolean }) {
+  // The bio as the card loaded it, then as I last saved it: the card's own load does not reset it.
+  const [text, setText] = useState(initialBio);
   const [draft, setDraft] = useState<string | null>(null);
   const [said, setSaid] = useState<string | null>(null);
   const { error, busy, run } = useRun();

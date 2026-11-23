@@ -26,7 +26,10 @@ const COS_EL = Math.cos(ELEVATION);
 const DISTANCE = 60;
 const ZOOM_STEP = 0.8;
 const MIN_VIEW = 3.5;
-/** The player stands this far (of the free height) below its middle: what lies ahead, up the screen, is what you need to see. */
+/**
+ * The player stands this far (of the free height) below its middle: what lies ahead, up the screen, is what you
+ * need to see.
+ */
 const LOW_BIAS = 0.14;
 const ZOOM_KEY = "tokenmaxxing.zoom3d";
 
@@ -87,7 +90,10 @@ export class CameraRig {
   private followed: [number, number] = [0, 0];
   private framing: Framing = { view: 10, bounds: { minX: 0, maxX: 10, minZ: 0, maxZ: 10, height: 2.6 } };
   private aspect = 1.6;
-  /** The part of the screen the HUD leaves free (fractions of the width and height) and its centre's offset from the screen's, in half-screens. */
+  /**
+   * The part of the screen the HUD leaves free (fractions of the width and height) and its centre's offset from
+   * the screen's, in half-screens.
+   */
   private free = { fx: 1, fy: 1, cx: 0, cy: 0 };
   private freeTo = { fx: 1, fy: 1, cx: 0, cy: 0 };
   private placed = false;
@@ -161,7 +167,9 @@ export class CameraRig {
     const r = -dx * per;
     const a = (dy * per) / SIN_EL;
     const [x, z] = this.followed;
-    const [cx, cz] = this.clamp(x + this.pan[0] + rx * r + ax * a, z + this.pan[1] + rz * r + az * a);
+    const wantX = x + this.pan[0] + rx * r + ax * a;
+    const wantZ = z + this.pan[1] + rz * r + az * a;
+    const [cx, cz] = this.clamp(wantX, wantZ);
     this.pan = [cx - x, cz - z];
   }
 
@@ -185,7 +193,8 @@ export class CameraRig {
    */
   update(dtMs: number, x: number, z: number, snap = false): void {
     const jump = snap || !this.placed;
-    // Each ease covers 63% of a change per this many ms (`approach`'s time constant), so a larger number is slower.
+    // Each ease covers 63% of a change per this many ms (`approach`'s time constant), so a larger number is
+    // slower.
     const tau = jump ? 0 : dtMs;
 
     // The turn: the shown azimuth takes the short way to the nearest equivalent of the target.
@@ -248,7 +257,8 @@ export class CameraRig {
     );
     c.lookAt(t);
     const half = this.viewShown / 2;
-    // The HUD's free area is not the screen's middle: slide the window so the look-at point lands in its middle.
+    // The HUD's free area is not the screen's middle: slide the window so the look-at point lands in its
+    // middle.
     const sx = -this.free.cx * half * this.aspect;
     const sy = (this.free.cy + LOW_BIAS * this.free.fy) * half;
     c.left = -half * this.aspect + sx;

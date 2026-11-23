@@ -79,7 +79,7 @@ export const stairs = cached(
       p.rect(0, 0, 2, TILE, C.woodDark);
       p.rect(TILE - 2, 0, 2, TILE, C.woodDark);
       for (let i = 0; i < 5; i++) {
-        // Down: the steps get darker and shorter going toward the bottom of the tile; up: the reverse.
+        // Both fade toward the bottom of the tile. Going down, the fade is steeper.
         const row = down ? i : 4 - i;
         const y = 2 + i * 3;
         const shade = down ? 0.9 - row * 0.17 : 0.45 + row * 0.12;

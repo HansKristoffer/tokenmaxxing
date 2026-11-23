@@ -70,7 +70,7 @@ export function ghostAt(h: Haunt, t: number): { x: number; y: number; lift: numb
   };
 }
 
-/** The bats' roosts (tile centres they circle: the Tavern's roof, the windmill, the graveyard and Gerda's lawn). */
+/** The bats' roosts: the tile centres they circle (the Tavern's roof, the windmill, the graveyard and Gerda's lawn). */
 const ROOSTS: readonly (readonly [number, number])[] = [
   [13.5, 2.5],
   [18.9, 5],
@@ -96,7 +96,10 @@ export function batAt(i: number, t: number): { x: number; y: number; h: number; 
   };
 }
 
-/** Sweets scattered about the pumpkin patch and under the cauldron: tile coordinates (with a fraction) and a colour 0..3. */
+/**
+ * Sweets scattered about the pumpkin patch and under the cauldron: tile coordinates (with a fraction) and a
+ * colour 0..3.
+ */
 export const CANDY_SPOTS: readonly { x: number; y: number; c: number }[] = [
   ...PATCH.flatMap(([x, y], k) => [
     { x: x + 0.15, y: y + 0.82, c: k % 4 },
@@ -119,16 +122,19 @@ export const TREAT_CANDY: Record<Treat, number> = { candy: 1, big: 3, trick: 0, 
 
 const hashOf = (s: string): number => [...s].reduce((n, c) => (Math.imul(n, 31) + c.charCodeAt(0)) >>> 0, 7);
 
-/** The door's key in storage and in the hash: its tile. */
-export const doorKey = (door: readonly [number, number]): string => `${door[0]},${door[1]}`;
-
 /** The world day (Copenhagen) `ms` is in, as `2026-10-31`. */
 export function dayKey(ms: number): string {
   const { y, m, d } = worldWall(ms);
   return `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
 }
 
-/** Deterministic: the same door on the same day gives the same thing to everyone. 55% candy, 15% a handful, 20% a trick, 10% nobody. */
+/** The door's key in storage and in the hash: its tile. */
+export const doorKey = (door: readonly [number, number]): string => `${door[0]},${door[1]}`;
+
+/**
+ * Deterministic: the same door on the same day gives the same thing to everyone. 55% candy, 15% a handful,
+ * 20% a trick, 10% nobody.
+ */
 export function treatAt(door: string, day: string): Treat {
   const roll = hashOf(`${day}|${door}`) % 100;
   if (roll < 55) return "candy";

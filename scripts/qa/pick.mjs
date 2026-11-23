@@ -8,7 +8,8 @@ const browser = await pw.chromium.launch({
   args: ["--use-angle=metal", "--ignore-gpu-blocklist"],
 });
 const tier = process.argv[2] ?? "medium";
-const page = await openGame(browser, await signUp("p"), tier);
+const user = await signUp("p");
+const page = await openGame(browser, user, tier);
 await ready(page);
 async function sample(label) {
   const r = await page.evaluate(() => {

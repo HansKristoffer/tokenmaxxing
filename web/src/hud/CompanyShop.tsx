@@ -12,6 +12,9 @@ import { Modal, useRun } from "./ui.tsx";
 
 type Act = (fn: () => Promise<{ notice: string }>) => () => Promise<void>;
 
+/** A stored piece's id is `furn.` and its glyph, which is what its picture is drawn from. */
+const glyphOf = (item: string) => item.slice("furn.".length);
+
 function Catalogue({
   pieces,
   wallet,
@@ -76,7 +79,7 @@ export function CompanyOrder() {
         <ul className="shop">
           {co.stored.map((s) => (
             <li key={s.item}>
-              <PieceImage ch={s.item.slice(5)} />
+              <PieceImage ch={glyphOf(s.item)} />
               <span className="shop-item-name">
                 {itemById(s.item)?.name}
                 {s.count > 1 && <span className="muted"> ×{s.count}</span>}
@@ -146,7 +149,7 @@ export function CompanyShop() {
           <ul className="shop">
             {co.stored.map((s) => (
               <li key={s.item}>
-                <PieceImage ch={s.item.slice(5)} />
+                <PieceImage ch={glyphOf(s.item)} />
                 <span>
                   {itemById(s.item)?.name}
                   {s.count > 1 && <span className="muted"> ×{s.count}</span>}

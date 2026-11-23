@@ -1,7 +1,7 @@
 /**
  * The app icon, in pixel art on a 32×32 grid: a tiny round world with a house and a tree, and a lightning
- * bolt striking past it, on a night sky in the macOS rounded square (Apple's 824/1024 grid). Every size is
- * drawn from the grid with whole pixels, so it stays crisp. Writes the Mac app's icons (src-tauri/icons)
+ * bolt striking past it, on a night sky in the macOS rounded square, close to Apple's 824 of 1024 live area. Every size
+ * is drawn from the grid with whole pixels, so it stays crisp. Writes the Mac app's icons (src-tauri/icons)
  * and the website's (site/public).
  *
  *   bun app/desktop/scripts/icon.ts
@@ -221,11 +221,14 @@ function svg(grid: Grid): string {
       x = end;
     }
   });
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${N} ${N}" shape-rendering="crispEdges"><title>Tokenmaxxing</title>${rects.join("")}</svg>\n`;
+  const body = rects.join("");
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${N} ${N}" shape-rendering="crispEdges"><title>Tokenmaxxing</title>${body}</svg>\n`;
 }
 
 const grid = draw();
-const write = (path: string, size: number) => writeFileSync(join(ROOT, path), png(pixels(grid, size), size));
+const write = (path: string, size: number) => {
+  writeFileSync(join(ROOT, path), png(pixels(grid, size), size));
+};
 
 const icons = "app/desktop/src-tauri/icons";
 write(`${icons}/32x32.png`, 32);

@@ -1,13 +1,14 @@
 import { COSTUME_BASE } from "@tokenmaxxing/core/costumes.ts";
 import type { Facing, Look } from "@tokenmaxxing/core/world.ts";
 import { characterFrame } from "./characters.ts";
+import type { NpcSprite } from "./festive-npc.ts";
 import { C } from "./palette.ts";
 import { bake, cached, once } from "./pixels.ts";
 
 /**
  * Nytårsaften's 2D art (`game/nytar.ts` draws it): the Nytårsur, the buffet table with its kransekage tower and
- * champagne, the jumping chair, balloons, and the night watchman. All baked once from code; the clock's hands and the
- * garland's bulbs are drawn live over them.
+ * champagne, the jumping chair, balloons, and the night watchman. All baked once from code; the clock's hands
+ * and the garland's bulbs are drawn live over them.
  */
 
 const NAVY = "#26356b";
@@ -156,7 +157,7 @@ export const chairSprite = once(() =>
   }),
 );
 
-export const BALLOON_PX = { w: 16, h: 30 } as const;
+const BALLOON_PX = { w: 16, h: 30 } as const;
 const BALLOON_COLOURS = [
   ["#f4c95d", "#c9971f"],
   ["#ff5d73", "#c93a52"],
@@ -221,7 +222,7 @@ const LANTERN = [
 const MOUSTACHE = { down: ["......mmmm......", ".....m....m....."], side: ["........mmmm...."] };
 
 /** Nattevagt Niels, standing, 16 x 20 with his feet at the bottom: the midnight top hat, a lantern, a scarf. */
-export const watchmanSprite = cached(
+export const nytarNpcSprite: NpcSprite = cached(
   (facing: Facing, breath: 0 | 1) => `${facing}:${breath}`,
   (facing: Facing, breath: 0 | 1) =>
     bake(16, 20, (p) => {
@@ -236,7 +237,3 @@ export const watchmanSprite = cached(
       p.grid(LANTERN, { o: C.ink, y: "#ffe08a", Y: "#ffb43a" }, facing === "left" ? 1 : 12, 14 + breath);
     }),
 );
-
-/** The registry entry (`NPC_SPRITES.nytar`). */
-export const nytarNpcSprite = (facing: Facing, breath: 0 | 1): HTMLCanvasElement =>
-  watchmanSprite(facing, breath);

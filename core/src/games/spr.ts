@@ -153,7 +153,8 @@ export const spr: GameDef<SprState, SprView> = {
     const r = after.rounds.at(-1)!;
     if (r.winner === null) return [{ player: null, text: "🤝 Draw" }];
     const mine = r.picks[r.winner]!;
-    const theirs = r.picks[after.players.find((p) => p !== r.winner)!];
+    const loser = after.players.find((p) => p !== r.winner)!;
+    const theirs = r.picks[loser];
     return [
       {
         player: r.winner,

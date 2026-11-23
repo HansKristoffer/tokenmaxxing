@@ -203,6 +203,7 @@ const sigil = (p: Pen, f: number): void => {
     const a = (d / 4) * TAU - turn * 2 + 0.4;
     p.px(Math.round(CX + Math.cos(a) * 10), Math.round(CY + Math.sin(a) * 10), FAINT);
   }
+
   // The orbit: a thin tilted ellipse, and the tokens on it.
   const tilt = -0.42;
   const at = (a: number): [number, number, number] => {
@@ -219,9 +220,11 @@ const sigil = (p: Pen, f: number): void => {
     if (i % 2 === 0) p.px(x, y, z < 0 ? "rgba(34, 211, 238, 0.3)" : "rgba(140, 240, 255, 0.6)");
   }
   const tokens = [0, 1, 2].map((i) => at((k / 3 + i / 3) * TAU));
+
   // Far tokens first, near ones over them.
   for (const [x, y] of tokens.filter((t) => t[2] < 0)) coin(p, x, y, false);
   for (const [x, y] of tokens.filter((t) => t[2] >= 0)) coin(p, x, y, true);
+
   // Starlight in the corners.
   const spots: [number, number][] = [
     [3, 4],

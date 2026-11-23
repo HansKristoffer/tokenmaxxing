@@ -1,4 +1,7 @@
-/** Just enough of a browser for the kit's painted textures to be "built" without one (tests, `scripts/perf/counts.ts`). */
+/**
+ * Just enough of a browser for the kit's painted textures to be "built" without one (tests and
+ * `scripts/perf/counts.ts`).
+ */
 export function installHeadlessGlobals(): void {
   const ctx = new Proxy(
     {},

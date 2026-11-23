@@ -9,6 +9,12 @@ import { Model } from "../kit/kit.ts";
 import { type Built, DARK, GLINT, joint, put, SIDES, speckle, U } from "./pets3d-night.ts";
 import { eye, Grid, hash, slab } from "./petvox.ts";
 
+/** Paints the front-most cell of the column at (x, y) of `g` (a mark on a face), if the column has one. */
+function paintFront(g: Grid, x: number, y: number, color: string): void {
+  const z = g.front(x, y);
+  if (z !== undefined) g.set(x, y, z, color);
+}
+
 // MARK: Axolotl
 
 /**
@@ -63,16 +69,12 @@ export function axolotl(): Built {
   const head = joint(body, [0, 4.6, 6]);
   const hg = new Grid();
   hg.ell(0, 0, 0, 5, 3.1, 4.2, (c) => (c.y < -1.5 ? BELLY : speckle(c, PINK, PINK_LIGHT, 6, 0.25)), 2.3);
-  const paintFront = (x: number, y: number, color: string) => {
-    const z = hg.front(x, y);
-    if (z !== undefined) hg.set(x, y, z, color);
-  };
-  for (let x = -4; x <= 4; x++) paintFront(x, -2 + Math.floor(Math.abs(x) / 2), MOUTH);
+  for (let x = -4; x <= 4; x++) paintFront(hg, x, -2 + Math.floor(Math.abs(x) / 2), MOUTH);
   for (const s of SIDES) {
-    paintFront(s * 4, 0, BLUSH);
-    paintFront(s * 3, 0, BLUSH);
-    paintFront(s * 4, -1, BLUSH);
-    paintFront(s * 1, 1, "#d9648f");
+    paintFront(hg, s * 4, 0, BLUSH);
+    paintFront(hg, s * 3, 0, BLUSH);
+    paintFront(hg, s * 4, -1, BLUSH);
+    paintFront(hg, s * 1, 1, "#d9648f");
   }
   put(head, hg, [0, 0, 0], 2);
   const eyes: THREE.Mesh[] = [];
@@ -200,18 +202,15 @@ export function kraken(): Built {
     return speckle(c, VIOLET, VIOLET_LIGHT, 5, 0.25);
   });
   for (const s of SIDES) hg.ell(s * 6.4, 2.5, -1, 1.4, 2.4, 1.8, VIOLET_LIGHT);
-  const paintFront = (x: number, y: number, color: string) => {
-    const z = hg.front(x, y);
-    if (z !== undefined) hg.set(x, y, z, color);
-  };
   // Brows that slope down to the middle, a flat grin and two fangs.
-  for (const s of SIDES)
+  for (const s of SIDES) {
     for (let i = 0; i <= 4; i++) {
       const y = Math.round(3.4 + i * 0.55);
-      paintFront(s * (1 + i), y, INK);
+      paintFront(hg, s * (1 + i), y, INK);
     }
-  for (let x = -3; x <= 3; x++) paintFront(x, Math.abs(x) > 1 ? -2 : -3, INK);
-  for (const s of SIDES) paintFront(s, -4, "#ffffff");
+  }
+  for (let x = -3; x <= 3; x++) paintFront(hg, x, Math.abs(x) > 1 ? -2 : -3, INK);
+  for (const s of SIDES) paintFront(hg, s, -4, "#ffffff");
   put(head, hg, [0, 0, 0], 2);
   const eyes: THREE.Mesh[] = [];
   for (const s of SIDES) {

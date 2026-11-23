@@ -15,26 +15,33 @@ interface Row {
   level?: number;
 }
 
+/** The server's row for an id core knows, or undefined when core has no such id. */
 function truth(id: string): Row | undefined {
   const decor = /^decor\.(wall|floor)\.(.+)$/.exec(id);
   if (decor) {
-    const d = DECORS[decor[1] as "wall" | "floor"].find((x) => x.id === decor[2]);
-    return d && { id, name: d.name, price: d.price, level: d.level };
+    const [, kind, decorId] = decor;
+    const found = DECORS[kind as "wall" | "floor"].find((decorRow) => decorRow.id === decorId);
+    return found && { id, name: found.name, price: found.price, level: found.level };
   }
+
   if (id.startsWith("desk.")) {
-    const d = DESKS.find((x) => `desk.${x.id}` === id);
-    return d && { id, name: d.name, price: d.price, level: d.level };
+    const desk = DESKS.find((deskRow) => `desk.${deskRow.id}` === id);
+    return desk && { id, name: desk.name, price: desk.price, level: desk.level };
   }
+
   return itemById(id);
 }
 
+/** Takes name, price and level from core for every row core knows, and leaves the other rows as written. */
 export function fromCore<T extends Row>(rows: readonly T[]): T[] {
-  return rows.map((r) => {
-    const t = truth(r.id);
-    if (!t) return r;
-    const out = { ...r, name: t.name, price: t.price };
-    if (t.level === undefined) delete out.level;
-    else out.level = t.level;
-    return out;
+  return rows.map((row) => {
+    const core = truth(row.id);
+    if (!core) return row;
+
+    const merged = { ...row, name: core.name, price: core.price };
+    if (core.level === undefined) delete merged.level;
+    else merged.level = core.level;
+
+    return merged;
   });
 }

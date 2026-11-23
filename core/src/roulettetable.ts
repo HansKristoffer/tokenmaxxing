@@ -1,7 +1,10 @@
 import { type GameMap, MAPS, tileBounds } from "./maps.ts";
 import { SPOTS } from "./roulette.ts";
 
-/** The roulette table in the Tavern's basement net cafe: a block of `♦`, and the `♥` spots below it where players stand. */
+/**
+ * The roulette table in the Tavern's basement net cafe: a block of `♦`, and the `♥` spots around it where
+ * players stand.
+ */
 export const ROULETTE_TABLE_CHAR = "♦";
 export const ROULETTE_SPOT_CHAR = "♥";
 
@@ -10,7 +13,10 @@ export function rouletteTable(map: GameMap = MAPS.basement) {
   return tileBounds(map.find(ROULETTE_TABLE_CHAR));
 }
 
-/** The spots, left to right, the one above the table before the one below it in each column: spot `i` of a `RouletteSeat` is `[i]`. */
+/**
+ * The spots, left to right, the one above the table before the one below it in each column. Spot `i` of a
+ * `RouletteSeat` is `[i]`.
+ */
 export function rouletteSpots(map: GameMap = MAPS.basement): [number, number][] {
   return map
     .find(ROULETTE_SPOT_CHAR)

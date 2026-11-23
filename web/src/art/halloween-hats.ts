@@ -2,9 +2,9 @@ import type { Art } from "./editions.ts";
 import { C } from "./palette.ts";
 
 /**
- * Halloween's hats in 2D (`core/src/costumes.ts`, hat.230 to hat.233), keyed by item id and spread into the costume table
- * in `editions.ts`. Same grids as the rest: 16 wide, drawn over the head from row 0. The 3D ones are
- * `render3d/people/halloween-hats.ts`.
+ * Halloween's hats in 2D (`core/src/costumes.ts`, hat.230 to hat.233), keyed by item id and spread into the
+ * costume table in `editions.ts`. Same grids as the rest: 16 wide, drawn over the head from row 0. The 3D ones
+ * are `render3d/people/halloween-hats.ts`.
  */
 const o = C.ink;
 

@@ -8,12 +8,15 @@ const browser = await pw.chromium.launch({
   args: ["--use-angle=metal", "--ignore-gpu-blocklist"],
 });
 const tier = process.argv[2] ?? "medium";
-const page = await openGame(browser, await signUp("k"), tier);
+const user = await signUp("k");
+const page = await openGame(browser, user, tier);
 await ready(page);
 const pos = () =>
   page.evaluate(() => {
     const m = window.__tm.self();
     const h = window.__tm.hud.get();
+    const focused = document.activeElement;
+    const focusedClass = (focused?.className ?? "").toString().slice(0, 20);
     return {
       x: m.x,
       y: m.y,
@@ -21,7 +24,7 @@ const pos = () =>
       st: m.state,
       panel: h.panel?.kind ?? null,
       dialog: h.dialog,
-      active: `${document.activeElement?.tagName}.${(document.activeElement?.className ?? "").toString().slice(0, 20)}`,
+      active: `${focused?.tagName}.${focusedClass}`,
     };
   });
 console.log("start", JSON.stringify(await pos()));
@@ -48,7 +51,7 @@ for (const k of ["q", "r", "+", "-", "0"]) {
   await page.waitForTimeout(250);
 }
 console.log("rot/zoom keys ok", JSON.stringify(await pos()), page.errors);
-// Mention / emoji button? chat focus + send
+// Send a chat line from the keyboard, then look for the bubble it leaves.
 await page.keyboard.press("Enter");
 await page.keyboard.type("hello");
 await page.keyboard.press("Enter");

@@ -81,11 +81,10 @@ export const hype: GameDef<HypeState, HypeView> = {
   setup(players, seed, _options, now) {
     const rng = random(seed);
     const rounds = Array.from({ length: ROUNDS }, (_, i) => {
-      const roundSeed = Array.from({ length: 4 }, () =>
-        Math.floor(rng() * 2 ** 32)
-          .toString(16)
-          .padStart(8, "0"),
-      ).join("");
+      const roundSeed = Array.from({ length: 4 }, () => {
+        const word = Math.floor(rng() * 2 ** 32);
+        return word.toString(16).padStart(8, "0");
+      }).join("");
       return {
         seed: roundSeed,
         hash: sha256(roundSeed),
@@ -155,8 +154,8 @@ export const hype: GameDef<HypeState, HypeView> = {
     for (const [i, r] of after.rounds.entries()) {
       const was = before.rounds[i]!;
       for (const [p, at] of Object.entries(r.cashed)) {
-        if (was.cashed[Number(p)] === undefined)
-          out.push({ player: Number(p), text: `🪂 ×${(at / 100).toFixed(2)}` });
+        if (was.cashed[Number(p)] !== undefined) continue;
+        out.push({ player: Number(p), text: `🪂 ×${(at / 100).toFixed(2)}` });
       }
 
       // The crash is news only when it ends a round that not everyone had already cashed out of.

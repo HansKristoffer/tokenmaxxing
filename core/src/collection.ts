@@ -99,7 +99,7 @@ export interface PinView {
   at: number | null;
 }
 
-/** What someone owns of `id` (a catalogue id), or null if they don't have it. */
+/** What someone owns of `id` (a catalog id), or null if they don't have it. */
 function viewOf(state: CollectionState, id: string): PinView | null {
   const e = entryOf(id);
   if (!e?.pinnable) return null;
@@ -158,7 +158,8 @@ export function resolvePins(state: CollectionState, pinned: readonly Pin[]): Pin
 
 /** How many entries someone has, of how many in the log: badges at tier 1 or more, trophies and titles. */
 export function owned(state: CollectionState): { have: number; of: number } {
-  const have = state.badges.filter((b) => b.tier > 0).length + state.trophies.length + state.titles.length;
+  const badgesOwned = state.badges.filter((b) => b.tier > 0).length;
+  const have = badgesOwned + state.trophies.length + state.titles.length;
   return { have, of: CATALOG.length };
 }
 

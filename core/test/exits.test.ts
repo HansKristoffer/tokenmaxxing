@@ -85,7 +85,8 @@ describe("exits", () => {
 
   test("the town's doors and gates are reached from the spawn, from a walkable tile beside them", () => {
     const town = MAPS.town;
-    const spawn: [number, number] = [townSpawn().x, townSpawn().y];
+    const { x: spawnX, y: spawnY } = townSpawn();
+    const spawn: [number, number] = [spawnX, spawnY];
     for (const d of layoutOf(town).doors) {
       const beside = AROUND.some(([dx, dy]) => town.walkable(d.x + dx, d.y + dy));
       expect(beside, `town: ${d.ch} at ${d.x},${d.y}`).toBe(true);

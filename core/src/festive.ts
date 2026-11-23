@@ -30,7 +30,7 @@ export interface FestiveDef {
   before: number;
   /** Whole days after it the window stays. */
   after: number;
-  /** Minutes from the anchor's midnight -> 0..1 build-up; clamped, never 0, non-decreasing. */
+  /** From the minutes since the anchor's midnight to a 0..1 build-up. Clamped, never 0, never decreasing. */
   ramp: (minutesFromAnchor: number) => number;
 }
 
@@ -132,7 +132,7 @@ export type FestivePin = { id: FestiveId; ms: number } | "off" | null;
 const idOf = (name: string): FestiveId | null => IDS.find((id) => id.toLowerCase() === name) ?? null;
 
 /**
- * Pin text -> a pin: `christmas` (its eve, at noon), `christmas@12-22` (noon), `halloween@10-31T21:00`, `off`.
+ * Reads pin text: `christmas` (its eve, at noon), `christmas@12-22` (noon), `halloween@10-31T21:00`, or `off`.
  * The year is `nowMs`'s. Anything else is null.
  */
 export function parseFestivePin(text: string, nowMs: number): FestivePin {
@@ -147,8 +147,10 @@ export function parseFestivePin(text: string, nowMs: number): FestivePin {
     const ms = copenhagenToMs(`${year}-${pad(m)}-${pad(d)}T12:00`);
     return ms === null ? null : { id: name, ms };
   }
+  // MM-DD with an optional THH:MM. A date without a time means noon, as the pin's doc says.
   const m = /^(\d\d)-(\d\d)(?:[tT](\d\d):(\d\d))?$/.exec(when);
   if (!m) return null;
+
   const [mo, d, h = 12, mi = 0] = [m[1], m[2], m[3], m[4]].map((x) =>
     x === undefined ? undefined : Number(x),
   );
@@ -201,8 +203,8 @@ export interface FestiveNpc {
 }
 
 /**
- * The registry: fill a theme's slot (a feature agent's one edit here), then add its sprite to `NPC_SPRITES`
- * (`web/src/art/festive-npc.ts`) and its model builder to `NPC_MODELS` (`web/src/render3d/town/festive-npc3d.ts`).
+ * The registry. A theme gets its NPC by filling its slot here, then its sprite goes in `NPC_SPRITES`
+ * (`web/src/art/festive-npc.ts`) and its model builder in `NPC_MODELS` (`web/src/render3d/town/festive-npc3d.ts`).
  * Null is no NPC. The spawning, the label, the dialogue on E and the despawn at the window's end are generic.
  */
 export const FESTIVE_NPC: Record<FestiveId, FestiveNpc | null> = {

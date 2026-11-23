@@ -76,9 +76,13 @@ export async function greenPay(
   );
   for (const r of rows) {
     const tokens = greenTokens(r.hours, green.get(r.day) ?? []);
-    const coins = greenCoins(Math.min(tokens, dayTokens?.(r.userId, r.day) ?? tokens));
+    // Never more than the day's own tokens: the green hours can't pay for tokens the day didn't have.
+    const dayCap = dayTokens?.(r.userId, r.day) ?? tokens;
+    const coins = greenCoins(Math.min(tokens, dayCap));
     if (coins === 0) continue;
-    out.set(r.userId, (out.get(r.userId) ?? new Map()).set(r.day, coins));
+    const days = out.get(r.userId) ?? new Map<string, number>();
+    days.set(r.day, coins);
+    out.set(r.userId, days);
   }
   return out;
 }

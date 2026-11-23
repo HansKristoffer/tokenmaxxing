@@ -38,13 +38,16 @@ const frame = cached(
       // The glow: three rings of see-through gold, the outer one breathing in and out.
       const cx = AURA_X + 8;
       const cy = AURA_Y + 9;
+
       if (glow) {
         p.disc(cx, cy, i % 3 === 0 ? 10 : 9, "rgba(255, 214, 74, 0.12)");
         p.disc(cx, cy, 8, "rgba(255, 214, 74, 0.14)");
         p.disc(cx, cy, 6, "rgba(255, 236, 150, 0.16)");
       }
+
       // The halo bobs a pixel, half the time.
       p.grid(HALO, HALO_COLORS, AURA_X + 3, 1 + (i < FRAMES / 2 ? 0 : 1));
+
       SPARKS.forEach(([x, y], s) => {
         const phase = (i + s * 2) % FRAMES;
         const sy = y - phase * 2;

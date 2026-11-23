@@ -1,7 +1,7 @@
 /**
  * Parody game posters for the company house: wall decor bought from the company wallet like the rest of
  * `COMPANY_FURNITURE` (appended to it in office.ts), hung only on the building's top wall (`canHang`).
- * Invented titles, nothing from the real games. Each is one map character (a digit: the free ones),
+ * Invented titles, nothing from the real games. Each is one map character, a digit no other piece uses,
  * `art` its sprite in `web/src/art/furniture-posters.ts`, `text` the joke E shows.
  */
 import type { Piece } from "./office.ts";

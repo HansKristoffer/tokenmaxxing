@@ -1,5 +1,5 @@
 /**
- * A snapshot of the 2D pet data the 3D pets are built from, so this slice needs nothing from core.
+ * A snapshot of the 2D pet data the 3D pets are built from, so the 3D pets import nothing from core.
  * Sources: `core/src/pets.ts` (PET_VARIANTS, PET_NAMED), `core/src/shop.ts` + `core/src/loot.ts` (the pets),
  * `core/src/wardrobe.ts` + `web/src/art/wardrobe.ts` (pet gear). Only ever append, like the originals.
  */
@@ -112,6 +112,7 @@ export const speciesAt = (n: number): Species | undefined => {
   const range = CASE_PET_RANGES.findLast((r) => n >= r.base);
   return range && n - range.base < 100 ? range.species[n - range.base] : undefined;
 };
+
 export type Species =
   | (typeof PET_SPECIES)[number]
   | (typeof RAGNAROK_PET_SPECIES)[number]

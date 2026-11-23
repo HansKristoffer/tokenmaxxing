@@ -40,7 +40,8 @@ const fail = (tier, why) => {
 };
 
 for (const tier of tiers) {
-  const page = await openGame(browser, await signUp("h"), tier, { viewport: { width: 1100, height: 700 } });
+  const user = await signUp("h");
+  const page = await openGame(browser, user, tier, { viewport: { width: 1100, height: 700 } });
   await ready(page);
   const go = async (ch) => {
     const p = (await portals(page)).find((q) => q.ch === ch);
@@ -164,6 +165,7 @@ for (const tier of tiers) {
   // "already" and gives nothing).
   const shop = await page.evaluate(() => {
     const m = window.__tm.world.map;
+    // The map's glyphs for a shop door; the first one the town has wins.
     for (const ch of ["ƒ", "Ç", "Ð", "ð", "Ñ"]) {
       const f = m.find(ch)[0];
       if (f) return { x: f[0], y: f[1], left: m.at(f[0] - 1, f[1] + 1) === "." };

@@ -104,6 +104,8 @@ async function hop(to) {
   for (const d of doors) {
     const at = await through(page, d.x, d.y, 15_000);
     if (at && kind(at) === to) return true;
+    // Went through the wrong door: walk back to the room this hop started from. A failed walk back is left for
+    // the next door to recover from.
     if (at && kind(at) !== from) await hop(from).catch(() => {});
   }
   return false;
@@ -176,8 +178,8 @@ for (const target of wanted) {
       const lum = (d, i) => 0.3 * d[i] + 0.59 * d[i + 1] + 0.11 * d[i + 2];
       const range = new Uint8Array(W * H);
       for (let p = 0; p < W * H; p++) {
-        let lo = 255,
-          hi = 0;
+        let lo = 255;
+        let hi = 0;
         for (const im of imgs) {
           const l = lum(im.data, p * 4);
           if (l < lo) lo = l;
@@ -191,9 +193,9 @@ for (const target of wanted) {
       for (let y = 1; y < H - 1; y++)
         for (let x = 1; x < W - 1; x++) {
           const p = y * W + x;
-          const g =
-            Math.abs(lum(d0, p * 4) - lum(d0, (p + 1) * 4)) + Math.abs(lum(d0, p * 4) - lum(d0, (p + W) * 4));
-          if (g > 14) edge[p] = 1;
+          const across = Math.abs(lum(d0, p * 4) - lum(d0, (p + 1) * 4));
+          const down = Math.abs(lum(d0, p * 4) - lum(d0, (p + W) * 4));
+          if (across + down > 14) edge[p] = 1;
         }
       const near = new Uint8Array(W * H);
       const R = 4;
@@ -217,7 +219,8 @@ for (const target of wanted) {
       const cells = new Map();
       for (let p = 0; p < W * H; p++) {
         if (!flick[p]) continue;
-        const row = Math.floor(((p / W) | 0) / CELL);
+        const y = Math.floor(p / W);
+        const row = Math.floor(y / CELL);
         const column = Math.floor((p % W) / CELL);
         const k = row * COLUMNS + column;
         cells.set(k, (cells.get(k) ?? 0) + 1);

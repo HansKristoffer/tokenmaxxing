@@ -47,19 +47,23 @@ function bendera(m: Model, at: [number, number], turn: number): void {
   p.box([0.9, 0.27, 0.012], WHITE, [0.5, 2.46, 0], 0.002);
 }
 
-/** An umbul-umbul: a taller pole with a crossbar and a long pennant hanging, red and white, narrowing to a tip. */
+/** An umbul-umbul: a taller pole, a crossbar and a long red and white pennant that narrows to a tip. */
 function umbul(m: Model, at: [number, number], turn: number): void {
   const p = m.part([at[0], 0, at[1]], turn);
   p.cyl(0.05, 3.7, BAMBOO, [0, 0, 0], 0.035, 6);
   p.box([0.6, 0.04, 0.04], BAMBOO_D, [0.25, 3.5, 0], 0.01);
   p.ball(0.07, GOLD, [0, 3.75, 0], [1, 1, 1], 8);
+
   for (let i = 0; i < 7; i++) {
-    const w = 0.3 - i * 0.034;
-    p.box([w, 0.34, 0.012], i % 2 ? WHITE : RED, [0.28 + (i % 2) * 0.004, 3.5 - (i + 1) * 0.34, 0], 0.002);
+    const width = 0.3 - i * 0.034;
+    const color = i % 2 ? WHITE : RED;
+    const x = 0.28 + (i % 2) * 0.004;
+    const y = 3.5 - (i + 1) * 0.34;
+    p.box([width, 0.34, 0.012], color, [x, y, 0], 0.002);
   }
 }
 
-/** Strings of red and white bunting between the tie points (world units), as a cord mesh and a pennant mesh. */
+/** Red and white bunting along the tie points (world units): a cord mesh and a pennant mesh. */
 function bunting(strings: readonly { a: THREE.Vector3; b: THREE.Vector3; sag: number }[]): THREE.Group {
   const cords: THREE.BufferGeometry[] = [];
   const flags: THREE.BufferGeometry[] = [];
@@ -74,6 +78,7 @@ function bunting(strings: readonly { a: THREE.Vector3; b: THREE.Vector3; sag: nu
   const m = new THREE.Matrix4();
   for (const s of strings) {
     const len = s.a.distanceTo(s.b);
+    // Point `f` of the string: a straight line from `a` to `b`, dipped by the sag.
     const at = (f: number, out = new THREE.Vector3()) =>
       out
         .copy(s.a)
@@ -82,6 +87,7 @@ function bunting(strings: readonly { a: THREE.Vector3; b: THREE.Vector3; sag: nu
     const segs = Math.max(6, Math.round(len * 3));
     const p = new THREE.Vector3();
     const n = new THREE.Vector3();
+
     for (let i = 0; i < segs; i++) {
       at(i / segs, p);
       at((i + 1) / segs, n);
@@ -96,13 +102,15 @@ function bunting(strings: readonly { a: THREE.Vector3; b: THREE.Vector3; sag: nu
       g.applyMatrix4(m);
       cords.push(g);
     }
+
+    // One pennant per 0.32 units, alternating red and white, hung from the string's yaw.
     const count = Math.max(2, Math.round(len / 0.32));
     const yaw = Math.atan2(s.b.x - s.a.x, s.b.z - s.a.z);
     for (let i = 1; i < count; i++) {
       const g = flag.clone();
-      const red = i % 2 === 1;
+      const isRed = i % 2 === 1;
       const colours = new Float32Array(g.attributes.position!.count * 3);
-      const c = new THREE.Color(red ? RED : WHITE);
+      const c = new THREE.Color(isRed ? RED : WHITE);
       for (let k = 0; k < colours.length; k += 3) colours.set([c.r, c.g, c.b], k);
       g.setAttribute("color", new THREE.BufferAttribute(colours, 3));
       m.compose(at(i / count), q.setFromEuler(e.set(0, yaw, 0)), one);
@@ -110,6 +118,7 @@ function bunting(strings: readonly { a: THREE.Vector3; b: THREE.Vector3; sag: nu
       flags.push(g);
     }
   }
+
   flag.dispose();
   const group = new THREE.Group();
   const cord = mergeGeometries(cords);
@@ -184,14 +193,16 @@ function gapura(m: Model, left: [number, number], right: [number, number], years
   const crest = m.part([mid, 3.4, z]);
   crest.cyl(0.48, 0.1, RED, [0, 0.1, 0], 0.48, 20).rotation.x = Math.PI / 2;
   crest.ball(0.17, GOLD, [0, 0.58, 0.07], [1, 1, 0.3], 5);
+  // Five gold rays round the star, each turned to point outward.
   for (let i = 0; i < 5; i++) {
     const a = (i / 5) * Math.PI * 2;
-    crest.box(
+    const ray = crest.box(
       [0.07, 0.3, 0.05],
       GOLD,
       [Math.sin(a) * 0.2, 0.58 + Math.cos(a) * 0.2 - 0.15, 0.08],
       0.005,
-    ).rotation.z = -a;
+    );
+    ray.rotation.z = -a;
   }
   for (const s of [-1, 1]) {
     const f = m.part([mid + s * (width / 2 - 0.9), 3.3, z]);
@@ -201,13 +212,14 @@ function gapura(m: Model, left: [number, number], right: [number, number], years
   }
 }
 
-/** The panjat pinang pole at `at`: dark wood, bright grease bands, a bamboo cross on top and the prizes hanging from it. */
+/** The panjat pinang pole at `at`: dark wood, bright grease bands, a bamboo cross on top, prizes hanging below. */
 function panjat(m: Model, at: [number, number]): void {
   const p = m.part([at[0], 0, at[1]]);
   p.cyl(0.19, 0.2, STONE, [0, 0, 0], 0.15, 10);
   p.cyl(0.1, 4.3, "#6d431f", [0, 0.1, 0], 0.085, 10);
-  for (let i = 0; i < 8; i++)
+  for (let i = 0; i < 8; i++) {
     p.cyl(0.108, 0.1, i % 2 ? "#d8c25a" : "#a88a2a", [0, 0.5 + i * 0.5, 0], 0.108, 10);
+  }
   // The frame: a cross of bamboo with a ring of canes, and the prizes below it.
   const top = p.part([0, 4.4, 0]);
   top.box([1.3, 0.06, 0.06], BAMBOO, [0, 0, 0], 0.01);
@@ -236,7 +248,7 @@ function panjat(m: Model, at: [number, number]): void {
   hub.rotation.x = Math.PI / 2;
 }
 
-/** The climber on the pole: a small figure hugging it, a red and white headband; moved up and down by the caller. */
+/** The climber on the pole: a small figure hugging it in a red and white headband. The caller moves it. */
 function climber(): Model {
   const m = new Model();
   m.box([0.2, 0.26, 0.12], WHITE, [0, 0.18, 0], 0.03);
@@ -254,7 +266,7 @@ function climber(): Model {
   return m;
 }
 
-/** The kerupuk string: two bamboo posts, a cord, and three prawn crackers on strings (they swing, so `swing` keeps them). */
+/** The kerupuk string: two bamboo posts, a cord and three prawn crackers on strings. They swing, so they come back. */
 function kerupuk(m: Model, at: [number, number]): THREE.Object3D[] {
   const p = m.part([at[0], 0, at[1]]);
   for (const s of [-1, 1]) {
@@ -291,14 +303,17 @@ function laneFlag(m: Model, at: [number, number], kind: 0 | 1): void {
     p.box([0.07, 0.05, 0.016], WHITE, [0.5, 2.18, 0], 0.002);
     p.box([0.07, 0.05, 0.016], WHITE, [0.5, 2.08, 0], 0.002);
   } else {
-    for (let y = 0; y < 3; y++)
-      for (let x = 0; x < 4; x++)
+    // The finish: three rows of four black and white squares.
+    for (let y = 0; y < 3; y++) {
+      for (let x = 0; x < 4; x++) {
         p.box(
           [0.16, 0.14, 0.012],
           (x + y) % 2 ? WHITE : "#2b2433",
           [0.1 + x * 0.16, 1.95 + y * 0.14, 0],
           0.002,
         );
+      }
+    }
   }
   for (let i = 0; i < 2; i++) p.ball(0.2, "#c9a56a", [0.4 + i * 0.35, 0.14, 0.3 - i * 0.2], [1, 0.7, 0.8], 8);
 }
@@ -311,14 +326,17 @@ function lane(m: Model, y: number, x0: number, x1: number, toWorld: At): void {
   for (let i = 0; i < dashes; i++)
     for (const s of [-1, 1])
       m.box([0.3, 0.012, 0.05], i % 2 ? WHITE : RED, [ax - 0.5 + i * 0.5, 0.01, az + s * 0.42], 0.002);
-  for (let k = 0; k < 6; k++)
-    for (let j = 0; j < 2; j++)
+  // The chequered strip at the finish, two squares wide.
+  for (let k = 0; k < 6; k++) {
+    for (let j = 0; j < 2; j++) {
       m.box(
         [0.12, 0.014, 0.12],
         (k + j) % 2 ? WHITE : "#2b2433",
         [bx + 0.35 + j * 0.12, 0.01, az - 0.36 + k * 0.144],
         0.002,
       );
+    }
+  }
 }
 
 /** The tumpeng on its table: a red cloth, a banana-leaf tray, the cone of yellow rice and the side dishes. */
@@ -343,8 +361,13 @@ function tumpeng(m: Model, at: [number, number]): void {
   for (const [i, c] of dishes.entries()) {
     const a = (i / dishes.length) * Math.PI * 2;
     const r = 0.36;
-    if (i % 4 === 1) p.ball(0.06, c, [Math.sin(a) * r, 0.66, Math.cos(a) * r], [1, 1.2, 1], 8);
-    else p.box([0.1, 0.05, 0.1], c, [Math.sin(a) * r, 0.62, Math.cos(a) * r], 0.015);
+    const x = Math.sin(a) * r;
+    const z = Math.cos(a) * r;
+    if (i % 4 === 1) {
+      p.ball(0.06, c, [x, 0.66, z], [1, 1.2, 1], 8);
+    } else {
+      p.box([0.1, 0.05, 0.1], c, [x, 0.62, z], 0.015);
+    }
   }
 }
 
@@ -361,11 +384,11 @@ interface Built {
 }
 
 /**
- * Agustusan in the 3D town (`core/src/agustusan.ts` says where; the 2D town is `game/agustusan.ts`, and both ask
- * `agustusanNow`). Built lazily the first frame the theme is on, never in the constructor, and taken down (geometry
- * and all) when the theme ends while the page stays open. The flags are merged and rebuilt only when one more goes
- * up; the gate, the lomba props and the tumpeng come out at their days. Nothing here is pickable or a block (the
- * game's input blocks the prop tiles).
+ * Agustusan in the 3D town. `core/src/agustusan.ts` holds the layout; the 2D town (`game/agustusan.ts`) asks the
+ * same `agustusanNow`. Built lazily on the first frame the theme is on, never in the constructor, and taken down
+ * (geometry and all) when the theme ends while the page stays open. The flags are merged and rebuilt only when one
+ * more goes up. The gate, the lomba props and the tumpeng show on their own days. Nothing here is pickable or a
+ * block: the game's input blocks the prop tiles.
  */
 export class Agustusan3d {
   readonly group = new THREE.Group();
@@ -397,10 +420,11 @@ export class Agustusan3d {
     if (!b.lomba.visible) return;
     const now = performance.now();
     const h = climberHeight(now);
-    b.climber.visible = b.lomba.visible && h > 0;
+    b.climber.visible = h > 0;
     b.climber.position.y = 0.35 + (h / PANJAT_TOP) * 3.3;
     b.climber.rotation.z = Math.sin(t * 6) * 0.04;
     const biting = kerupukBites(now) > 0;
+
     for (const [i, s] of b.swing.entries())
       s.rotation.z = biting ? Math.sin(t * 7 + i * 1.7) * 0.28 : Math.sin(t * 1.2 + i) * 0.05;
   }
@@ -416,10 +440,14 @@ export class Agustusan3d {
     gapura(gm, w(GAPURA.left.x, GAPURA.left.y), w(GAPURA.right.x, GAPURA.right.y), years);
     gate.add(gm);
     mergeStill(gm);
+    // A bunting end is tied to a gate post at the post's top, or to a bare point in the air.
     const tie = (s: Spot): THREE.Vector3 => {
       const [x, z] = w(s.x, s.y);
-      const post = (s.x === GAPURA.left.x || s.x === GAPURA.right.x) && s.y === GAPURA.left.y;
-      return new THREE.Vector3(post ? x + (s.x === GAPURA.left.x ? 0.3 : -0.3) : x, post ? 2.45 : 2.9, z);
+      const isPost = (s.x === GAPURA.left.x || s.x === GAPURA.right.x) && s.y === GAPURA.left.y;
+      if (!isPost) return new THREE.Vector3(x, 2.9, z);
+
+      const outward = s.x === GAPURA.left.x ? 0.3 : -0.3;
+      return new THREE.Vector3(x + outward, 2.45, z);
     };
     gate.add(bunting(BUNTING_ROWS.map(([p, q]) => ({ a: tie(p), b: tie(q), sag: 0.28 }))));
     root.add(gate);

@@ -50,28 +50,32 @@ export const memorialSprite = cached(
       }
       p.text(MEMORIAL_PLAQUE.slice(0, 4), 4, 22, "#e6e0d0");
       p.text(MEMORIAL_PLAQUE.slice(5, 9), 32, 22, "#e6e0d0");
+
       // The stele, taller, with a wreath of green and a ribbon in the national colours.
       p.rect(17, 0, 14, 24, o);
       p.rect(18, 1, 12, 22, GRANITE);
       p.rect(18, 1, 2, 22, GRANITE_LIGHT);
       p.rect(28, 1, 2, 22, GRANITE_DARK);
       p.rect(18, 1, 12, 1, GRANITE_LIGHT);
+      const leafShades = [C.leaf, C.leafDark, C.leafLight];
       for (let a = 0; a < 16; a++) {
         const t = (a / 16) * Math.PI * 2;
         const x = Math.round(24 + Math.cos(t) * 4.6);
         const y = Math.round(9 + Math.sin(t) * 4.6);
-        p.rect(x - 1, y - 1, 2, 2, a % 3 === 0 ? C.leaf : a % 3 === 1 ? C.leafDark : C.leafLight);
+        p.rect(x - 1, y - 1, 2, 2, leafShades[a % 3]!);
       }
       p.px(24, 4, WHITE);
       p.px(21, 14, RED);
       p.px(27, 14, WHITE);
       p.rect(23, 14, 2, 3, RED);
       p.rect(22, 16, 4, 1, WHITE);
+
       // Two small flags at the wall's ends.
       p.rect(4, 11, 1, 9, WHITE);
       flag(p, 5, 11);
       p.rect(43, 11, 1, 9, WHITE);
       flag(p, 36, 11);
+
       // The candle tray: a slab of stone, two rows of candles.
       p.rect(6, 33, 37, 12, o);
       p.rect(7, 34, 35, 10, "#a39f98");
@@ -88,6 +92,7 @@ export const memorialSprite = cached(
           p.px(x, y - 6, FLAME_TIP);
         }
       }
+
       // A few white and red flowers laid at the foot.
       for (const [x, y, c] of [
         [2, 31, WHITE],
@@ -116,6 +121,7 @@ export const flagpoleSprite = cached(
       p.px(3, 1, "#e9b73d");
       p.px(4, 1, "#e9b73d");
       p.rect(3, 2, 2, 1, "#c9971f");
+
       // The flag, a column at a time so it can ripple.
       const W = 11;
       for (let x = 0; x < W; x++) {
@@ -145,6 +151,7 @@ export const windowCandle = cached(
       p.px(1, 6, "#9a8a60");
       p.px(2, 6, "#9a8a60");
       p.rect(1, 6, 2, 1, "#cfc6aa");
+
       if (lit) {
         p.px(1, 2, FLAME);
         p.px(1, 3, FLAME);
@@ -187,7 +194,7 @@ const SCARF = {
 
 /** Henning, the storyteller: grey at the temples and moustache, a flat cap, a red scarf, a cane in his hand. */
 export const henningFrame = cached(
-  (facing: Facing, _breath: 0 | 1) => facing,
+  (facing: Facing) => facing,
   (facing: Facing) =>
     bake(16, 16, (p) => {
       const view = facing === "down" || facing === "up" ? "down" : "side";
@@ -199,6 +206,7 @@ export const henningFrame = cached(
       }
       const capView = facing === "up" ? "up" : view;
       p.grid(FLAT_CAP[capView]!, FLAT_CAP.pal, 0, 0, flip);
+
       // The cane, in the hand on the far side from where he looks.
       const cx = view === "down" ? 13 : flip ? 3 : 12;
       p.rect(cx, 10, 1, 5, "#6e4a2a");

@@ -133,7 +133,8 @@ describe("hand ranking", () => {
 
 describe("the deck", () => {
   test("a shuffle is a permutation, the same for the same dice, and not the identity", () => {
-    const a = shuffle(freshDeck(), (n) => Math.floor(seeded(1)() * n));
+    const rnd1 = seeded(1);
+    const a = shuffle(freshDeck(), (n) => Math.floor(rnd1() * n));
     expect([...a].sort((x, y) => x - y)).toEqual(freshDeck());
     const rnd = seeded(7);
     const b = shuffle(freshDeck(), (n) => Math.floor(rnd() * n));
@@ -719,12 +720,12 @@ describe("chips are conserved", () => {
 
 describe("the poker table in the net cafe", () => {
   const map = MAPS.basement;
-  const table = pokerTable(map)!;
+  const cafeTable = pokerTable(map)!;
   const chairs = pokerChairs(map);
 
   test("the map has one table and a chair for every seat, each a seat of its own on the map", () => {
-    expect(table).not.toBeNull();
-    expect(table.w * table.h).toBe(map.find("♠").length);
+    expect(cafeTable).not.toBeNull();
+    expect(cafeTable.w * cafeTable.h).toBe(map.find("♠").length);
     expect(chairs).toHaveLength(SEATS);
     expect(map.find(CHAIR_CHAR)).toHaveLength(SEATS);
     expect(new Set(chairs.map((ch) => `${ch.x},${ch.y}`)).size).toBe(SEATS);
@@ -761,7 +762,7 @@ describe("the poker table in the net cafe", () => {
   });
 
   test("the table is one 4x2 run, with 2 chairs above, 2 below and 1 each side", () => {
-    expect(table).toMatchObject({ w: 4, h: 2 });
+    expect(cafeTable).toMatchObject({ w: 4, h: 2 });
     const at = (f: string) => chairs.filter((ch) => ch.facing === f).length;
     expect([at("down"), at("up"), at("right"), at("left")]).toEqual([2, 2, 1, 1]);
   });

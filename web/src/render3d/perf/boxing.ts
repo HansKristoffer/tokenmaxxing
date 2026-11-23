@@ -1,8 +1,9 @@
 import type * as THREE from "three";
 
 /**
- * three's render lists sort with comparators that return `a.z - b.z`, a fraction, which is boxed (a fresh heap number) on
- * its way back to the sort: a few hundred per frame. These answer -1 or 1 for depth instead, in the same order.
+ * three's render lists sort with comparators that return `a.z - b.z`, a fraction, which is boxed (a fresh heap
+ * number) on its way back to the sort: a few hundred per frame. These answer -1 or 1 for depth instead, in the same
+ * order.
  */
 
 type Item = {

@@ -32,7 +32,9 @@ function raceOf(id: number): WorldGame | undefined {
 /** Each racer's own lane, in tiles in from the edge: the first innermost, the rest outwards. */
 export function lane(g: WorldGame, id: number): number {
   const n = g.players.length;
-  return 0.35 - g.players.indexOf(id) * (n > 1 ? Math.min(0.45, 1.4 / (n - 1)) : 0);
+  // The lanes spread over at most 1.4 tiles, and no two are more than 0.45 tiles apart.
+  const spacing = n > 1 ? Math.min(0.45, 1.4 / (n - 1)) : 0;
+  return 0.35 - g.players.indexOf(id) * spacing;
 }
 
 /** `laps` round the square, clockwise from the middle of its top edge (the start line), `o` tiles in. */
@@ -60,6 +62,7 @@ export function racing(id: number, now: number): Lap | null {
   const was = shown.get(id) ?? { laps: 0, at: now };
   const laps = lerp(was.laps, target, Math.min(1, (now - was.at) / EASE_MS));
   shown.set(id, { laps, at: now });
+  // Still running while the drawn laps trail the typed ones.
   return { ...around(laps, lane(g, id)), running: target - laps > 0.002 };
 }
 
@@ -73,11 +76,12 @@ export function startLine({ g, items }: Frame, game: WorldGame) {
   items.push({
     y: (PLAZA.top - 2) * TILE,
     draw: () => {
-      for (let y = top; y < bottom; y += 2)
+      for (let y = top; y < bottom; y += 2) {
         for (const dx of [0, 2]) {
           g.fillStyle = ((y - top) / 2 + dx / 2) % 2 === 0 ? C.white : C.ink;
           g.fillRect(x + dx, y, 2, 2);
         }
+      }
     },
   });
 }

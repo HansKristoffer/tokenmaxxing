@@ -10,6 +10,10 @@ import * as THREE from "three";
 const MAX = 160;
 /** How far round the middle (world units) leaves fall from. */
 const REACH = 13;
+/**
+ * Seconds a leaf lies on the grass before it is let go again. It shrinks to nothing over the last half second,
+ * so a leaf that is not re-let simply disappears.
+ */
 const LIE_S = 2.2;
 const COLOURS = ["#e08a3a", "#e8bf3e", "#d4483a", "#f5b05a", "#b8612a"];
 
@@ -29,8 +33,8 @@ export class FallingLeaves {
   private nearOf: [number, number] | null = null;
   /** Leaves due to let go, while there are fewer than wanted. */
   private owed = 0;
-  private readonly m4 = new THREE.Matrix4();
-  private readonly q = new THREE.Quaternion();
+  private readonly matrix = new THREE.Matrix4();
+  private readonly quaternion = new THREE.Quaternion();
   private readonly one = new THREE.Vector3(1, 1, 1);
   private readonly flat = new THREE.Euler(-Math.PI / 2, 0, 0);
 
@@ -64,18 +68,20 @@ export class FallingLeaves {
     return this.near;
   }
 
-  private letGo(leaf: Leaf | undefined, crown: readonly [number, number, number]): Leaf {
+  /** Puts a leaf back at a random spot under `crown`, reusing `reuse` when one is given. */
+  private letGo(reuse: Leaf | undefined, crown: readonly [number, number, number]): Leaf {
     const [x, y, z] = crown;
-    const l = leaf ?? { at: new THREE.Vector3(), spin: new THREE.Euler(), ph: 0, lying: -1 };
-    l.at.set(
+    const leaf = reuse ?? { at: new THREE.Vector3(), spin: new THREE.Euler(), ph: 0, lying: -1 };
+
+    leaf.at.set(
       x + (Math.random() - 0.5) * 1.1,
       y * (0.75 + Math.random() * 0.3),
       z + (Math.random() - 0.5) * 1.1,
     );
-    l.spin.set(Math.random() * 6.3, Math.random() * 6.3, Math.random() * 6.3);
-    l.ph = Math.random() * 6.3;
-    l.lying = -1;
-    return l;
+    leaf.spin.set(Math.random() * 6.3, Math.random() * 6.3, Math.random() * 6.3);
+    leaf.ph = Math.random() * 6.3;
+    leaf.lying = -1;
+    return leaf;
   }
 
   /**
@@ -94,36 +100,43 @@ export class FallingLeaves {
     const near = this.crownsNear(x, z);
     const want = near.length ? Math.round(Math.min(MAX, near.length * 6) * falling * density) : 0;
     const randomCrown = () => near[Math.floor(Math.random() * near.length)]!;
+
     // Grow over a few seconds (so they don't all let go at once, at any frame rate); shrink as each one lands.
     this.owed = this.leaves.length < want ? this.owed + dt * (want / 3) : 0;
-    for (; this.owed >= 1 && this.leaves.length < want; this.owed--)
+    while (this.owed >= 1 && this.leaves.length < want) {
       this.leaves.push(this.letGo(undefined, randomCrown()));
+      this.owed--;
+    }
+
+    // Leaves that are dropped are skipped, so the survivors are packed to the front of `leaves` as they are walked.
     let n = 0;
     for (let i = 0; i < this.leaves.length; i++) {
-      const l = this.leaves[i]!;
-      if (l.lying >= 0) {
-        l.lying += dt;
-        if (l.lying > LIE_S) {
+      const leaf = this.leaves[i]!;
+      if (leaf.lying >= 0) {
+        leaf.lying += dt;
+        if (leaf.lying > LIE_S) {
           if (n >= want || !near.length) continue;
-          this.letGo(l, randomCrown());
+          this.letGo(leaf, randomCrown());
         }
       } else {
-        l.at.y -= dt * (0.55 + Math.sin(t * 2.3 + l.ph) * 0.2);
-        l.at.x += (wind.x * 0.6 + Math.sin(t * 1.4 + l.ph) * 0.35) * dt;
-        l.at.z += (wind.y * 0.6 + Math.cos(t * 1.1 + l.ph) * 0.25) * dt;
-        l.spin.x += dt * 2.1;
-        l.spin.z += dt * 1.3;
-        if (l.at.y <= 0.03) {
-          l.at.y = 0.03;
-          l.lying = 0;
+        leaf.at.y -= dt * (0.55 + Math.sin(t * 2.3 + leaf.ph) * 0.2);
+        leaf.at.x += (wind.x * 0.6 + Math.sin(t * 1.4 + leaf.ph) * 0.35) * dt;
+        leaf.at.z += (wind.y * 0.6 + Math.cos(t * 1.1 + leaf.ph) * 0.25) * dt;
+        leaf.spin.x += dt * 2.1;
+        leaf.spin.z += dt * 1.3;
+        if (leaf.at.y <= 0.03) {
+          leaf.at.y = 0.03;
+          leaf.lying = 0;
         }
       }
-      this.leaves[n++] = l;
-      this.q.setFromEuler(l.lying >= 0 ? this.flat : l.spin);
-      const s = l.lying > LIE_S - 0.5 ? (LIE_S - l.lying) / 0.5 : 1;
-      this.m4.compose(l.at, this.q, this.one.setScalar(Math.max(0.001, s)));
-      this.mesh.setMatrixAt(n - 1, this.m4);
+
+      this.leaves[n++] = leaf;
+      this.quaternion.setFromEuler(leaf.lying >= 0 ? this.flat : leaf.spin);
+      const scale = leaf.lying > LIE_S - 0.5 ? (LIE_S - leaf.lying) / 0.5 : 1;
+      this.matrix.compose(leaf.at, this.quaternion, this.one.setScalar(Math.max(0.001, scale)));
+      this.mesh.setMatrixAt(n - 1, this.matrix);
     }
+
     this.leaves.length = n;
     this.mesh.count = n;
     this.mesh.visible = n > 0;

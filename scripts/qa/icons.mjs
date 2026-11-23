@@ -1,7 +1,7 @@
 // bun scripts/qa/icons.mjs [--tier high] [--tag after] [--out /tmp/v2-icons/shots] [--viewport 1280x900]
 // Opens the Shop (furniture, clothes, pets), Bag, Collection and Merchant as a player with a bag of items, and for
 // each: the time from opening the panel to its first paint, the frames while the 3D icons stream in (rAF deltas)
-// and what the icon queue says it spent (`window.__tmIcons`, absent before this branch). Screenshots each panel.
+// and what the icon queue says it spent (`window.__tmIcons`, absent on builds without the icon queue). Screenshots each panel.
 // Needs a local server (`bun run qa:serve`; with QA_ORIGIN, that server's ADMIN_TOKEN too) and Playwright (lib.mjs).
 import { mkdirSync, writeFileSync } from "node:fs";
 import { ORIGIN, openGame, playwright, ready, signUp } from "./lib.mjs";

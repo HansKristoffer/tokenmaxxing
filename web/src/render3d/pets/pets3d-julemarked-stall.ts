@@ -385,8 +385,9 @@ export function saelunge(): Built {
         const w = moving ? Math.sin(t * 7) : 0;
         body.position.y = U(Math.abs(w) * 1.2);
         body.rotation.x = w * 0.08;
-        for (const f of flips)
+        for (const f of flips) {
           f.j.rotation.x = moving ? Math.sin(t * 7 + f.phase) * 0.6 : Math.sin(t * 1.5 + f.phase) * 0.06;
+        }
         for (const r of rear) r.rotation.y = Math.sin(t * (moving ? 7 : 1.6)) * 0.2;
         head.rotation.y = Math.sin(t * 0.6) * 0.3;
         head.rotation.x = -0.1 + Math.sin(t * 1.1) * 0.06;

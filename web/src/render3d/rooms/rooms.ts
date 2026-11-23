@@ -68,21 +68,30 @@ export interface RoomView {
   toTile(x: number, z: number): [number, number];
   /** How high a seat or bed on this tile is. */
   seatY(tx: number, ty: number, kind: string): number;
-  /** Which way a sitter on this tile faces (a yaw), as the seat piece is turned; null where the room can't say. */
+  /** Which way a sitter on this tile faces (a yaw), as the seat piece is turned. Null where the room can't say. */
   seatYaw?(tx: number, ty: number): number | null;
   /** Once a frame: the clock `t` (s), `dt` (s) and the direction from the room to the camera. */
   tick(t: number, dt: number, toward: THREE.Vector3): void;
-  /** Once a frame, after the people are placed: the real game's events in the room (the merchant, the picnic, the tip jar...). */
+  /**
+   * Once a frame, after the people are placed: the real game's events in the room (the merchant, the picnic, the tip
+   * jar...).
+   */
   frame?(f: LiveFrame): void;
-  /** Things drawn over the room that change as the game does (the street's events): added to the scene beside it, never batched. */
+  /**
+   * Things drawn over the room that change as the game does (the street's events). Added to the scene beside the
+   * room, never batched.
+   */
   readonly extras?: THREE.Object3D;
   /** A toss landed in the tip jar or fountain in front of this tile (the server said so). */
   onToss?(tx: number, ty: number): void;
   /** Signs in the room, for the label layer. */
   signs(): Sign[];
-  /** Signs that change with the game (the raid's names, a table's banner): asked for every frame, so return a kept list. */
+  /**
+   * Signs that change with the game (the raid's names, a table's banner). Asked for every frame, so return a kept
+   * list.
+   */
   liveSigns?(): Sign[];
-  /** Bots whose bodies the room draws itself (the barkeep, a shopkeeper): the people layer leaves those bodies out. */
+  /** Bots whose bodies the room draws itself (the barkeep, a shopkeeper). The people layer leaves those bodies out. */
   readonly keepers?: ReadonlySet<number>;
   /** In a shop: its interior (the displays on its shelves), for picking what to buy. */
   readonly shop?: ShopRoom;
@@ -148,34 +157,40 @@ export function registerRoomPrep(kind: string, prep: Prep): void {
 
 /** Whether `buildRoom(id)` may be called now: rooms with nothing to fetch are always ready. */
 export function roomReady(id: string): boolean {
-  const k = kindOfRoom(id);
-  return !preps.has(k) || prepared.has(k);
+  const kind = kindOfRoom(id);
+  return !preps.has(kind) || prepared.has(kind);
 }
 
 /** Fetches what the room needs (once; calls share it). Resolves when `buildRoom` can run. */
 export function prepareRoom(id: string): Promise<void> {
-  const k = kindOfRoom(id);
-  const prep = preps.get(k);
-  if (!prep || prepared.has(k)) return Promise.resolve();
-  let p = preparing.get(k);
-  if (!p) {
-    p = prep()
-      .then(() => void prepared.add(k))
-      .finally(() => preparing.delete(k));
-    preparing.set(k, p);
+  const kind = kindOfRoom(id);
+  const prep = preps.get(kind);
+  if (!prep || prepared.has(kind)) return Promise.resolve();
+
+  let inFlight = preparing.get(kind);
+  if (!inFlight) {
+    inFlight = prep()
+      .then(() => void prepared.add(kind))
+      .finally(() => preparing.delete(kind));
+    preparing.set(kind, inFlight);
   }
-  return p;
+  return inFlight;
+}
+
+/** Runs `run` when the browser is idle, or shortly after where it has no idle callbacks (Safari). */
+export function whenIdle(run: () => void): void {
+  const idle = (globalThis as { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => void })
+    .requestIdleCallback;
+  if (idle) idle(run, { timeout: 2000 });
+  else setTimeout(run, 200);
 }
 
 /** Fetches a room's code when the browser is idle: the door you are most likely to take next. */
 export function preloadRoom(id: string): void {
   if (roomReady(id)) return;
+
   // A failed prefetch is not an error: the room's code is fetched again when the player walks in.
-  const run = () => void prepareRoom(id).catch(() => {});
-  const idle = (globalThis as { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => void })
-    .requestIdleCallback;
-  if (idle) idle(run, { timeout: 2000 });
-  else setTimeout(run, 200);
+  whenIdle(() => void prepareRoom(id).catch(() => {}));
 }
 
 /** The rooms a door of `id` leads to (kinds), for `preloadRoom`. */

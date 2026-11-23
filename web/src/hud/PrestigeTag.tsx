@@ -1,5 +1,5 @@
 import { PRESTIGE_TRACKS } from "@tokenmaxxing/core/prestige.ts";
-import { useEffect, useRef } from "react";
+import { type CSSProperties, useEffect, useRef } from "react";
 import { EMBLEM_SIZE, emblemFrames, emblemSprite } from "../art/prestige-emblem.ts";
 
 /** The crest on a canvas; the top track plays its glint frames (not under reduced motion). */
@@ -15,12 +15,18 @@ function Emblem({ rank, px }: { rank: number; px: number }) {
       g.drawImage(src, 0, 0, cv.width, cv.height);
     };
     draw(emblemSprite(rank));
-    if (rank < PRESTIGE_TRACKS.length || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+
+    // Only the top track has glint frames, and a reader who asks for reduced motion gets none.
+    const isTopTrack = rank >= PRESTIGE_TRACKS.length;
+    const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (!isTopTrack || reducedMotion) return;
+
     const frames = emblemFrames(rank);
     let i = 0;
     const id = setInterval(() => {
+      // 16 steps: the glint frames, then the plain crest for the rest of the cycle.
       i = (i + 1) % 16;
-      draw(i < frames.length ? frames[i]! : emblemSprite(rank));
+      draw(frames[i] ?? emblemSprite(rank));
     }, 130);
     return () => clearInterval(id);
   }, [rank]);
@@ -42,18 +48,20 @@ function Emblem({ rank, px }: { rank: number; px: number }) {
 export function PrestigeTag({ rank, level, size = 20 }: { rank: number; level?: number; size?: number }) {
   const t = PRESTIGE_TRACKS[rank - 1];
   if (!t) return null;
+
+  const runPart = level !== undefined ? ` · run level ${level}` : "";
+  // Custom properties are not in CSSProperties, so the object is cast to it.
+  const style = {
+    "--pt-main": t.colors.main,
+    "--pt-accent": t.colors.accent,
+    "--pt-glow": t.colors.glow,
+    fontSize: Math.round(size * 0.6),
+  } as CSSProperties;
   return (
     <p
       className={`prestige-tag pt-${t.key}`}
-      title={`Prestige ${t.roman} · ${t.name}${level !== undefined ? ` · run level ${level}` : ""}`}
-      style={
-        {
-          "--pt-main": t.colors.main,
-          "--pt-accent": t.colors.accent,
-          "--pt-glow": t.colors.glow,
-          fontSize: Math.round(size * 0.6),
-        } as React.CSSProperties
-      }
+      title={`Prestige ${t.roman} · ${t.name}${runPart}`}
+      style={style}
     >
       <Emblem rank={rank} px={size} />
       <span className="pt-title">{t.name}</span>

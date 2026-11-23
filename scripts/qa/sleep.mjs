@@ -17,14 +17,16 @@ const hat = ITEMS.filter((i) => i.slot === "hat" && i.tradeable && i.price > 0).
 )[0];
 
 // A starts a company; B (usage that stopped half an hour ago, so asleep rather than at a desk) joins it.
-const a = await openGame(browser, await signUp("lk", 400_000, true), tier);
+const founder = await signUp("lk", 400_000, true);
+const a = await openGame(browser, founder, tier);
 await ready(a);
 const company = await a.evaluate(() => {
   const c = window.__tm.hud.get().me?.company;
   return c && { id: c.id, plot: c.plot };
 });
 console.log("company", JSON.stringify(company));
-const b = await openGame(browser, await signUp("sl", 8_000_000, false, 30), tier);
+const joiner = await signUp("sl", 8_000_000, false, 30);
+const b = await openGame(browser, joiner, tier);
 await ready(b);
 const bId = await b.evaluate(() => window.__tm.world.selfId);
 await b.evaluate((id) => window.__tmTown.apply(id), company.id);

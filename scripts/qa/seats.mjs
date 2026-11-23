@@ -9,7 +9,8 @@ const browser = await pw.chromium.launch({
 });
 const tier = process.argv[2] ?? "high";
 const roomName = process.argv[3] ?? "inn";
-const page = await openGame(browser, await signUp("s"), tier);
+const user = await signUp("s");
+const page = await openGame(browser, user, tier);
 await ready(page);
 if (roomName !== "inn") {
   const ps = await portals(page);
@@ -64,18 +65,17 @@ for (const s of seats.filter((_, i) => i % step === 0)) {
     },
     [s.x, s.y],
   );
-  const bad =
-    ok &&
-    (r.at[0] !== s.x ||
-      r.at[1] !== s.y ||
-      (r.drawn && (Math.abs(r.drawn[0] - r.want[0]) > 0.25 || Math.abs(r.drawn[1] - r.want[1]) > 0.25)));
+  // A drawn figure more than 0.25 world units from the seat's own point counts as wrong.
+  const drawnOff =
+    r.drawn && (Math.abs(r.drawn[0] - r.want[0]) > 0.25 || Math.abs(r.drawn[1] - r.want[1]) > 0.25);
+  const bad = ok && (r.at[0] !== s.x || r.at[1] !== s.y || drawnOff);
   console.log(bad ? "BAD" : ok ? "ok " : "NOSIT", s.ch, s.kind, s.x, s.y, JSON.stringify(r));
   if (n++ < 60 && r.px)
     await page.screenshot({
       path: `/tmp/v2-qa-shots/seat-${tier}-${roomName}-${n}.png`,
       clip: { x: Math.max(0, r.px[0] - 150), y: Math.max(0, r.px[1] - 120), width: 300, height: 240 },
     });
-  // stand up
+  // Down stands the player up before the next seat.
   await page.keyboard.press("ArrowDown");
   await page
     .waitForFunction(() => window.__tm.self().state === "idle", null, { timeout: 5000 })

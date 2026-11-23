@@ -1,4 +1,6 @@
-// bun scripts/qa/edge.mjs [tier]: a real mouse click walks; resizing, a phone viewport and DPR changes; a hidden then visible tab; switching tiers live (also in a burst); a lost WebGL context falling back to 2D. Prints the canvas count, renderer and size after each.
+// bun scripts/qa/edge.mjs [tier]: a real mouse click walks; resizing, a phone viewport and DPR changes; a hidden then
+// visible tab; switching tiers live (also in a burst); a lost WebGL context falling back to 2D. Prints the canvas
+// count, renderer and size after each.
 // Needs a local server and Playwright (see lib.mjs).
 import { canvasInk, openGame, playwright, ready, signUp } from "./lib.mjs";
 
@@ -9,7 +11,8 @@ const browser = await pw.chromium.launch({
 });
 const log = (...a) => console.log(...a);
 const tier = process.argv[2] ?? "medium";
-const page = await openGame(browser, await signUp("e"), tier);
+const user = await signUp("e");
+const page = await openGame(browser, user, tier);
 await ready(page);
 const info = () =>
   page.evaluate(() => ({

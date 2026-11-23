@@ -10,8 +10,6 @@ import type { Rarity } from "@tokenmaxxing/core/rarity.ts";
  * name tags' chips and so on, with no three.js and no DOM so it can be tested (`web/test/render3d-world.test.ts`).
  */
 
-// MARK: The 429 Cop
-
 /** A chase lasts about this long on screen once his pull-over line has been heard (as the 2D game's `cop.ts`). */
 export const CHASE_MS = 60_000;
 
@@ -27,6 +25,7 @@ export interface CopState {
  * (`SIREN` first) means a chase, until he writes the ticket (`TICKET_MARK`) or a minute passes.
  */
 export class CopWatch {
+  /** When the last pull-over line was heard, or 0 when there is none or the ticket is written. */
   private since = 0;
   private readonly out: CopState = { siren: false, writing: false };
 
@@ -41,8 +40,6 @@ export class CopWatch {
   }
 }
 
-// MARK: The merchant
-
 /** The colour of each good on the cart: an edition's rarity (four a week). */
 const GOOD_COLOR: Record<Rarity, string> = {
   common: "#c9b6ff",
@@ -54,17 +51,17 @@ const GOOD_COLOR: Record<Rarity, string> = {
 /** The colours that pad a short lineup, so the cart is never bare. */
 const GOOD_FILL = ["#c9b6ff", "#f5d14a", "#8fe3ff", "#ff7ab6"];
 
+/** One colour per good on the cart's four slots: the lineup's rarities first, then the padding. */
 export function goodsColors(lineup: readonly Edition[]): string[] {
   const colors = lineup.map((e) => GOOD_COLOR[e.rarity ?? "common"]);
   const padding = GOOD_FILL.slice(colors.length, 4);
+
   return [...colors, ...padding].slice(0, 4);
 }
 
 /** What the cart's sign says. */
 export const CART_SIGN_HERE = "🛒 Traveling merchant · editions";
 export const CART_SIGN_AWAY = "🛒 Back Thursday";
-
-// MARK: The street
 
 export const polseSign = (open: boolean): string => (open ? "🌭 Gratis pølser" : "🌭 Lukket · 11-14");
 
@@ -80,12 +77,13 @@ export function snailSign(phase: SnailPhase): string {
   return SNAIL_SIGN[phase];
 }
 
-/** The minute the build finishes, crossed while watching: the burst and the toast fire once. */
+/**
+ * The minute the build finishes, crossed while watching: the burst and the toast fire once. `last` and `now` are
+ * minutes on the town clock. A gap of five minutes or more between two reads is not a crossing seen while watching.
+ */
 export function crossed(last: number | null, now: number, at: number): boolean {
   return last !== null && last < at && now >= at && now - last < 5;
 }
-
-// MARK: The picnic
 
 /** Where the picnic's grass patch sprouts for someone who sat on a blanket: the first of its seats. */
 export const grassSpot = (x: number, y: number): boolean =>
@@ -94,12 +92,8 @@ export const grassSpot = (x: number, y: number): boolean =>
 /** Whether a notice is the picnic badge's (the server sends it the first time you sit on a blanket in an outage). */
 export const isGrassNotice = (text: string | undefined): boolean => !!text && text.includes("Touched grass");
 
-// MARK: The tip jar
-
 /** The server's answer to a toss that landed (`toss` in `server/src/actors/world.ts`). */
 export const tossLanded = (notice: string | undefined): boolean => !!notice && notice.startsWith("⛲ Plink");
-
-// MARK: Name-tag chips
 
 interface TagChips {
   badges: { emoji: string; title: string; frame?: Frame }[];
@@ -110,9 +104,11 @@ interface TagChips {
 export function chipsOf(pins: readonly PinView[]): TagChips {
   const out: TagChips = { badges: [], trophies: [] };
   for (const p of pins) {
-    if (p.kind === "badge")
+    if (p.kind === "badge") {
       out.badges.push({ emoji: p.emoji ?? "🏅", title: p.name, frame: p.frame ?? undefined });
-    else if (p.kind === "trophy") out.trophies.push({ emoji: p.emoji ?? undefined, title: p.name });
+    } else if (p.kind === "trophy") {
+      out.trophies.push({ emoji: p.emoji ?? undefined, title: p.name });
+    }
   }
   return out;
 }
@@ -138,10 +134,10 @@ export class ShowcaseCache {
   private readonly failed = new Map<number, number>();
   private busy = false;
   private lastAt = -Infinity;
-  private readonly o: Required<Omit<ShowcaseOptions, "fetch">> & Pick<ShowcaseOptions, "fetch">;
+  private readonly options: Required<Omit<ShowcaseOptions, "fetch">> & Pick<ShowcaseOptions, "fetch">;
 
-  constructor(o: ShowcaseOptions) {
-    this.o = { every: 800, ttl: 10 * 60_000, backoff: 60_000, max: 200, ...o };
+  constructor(options: ShowcaseOptions) {
+    this.options = { every: 800, ttl: 10 * 60_000, backoff: 60_000, max: 200, ...options };
   }
 
   /** What is known for `id` (null until the answer is in); `key` changes when it does. */
@@ -151,17 +147,18 @@ export class ShowcaseCache {
 
   /** Called every frame with someone who is close and has no fresh answer: starts a request when it is time. */
   want(id: number, now: number): void {
-    if (id <= 0 || this.busy || now - this.lastAt < this.o.every) return;
-    const k = this.known.get(id);
-    if (k && now - k.at < this.o.ttl) return;
-    if (now - (this.failed.get(id) ?? -Infinity) < this.o.backoff) return;
+    if (id <= 0 || this.busy || now - this.lastAt < this.options.every) return;
+    const entry = this.known.get(id);
+    if (entry && now - entry.at < this.options.ttl) return;
+    if (now - (this.failed.get(id) ?? -Infinity) < this.options.backoff) return;
+
     this.busy = true;
     this.lastAt = now;
-    this.o
+    this.options
       .fetch(id)
       .then((pins) => {
         const chips = chipsOf(pins);
-        if (this.known.size >= this.o.max) this.known.delete(this.known.keys().next().value!);
+        if (this.known.size >= this.options.max) this.known.delete(this.known.keys().next().value!);
         this.known.set(id, { at: now, chips, key: pins.map((p) => `${p.id}:${p.frame ?? ""}`).join() });
       })
       .catch(() => this.failed.set(id, now))
@@ -170,8 +167,6 @@ export class ShowcaseCache {
       });
   }
 }
-
-// MARK: The jukebox
 
 /** The sign over the jukebox: the track, who put it on and the skip votes, or an invitation. */
 export function jukeboxSign(
@@ -182,12 +177,8 @@ export function jukeboxSign(
   return `${track} · on by ${now.byName} · ⏭ ${now.votes}/${now.need}`;
 }
 
-// MARK: The Tavern at night
-
 /** How much the room dims: blue at night, brown at dusk (`lightTavern` in the 2D game's `tavern.ts`). */
 export const tavernDim = (dark: number, dusk: number): number => Math.min(0.7, dark * 0.66 + dusk * 0.45);
-
-// MARK: Effects per tier
 
 /** Emoji bursts alive at once, from the tier's particle density (0 to 1): each is ten DOM nodes. */
 export const burstCap = (density: number): number =>

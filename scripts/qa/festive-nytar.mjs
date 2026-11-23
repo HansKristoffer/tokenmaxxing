@@ -10,10 +10,8 @@ import { openGame, playwright, portals, ready, room, signUp, through, walkTile }
 const args = process.argv.slice(2);
 const hop = args.includes("--hop");
 // --only=day,night,show runs just those parts (day includes the hats); the default is all, hop only with --hop.
-const only = args
-  .find((a) => a.startsWith("--only="))
-  ?.slice(7)
-  .split(",");
+const onlyArg = args.find((a) => a.startsWith("--only="));
+const only = onlyArg?.slice("--only=".length).split(",");
 const want = (part) => !only || only.includes(part);
 const TIERS = ["low", "medium", "high", "ultra"];
 const first = args.find((a) => !a.startsWith("--"));
@@ -41,7 +39,8 @@ const fail = (tier, why) => {
 for (const tier of tiers) {
   if (!TIERS.includes(tier)) throw new Error(`tier ${tier}`);
   const d = tier === "low" ? "2d" : "3d";
-  const page = await openGame(browser, await signUp("n"), tier, { viewport: { width: 1100, height: 700 } });
+  const user = await signUp("n");
+  const page = await openGame(browser, user, tier, { viewport: { width: 1100, height: 700 } });
   await ready(page);
   const shot = async (name) => {
     await page.screenshot({ path: `${out}/nytar-${d}-${name}.png` });

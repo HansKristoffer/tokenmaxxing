@@ -1,6 +1,7 @@
 /**
- * The 2D game's pages for the same shops: the Shop page's tabs (Møbelhuset's wallpaper and floors, monitors and company supplies
- * among them) and a company's merch. In 2D mode (and whenever the 3D shop panel is not up) a shop counter opens these.
+ * The 2D game's pages for the same shops: the Shop page's tabs (Møbelhuset's wallpaper and floors, monitors and
+ * company supplies among them) and a company's merch. In 2D mode, and whenever the 3D shop panel is not up,
+ * a shop counter opens these.
  */
 import type { Item } from "@tokenmaxxing/core/shop.ts";
 import { itemById } from "@tokenmaxxing/core/shop.ts";
@@ -22,10 +23,13 @@ export function pageForShop(shop: ShopId): Panel {
   return { kind: "shop", tab: TAB[shop] };
 }
 
-/** The page that sells one item (a shelf in the 3D shop, in 2D): the same tab, or the page for what the Shop page does not carry. */
+/**
+ * The page that sells one item (a shelf in the 3D shop, in 2D): the same tab, or the page for what the Shop page
+ * does not carry.
+ */
 export function pageForItem(id: string): Panel {
-  const p = purchaseOf(id);
-  switch (p.kind) {
+  const purchase = purchaseOf(id);
+  switch (purchase.kind) {
     case "decor":
       return { kind: "shop", tab: "decor" };
     case "desk":
@@ -33,7 +37,7 @@ export function pageForItem(id: string): Panel {
     case "piece":
       return { kind: "shop", tab: "company" };
     case "merch":
-      return { kind: "merch", companyId: p.companyId };
+      return { kind: "merch", companyId: purchase.companyId };
     default:
       return { kind: "shop", tab: itemById(id)?.slot };
   }

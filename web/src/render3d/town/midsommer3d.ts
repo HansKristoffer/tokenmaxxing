@@ -47,7 +47,10 @@ function dannebrog(): THREE.CanvasTexture {
   return clothTexture;
 }
 
-/** The cloth: a thin slab painted with the flag, its hoist edge at the origin. It hangs still (the town is not windy). */
+/**
+ * The cloth: a thin slab painted with the flag, its hoist edge at the origin. It hangs still, because the town
+ * is not windy.
+ */
 function flagCloth(): Model {
   const m = new Model();
   m.box([1.3, 1.0, 0.04], painted(dannebrog()), [0.65, -0.5, 0], 0.005);
@@ -71,7 +74,10 @@ function wreath(): Model {
 }
 
 let heksTextures: THREE.CanvasTexture[] | null = null;
-/** The 2D heks (`art/midsommer.ts`) as two textures (her flapping frames): she flies as a billboard, like in the sky. */
+/**
+ * The 2D heks (`art/midsommer.ts`) as two textures, one per flapping frame. She flies as a billboard, like in the
+ * sky.
+ */
 function heksFrames(): THREE.CanvasTexture[] {
   heksTextures ??= [0, 1].map((f) => {
     const t = new THREE.CanvasTexture(heksSprite(f));
@@ -92,10 +98,11 @@ function dot(color: string): THREE.Sprite {
 }
 
 /**
- * The Sankt Hans theme's scenery in the 3D town (the 2D one is `game/midsommer.ts`, and both ask the same questions):
- * Dannebrog poles, picnic blankets with a basket, door wreaths, glow-worms drifting over the lawn, sparks over the lit
- * bonfire, and the little straw heks you send to Bloksbjerg. Built lazily the first frame the theme is on, in three
- * tiers that show as the 23rd comes on (each merged once), and taken down (geometry and all) when it ends.
+ * The Sankt Hans theme's scenery in the 3D town (the 2D one is `game/midsommer.ts`, and both ask the same
+ * questions): Dannebrog poles, picnic blankets with a basket, door wreaths, glow-worms drifting over the lawn,
+ * sparks over the lit bonfire, and the little straw heks you send to Bloksbjerg. It is built lazily the first
+ * frame the theme is on, in three tiers that show as the 23rd comes on (each merged once), and taken down
+ * (geometry and all) when it ends.
  */
 export class Midsommer3d {
   readonly group = new THREE.Group();
@@ -109,19 +116,21 @@ export class Midsommer3d {
 
   constructor(private readonly toWorld: (tx: number, ty: number) => [number, number]) {
     this.group.name = "midsommer";
-    // Empty until the theme is on, and the room's batching hides and puts to sleep any subtree with nothing live in
-    // it, for good: so it is marked live.
+    // Empty until the theme is on. The room's batching would otherwise hide and sleep a subtree with nothing live
+    // in it for good, so the group is marked live.
     this.group.userData.nobatch = true;
     this.group.userData.live = true;
   }
 
   private build(): void {
-    const s = spotsNow();
+    const spots = spotsNow();
+
     // Tier 0 stands the whole window; 1 and 2 are added as it nears the bonfire.
     for (let tier = 0; tier < 3; tier++) {
       const g = new THREE.Group();
       const still = new Model();
-      for (const [i, [x, y]] of s.flags.entries()) {
+
+      for (const [i, [x, y]] of spots.flags.entries()) {
         if (Math.floor(i / 2) !== tier) continue;
         const [wx, wz] = this.toWorld(x, y);
         const p = pole();
@@ -131,7 +140,7 @@ export class Midsommer3d {
         cloth.position.set(wx + 0.04, 3.02, wz);
         still.add(cloth);
       }
-      const blanket = s.blankets[tier];
+      const blanket = spots.blankets[tier];
       if (blanket) {
         const [wx, wz] = this.toWorld(blanket[0], blanket[1]);
         const b = blanketModel(2, 1, 0);
@@ -142,13 +151,15 @@ export class Midsommer3d {
         basket.rotation.y = 0.3 + tier;
         still.add(basket);
       }
-      if (tier === 0)
-        for (const [x, y] of s.wreaths) {
+      if (tier === 0) {
+        for (const [x, y] of spots.wreaths) {
           const [wx, wz] = this.toWorld(x, y);
           const w = wreath();
           w.position.set(wx, 1.95, wz + 0.2);
           still.add(w);
         }
+      }
+
       g.add(still);
       mergeStill(still);
       this.tiers.push(g);
@@ -191,7 +202,9 @@ export class Midsommer3d {
       this.group.remove(t);
       disposeObject(t);
     }
-    for (const o of [...this.sparks, ...this.worms, ...this.tail, ...(this.heks ? [this.heks] : [])]) {
+    const sprites = [...this.sparks, ...this.worms, ...this.tail];
+    if (this.heks) sprites.push(this.heks);
+    for (const o of sprites) {
       this.group.remove(o);
       disposeObject(o);
     }
@@ -215,17 +228,21 @@ export class Midsommer3d {
   }
 
   update(t: number, now: number): void {
-    const f = festiveNow();
-    const on = f?.id === "sanktHans";
-    if (!on) {
+    const festive = festiveNow();
+    const isSanktHans = festive?.id === "sanktHans";
+    if (!isSanktHans) {
       if (this.built) this.clear();
       return;
     }
     if (!this.built) this.build();
-    const k = f.intensity;
-    const flags = Math.ceil(flagCount(k) / 2);
-    const blankets = blanketCount(k);
-    for (const [i, g] of this.tiers.entries()) g.visible = i < Math.max(flags, blankets);
+
+    const k = festive.intensity;
+    // Each tier holds two flags.
+    const flagTiers = Math.ceil(flagCount(k) / 2);
+    const blanketTiers = blanketCount(k);
+    const tiersShown = Math.max(flagTiers, blanketTiers);
+    for (const [i, g] of this.tiers.entries()) g.visible = i < tiersShown;
+
     const lit = bonfireNow() === "lit";
     for (const [i, m] of this.sparks.entries()) {
       m.visible = lit;
@@ -289,7 +306,8 @@ export function baltalerModel(_npc: FestiveNpc): THREE.Object3D {
   let last = 0;
   root.userData.tick = (t: number) => {
     av.talking = Math.floor(t / 4) % 3 === 0;
-    av.update(Math.min(0.1, Math.max(0, t - last)), t);
+    const dt = Math.min(0.1, Math.max(0, t - last));
+    av.update(dt, t);
     last = t;
   };
   return root;

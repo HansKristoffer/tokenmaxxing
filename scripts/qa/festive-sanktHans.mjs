@@ -27,7 +27,8 @@ const fail = (tier, why) => {
 
 for (const tier of tiers) {
   const d = tier === "low" ? "2d" : "3d";
-  const page = await openGame(browser, await signUp("sh"), tier, { viewport: { width: 1280, height: 800 } });
+  const user = await signUp("sh");
+  const page = await openGame(browser, user, tier, { viewport: { width: 1280, height: 800 } });
   await ready(page);
   const base = page.url().split("#")[0].split("?")[0];
   const load = async (iso, extra = "") => {
@@ -117,12 +118,12 @@ for (const tier of tiers) {
   const heks = await sendHeks();
   if (!heks?.includes("Bloksbjerg")) fail(tier, `E on the fire says ${JSON.stringify(heks)}`);
   // Her flight frozen at a point (?heksat=), so a slow machine still catches her in the air.
-  for (const [n, at] of [
+  for (const [n, flightPoint] of [
     [1, 0.1],
     [2, 0.3],
     [3, 0.55],
   ]) {
-    await load(EVE, `&heksat=${at}`);
+    await load(EVE, `&heksat=${flightPoint}`);
     await sendHeks();
     await page.evaluate(() => window.__tm.hud.set({ dialog: null }));
     await keys("-", 1);

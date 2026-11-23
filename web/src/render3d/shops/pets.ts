@@ -32,8 +32,7 @@ import {
 } from "./pets-fixtures.ts";
 import { animate, bowl, bubble, crownProp, cushion, live, nameChip, sparkles } from "./pets-parts.ts";
 
-// MARK: The contract (a local copy; the integrator unifies it)
-
+/** The item and shop shapes the pet store builds. `furniture.ts` declares the shared ones. */
 interface ShopItem {
   id: string;
   name: string;
@@ -59,8 +58,6 @@ interface ShopSpec {
   };
   slices?: () => Generator<void, Interior, void>;
 }
-
-// MARK: The catalog
 
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 const VARIANT_NAME: Record<string, string> = {
@@ -101,6 +98,7 @@ function crownPreview(): Model {
   return m;
 }
 
+/** The pet each piece of pet gear is shown on, in `SHOP_PETWEAR` order. */
 const GEAR_PETS: [string, string][] = [
   ["dog", "shiba"],
   ["cat", "calico"],
@@ -178,12 +176,13 @@ ITEMS.push({
 });
 
 const item = (id: string): ShopItem => ITEMS.find((i) => i.id === id)!;
-const entries = (prefix: string, exact = false): Entry[] =>
-  ITEMS.filter((i) => (exact ? i.id === prefix : i.id === prefix || i.id.startsWith(`${prefix}.`))).map((i) =>
-    ENTRY.get(i.id)!,
-  );
 
-// MARK: The keeper
+/** The entries of `prefix` and every look under it (`pet.2` and `pet.2.*`), or of the one id when `exact`. */
+const entries = (prefix: string, exact = false): Entry[] => {
+  const matches = (i: ShopItem) =>
+    exact ? i.id === prefix : i.id === prefix || i.id.startsWith(`${prefix}.`);
+  return ITEMS.filter(matches).map((i) => ENTRY.get(i.id)!);
+};
 
 const TEAL = "#3fa7a0";
 
@@ -241,8 +240,7 @@ function makeKeeper(): Avatar {
   return avatar;
 }
 
-// MARK: The exterior
-
+/** The gable of the storefront's roof: a prism over the front, with the end walls and their trim on `y`. */
 const gable = (m: Model, w: number, d: number, y: number, color: string, wall: string): void => {
   const half = d / 2 + 0.2;
   const rise = 0.95;
@@ -303,7 +301,10 @@ function windowCase(x: number, pets: [string, string, number][], seed: number): 
   return m;
 }
 
-/** The storefront for the town: about 5×4 tiles, door on its south face (+z), origin at the middle of the front wall. */
+/**
+ * The storefront for the town: about 5×4 tiles, door on its south face (+z), origin at the middle of the front
+ * wall.
+ */
 function petsExterior(): Model {
   const m = new Model();
   m.name = "building:pets";
@@ -434,14 +435,15 @@ function petsExterior(): Model {
   return m;
 }
 
-// MARK: The interior
-
 const W = 18;
 const D = 12;
 
 type Interior = ReturnType<ShopSpec["buildInterior"]>;
 
-/** The shop is built in slices (a yield between the big pieces), so the renderer can build it a bit per frame as the player nears the door. */
+/**
+ * The shop is built in slices (a yield between the big pieces), so the renderer can build it a bit per frame as
+ * the player nears the door.
+ */
 function* interiorSlices(): Generator<void, Interior, void> {
   const room = new Room(W, D, { floor: "#d6a873", wall: "#f7e5cd", stripe: "#eed3b6", bare: true });
   let complete = false;
@@ -476,16 +478,17 @@ function* fillInterior(room: Room): Generator<void, Interior, void> {
     const p = room.place({ id, name, price: 0, w, d, build: () => model }, x, z, turn, model);
     model.updateMatrix();
     room.group.updateMatrixWorld(true);
+
     for (const [i, lx, lz, shows] of regs) {
       const v = new THREE.Vector3(lx, 0, lz).applyMatrix4(model.matrix);
+      const at: [number, number] = [Math.floor(v.x), Math.floor(v.z)];
+
       // The pointer finds the middle of the pet (or a pedestal's one thing: the whole of it), not its tile.
       const on = shows ?? (regs.length === 1 ? model : undefined);
       const c = on && !box.setFromObject(on).isEmpty() ? box.getCenter(new THREE.Vector3()) : null;
-      displays.push({
-        item: item(i),
-        at: [Math.floor(v.x), Math.floor(v.z)],
-        ...(c && { world: [c.x, c.y, c.z] as [number, number, number] }),
-      });
+      const world = c && { world: [c.x, c.y, c.z] as [number, number, number] };
+
+      displays.push({ item: item(i), at, ...world });
     }
     return p;
   };

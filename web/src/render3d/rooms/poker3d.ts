@@ -1,8 +1,8 @@
 /**
  * The net cafe's poker table as a 3D prop: a stadium of green felt in a padded rail and a wooden rim, on two
- * pedestals. Its size and the way round it are read off the map (`core/pokertable.ts`), so the chairs and
- * the chips always meet. `show()` lays what is going on onto the felt: the board as little face-up cards, each
- * seat's cards, bet and stack as chips, the pot and the dealer's button. Nothing here knows the game's rules.
+ * pedestals. Its size and the way round it are read off the map (`core/pokertable.ts`), so the chairs and the chips
+ * always meet. `show()` lays what is going on onto the felt: the board as little face-up cards, each seat's cards,
+ * bet and stack as chips, the pot and the dealer's button. Nothing here knows the game's rules.
  */
 import { MAPS } from "@tokenmaxxing/core/maps.ts";
 import { type Card, cardFace } from "@tokenmaxxing/core/poker.ts";
@@ -55,8 +55,9 @@ const faces = new Map<Card | "back" | "button", THREE.MeshBasicMaterial>();
 
 /** A card's face (or its back, or the dealer's button) as a flat, unlit picture. Made once, shared by every table. */
 function faceMaterial(which: Card | "back" | "button"): THREE.MeshBasicMaterial {
-  let mat = faces.get(which);
-  if (mat) return mat;
+  let material = faces.get(which);
+  if (material) return material;
+
   const button = which === "button";
   const map = canvasTexture(
     60,
@@ -77,6 +78,7 @@ function faceMaterial(which: Card | "back" | "button"): THREE.MeshBasicMaterial 
         g.fillText("D", 30, 32);
         return;
       }
+
       g.fillStyle = which === "back" ? "#7a2a3a" : "#fbf7ef";
       g.beginPath();
       g.roundRect(1, 1, 58, 82, 7);
@@ -84,6 +86,7 @@ function faceMaterial(which: Card | "back" | "button"): THREE.MeshBasicMaterial 
       g.strokeStyle = which === "back" ? "#f1e6d2" : C.ink;
       g.lineWidth = 3;
       g.stroke();
+
       if (which === "back") {
         g.strokeStyle = "#5e1f2d";
         g.lineWidth = 3;
@@ -95,6 +98,7 @@ function faceMaterial(which: Card | "back" | "button"): THREE.MeshBasicMaterial 
         }
         return;
       }
+
       const { rank, suit, red } = cardFace(which);
       g.fillStyle = red ? "#c0392b" : C.ink;
       g.textAlign = "center";
@@ -107,10 +111,11 @@ function faceMaterial(which: Card | "back" | "button"): THREE.MeshBasicMaterial 
     true,
   );
   map.userData.shared = true;
-  mat = new THREE.MeshBasicMaterial({ map, side: THREE.DoubleSide });
-  mat.userData.shared = true;
-  faces.set(which, mat);
-  return mat;
+
+  material = new THREE.MeshBasicMaterial({ map, side: THREE.DoubleSide });
+  material.userData.shared = true;
+  faces.set(which, material);
+  return material;
 }
 
 /** A card or the button, lying on the felt at `at` with its top edge towards `towards` (an xz direction). */
@@ -120,136 +125,146 @@ function lay(
   at: V3,
   towards: [number, number],
 ): void {
-  const q = new THREE.Mesh(cardGeometry(), faceMaterial(which));
+  const card = new THREE.Mesh(cardGeometry(), faceMaterial(which));
   if (which === "button") {
     // The button is a round picture on a 0.15 square, lifted 0.012 above the felt.
-    q.scale.set(0.5, 0.36, 1);
-    q.position.set(at[0], at[1] + 0.012, at[2]);
+    card.scale.set(0.5, 0.36, 1);
+    card.position.set(at[0], at[1] + 0.012, at[2]);
   } else {
-    q.position.set(...at);
+    card.position.set(...at);
   }
-  q.rotation.order = "YXZ";
-  q.rotation.x = -Math.PI / 2;
-  q.rotation.y = Math.atan2(-towards[0], -towards[1]);
-  parent.add(q);
+
+  card.rotation.order = "YXZ";
+  card.rotation.x = -Math.PI / 2;
+  card.rotation.y = Math.atan2(-towards[0], -towards[1]);
+  parent.add(card);
 }
 
 const CHIP_COLOURS = { bet: "#c0392b", stack: "#2f6fb5", pot: "#e0a82e" } as const;
 
 /** Chips for `coins` at `at` on the felt: stacks of up to eight, a chip for every ten coins. */
 function chips(
-  m: Model,
+  model: Model,
   coins: number,
   at: V3,
   kind: keyof typeof CHIP_COLOURS,
   across: [number, number],
 ): void {
   if (coins <= 0) return;
+
   const count = Math.min(24, Math.max(1, Math.round(coins / 10)));
   const colour = CHIP_COLOURS[kind];
   const stacks = Math.ceil(count / 8);
   for (let s = 0; s < stacks; s++) {
-    const n = Math.min(8, count - s * 8);
-    const k = s - (stacks - 1) / 2;
-    const x = at[0] + across[0] * k * 0.17;
-    const z = at[2] + across[1] * k * 0.17;
-    for (let i = 0; i < n; i++) {
+    const inStack = Math.min(8, count - s * 8);
+    const offset = s - (stacks - 1) / 2;
+    const x = at[0] + across[0] * offset * 0.17;
+    const z = at[2] + across[1] * offset * 0.17;
+    for (let i = 0; i < inStack; i++) {
       const shade = i % 2 === 0 ? colour : tint(colour, 0.25);
-      m.cyl(0.07, 0.026, shade, [x, at[1] + i * 0.028, z], 0.07, 10);
+      model.cyl(0.07, 0.026, shade, [x, at[1] + i * 0.028, z], 0.07, 10);
     }
   }
 }
 
 /** The poker table, built from the map's table and chairs; `show` puts the game on it. */
 export function pokerTable3d(): PokerModel {
-  const m = new Model() as PokerModel;
+  const table = new Model() as PokerModel;
   const spot = pokerTable(MAPS.basement) ?? { x: 0, y: 0, w: 4, h: 2 };
   const chairs = pokerChairs(MAPS.basement);
   const hw = spot.w / 2;
   const hd = spot.h / 2;
+
   // A stadium: a box between two discs.
-  const r = hd - 0.03;
-  const half = hw - r;
-  const stadium = (radius: number, y: number, h: number, paint: string, shrink = 0) => {
-    const rr = radius - shrink;
-    m.box([half * 2, h, rr * 2], paint, [0, y, 0], 0.02);
-    for (const s of [-1, 1]) m.cyl(rr, h, paint, [s * half, y, 0], rr, 28);
+  const radius = hd - 0.03;
+  const halfSpan = hw - radius;
+  const stadium = (discRadius: number, y: number, h: number, paint: string, shrink = 0) => {
+    const reach = discRadius - shrink;
+    table.box([halfSpan * 2, h, reach * 2], paint, [0, y, 0], 0.02);
+    for (const s of [-1, 1]) table.cyl(reach, h, paint, [s * halfSpan, y, 0], reach, 28);
   };
-  stadium(r - 0.03, 0.46, 0.14, C.woodDark);
-  stadium(r, 0.6, 0.15, C.woodLight);
-  stadium(r - 0.07, 0.75, 0.04, "#5e2a2a");
-  stadium(r - 0.2, 0.78, 0.022, FELT);
+  stadium(radius - 0.03, 0.46, 0.14, C.woodDark);
+  stadium(radius, 0.6, 0.15, C.woodLight);
+  stadium(radius - 0.07, 0.75, 0.04, "#5e2a2a");
+  stadium(radius - 0.2, 0.78, 0.022, FELT);
+
   for (const s of [-1, 1]) {
-    m.cyl(0.2, 0.46, C.woodDark, [s * half, 0, 0], 0.15, 12);
-    m.cyl(0.32, 0.05, C.woodDark, [s * half, 0, 0], 0.3, 14);
+    table.cyl(0.2, 0.46, C.woodDark, [s * halfSpan, 0, 0], 0.15, 12);
+    table.cyl(0.32, 0.05, C.woodDark, [s * halfSpan, 0, 0], 0.3, 14);
   }
-  m.box([half * 2, 0.07, 0.12], C.woodDark, [0, 0.12, 0], 0.02);
+  table.box([halfSpan * 2, 0.07, 0.12], C.woodDark, [0, 0.12, 0], 0.02);
 
   // Where each seat sits, in the table's own space (a tile is a unit), and which way it faces.
   const cx = spot.x + hw;
   const cy = spot.y + hd;
-  const seats = chairs.map((ch) => {
-    const [fx, fz] = DIRS[ch.facing];
-    return { x: ch.x + 0.5 - cx, z: ch.y + 0.5 - cy, f: [fx, fz] as [number, number] };
+  const seats = chairs.map((chair) => {
+    const [fx, fz] = DIRS[chair.facing];
+    return { x: chair.x + 0.5 - cx, z: chair.y + 0.5 - cy, f: [fx, fz] as [number, number] };
   });
 
   // What is on the felt changes with every hand, so it is a live model: the room neither merges it into its
   // static meshes nor puts the table's subtree to sleep (`perf/bake.ts`).
   const live = liveModel();
   live.position.y = FELT_Y + 0.012;
-  m.add(live);
-  let shown = "";
-  m.show = (scene) => {
+  table.add(live);
+
+  let shownKey = "";
+  table.show = (scene) => {
     const key = JSON.stringify(scene);
-    if (key === shown) return;
-    shown = key;
+    if (key === shownKey) return;
+    shownKey = key;
+
     live.clear();
-    for (const [i, c] of scene.board.entries())
-      lay(live, c, [(i - (scene.board.length - 1) / 2) * 0.37, 0, 0], [0, -1]);
+    for (const [i, card] of scene.board.entries()) {
+      lay(live, card, [(i - (scene.board.length - 1) / 2) * 0.37, 0, 0], [0, -1]);
+    }
     chips(live, scene.pot, [0, 0, -0.5], "pot", [1, 0]);
+
     for (const [i, seat] of scene.seats.entries()) {
-      const s = seats[i];
-      if (!seat || !s) continue;
-      const vertical = s.f[0] === 0;
-      const at = (dist: number, side = 0): V3 => [
-        s.x + s.f[0] * dist - s.f[1] * side,
+      const chair = seats[i];
+      if (!seat || !chair) continue;
+
+      const vertical = chair.f[0] === 0;
+      const pointAt = (dist: number, side = 0): V3 => [
+        chair.x + chair.f[0] * dist - chair.f[1] * side,
         0,
-        s.z + s.f[1] * dist + s.f[0] * side,
+        chair.z + chair.f[1] * dist + chair.f[0] * side,
       ];
       // Two cards side by side, tops towards the middle of the table; the dealer's button beside them.
-      const cards = vertical ? 0.9 : 1.0;
-      const across: [number, number] = [-s.f[1], s.f[0]];
+      const cardDist = vertical ? 0.9 : 1.0;
+      const across: [number, number] = [-chair.f[1], chair.f[0]];
 
       if (seat.shown || seat.dealt) {
-        for (const [k, side] of [-0.17, 0.17].entries()) {
-          lay(live, seat.shown?.[k] ?? "back", at(cards, side), s.f);
+        for (const [cardIndex, side] of [-0.17, 0.17].entries()) {
+          lay(live, seat.shown?.[cardIndex] ?? "back", pointAt(cardDist, side), chair.f);
         }
       }
-      if (seat.dealer) lay(live, "button", at(cards, -0.52), s.f);
+      if (seat.dealer) lay(live, "button", pointAt(cardDist, -0.52), chair.f);
 
-      chips(live, seat.bet, at(vertical ? 1.18 : 1.3), "bet", across);
-      chips(live, seat.stack, at(cards, 0.55), "stack", across);
+      chips(live, seat.bet, pointAt(vertical ? 1.18 : 1.3), "bet", across);
+      chips(live, seat.stack, pointAt(cardDist, 0.55), "stack", across);
     }
   };
 
-  const v = new THREE.Vector3();
-  m.seatWorld = (i, into) => {
-    const s = seats[i];
-    v.set(s?.x ?? 0, 0, s?.z ?? 0);
-    return into.copy(m.localToWorld(v));
+  const scratch = new THREE.Vector3();
+  table.seatWorld = (i, into) => {
+    const seat = seats[i];
+    scratch.set(seat?.x ?? 0, 0, seat?.z ?? 0);
+    return into.copy(table.localToWorld(scratch));
   };
-  m.centreWorld = (into) => into.copy(m.localToWorld(v.set(0, FELT_Y, 0)));
-  return m;
+  table.centreWorld = (into) => into.copy(table.localToWorld(scratch.set(0, FELT_Y, 0)));
+  return table;
 }
 
 /** A chair at the poker table: a wooden chair facing +z, with a red cushion. */
 export function pokerChair(): Model {
-  const m = new Model();
-  for (const sx of [-1, 1])
-    for (const sz of [-1, 1]) m.cyl(0.025, 0.4, C.woodDark, [sx * 0.17, 0, sz * 0.17], 0.025, 8);
-  m.box([0.42, 0.06, 0.42], C.woodLight, [0, 0.4, 0], 0.02);
-  for (const sx of [-1, 1]) m.box([0.04, 0.5, 0.04], C.woodDark, [sx * 0.17, 0.44, -0.18], 0.012);
-  for (const y of [0.62, 0.76]) m.box([0.372, 0.07, 0.03], C.wood, [0, y, -0.18], 0.01);
-  m.box([0.38, 0.05, 0.38], C.rug, [0, 0.455, 0.01], 0.02);
-  return m;
+  const model = new Model();
+  for (const sx of [-1, 1]) {
+    for (const sz of [-1, 1]) model.cyl(0.025, 0.4, C.woodDark, [sx * 0.17, 0, sz * 0.17], 0.025, 8);
+  }
+  model.box([0.42, 0.06, 0.42], C.woodLight, [0, 0.4, 0], 0.02);
+  for (const sx of [-1, 1]) model.box([0.04, 0.5, 0.04], C.woodDark, [sx * 0.17, 0.44, -0.18], 0.012);
+  for (const y of [0.62, 0.76]) model.box([0.372, 0.07, 0.03], C.wood, [0, y, -0.18], 0.01);
+  model.box([0.38, 0.05, 0.38], C.rug, [0, 0.455, 0.01], 0.02);
+  return model;
 }

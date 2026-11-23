@@ -33,7 +33,10 @@ function nameplate(): THREE.MeshBasicMaterial {
   return new THREE.MeshBasicMaterial({ map });
 }
 
-/** The truck facing +x, its middle at the origin: a red box with the name on both sides, a green cab, fairy lights. */
+/**
+ * The truck facing +x, its middle at the origin: a red box with the name on both sides, a green cab and fairy
+ * lights.
+ */
 function truckModel(): Model {
   const m = new Model();
   m.box([2.7, 1.3, 1.1], RED, [-0.55, 0.5, 0]);
@@ -50,13 +53,17 @@ function truckModel(): Model {
   m.box([0.1, 0.16, 1.1], "#9aa3ad", [1.94, 0.3, 0], 0.01);
   const headlight = glow("#ffe08a");
   for (const z of [-0.35, 0.35]) m.box([0.04, 0.12, 0.18], headlight, [1.97, 0.5, z], 0.005);
-  for (const x of [-1.5, 0.2, 1.4])
+  for (const x of [-1.5, 0.2, 1.4]) {
     for (const z of [-0.5, 0.5]) m.ball(0.26, INK, [x, 0.26, z], [1, 1, 0.45], 12);
+  }
+
   // The fairy lights along both edges of the roof: a material a colour, so they merge.
   const bulbs = BULBS.map((c) => glow(c));
-  for (let i = 0; i < 9; i++)
-    for (const z of [-0.56, 0.56])
+  for (let i = 0; i < 9; i++) {
+    for (const z of [-0.56, 0.56]) {
       m.ball(0.045, bulbs[i % bulbs.length]!, [-1.8 + i * 0.32, 1.7, z], [1, 1, 1], 6);
+    }
+  }
   return m;
 }
 
@@ -90,13 +97,13 @@ export class Truck3d {
   }
 
   update(): void {
-    const t = truckAt(skyNow());
-    this.group.visible = t !== null;
-    this.parked = t?.parked ?? false;
-    if (!t) return;
+    const truck = truckAt(skyNow());
+    this.group.visible = truck !== null;
+    this.parked = truck?.parked ?? false;
+    if (!truck) return;
 
-    // `t.x` is its back tile; the model's middle is half its length on.
-    const [x, z] = this.toWorld(t.x, t.y);
+    // `truck.x` is its back tile; the model's middle is half its length on.
+    const [x, z] = this.toWorld(truck.x, truck.y);
     this.group.position.set(x + (TRUCK.w - 1) / 2, 0, z);
     this.sign.at = [this.group.position.x, 2.2, z];
   }

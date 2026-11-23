@@ -193,7 +193,10 @@ function Stage({ look, onFail }: { look: Look; onFail: () => void }) {
       (m) => {
         const out = canvas.current;
         const s = live && out ? m.IconStage.open(out) : null;
-        if (!s) return live && onFail();
+        if (!s) {
+          if (live) onFail();
+          return;
+        }
         stage.current = s;
         const px = m.devicePixels(128) * (STAGE_PX / 128);
         const tick = (now: number) => {
@@ -483,13 +486,15 @@ function Things(props: {
         {held.map(({ row, item: it }) => {
           const wearing = isWorn(it, look);
           const copy = copies.find((c) => c.item === row.item);
+          const wearingNote = wearing ? ", wearing" : "";
+          const rewardNote = it.level === undefined ? "" : ", reward";
           return (
             <li key={row.item}>
               <button
                 type="button"
                 className={`${wearing ? "cell wearing" : "cell"}${rarityClass(it)}`}
                 aria-pressed={row.item === picked}
-                aria-label={`${merchName(it)} ×${row.count}${wearing ? ", wearing" : ""}${it.level === undefined ? "" : ", reward"}`}
+                aria-label={`${merchName(it)} ×${row.count}${wearingNote}${rewardNote}`}
                 title={it.loot ? `${merchName(it)}\n${lootLine(it)}` : merchName(it)}
                 style={rarityRing(it)}
                 onClick={() => setPicked(row.item)}
