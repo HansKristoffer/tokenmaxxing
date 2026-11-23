@@ -10,7 +10,8 @@ const browser = await pw.chromium.launch({
   headless: true,
   args: ["--use-angle=metal", "--ignore-gpu-blocklist"],
 });
-const page = await openGame(browser, await signUp("u"), process.argv[2] ?? "high", {
+const user = await signUp("u");
+const page = await openGame(browser, user, process.argv[2] ?? "high", {
   viewport: { width: 960, height: 600 },
   dpr: 2,
 });
@@ -51,7 +52,8 @@ const box = await page.evaluate(() => {
   r.rig.update = () => {};
   const c = r.rig.camera;
   // The point 60 units ahead of the camera: where it looks now.
-  const look = c.position.clone().add(c.getWorldDirection(c.position.clone()).multiplyScalar(60));
+  const ahead = c.getWorldDirection(c.position.clone()).multiplyScalar(60);
+  const look = c.position.clone().add(ahead);
   c.position.add(c.position.clone().set(fx - look.x, 0, fz - look.z));
   c.updateMatrixWorld();
   r.__base = c.position.clone();

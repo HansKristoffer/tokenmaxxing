@@ -10,7 +10,8 @@ const browser = await pw.chromium.launch({
   args: ["--use-angle=metal", "--ignore-gpu-blocklist"],
 });
 const tier = process.argv[2] ?? "high";
-const page = await openGame(browser, await signUp("tc"), tier, {
+const user = await signUp("tc");
+const page = await openGame(browser, user, tier, {
   viewport: VIEW,
   touch: true,
 });
@@ -56,6 +57,7 @@ await touch("touchStart", [
   [400, 200],
 ]);
 for (let i = 1; i <= 10; i++) {
+  // Twist 12 degrees a step.
   const angle = (i * 12 * Math.PI) / 180;
   await touch("touchMove", [
     [350 - Math.cos(angle) * 50, 200 - Math.sin(angle) * 50],

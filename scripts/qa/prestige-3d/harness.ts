@@ -1,7 +1,7 @@
 // Browser harness for the prestige 3D showcase: the real avatars, wearing each track's set, on a WebGL canvas.
 // Optional pieces (pet wear, home trophies) come from ./optional.ts, which shots.mjs generates.
 import * as THREE from "three";
-import { PRESTIGE_TRACKS } from "../../../core/src/prestige.ts";
+import { PRESTIGE_BASE, PRESTIGE_TRACKS } from "../../../core/src/prestige.ts";
 import { setSmoothBands } from "../../../web/src/render3d/kit/kit.ts";
 import { avatarFor } from "../../../web/src/render3d/people/gear3d.ts";
 import "../../../web/src/render3d/people/gear3dPrestige.ts";
@@ -73,7 +73,7 @@ function guarded(f: () => void) {
 
 // People: per track, rows = grown / chibi / bot / voxel, columns = front and back at three animation moments.
 for (const t of PRESTIGE_TRACKS) {
-  const idx = 700 + t.rank - 1;
+  const idx = PRESTIGE_BASE + t.rank - 1;
   const s = sheet(`track${t.rank}-${t.key}`, 6, 4);
   (["grown", "chibi", "bot", "voxel"] as const).forEach((style, row) => {
     guarded(() => {
@@ -90,7 +90,8 @@ for (const t of PRESTIGE_TRACKS) {
         step(time);
         [0, Math.PI].forEach((turn, a) => {
           av.root.rotation.y = turn;
-          s.draw(k * 2 + a, row, `${t.name} ${style} ${a ? "back" : "front"} t=${time}`, cam);
+          const side = a ? "back" : "front";
+          s.draw(k * 2 + a, row, `${t.name} ${style} ${side} t=${time}`, cam);
         });
       });
       scene.remove(av.root);
@@ -109,7 +110,7 @@ for (const t of PRESTIGE_TRACKS) {
         const pet = petFrom2D(species);
         scene.add(pet.root);
         pet.update(1 / 30, 0);
-        // Not wired into Pet3D yet: hang it on the rig's head by hand, at its top or neck anchor.
+        // Pet3D does not take pet wear, so this hangs it on the rig's head by hand, at its top or neck anchor.
         const rig = (pet as unknown as { rig: { head: THREE.Object3D; top: number[]; neck: number[] } }).rig;
         const wear = optionalPetwear(t.rank, 0.09);
         if (wear) {

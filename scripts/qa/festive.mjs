@@ -68,7 +68,8 @@ const browser = await pw.chromium.launch({ headless: true, args: ["--ignore-gpu-
 let failed = 0;
 
 for (const tier of tiers) {
-  const page = await openGame(browser, await signUp("f"), tier, { viewport: { width: 1100, height: 700 } });
+  const user = await signUp("f");
+  const page = await openGame(browser, user, tier, { viewport: { width: 1100, height: 700 } });
   await ready(page);
   const go = async (ch) => {
     const p = (await portals(page)).find((q) => q.ch === ch);
@@ -86,6 +87,7 @@ for (const tier of tiers) {
     );
     await page.goto(`${page.url().split("#")[0].split("?")[0]}${c.query}`);
     // The toast is up 8 s from the moment the HUD is, which 3D's slower start can outlast `ready`: catch it first.
+    // No toast within the wait is an answer, not an error: the check below compares it with the case.
     const toast = await page
       .waitForSelector(".festive-toast", { timeout: c.want === "none" ? 6000 : 30_000 })
       .then(async (el) => {

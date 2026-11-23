@@ -15,7 +15,7 @@ const from = (ip) => createClient({ endpoint: `${ORIGIN}/api/rivet`, headers: { 
 const client = from("10.9.9.9");
 
 /**
- * A new player with a few turns of usage, so there is something to spend.
+ * A new player with an hour of usage, a turn a minute, so there is something to spend.
  *
  * `company`: also starts a company (a house, a common room) and, with `perTurn` around 8M, enough usage for the
  * level the Office needs. `agoMin`: the usage stopped that many minutes ago (past 10 it does not count as working).
@@ -186,7 +186,8 @@ export async function canvasInk(page, path) {
     // Five bits per channel: 32 levels each, so two colours that look alike share a bucket.
     const set = new Set();
     for (let i = 0; i < d.length; i += 4) {
-      set.add((d[i] >> 3) * 1024 + (d[i + 1] >> 3) * 32 + (d[i + 2] >> 3));
+      const [r, g, b] = [d[i] >> 3, d[i + 1] >> 3, d[i + 2] >> 3];
+      set.add(r * 1024 + g * 32 + b);
     }
     return set.size;
   }, b64);

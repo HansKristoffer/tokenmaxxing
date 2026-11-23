@@ -61,7 +61,7 @@ for (const slot of ["hat", "glasses", "outfit", "held", "back"] as const) {
   items.forEach((it, row) => {
     const look = { style: 0, skin: 1, hair: 2, outfit: slot === "outfit" ? it.index : 1, [slot]: it.index };
     // columns: grown front, 3/4, back; voxel front, back; head/part close-up (grown)
-    const spec: [string, number, number][] = [
+    const spec: ["grown" | "voxel", number, number][] = [
       [VOXEL ? "voxel" : "grown", 0, 0],
       [VOXEL ? "voxel" : "grown", 0.8, 0],
       ["voxel", Math.PI, 0],
@@ -72,7 +72,7 @@ for (const slot of ["hat", "glasses", "outfit", "held", "back"] as const) {
     spec.forEach(([style, turn, close], col) => {
       try {
         setSmoothBands(style === "voxel" || VOXEL);
-        const av = avatarFor(look, undefined, style as "grown" | "voxel");
+        const av = avatarFor(look, undefined, style);
         scene.add(av.root);
         if (slot === "held") av.pose = "idle";
         for (let t = 0; t < 1.2; t += 1 / 30) av.update(1 / 30, t);

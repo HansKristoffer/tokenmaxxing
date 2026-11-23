@@ -42,7 +42,8 @@ const fail = (what) => {
 
 for (const tier of tiers) {
   const d = tier === "low" ? "2d" : "3d";
-  const page = await openGame(browser, await signUp("c"), tier, { viewport: { width: 1280, height: 800 } });
+  const user = await signUp("c");
+  const page = await openGame(browser, user, tier, { viewport: { width: 1280, height: 800 } });
   await ready(page);
   const go = async (ch) => {
     const p = (await portals(page)).find((q) => q.ch === ch);
@@ -67,8 +68,9 @@ for (const tier of tiers) {
     console.log(tier, time, JSON.stringify(festive));
     const shoot = async (name) => {
       await page.waitForTimeout(1800);
-      await page.screenshot({ path: `${out}/christmas-${d}-${time.replace(":", "")}-${name}.png` });
-      console.log(`${out}/christmas-${d}-${time.replace(":", "")}-${name}.png`);
+      const file = `${out}/christmas-${d}-${time.replace(":", "")}-${name}.png`;
+      await page.screenshot({ path: file });
+      console.log(file);
     };
     for (const v of VIEWS) {
       await key("0");
@@ -80,10 +82,7 @@ for (const tier of tiers) {
     }
     // Knud blocks his tile and answers E; the tree answers too.
     await key("0");
-    const talk = await page.evaluate(() => {
-      const NPC = { x: 13, y: 5 };
-      return { room: window.__tm.world.room, npc: NPC };
-    });
+    const roomBefore = await room(page);
     await walkTile(page, 13, 6);
     await page.keyboard.press("ArrowUp");
     await page.waitForTimeout(600);
@@ -96,7 +95,7 @@ for (const tier of tiers) {
     await page.waitForTimeout(500);
     const said = await page.evaluate(() => window.__tm.hud.get().dialog);
     if (!said?.startsWith("Nisse Knud:"))
-      fail(`${tier} ${time}: E on Knud said ${JSON.stringify(said)} (${talk.room})`);
+      fail(`${tier} ${time}: E on Knud said ${JSON.stringify(said)} (${roomBefore})`);
     await shoot("knud-talk");
     await page.evaluate(() => window.__tm.hud.set({ dialog: null }));
     await walkTile(page, 10, 7);

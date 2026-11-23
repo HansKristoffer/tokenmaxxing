@@ -32,7 +32,8 @@ const fail = (what) => {
 
 for (const tier of tiers) {
   const d = tier === "low" ? "2d" : "3d";
-  const page = await openGame(browser, await signUp("jm"), tier, { viewport: { width: 1280, height: 800 } });
+  const user = await signUp("jm");
+  const page = await openGame(browser, user, tier, { viewport: { width: 1280, height: 800 } });
   await ready(page);
   await page.goto(`${page.url().split("#")[0].split("?")[0]}?sky=2026-12-02T14:00&weather=clear`);
   await ready(page);
@@ -55,9 +56,9 @@ for (const tier of tiers) {
     await shoot(name);
     if (d === "3d") for (let i = 0; i < turns; i++) await key("q");
   };
-  // The tile of the portal with character `ch` in the room `p` is in, or [0, 0] when there is none.
-  async function gatePortal(p, ch) {
-    const list = await p.evaluate(() => {
+  // The tile of the room's portal with character `ch`, or [0, 0] when there is none.
+  async function gatePortal(ch) {
+    const list = await page.evaluate(() => {
       const m = window.__tm.world.map;
       const o = [];
       for (let y = m.y0; y < m.y0 + m.height; y++) {
@@ -70,10 +71,10 @@ for (const tier of tiers) {
     const q = list.find((c) => c.ch === ch);
     return q ? [q.x, q.y] : [0, 0];
   }
-  if ((await room(page)) === "upstairs") await through(page, ...(await gatePortal(page, "d")));
-  if ((await room(page)) === "inn") await through(page, ...(await gatePortal(page, "x")));
+  if ((await room(page)) === "upstairs") await through(page, ...(await gatePortal("d")));
+  if ((await room(page)) === "inn") await through(page, ...(await gatePortal("x")));
   if ((await room(page)) !== "town") fail(`${tier}: not in town (${await room(page)})`);
-  const [gx, gy] = await gatePortal(page, "Ȣ");
+  const [gx, gy] = await gatePortal("Ȣ");
   if (gx === 0 && gy === 0) fail(`${tier}: the town has no Julemarked gate`);
   await view("town", [10, 4], -4);
   await view("block", [gx + 1, gy + 4], -1);

@@ -31,11 +31,18 @@ const PASSED_ENV = [
 export const configHome = (env: NodeJS.ProcessEnv = process.env): string =>
   env.XDG_CONFIG_HOME || join(homedir(), ".config");
 
-export const serviceEnv = (env: NodeJS.ProcessEnv = process.env): Record<string, string> =>
-  Object.fromEntries(PASSED_ENV.flatMap((k) => (env[k] ? [[k, env[k]]] : [])));
+export const serviceEnv = (env: NodeJS.ProcessEnv = process.env): Record<string, string> => {
+  const passed = PASSED_ENV.flatMap((key) => {
+    const value = env[key];
+    return value ? [[key, value] as const] : [];
+  });
+  return Object.fromEntries(passed);
+};
 
 /** How to run `tokenmaxxing run`: the compiled binary itself, or Bun and this script from source. */
 export function runCommand(): string[] {
+  // A compiled Bun binary runs its entry from a virtual path: under `/$bunfs/` on Unix, and in a
+  // `~BUN` folder on Windows.
   const compiled = Bun.main.startsWith("/$bunfs/") || Bun.main.includes("~BUN");
   return compiled ? [process.execPath, "run"] : [process.execPath, Bun.main, "run"];
 }

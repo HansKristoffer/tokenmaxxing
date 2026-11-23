@@ -21,6 +21,7 @@ export function appStateDir(platform = process.platform, env = process.env, home
   if (platform === "win32") return join(env.LOCALAPPDATA || join(home, "AppData", "Local"), "Tokenmaxxing");
   return join(env.XDG_DATA_HOME || join(home, ".local", "share"), "Tokenmaxxing");
 }
+
 /** v2: the world started from a fresh server, so every Mac re-reads its full history into it. */
 export const APP_STATE_FILE = "state.v2.json";
 
@@ -133,7 +134,9 @@ export class Helper {
   }
 
   private player() {
-    return this.api().player.get([this.token?.split(".")[0] ?? "0"], this.params());
+    // With no token, `params()` below throws `signed_out`; the placeholder id only keeps the call's shape.
+    const userId = this.token?.split(".")[0] ?? "0";
+    return this.api().player.get([userId], this.params());
   }
 
   /** Checks the token (a rejected one goes back to onboarding), then syncs in the background. */

@@ -8,10 +8,12 @@ const browser = await pw.chromium.launch({
   args: ["--use-angle=metal", "--ignore-gpu-blocklist"],
 });
 const tier = process.argv[2] ?? "high";
-const a = await openGame(browser, await signUp("ca", 8_000_000, true), tier, {
+const founder = await signUp("ca", 8_000_000, true);
+const a = await openGame(browser, founder, tier, {
   viewport: { width: 1500, height: 900 },
 });
-const b = await openGame(browser, await signUp("cb"), tier);
+const visitor = await signUp("cb");
+const b = await openGame(browser, visitor, tier);
 await ready(a);
 await ready(b);
 const toTown = async (p) => {

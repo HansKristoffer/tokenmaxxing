@@ -25,14 +25,16 @@ async function toTown(p) {
     await through(p, q.x, q.y);
   }
 }
-const page = await openGame(browser, await signUp("angler"), tier, {
+const angler = await signUp("angler");
+const page = await openGame(browser, angler, tier, {
   viewport: { width: 1280, height: 860 },
 });
 await toTown(page);
 await walkTile(page, 2, 12);
 // WATCH=1: a second player stands nearby and screenshots what they see of the angler.
-const watcher = process.env.WATCH
-  ? await openGame(browser, await signUp("watcher"), tier, { viewport: { width: 1280, height: 860 } })
+const watchUser = process.env.WATCH ? await signUp("watcher") : null;
+const watcher = watchUser
+  ? await openGame(browser, watchUser, tier, { viewport: { width: 1280, height: 860 } })
   : null;
 if (watcher) {
   await toTown(watcher);

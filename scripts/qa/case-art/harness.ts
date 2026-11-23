@@ -7,7 +7,7 @@ import { casePieceOf } from "../../../core/src/case-furniture.ts";
 import { caseById } from "../../../core/src/cases.ts";
 import { FISHING_ITEMS } from "../../../core/src/fishing-loot.ts";
 import { JULEPYNT_PIECES, STALL_WEARABLES } from "../../../core/src/julemarked-shop.ts";
-import { PRESTIGE_ITEMS, PRESTIGE_TRACKS } from "../../../core/src/prestige.ts";
+import { PRESTIGE_BASE, PRESTIGE_ITEMS, PRESTIGE_TRACKS } from "../../../core/src/prestige.ts";
 import { defaultLook, type Look, TILE } from "../../../core/src/world.ts";
 import { CA_H, CA_MS, CA_W, CA_X, CA_Y, caseAuraFrame } from "../../../web/src/art/case-aura.ts";
 import { caseBoxSprite } from "../../../web/src/art/case-box.ts";
@@ -203,8 +203,8 @@ function prestigeExtras(): void {
 
   // One overview a track: the full set (hat + outfit + back + aura) from front, side and back.
   PRESTIGE_TRACKS.forEach((t) => {
-    // A track's wearables sit at look index 700 + rank - 1 (PRESTIGE_BASE).
-    const n = 700 + t.rank - 1;
+    // A track's wearables sit at look index PRESTIGE_BASE + rank - 1.
+    const n = PRESTIGE_BASE + t.rank - 1;
     const l = look({ hat: n, outfit: n, back: n, aura: n });
     const cells: Cell[] = [
       {
@@ -213,7 +213,7 @@ function prestigeExtras(): void {
         bg: mix(t.colors.main, 0.45),
       },
       {
-        label: `aura frame 3`,
+        label: "aura frame 3",
         sprites: (["down", "right", "up"] as const).map((v) => auraFrame(l, v, 3)),
         bg: mix(t.colors.main, 0.45),
       },
@@ -243,12 +243,12 @@ function prestigeExtras(): void {
       const sp: Sprite[] = [];
       for (const pet of [1, 2]) {
         for (const now of [0, 300, 600, 900]) {
-          const base = petFrame(pet, false, false) ?? document.createElement("canvas");
+          const pose = petFrame(pet, false, false) ?? document.createElement("canvas");
           const cv = document.createElement("canvas");
-          cv.width = base.width;
-          cv.height = base.height + 8;
+          cv.width = pose.width;
+          cv.height = pose.height + 8;
           const g = cv.getContext("2d")!;
-          g.drawImage(base, 0, 8);
+          g.drawImage(pose, 0, 8);
           const r = tryAll(
             `petwear ${t.key}`,
             () => pw(t.rank, pet, false, false, now) as [Sprite, number, number] | null,

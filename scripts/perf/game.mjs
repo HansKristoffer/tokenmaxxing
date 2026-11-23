@@ -33,6 +33,7 @@ if (!process.env.QA_ORIGIN) {
       RIVETKIT_STORAGE_PATH: mkdtempSync(join(tmpdir(), "tm-perf-")),
       RIVET_LOG_LEVEL: "error",
       RIVET__GUARD__TCP_NODELAY: "true",
+      // Lifts the gateway's rate limits, so the crowd's own traffic is not throttled.
       GATEWAY_REQUESTS_PER_MIN: "10000000",
       GATEWAY_SOCKETS_PER_MIN: "10000000",
     },
@@ -105,6 +106,8 @@ let walking = true;
 const step = async ({ conn, me }, dir) => {
   const r = await conn.step(dir).catch(() => null);
   if (r && "x" in r) return Object.assign(me, { room: r.room, x: r.x, y: r.y });
+
+  // A failed call moves the walker by the local map instead, so the crowd keeps moving.
   const t = stepTarget(mapOf(me.room), me.x, me.y, dir);
   if (!r && t.kind === "move") Object.assign(me, { x: t.x, y: t.y });
 };
