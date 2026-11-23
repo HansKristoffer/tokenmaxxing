@@ -4,6 +4,7 @@
  */
 
 import { mapValues } from "hanzio";
+import { C } from "./palette.ts";
 
 export type Palette = Record<string, string>;
 
@@ -199,3 +200,31 @@ export function initialsOf(name: string): string {
   if (words.length === 1) return words[0]!.slice(0, 2);
   return words[0]![0]! + words[1]![0]!;
 }
+
+/** A filled rectangle with a one-pixel ink outline. */
+export function box(p: Pen, x: number, y: number, w: number, h: number, fill: string): void {
+  p.rect(x, y, w, h, C.ink);
+  p.rect(x + 1, y + 1, w - 2, h - 2, fill);
+}
+
+/** A filled ellipse, pixel-exact. */
+export function oval(p: Pen, cx: number, cy: number, rx: number, ry: number, color: string): void {
+  for (let y = -ry; y <= ry; y++) {
+    const half = Math.floor(rx * Math.sqrt(1 - (y * y) / (ry * ry + 0.01)) + 0.3);
+    p.rect(cx - half, cy + y, half * 2 + 1, 1, color);
+  }
+}
+
+/** An ink-outlined ellipse. */
+export function blob(p: Pen, cx: number, cy: number, rx: number, ry: number, fill: string): void {
+  oval(p, cx, cy, rx + 1, ry + 1, C.ink);
+  oval(p, cx, cy, rx, ry, fill);
+}
+
+/** A soft ground shadow, two pixels tall and `w` wide. */
+export const shadow = (p: Pen, x: number, y: number, w: number) => p.rect(x, y, w, 2, C.shadow);
+
+/** Single pixels at each of `pts`, all in `color`. */
+export const dots = (p: Pen, pts: readonly (readonly [number, number])[], color: string) => {
+  for (const [x, y] of pts) p.px(x, y, color);
+};

@@ -102,7 +102,10 @@ export const LOOT_GLASSES: { rows: Record<"down" | "side", string[]>; pal: Palet
   },
 ];
 
-/** Outfits from `LOOT_FIRST.outfit` on (after the wardrobe): [main, shade], trousers, and what goes over the body (from row 9, like the rack armour). */
+/**
+ * Outfits from `LOOT_FIRST.outfit` on (after the wardrobe): [main, shade], trousers, and what goes over the body
+ * (from row 9, like the rack armour).
+ */
 // Pixel art reads as a grid.
 // prettier-ignore
 export const LOOT_OUTFITS: { colors: [string, string]; pants: string; over: Record<View, string[]>; pal: Palette }[] = [

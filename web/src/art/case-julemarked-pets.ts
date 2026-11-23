@@ -285,6 +285,7 @@ function nisse(body: string[], x: number, y: number, big: boolean, sparks: [numb
     }).join(""),
   );
   rows = under(rows, 0, 0, glow);
+
   // The pool of light on the ground: a flat ellipse round the nisse's feet.
   rows = under(rows, 0, 0, ["", "", "", "", "", "", "", "", "..qqqqqqqq..", ".qqqqqqqqqq."]);
   return put(

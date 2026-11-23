@@ -5,9 +5,9 @@ import { C } from "./palette.ts";
 import { bake, cached, once, type Pen } from "./pixels.ts";
 
 /**
- * Påske's 2D art (`game/paaske.ts`; the 3D twins are `render3d/town/paaske3d.ts`): flower clumps, painted eggs, lambs,
- * bunnies and chicks, the påskeris, Gudrun's stall and the påskefrokost table, strings of pastel bunting and Gudrun
- * herself. The hats are in `paaske-hats.ts`. Everything is baked once.
+ * Påske's 2D art (`game/paaske.ts`; the 3D twins are `render3d/town/paaske3d.ts`): flower clumps, painted eggs,
+ * lambs, bunnies and chicks, the påskeris, Gudrun's stall and the påskefrokost table, strings of pastel bunting
+ * and Gudrun herself. The hats are in `paaske-hats.ts`. Everything is baked once.
  */
 
 const INK = C.ink;
@@ -129,18 +129,6 @@ export const eggSprite = cached(
       });
       p.px(2, 2, "#ffffff");
       p.px(1, 3, base);
-    });
-  },
-);
-
-/** An egg for the HUD and the hats: bigger, no outline darkening. */
-export const eggIcon = cached(
-  (colour: number, size: number) => `${colour}:${size}`,
-  (colour: number, size: number) => {
-    const c = eggSprite(colour);
-    return bake(c.width * size, c.height * size, (p) => {
-      p.g.imageSmoothingEnabled = false;
-      p.g.drawImage(c, 0, 0, c.width * size, c.height * size);
     });
   },
 );

@@ -157,21 +157,27 @@ const beam = (a: number, lead: number): number => 0.18 + 0.82 * Math.max(0, Math
 // slowly round, a tilted disc of fire across the waist, and motes of light spiralling in and going out.
 const horizon = (p: Pen, f: number): void => {
   const turn = (f / FRAMES) * TAU;
+
   // The well, a soft dark disc, and a faint glow lapping at its edge.
   p.disc(CX, CY, 11, "rgba(18, 10, 30, 0.42)");
   p.disc(CX, CY, 9, "rgba(10, 5, 20, 0.35)");
+
   // The bent light: a thin ring all the way round, brightest on the side that leads.
   const R = 12;
+
   // Points that round to the same pixel are drawn once, so the ring does not brighten where the steps bunch.
   const seen = new Set<number>();
   for (let i = 0; i < 96; i++) {
     const a = (i / 96) * TAU;
     const x = Math.round(CX + Math.cos(a) * R);
     const y = Math.round(CY + Math.sin(a) * R);
-    if (seen.has(y * 40 + x)) continue;
-    seen.add(y * 40 + x);
+    // Keys are row-major on a 40-wide grid, wider than the 28-pixel frame, so two pixels never share one.
+    const key = y * 40 + x;
+    if (seen.has(key)) continue;
+    seen.add(key);
     p.px(x, y, ember(beam(a, turn)));
   }
+
   // The disc: a flat ellipse of fire across the waist; the near and far halves are brightest at opposite ends.
   for (let i = 0; i < 72; i++) {
     const a = (i / 72) * TAU;
@@ -179,6 +185,7 @@ const horizon = (p: Pen, f: number): void => {
     const y = Math.round(CY + 3 + Math.sin(a) * 3.2);
     p.px(x, y, ember(beam(a, turn * 2 + 1) * 0.85));
   }
+
   // Motes spiral in toward the dark, going from faint to hot as they fall and gone at the middle.
   for (let i = 0; i < 6; i++) {
     const k = (f / FRAMES + i / 6) % 1;

@@ -1,7 +1,8 @@
 import { FISHING_BASE } from "@tokenmaxxing/core/fishing-loot.ts";
 import type { Art } from "./editions.ts";
 import { C } from "./palette.ts";
-import type { Back, BackView, Held } from "./wardrobe.ts";
+import { frameAt, frontView } from "./prestige-types.ts";
+import type { Back, Held } from "./wardrobe.ts";
 
 /**
  * The pond treasures' hat, held thing and back item in 2D (`core/src/fishing-loot.ts`, only fishing turns them up).
@@ -74,10 +75,6 @@ export const FISHING_HELD: Record<number, Held> = {
 
 // MARK: On the back
 
-/** An empty 16×16 frame, then `rows` dropped in at row `y`. */
-const frameAt = (rows: string[], y: number): string[] => [...Array<string>(y).fill(""), ...rows];
-const view = (front: string[]): BackView => ({ front });
-
 // Tackle box: a teal metal box with a handle on the lid, a seam, two silver latches, and a lure hanging off each side.
 const BOX_DOWN = frameAt(
   [
@@ -138,9 +135,9 @@ export const FISHING_BACKS: Record<number, Back> = {
     views: {
       down: { behind: BOX_DOWN, front: frameAt([".....d....d....."], 9) },
       side: { behind: BOX_SIDE },
-      up: view(BOX_UP),
+      up: frontView(BOX_UP),
     },
-    walk: { up: view(BOX_UP_B) },
+    walk: { up: frontView(BOX_UP_B) },
     pal: { o, t: "#3fa89a", L: "#7fd8c8", d: "#256b66", s: "#dfe6ee", h: "#9aa3ad", R: "#e0473f", Y: "#ffd84a", w: "#c9d2da" },
   },
 };

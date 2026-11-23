@@ -80,6 +80,7 @@ const NOT_UNDER_FURNITURE: Ground[] = ["wall", "water", "exit", "stairs", "stair
 function groundAt(map: GameMap, x: number, y: number): Ground {
   const own = GROUND[map.at(x, y)];
   if (own) return own;
+
   // Furniture and scenery: take the most common walkable ground around it.
   const counts = new Map<Ground, number>();
   for (const [dx, dy] of [
@@ -187,6 +188,7 @@ function water(p: Pen, map: GameMap, ox: number, oy: number, x: number, y: numbe
       if (hash(x * TILE + i, y * TILE + j, 3) < 0.04) p.px(ox + i, oy + j, C.waterDark);
     }
   }
+
   // Shore: foam and a dark lip wherever the water meets land.
   const land = (dx: number, dy: number) => map.at(x + dx, y + dy) !== "~";
   if (land(0, -1)) {
@@ -399,6 +401,7 @@ function wall(p: Pen, map: GameMap, ox: number, oy: number, x: number, y: number
   const dark = map.id === "dungeon";
   const top = dark ? DUNGEON.wallTop : C.wallTop;
   const topLight = dark ? DUNGEON.wallTopLight : C.wallTopLight;
+
   // The office door is in the wall's face, so the wall above it stays a wall top.
   const below = map.at(x, y + 1);
   const face = !"WRΨΘ".includes(below) && !isPoster(below) && map.contains(x, y + 1);

@@ -38,7 +38,7 @@ function sagPoint(x0: number, y0: number, x1: number, y1: number, sag: number, u
   return [x, y];
 }
 
-/** A string of fairy lights from (x0, y0) to (x1, y1), sagging `sag` pixels in the middle: a dark wire and warm bulbs. */
+/** Fairy lights from (x0, y0) to (x1, y1), sagging `sag` pixels in the middle: a dark wire with warm bulbs. */
 function fairyLights(p: Pen, x0: number, y0: number, x1: number, y1: number, sag: number, every = 4): void {
   const n = Math.abs(x1 - x0);
   const bulbs = [GOLD, "#ff8a6b", "#fff2b0"];
@@ -85,6 +85,7 @@ function wreath(p: Pen, cx: number, cy: number, r: number): void {
     p.px(x, y, a % 3 === 0 ? GREEN_L : "#24472d");
     if (a % 5 === 2) p.px(x, y, GOLD);
   }
+
   // The bow: two loops and a knot, at the bottom.
   p.rect(cx - 3, cy + r - 2, 2, 2, DANNEBROG);
   p.rect(cx + 1, cy + r - 2, 2, 2, DANNEBROG);
@@ -119,10 +120,12 @@ function hut(p: Pen, x: number): void {
   for (let k = 0; k < 14; k++) {
     p.px(x + 2 + Math.floor(hash(x, k, 8) * 26), 19 + Math.floor(hash(k, x, 9) * 27), BRICK_L);
   }
+
   // A stone plinth.
   p.rect(x, 43, 30, 5, C.ink);
   p.rect(x + 1, 44, 28, 3, C.stoneDark);
   p.rect(x + 1, 44, 28, 1, C.stone);
+
   // The lit window with a cream frame and a little wreath.
   p.rect(x + 8, 24, 14, 14, C.ink);
   p.rect(x + 9, 25, 12, 12, CREAM);
@@ -130,6 +133,7 @@ function hut(p: Pen, x: number): void {
   p.rect(x + 14, 26, 2, 10, CREAM);
   p.rect(x + 10, 30, 10, 2, CREAM);
   p.px(x + 11, 27, "#fff2c8");
+
   // The pitched roof: a snow-white slope with a red stripe along the eave, and two smaller tiers stepping up above it.
   p.rect(x - 2, 9, 34, 9, C.ink);
   p.rect(x - 1, 10, 32, 7, SNOW);
@@ -140,10 +144,12 @@ function hut(p: Pen, x: number): void {
   p.rect(x + 7, 2, 16, 4, C.ink);
   p.rect(x + 8, 3, 14, 3, SNOW);
   for (let i = 0; i < 30; i += 4) p.px(x + i, 17, SNOW);
+
   // The finial with a gold star.
   p.rect(x + 14, 0, 2, 3, C.ink);
   p.px(x + 14, 0, GOLD);
   p.px(x + 15, 0, GOLD);
+
   // Fairy lights down the corner and along the eave.
   fairyLights(p, x - 1, 17, x + 30, 17, 3, 3);
 }
@@ -336,7 +342,10 @@ const WARES: Record<StallId, (p: Pen) => void> = {
   },
 };
 
-/** One stall from its top-left tile: a snow roof with red stripes and a scalloped edge, posts, wares and fairy lights. */
+/**
+ * One stall from its top-left tile: a snow roof with red stripes and a scalloped edge, posts, wares and fairy
+ * lights.
+ */
 export const julemarkedStall = cached(
   (id: StallId, _name: string) => id,
   (id: StallId, name: string) =>
@@ -392,7 +401,10 @@ export const julemarkedStall = cached(
     }),
 );
 
-/** The market's Christmas tree for its 2x2 tiles: tiers of snowy spruce, fairy lights, red baubles, a gold star and gifts. */
+/**
+ * The market's Christmas tree for its 2x2 tiles: tiers of snowy spruce, fairy lights, red baubles, a gold star
+ * and gifts.
+ */
 export const julemarkedTree = once(() =>
   bake(2 * TILE, 56, (p) => {
     const cx = TILE;
@@ -474,6 +486,7 @@ export function julemarkedWall(p: Pen, ox: number, oy: number, x: number, y: num
     const color = k % 2 ? BRICK_L : BRICK_D;
     p.px(ox + Math.floor(hash(x, y, 50 + k) * TILE), oy + Math.floor(hash(y, x, 56 + k) * TILE), color);
   }
+
   // The snow cap's lip and fairy-light bulbs along the wall.
   p.rect(ox, oy, TILE, 3, SNOW);
   p.rect(ox, oy + 3, TILE, 1, SNOW_SHADE);

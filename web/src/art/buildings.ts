@@ -159,27 +159,31 @@ function bush(p: Pen, cx: number, cy: number, r = 5): void {
 function gabledHouse(
   p: Pen,
   H: number,
-  opts: { x0: number; w: number; floors: number; style: Style; gap?: number },
+  opts: { x0: number; w: number; floors: number; style: Style },
   pane: (x: number, y: number) => void,
 ): number {
   const { x0, w, floors, style } = opts;
-  const gap = opts.gap ?? 10;
+  const gap = 10;
   const wallTop = H - (floors * 18 + 10);
   const roofTop = wallTop - Math.round(w * 0.3);
+
   roof(p, x0, w, roofTop, wallTop, style);
   p.rect(x0 + 4, wallTop + 2, w - 8, H - wallTop - 2, C.ink);
   p.rect(x0 + 5, wallTop + 2, w - 10, H - wallTop - 3, style.wall);
   for (let y = wallTop + 5; y < H - 2; y += 8) p.rect(x0 + 5, y, w - 10, 1, style.wallDark);
+
   // The most windows that fit, always an odd number so the middle one sits over the door.
   let n = 1;
   while ((n + 2) * 12 + (n + 1) * gap <= w - 12) n += 2;
   const start = x0 + (w - (n * 12 + (n - 1) * gap)) / 2;
+
   for (let f = 0; f < floors; f++) {
     for (let i = 0; i < n; i++) {
       if (f === 0 && i === (n - 1) / 2) continue;
       pane(start + i * (12 + gap), H - 26 - f * 18);
     }
   }
+
   door(p, MID, H - 1, style.trim);
   return roofTop;
 }
@@ -333,7 +337,6 @@ const PLANS = [
     if (logo) plaque(MID - 11, towerTop + 6, 22, 12);
     else pane(MID - 6, towerTop + 8);
     pane(MID - 6, towerTop + 26);
-    p.rect(MID, -2, 1, 2, C.ink);
     p.rect(0, H - (3 * 18 + 10), LOT_W, 2, s.trim);
     portico(p, H, s.trim);
     bush(p, 6, H - 6, 5);
@@ -349,9 +352,13 @@ export function house(tier: number, brand: Brand | null): Plan {
   const key = brand
     ? `${t}:${brand.roof}${brand.wall}${brand.trim}${brand.plaque}:${brand.logo !== null}`
     : `${t}`;
-  const plan = plans.get(key) ?? PLANS[t]!(brand ? branded(brand) : STYLES[t]!, brand);
-  plans.set(key, plan);
-  return plan;
+  const existing = plans.get(key);
+  if (existing) return existing;
+
+  const style = brand ? branded(brand) : STYLES[t]!;
+  const built = PLANS[t]!(style, brand);
+  plans.set(key, built);
+  return built;
 }
 
 export const inn = once(() => {

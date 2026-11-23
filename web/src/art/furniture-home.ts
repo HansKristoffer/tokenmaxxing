@@ -8,7 +8,7 @@ import { withAlpha } from "hanzio";
 import type { FancyPiece } from "./furniture-fancy.ts";
 import { JULEPYNT_FURNITURE } from "./julemarked-stall-furniture.ts";
 import { C, shade } from "./palette.ts";
-import { glyphPixels, type Pen } from "./pixels.ts";
+import { box, dots, glyphPixels, oval, type Pen, shadow } from "./pixels.ts";
 
 const K = {
   pot: "#c2703d",
@@ -33,26 +33,6 @@ const K = {
   teakLight: "#c98a55",
 } as const;
 
-/** A filled rectangle with a one-pixel ink outline. */
-function box(p: Pen, x: number, y: number, w: number, h: number, fill: string): void {
-  p.rect(x, y, w, h, C.ink);
-  p.rect(x + 1, y + 1, w - 2, h - 2, fill);
-}
-
-const shadow = (p: Pen, x: number, y: number, w: number) => p.rect(x, y, w, 2, C.shadow);
-
-/** A filled ellipse, pixel-exact. */
-function oval(p: Pen, cx: number, cy: number, rx: number, ry: number, color: string): void {
-  for (let y = -ry; y <= ry; y++) {
-    const half = Math.floor(rx * Math.sqrt(1 - (y * y) / (ry * ry + 0.01)) + 0.3);
-    p.rect(cx - half, cy + y, half * 2 + 1, 1, color);
-  }
-}
-
-const dots = (p: Pen, pts: readonly (readonly [number, number])[], color: string) => {
-  for (const [x, y] of pts) p.px(x, y, color);
-};
-
 /** A small rubber duck, `x`/`y` its top-left corner (6 wide, 5 tall). */
 function duck(p: Pen, x: number, y: number, pirate = false): void {
   p.rect(x, y + 2, 5, 3, C.ink);
@@ -62,6 +42,7 @@ function duck(p: Pen, x: number, y: number, pirate = false): void {
   p.rect(x + 4, y + 1, 1, 1, K.yellow);
   p.px(x + 3, y + 3, shade(K.yellow, -0.2));
   p.px(x + 6, y + 2, K.orange);
+
   // The eye, and the pirate's hat above it when there is one.
   if (pirate) p.rect(x + 3, y, 2, 1, C.ink);
   p.px(x + 4, y + 1, C.ink);
@@ -69,6 +50,7 @@ function duck(p: Pen, x: number, y: number, pirate = false): void {
 
 function cactus(p: Pen): void {
   shadow(p, 3, 18, 10);
+
   // The arms, then the trunk over them.
   box(p, 3, 7, 5, 3, C.leaf);
   box(p, 3, 4, 3, 6, C.leaf);
@@ -88,9 +70,11 @@ function cactus(p: Pen): void {
     ],
     C.leafLight,
   );
+
   // A flower on top.
   p.rect(7, 0, 2, 2, K.pink);
   p.px(7, 0, K.red);
+
   // The pot.
   box(p, 4, 11, 8, 3, K.potLight);
   box(p, 5, 13, 6, 5, K.pot);
@@ -100,6 +84,7 @@ function cactus(p: Pen): void {
 
 function fiddleFig(p: Pen): void {
   shadow(p, 3, 30, 10);
+
   // Trunk and the stalks.
   p.rect(7, 14, 2, 9, C.trunkDark);
   p.px(7, 14, C.trunk);
@@ -115,6 +100,7 @@ function fiddleFig(p: Pen): void {
     ],
     C.trunkDark,
   );
+
   // Big violin-shaped leaves, glossy and dark.
   const leaf = (cx: number, cy: number, rx: number, ry: number) => {
     oval(p, cx, cy, rx + 1, ry + 1, C.leafInk);
@@ -127,6 +113,7 @@ function fiddleFig(p: Pen): void {
   leaf(5, 7, 3, 3);
   leaf(11, 5, 3, 3);
   leaf(8, 3, 3, 2);
+
   // A cream ceramic pot.
   box(p, 3, 22, 10, 3, K.cream);
   box(p, 4, 24, 8, 6, K.cream);
@@ -150,10 +137,12 @@ function hangingPlant(p: Pen): void {
     ],
     K.creamDark,
   );
+
   // The pot.
   box(p, 4, 6, 8, 4, K.pot);
   p.rect(5, 7, 1, 2, K.potLight);
   p.rect(10, 8, 1, 1, K.potDark);
+
   // A pothos trailing down both sides.
   for (const [x0, len, dir] of [
     [5, 5, -1],
@@ -177,12 +166,14 @@ function hangingPlant(p: Pen): void {
 
 function bonsaiStand(p: Pen): void {
   shadow(p, 2, 22, 12);
+
   // A teak stand: top, two legs and a shelf between them.
   box(p, 2, 13, 12, 3, K.teak);
   p.rect(3, 14, 10, 1, K.teakLight);
   p.rect(3, 16, 2, 6, K.teakDark);
   p.rect(11, 16, 2, 6, K.teakDark);
   p.rect(5, 19, 6, 1, K.teakDark);
+
   // A glazed tray and a twisty trunk with three pads.
   p.rect(4, 11, 8, 3, C.ink);
   p.rect(5, 11, 6, 2, "#3c5a6b");
@@ -219,6 +210,7 @@ function beanBag(p: Pen): void {
   oval(p, 8, 9, 6, 4, "#2f8883");
   oval(p, 7, 8, 5, 3, "#3fa6a0");
   oval(p, 9, 7, 3, 1, "#58c1ba");
+
   // The seam and the dent in the middle.
   p.rect(8, 5, 1, 7, "#2f8883");
   oval(p, 8, 8, 2, 1, "#2f8883");
@@ -235,12 +227,14 @@ function beanBag(p: Pen): void {
 
 function floorLamp(p: Pen): void {
   shadow(p, 4, 30, 8);
+
   // Base and pole.
   p.rect(4, 28, 8, 2, C.ink);
   p.rect(5, 28, 6, 1, C.metalLight);
   p.rect(7, 11, 2, 17, C.ink);
   p.rect(7, 11, 1, 17, C.metalLight);
   p.px(8, 12, C.metal);
+
   // The shade: a cone that widens downwards, with a warm light spilling out of its bottom.
   for (let r = 0; r < 9; r++) {
     const w = 6 + r;
@@ -263,6 +257,7 @@ function woolRug(p: Pen): void {
   oval(p, 16, 15, 9, 4, "#efe6d2");
   oval(p, 16, 15, 6, 3, "#3d4a6b");
   oval(p, 16, 15, 3, 1, "#efe6d2");
+
   // A few tassels of wool along the rim.
   for (const x of [5, 10, 21, 26]) p.px(x, 21, "#cfc3a8");
   dots(
@@ -281,6 +276,7 @@ function duckShelf(p: Pen): void {
   shadow(p, 1, 26, 14);
   box(p, 1, 1, 14, 26, K.teakDark);
   p.rect(2, 2, 12, 24, "#d9c39a");
+
   // Three shelves, a duck or two on each.
   for (const y of [9, 17, 25]) {
     p.rect(2, y, 12, 2, K.teak);
@@ -291,6 +287,7 @@ function duckShelf(p: Pen): void {
   duck(p, 6, 12, true);
   duck(p, 2, 20);
   duck(p, 8, 20);
+
   // The big one on the shelf below: a plain red wellie duck.
   p.rect(11, 19, 2, 1, K.red);
   p.px(2, 2, K.teakLight);
@@ -302,6 +299,7 @@ function miniFridge(p: Pen): void {
   p.rect(3, 2, 10, 1, "#f0937a");
   p.rect(3, 8, 10, 1, "#a8493a");
   p.rect(3, 17, 10, 1, "#a8493a");
+
   // Chrome handles and a Danish flag magnet.
   p.rect(11, 3, 1, 3, K.chrome);
   p.rect(11, 10, 1, 4, K.chrome);
@@ -337,6 +335,7 @@ function bookcase(p: Pen): void {
     }
     p.rect(1, y + 8, 30, 1, K.teak);
   });
+
   // A small plant in the middle shelf's gap.
   p.rect(20, 17, 3, 2, K.pot);
   p.rect(19, 14, 5, 3, C.leaf);
@@ -346,17 +345,20 @@ function bookcase(p: Pen): void {
 
 function keyboardCase(p: Pen, f: number): void {
   shadow(p, 1, 28, 30);
+
   // A walnut plinth with a brass plaque.
   box(p, 2, 19, 28, 10, K.teakDark);
   p.rect(3, 20, 26, 1, K.teakLight);
   p.rect(11, 24, 10, 3, K.brass);
   p.rect(12, 25, 8, 1, shade(K.brass, -0.35));
+
   // The glass case over it: a pale box with a bright edge and a glint.
   p.rect(3, 1, 26, 19, C.ink);
   p.rect(4, 2, 24, 17, "#273445");
   p.rect(4, 2, 24, 1, K.glass);
   p.rect(4, 2, 1, 17, K.glass);
   p.rect(27, 2, 1, 17, K.glassDark);
+
   // The keyboard on an acrylic stand, tilted: dark case, rows of keycaps.
   p.rect(14, 15, 4, 3, K.glassDark);
   p.rect(7, 7, 18, 9, C.ink);
@@ -369,10 +371,12 @@ function keyboardCase(p: Pen, f: number): void {
     }
   }
   p.rect(10, 14, 11, 1, "#f2f0ea");
+
   // Underglow, a different colour in each frame.
   const glow = f === 0 ? K.pink : K.blue;
   p.rect(8, 15, 16, 1, glow);
   p.rect(6, 16, 20, 1, withAlpha(glow, 0.4));
+
   // The glint.
   dots(
     p,
@@ -413,6 +417,7 @@ function whiteboard(p: Pen): void {
   p.rect(19, 5, 3, 1, K.blue);
   oval(p, 25, 5, 3, 2, K.glass);
   p.rect(23, 5, 5, 1, K.glassDark);
+
   // A rising line.
   dots(
     p,
@@ -427,6 +432,7 @@ function whiteboard(p: Pen): void {
     ],
     K.red,
   );
+
   // Ticked-off tasks.
   for (const y of [9, 11]) {
     p.px(14, y, K.green);
@@ -434,6 +440,7 @@ function whiteboard(p: Pen): void {
   }
   p.px(25, 10, K.red);
   p.rect(26, 10, 2, 1, C.metalLight);
+
   // The tray with a marker or three.
   p.rect(2, 12, 28, 1, C.metal);
   dots(
@@ -451,6 +458,7 @@ function whiteboard(p: Pen): void {
 
 function neonSign(p: Pen, f: number): void {
   const t = K.pink;
+
   // A dark board with two chains, the letters in pink neon, and a flicker in the last ones.
   box(p, 0, 2, 32, 12, "#2f2838");
   p.rect(1, 3, 30, 1, "#3b3347");
@@ -458,6 +466,7 @@ function neonSign(p: Pen, f: number): void {
   p.rect(25, 0, 1, 3, C.metal);
   const text = "SHIP IT";
   const x0 = Math.floor((32 - (text.length * 4 - 1)) / 2);
+
   // Columns from 20 on are the letters that flicker: on frame 0 every letter is lit, after it they go dark.
   const lit = glyphPixels(text).map(([x, y]): [number, number, boolean] => [x0 + x, 5 + y, x >= 20]);
   const on = (late: boolean) => f === 0 || !late;
@@ -527,6 +536,7 @@ function nightKoiRug(p: Pen): void {
   oval(p, 16, 15, 13, 6, N.paper);
   oval(p, 16, 15, 12, 5, N.tealDark);
   oval(p, 16, 15, 10, 4, N.teal);
+
   // Ripples and two lily pads.
   dots(
     p,
@@ -542,6 +552,7 @@ function nightKoiRug(p: Pen): void {
   p.disc(8, 17, 1, K.green);
   p.px(8, 16, K.pink);
   p.disc(24, 18, 1, K.green);
+
   // An orange koi swimming right, a white one with red patches swimming left.
   const koi = (x: number, y: number, dir: 1 | -1, body: string, patch: string) => {
     const fin = shade(body, -0.25);
@@ -564,6 +575,7 @@ function nightKoiRug(p: Pen): void {
 
 function nightTeaStool(p: Pen, frame: number): void {
   shadow(p, 2, 16, 12);
+
   // Three legs, a cross brace, a round red cushion on a wooden seat.
   p.rect(3, 9, 2, 7, C.ink);
   p.rect(11, 9, 2, 7, C.ink);
@@ -576,12 +588,14 @@ function nightTeaStool(p: Pen, frame: number): void {
   p.rect(3, 7, 10, 2, K.teak);
   p.rect(3, 6, 10, 1, N.redDark);
   p.rect(4, 6, 8, 1, N.red);
+
   // A cup of tea with steam.
   p.rect(5, 3, 6, 4, C.ink);
   p.rect(6, 3, 4, 3, K.cream);
   p.rect(6, 3, 4, 1, N.tealLight);
   p.rect(11, 4, 2, 2, C.ink);
   p.px(12, 4, K.cream);
+
   // Steam, drifting one way or the other with the frame.
   p.px(7 + frame, 1, K.chrome);
   p.px(8 - frame, 0, K.chrome);
@@ -590,6 +604,7 @@ function nightTeaStool(p: Pen, frame: number): void {
 
 function nightRamenCounter(p: Pen, frame: number): void {
   shadow(p, 1, 26, 30);
+
   // The awning with its bulbs, and the noren curtain hanging from it.
   box(p, 0, 0, 32, 5, N.red);
   p.rect(1, 1, 30, 1, N.redLight);
@@ -602,6 +617,7 @@ function nightRamenCounter(p: Pen, frame: number): void {
   }
   p.rect(11, 5, 1, 7, C.ink);
   p.rect(20, 5, 1, 7, C.ink);
+
   // The counter: a plank top, a dark front with a red stripe, a shelf of two bowls.
   box(p, 0, 14, 32, 3, K.teakLight);
   box(p, 1, 17, 30, 9, K.teakDark);
@@ -628,10 +644,12 @@ function nightRamenCounter(p: Pen, frame: number): void {
 
 function nightClawMachine(p: Pen, frame: number): void {
   shadow(p, 1, 30, 14);
+
   // The cabinet and its marquee, whose bulbs chase.
   box(p, 1, 0, 14, 30, N.navy);
   box(p, 1, 0, 14, 5, N.pink);
   for (let x = 3; x < 14; x += 2) p.px(x, 2, (x / 2 + frame) % 2 ? N.glow : K.cream);
+
   // The glass box: plush toys piled at the bottom, the claw hanging from its rail.
   box(p, 2, 6, 12, 14, K.glass);
   p.rect(3, 7, 10, 12, K.glassDark);
@@ -656,6 +674,7 @@ function nightClawMachine(p: Pen, frame: number): void {
     ],
     C.ink,
   );
+
   // The control panel: a joystick, two buttons and a coin slot; the chute below.
   p.rect(2, 21, 12, 4, N.lacquer);
   p.rect(4, 21, 1, 2, K.chrome);
@@ -671,6 +690,7 @@ function nightTorii(p: Pen, frame: number): void {
   // A pool of lantern light on the ground between the pillars.
   oval(p, 24, 41, 18, 3, "rgba(255, 211, 106, 0.25)");
   shadow(p, 4, 42, 40);
+
   // The two pillars, each on a black stone base with a gold ring, shaded left to right.
   for (const x of [8, 35]) {
     p.rect(x - 1, 14, 7, 28, C.ink);
@@ -682,6 +702,7 @@ function nightTorii(p: Pen, frame: number): void {
     p.rect(x - 1, 39, 7, 1, "#3a3646");
     p.rect(x, 20, 5, 1, N.gold);
   }
+
   // The lower tie beam, the plaque between, and the upper beams: the kasagi curls up at both ends.
   box(p, 4, 15, 40, 4, N.red);
   p.rect(5, 16, 38, 1, N.redLight);
@@ -702,6 +723,7 @@ function nightTorii(p: Pen, frame: number): void {
   p.px(0, 0, N.lacquer);
   p.px(47, 0, N.lacquer);
   p.rect(1, 2, 1, 1, "#3a3646");
+
   // Four lanterns hang from the tie beam; a lit pair flickers in turn.
   paperLantern(p, 14, 19, N.red, frame === 0);
   paperLantern(p, 33, 19, N.red, frame === 0);
@@ -757,7 +779,9 @@ function poly(
     const [x1, y1] = pts[(i + 1) % pts.length]!;
     const n = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0));
     for (let t = 0; t <= n; t++) {
-      p.px(Math.round(x0 + ((x1 - x0) * t) / (n || 1)), Math.round(y0 + ((y1 - y0) * t) / (n || 1)), stroke);
+      const x = x0 + ((x1 - x0) * t) / (n || 1);
+      const y = y0 + ((y1 - y0) * t) / (n || 1);
+      p.px(Math.round(x), Math.round(y), stroke);
     }
   });
 }
@@ -823,6 +847,7 @@ function nusSawahRug(p: Pen): void {
   p.px(20, 16, "#4a4a55");
   p.px(16, 13, "#6a6a78");
   p.px(15, 13, "#4a4a55");
+
   // Tassels at both ends.
   for (let y = 7; y < 23; y += 2) {
     p.px(0, y, U.cream);
@@ -832,6 +857,7 @@ function nusSawahRug(p: Pen): void {
 
 function nusWarungStool(p: Pen): void {
   shadow(p, 2, 16, 12);
+
   // A moulded red plastic stool: four flared legs, a deep seat with two slits.
   for (const [x, y] of [
     [3, 12],
@@ -848,6 +874,7 @@ function nusWarungStool(p: Pen): void {
   p.rect(3, 12, 10, 1, U.hibiscusDark);
   p.rect(5, 10, 2, 1, U.hibiscusDark);
   p.rect(9, 10, 2, 1, U.hibiscusDark);
+
   // A glass of tea on the seat, a spoon in it.
   p.rect(6, 3, 5, 6, C.ink);
   p.rect(7, 3, 3, 5, "#cfeff0");
@@ -859,6 +886,7 @@ function nusWarungStool(p: Pen): void {
 
 function nusAngkringanCart(p: Pen, frame: number): void {
   shadow(p, 1, 26, 30);
+
   // The red tarp over the top with a scalloped edge, a lamp under it.
   p.rect(0, 0, 32, 5, C.ink);
   p.rect(1, 1, 30, 3, U.hibiscus);
@@ -867,6 +895,7 @@ function nusAngkringanCart(p: Pen, frame: number): void {
   p.rect(26, 5, 1, 2, C.ink);
   p.rect(25, 7, 3, 3, C.ink);
   p.rect(26, 7, 1, 2, frame ? U.saffronLight : U.saffron);
+
   // The glass cabinet: two shelves of fried snacks in neat rows.
   p.rect(1, 6, 20, 14, C.ink);
   p.rect(2, 7, 18, 12, "#bfe6f2");
@@ -879,6 +908,7 @@ function nusAngkringanCart(p: Pen, frame: number): void {
     p.rect(x, 14, 3, 3, "#c9944a");
     p.px(x + 1, 14, "#e8c76a");
   }
+
   // The kettle, steaming, on the counter at the right.
   p.rect(22, 11, 8, 7, C.ink);
   p.rect(23, 12, 6, 5, "#cfd6df");
@@ -887,10 +917,12 @@ function nusAngkringanCart(p: Pen, frame: number): void {
   p.rect(21, 13, 1, 1, C.ink);
   p.rect(25, 10, 3, 1, C.ink);
   p.px(26, 9, U.hibiscus);
+
   // Steam off the kettle.
   p.px(30, 10 - frame, "#e4f5fd");
   p.px(29 - frame, 8, "#e4f5fd");
   p.px(30, 6 + frame, "#e4f5fd");
+
   // The counter, a teak box with a plank seam, on two wheels.
   box(p, 0, 19, 32, 6, U.teak);
   p.rect(1, 22, 30, 1, U.teakDark);
@@ -904,6 +936,7 @@ function nusAngkringanCart(p: Pen, frame: number): void {
 
 function nusBonangRack(p: Pen): void {
   shadow(p, 1, 22, 30);
+
   // Carved red-and-gold ends with a round finial each.
   for (const x of [0, 28]) {
     p.rect(x, 7, 4, 16, C.ink);
@@ -913,11 +946,13 @@ function nusBonangRack(p: Pen): void {
     p.rect(x + 1, 17, 2, 1, U.saffron);
     p.disc(x + 2, 6, 1, U.saffron);
   }
+
   // The rope bed: a red rail along the front with a gold stripe, a rope between the rails.
   p.rect(2, 17, 28, 4, C.ink);
   p.rect(3, 18, 26, 2, U.hibiscus);
   p.rect(3, 18, 26, 1, U.saffron);
   p.rect(3, 9, 26, 1, U.teakDark);
+
   // Two rows of six bronze pots, each with its boss.
   const pot = (x: number, y: number) => {
     p.rect(x, y, 4, 4, C.ink);
@@ -928,6 +963,7 @@ function nusBonangRack(p: Pen): void {
   };
   for (let i = 0; i < 6; i++) pot(3 + i * 4 + (i > 2 ? 1 : 0), 10);
   for (let i = 0; i < 6; i++) pot(3 + i * 4 + (i > 2 ? 1 : 0), 14);
+
   // Two mallets left lying across the middle, padded at the head.
   p.rect(10, 18, 9, 1, C.ink);
   p.rect(11, 18, 7, 1, U.teak);
@@ -943,6 +979,7 @@ function nusPinisi(p: Pen, frame: number): void {
   const sail = (pts: readonly (readonly [number, number])[], c: string = C.white) =>
     poly(p, pts, c, "#a89868");
   shadow(p, 3, 38, 42);
+
   // The cradle: a teak bed with two blocks under the keel.
   p.rect(5, 36, 38, 3, C.ink);
   p.rect(6, 36, 36, 2, U.teakLight);
@@ -969,6 +1006,7 @@ function nusPinisi(p: Pen, frame: number): void {
   ] as const;
   for (const [x, y] of bowsprit) p.rect(x - 1, y - 1, 3, 3, C.ink);
   for (const [x, y] of bowsprit) p.px(x, y, U.teak);
+
   // The sails: a topsail, a mainsail aft of the main mast, a staysail between the masts, a foremast sail, two jibs.
   sail([
     [16, 4],
@@ -1009,6 +1047,7 @@ function nusPinisi(p: Pen, frame: number): void {
     ],
     U.cream,
   );
+
   // The hull: a teak boat with a turquoise stripe, a high stern and a rising bow.
   p.rect(1, 22, 9, 4, C.ink);
   p.rect(2, 21, 7, 1, C.ink);
@@ -1027,6 +1066,7 @@ function nusPinisi(p: Pen, frame: number): void {
   p.rect(3, 23, 1, 1, C.ink);
   p.px(5, 23, U.saffron);
   p.px(7, 23, U.saffron);
+
   // The pennant at the main masthead, rippling.
   p.rect(17, 3, 1, 1, C.ink);
   if (frame === 0) {

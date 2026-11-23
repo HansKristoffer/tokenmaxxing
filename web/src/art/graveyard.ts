@@ -1,7 +1,10 @@
 import { C } from "./palette.ts";
 import { bake, cached } from "./pixels.ts";
 
-/** A tombstone in the model graveyard (`game/graveyard.ts`): a rounded headstone with RIP on it, on a mound, with flowers in its maker's colour. */
+/**
+ * A tombstone in the model graveyard (`game/graveyard.ts`): a rounded headstone with RIP on it, on a mound,
+ * with flowers in its maker's colour.
+ */
 
 export const STONE_W = 16;
 export const STONE_H = 22;

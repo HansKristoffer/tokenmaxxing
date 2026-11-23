@@ -107,6 +107,7 @@ const gap: Draw = (p, f) => {
     p.px(x, y, i % 3 ? "#ff9a3c" : "#ffd36a");
     if (i % 4 === 0) p.px(x, y + 1, "rgba(255, 120, 40, 0.45)");
   }
+
   // The spiral at the head: an ice arm and an ember arm winding in towards the crown, turning slowly.
   for (let i = 0; i < 12; i++) {
     const k = i / 12;

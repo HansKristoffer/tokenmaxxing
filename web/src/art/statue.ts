@@ -7,7 +7,7 @@ import { bake, cached, once } from "./pixels.ts";
  * tile above.
  */
 
-export const STATUE_W = 16;
+const STATUE_W = 16;
 export const STATUE_H = 34;
 /** The row of the plinth's cap. The drape hangs from the top of its sprite down to here. */
 const CAP = 17;

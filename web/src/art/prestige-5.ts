@@ -146,6 +146,7 @@ const ascension = (p: Pen, f: number): void => {
   }
   p.rect(CX - 8, 26, 16, 1, "rgba(244, 240, 255, 0.55)");
   p.rect(CX - 5, 27, 10, 1, "rgba(159, 232, 255, 0.45)");
+
   // Bands of the spectrum climbing it, one colour to a band, rippling.
   for (let i = 0; i < 4; i++) {
     const k = (f / FRAMES + i / 4) % 1;
@@ -156,6 +157,7 @@ const ascension = (p: Pen, f: number): void => {
       p.px(x, y + wave, hue(x / 2.3 + i * 2 + f / 2, 0.8 * (1 - k * 0.5)));
     }
   }
+
   // The rays over the head: seven colours from the top of the column, each pulsing outward a pixel at a time.
   for (let i = 0; i < 7; i++) {
     const a = -Math.PI / 2 + (i - 3) * 0.36;
@@ -171,6 +173,7 @@ const ascension = (p: Pen, f: number): void => {
   p.rect(CX - 1, 7, 2, 2, "#ffffff");
   p.px(CX - 2, 7, "rgba(255, 255, 255, 0.6)");
   p.px(CX + 1, 7, "rgba(255, 255, 255, 0.6)");
+
   // Sparks of pearl and ice lifting off the edges, each on its own lap.
   for (let i = 0; i < 8; i++) {
     const k = (f / FRAMES + i / 8) % 1;

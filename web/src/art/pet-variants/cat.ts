@@ -12,7 +12,7 @@ const BASE = PETS[2]!;
 const liftedSwap = (id: string, name: string, pal: Palette, patches: Patch[]) =>
   swap(BASE, id, name, pal, patches, up(patches));
 
-/** Colour swaps of the cat. Shapes are in shapes.ts. */
+/** Colour swaps of the cat. Shapes are in other-shapes.ts. */
 export const CAT_SWAPS: PetVariant[] = [
   liftedSwap(
     "black",

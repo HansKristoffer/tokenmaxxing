@@ -15,8 +15,8 @@ import { bake, type Palette, type Pen } from "./pixels.ts";
 
 /**
  * Merchant editions (`core/src/editions.ts`) and holiday costumes (`core/src/costumes.ts`), drawn like the
- * shop's hats and glasses in `characters.ts`: hats over the head from row 0, glasses over the eyes from row 5. A grid per view;
- * a missing side or back view is the front one. Keyed by item id, so the catalog order is free.
+ * shop's hats and glasses in `characters.ts`: hats over the head from row 0, glasses over the eyes from row 5.
+ * A grid per view; a missing side or back view is the front one. Keyed by item id, so the catalog order is free.
  */
 
 export interface Art {
@@ -225,6 +225,7 @@ const artOf = (slot: "hat" | "glasses", index: number): Art | undefined => {
   if (!entry) return undefined;
 
   const ownArt = slot === "hat" ? HATS : GLASSES;
+
   // The cases' hats and glasses (the Night Market's and the Nusantara's) are drawn in `case.ts`.
   const caseArt = slot === "hat" ? CASE_HATS : CASE_GLASSES;
   return ownArt[entry.id] ?? caseArt[entry.id];
