@@ -259,13 +259,14 @@ export const sofa =
     const w = 0.9 * tiles;
     const inner = w - 0.36;
     m.box([w, 0.24, 0.8], tint(color, -0.18), [0, 0.05, 0], 0.05);
-    for (let i = 0; i < tiles; i++)
+    for (let i = 0; i < tiles; i++) {
       m.box(
         [inner / tiles - 0.02, 0.12, 0.62],
         color,
         [-inner / 2 + (i + 0.5) * (inner / tiles), 0.28, 0.07],
         0.05,
       );
+    }
     m.box([w - 0.2, 0.42, 0.2], color, [0, 0.29, -0.3], 0.07);
     for (const x of [-w / 2 + 0.09, w / 2 - 0.09])
       m.box([0.17, 0.46, 0.78], tint(color, -0.08), [x + (x < 0 ? 0.005 : -0.005), 0.05, 0], 0.07);
@@ -489,8 +490,9 @@ const vending = (): Model => {
   const snacks = ["#f0b53c", "#4f8fe0", "#58b36a", "#9b6fd6", "#f28bb2", "#ff7ab6"];
   for (let row = 0; row < 5; row++) {
     m.box([0.5, 0.02, 0.4], C.metalLight, [-0.1, 0.42 + row * 0.25, 0.1]);
-    for (let i = 0; i < 4; i++)
+    for (let i = 0; i < 4; i++) {
       m.box([0.09, 0.15, 0.08], snacks[(row + i) % 6]!, [-0.28 + i * 0.12, 0.44 + row * 0.25, 0.18], 0.015);
+    }
   }
   m.box([0.16, 0.5, 0.02], "#2b2433", [0.27, 0.95, 0.33], 0.01);
   for (let i = 0; i < 3; i++) m.box([0.1, 0.05, 0.02], C.metalLight, [0.27, 1.25 - i * 0.08, 0.34]);
@@ -528,8 +530,9 @@ const serverRack = (): Model => {
       leds.push(mat);
       m.plane(0.025, 0.025, mat, [-0.25 + j * 0.05, 0.2 + i * 0.19, 0.381]);
     }
-    for (let k = 0; k < 6; k++)
+    for (let k = 0; k < 6; k++) {
       m.box([0.05, 0.08, 0.005], "#1b1f2a", [0.04 + k * 0.045, 0.155 + i * 0.19, 0.382], 0.002);
+    }
   }
   ticks.push((t) => {
     leds.forEach((mat, i) => {
@@ -568,8 +571,9 @@ const arcade = (): Model => {
   m.cyl(0.015, 0.08, "#2b2433", [-0.15, 0.95, 0.2], 0.015, 6);
   m.ball(0.03, "#e25d5d", [-0.15, 1.04, 0.2]);
   const buttons = ["#f0b53c", "#4f8fe0", "#3ddc84"];
-  for (const [i, colour] of buttons.entries())
+  for (const [i, colour] of buttons.entries()) {
     m.cyl(0.025, 0.02, colour, [0.05 + i * 0.08, 0.97, 0.18 - i * 0.01], 0.025, 8);
+  }
   light(m, [0, 1.3, 0.6], "#e86bd8", 1.6, 3);
   return m;
 };
@@ -693,8 +697,9 @@ const foosball = (): Model => {
     rod.rotation.x = Math.PI / 2;
     rod.position.z = -0.6;
     m.cyl(0.035, 0.08, C.ink, [x, 0.92, 0.6], 0.035, 8).rotation.x = Math.PI / 2;
-    for (const z of [-0.2, 0.2])
+    for (const z of [-0.2, 0.2]) {
       m.box([0.05, 0.14, 0.05], i % 2 ? "#e25d5d" : "#4f8fe0", [x, 0.84, z], 0.015);
+    }
   }
   return m;
 };
@@ -702,8 +707,9 @@ const foosball = (): Model => {
 const espressoBar = (): Model => {
   const m = new Model();
   m.box([1.7, 0.95, 0.6], "#2e2e3a", [0, 0, 0], 0.02);
-  for (let i = 0; i < 6; i++)
+  for (let i = 0; i < 6; i++) {
     m.box([0.24, 0.85, 0.02], tint(C.wood, (i % 2) * 0.08), [-0.68 + i * 0.27, 0.04, 0.3]);
+  }
   m.box([1.76, 0.05, 0.66], "#cfccc7", [0, 0.95, 0], 0.015);
   m.box([0.6, 0.4, 0.4], C.metalLight, [-0.35, 1.0, -0.05], 0.05);
   m.box([0.5, 0.06, 0.3], "#c4544b", [-0.35, 1.4, -0.05], 0.02);
@@ -714,8 +720,9 @@ const espressoBar = (): Model => {
   m.cyl(0.08, 0.3, "#5d6470", [0.35, 1.0, -0.05], 0.06, 12);
   m.cyl(0.07, 0.12, glass("#5e3d28", 0.75), [0.35, 1.3, -0.05], 0.08, 12);
   const mugs = ["#e25d5d", "#4f8fe0", "#fbf7ef"];
-  for (const [i, colour] of mugs.entries())
+  for (const [i, colour] of mugs.entries()) {
     m.cyl(0.045, 0.08, colour, [0.6 + (i % 2) * 0.06, 1.0, 0.15 - i * 0.1], 0.05, 10);
+  }
   return m;
 };
 

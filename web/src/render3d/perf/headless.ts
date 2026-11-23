@@ -27,13 +27,16 @@ export interface RoomCost {
 }
 
 const world = () => ((globalThis as { __perfWorld?: World }).__perfWorld ??= new World());
+const MIB = 1_048_576;
 
 interface MeasureOptions {
   actors?: "frozen" | "live";
   variant?: BakeMode;
 }
 
-/** Counts a fresh room at noon so street animation cannot change which parts the samples consider static. */
+/**
+ * Counts a fresh room at noon so street animation cannot change which parts the samples consider static.
+ */
 export function measureRoom(id: string, options: MeasureOptions = {}): RoomCost {
   const page = globalThis.location as { search: string };
   const search = page.search;
@@ -58,7 +61,8 @@ function measure(id: string, options: MeasureOptions): RoomCost {
   const layer = bakeStatic(room.group);
   const variant = options.variant ?? "smooth";
   if (layer) layer.show(variant);
-  // People and pets that stand about are merged at run time (see `freeze.ts`): count them as the player sees them.
+  // People and pets that stand about are merged at run time (see `freeze.ts`), so count them as the player sees
+  // them.
   const actors: THREE.Object3D[] = [];
   scene.traverse((o) => {
     if (o.userData.actor) actors.push(o);
@@ -70,7 +74,8 @@ function measure(id: string, options: MeasureOptions): RoomCost {
   const seen = new Set<THREE.Texture>();
   scene.traverse((o) => {
     const m = (o as THREE.Mesh).material as THREE.Material | THREE.Material[] | undefined;
-    for (const v of (Array.isArray(m) ? m : [m]).flatMap((x) => Object.values(x ?? {}))) {
+    const slots = (Array.isArray(m) ? m : [m]).flatMap((x) => Object.values(x ?? {}));
+    for (const v of slots) {
       const t = v as THREE.Texture;
       const img = t?.isTexture ? (t.image as { width?: number; height?: number } | null) : null;
       if (!img || seen.has(t)) continue;
@@ -80,7 +85,11 @@ function measure(id: string, options: MeasureOptions): RoomCost {
         for (const mip of t.mipmaps) {
           if ("width" in mip && "height" in mip) texBytes += mip.width * mip.height * 4;
         }
-      } else texBytes += (img.width ?? 0) * (img.height ?? 0) * 4 * (t.generateMipmaps ? 1.34 : 1);
+      } else {
+        // Without the mip levels in hand, estimate: a full mip chain adds about a third (4/3) to the base level.
+        const mipChain = t.generateMipmaps ? 1.34 : 1;
+        texBytes += (img.width ?? 0) * (img.height ?? 0) * 4 * mipChain;
+      }
     }
   });
   let geometryBytes = 0;
@@ -96,10 +105,10 @@ function measure(id: string, options: MeasureOptions): RoomCost {
     drawCalls: after.drawables,
     triangles: Math.round(after.triangles),
     materials: after.materials,
-    textureMB: Math.round((texBytes / 1048576) * 10) / 10,
+    textureMB: Math.round((texBytes / MIB) * 10) / 10,
     textures: seen.size,
     biggest,
-    geometryMB: Math.round((geometryBytes / 1048576) * 10) / 10,
+    geometryMB: Math.round((geometryBytes / MIB) * 10) / 10,
     lights: after.lights,
     buildMs: Math.round(buildMs * 10) / 10,
   };

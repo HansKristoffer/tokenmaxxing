@@ -172,7 +172,8 @@ const BUILDERS = [laptop, dual, triple, ultrawide, battlestation] as const;
  * showing agents at work. Same footprint as the shop's desk (2x1); the chair goes on the left tile.
  */
 export function deskTier(tier: number): Model {
-  const i = Number.isInteger(tier) && tier >= 0 && tier < BUILDERS.length ? tier : 0;
+  const isKnownTier = Number.isInteger(tier) && tier >= 0 && tier < BUILDERS.length;
+  const i = isKnownTier ? tier : 0;
   const m = new Model();
   base(m);
   BUILDERS[i]!(m);

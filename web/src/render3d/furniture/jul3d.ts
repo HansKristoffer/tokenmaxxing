@@ -113,13 +113,14 @@ function pix(
       let e = c;
       while (e < row.length && row[e] === ch) e++;
       const p = pal[ch];
-      if (ch !== "." && p)
+      if (ch !== "." && p) {
         m.box(
           [(e - c) * cell, n * cell, depth],
           p,
           [cx + ((c + e) / 2 - row.length / 2) * cell, y0 + (H - r - n) * cell, z],
           0.001,
         );
+      }
       c = e;
     }
     r += n;
@@ -404,8 +405,8 @@ const pebernodBowl = (): Model => {
     [2, 0.07, 0.44],
     [1, 0.06, 0.49],
   ];
-  for (const [n, pitch, y] of layers)
-    for (let i = 0; i < n; i++)
+  for (const [n, pitch, y] of layers) {
+    for (let i = 0; i < n; i++) {
       for (let j = 0; j < n; j++) {
         const nut = m.box(
           [0.065, 0.055, 0.065],
@@ -419,6 +420,8 @@ const pebernodBowl = (): Model => {
         );
         nut.rotation.y = rnd() * 1.5;
       }
+    }
+  }
   // A frosted-white heart cookie leaning at the top, with a toothpick.
   m.box([0.01, 0.12, 0.01], WOOD, [0, 0.5, 0], 0.001);
   paperHeart(m, 0, 0.67, 0.01, 0.2, JUL_RED, JUL_CREAM);
@@ -453,8 +456,11 @@ const pebernodBowl = (): Model => {
     [0.14, 0.41, 0.14],
     [0.08, 0.45, -0.12],
     [-0.16, 0.35, -0.1],
-  ] as const)
-    m.box([0.022, 0.022, 0.022], glint.mats[((x * 10) | 0) & 3]!, [x, y, z], 0.001);
+  ] as const) {
+    // Each glint takes its material from its x position, so the four keep their own phase.
+    const phase = ((x * 10) | 0) & 3;
+    m.box([0.022, 0.022, 0.022], glint.mats[phase]!, [x, y, z], 0.001);
+  }
   const puffs = [0, 1, 2, 3, 4].map((i) => {
     const b = m.box([0.05, 0.05, 0.05], gl(i % 2 ? "#fff4dc" : "#ffe0a8"), [0, 0.55, 0], 0.001);
     b.castShadow = b.receiveShadow = false;
@@ -536,8 +542,9 @@ const adventStand = (): Model => {
     m.box([0.15, 0.015, 0.15], GOLD_L, [x, 0.225, z], 0.002);
     const h = heights[i]!;
     m.box([0.075, h, 0.075], JUL_RED, [x, 0.23, z], 0.002);
-    for (let k = 0; k < 4; k++)
+    for (let k = 0; k < 4; k++) {
       m.box([0.08, 0.016, 0.08], JUL_CREAM, [x, 0.27 + k * 0.1 + (i % 2) * 0.02, z], 0.0005);
+    }
     m.box([0.008, 0.03, 0.008], INK, [x, 0.23 + h, z], 0.001);
     flames.push(flame(m, x, 0.23 + h + 0.065, z, 0.034, i * 1.7));
     // A square of candlelight on the tray under each one.
@@ -601,16 +608,16 @@ const kravlenisse = (): Model => {
   paperHeart(m, -0.37, 0.24, 0.39, 0.12, JUL_RED, JUL_CREAM, true);
   paperHeart(m, 0.37, 0.24, 0.39, 0.12, JUL_CREAM, JUL_RED, true);
   // A paper-heart pennant string over the back wall, a candle stub and a sleeping mitten.
-  for (let i = 0; i < 5; i++)
+  for (let i = 0; i < 5; i++) {
     m.box(
       [0.07, 0.06, 0.012],
       i % 2 ? JUL_RED : JUL_CREAM,
       [-0.32 + i * 0.16, 0.3 - 0.03 * Math.sin((i / 4) * Math.PI), -0.34],
       0.001,
     );
+  }
   m.box([0.04, 0.07, 0.04], JUL_CREAM, [0.36, 0.06, -0.2], 0.001);
-  const stubFlame = flame(m, 0.36, 0.17, -0.2, 0.014, 2);
-  stubFlame.scale.setScalar(1);
+  flame(m, 0.36, 0.17, -0.2, 0.014, 2);
   // Crumbs of gingerbread on the floor.
   for (const [x, z] of [
     [-0.3, 0.1],
@@ -749,8 +756,9 @@ const juleTree = (): Model => {
   m.box([2.9, 0.016, 0.92], JUL_CREAM, [0, 0, 0], 0.001);
   m.box([2.8, 0.02, 0.82], JUL_RED, [0, 0.014, 0], 0.001);
   m.box([2.68, 0.02, 0.7], JUL_CREAM, [0, 0.026, 0], 0.001);
-  for (let i = 0; i < 14; i++)
+  for (let i = 0; i < 14; i++) {
     m.box([0.12, 0.014, 0.12], i % 2 ? JUL_RED : JUL_GREEN, [(i - 6.5) * 0.19, 0.044, 0.31], 0.001);
+  }
   m.box([0.62, 0.3, 0.62], WOOD_D, [0, 0.04, 0], 0.01);
   m.box([0.64, 0.06, 0.64], JUL_RED, [0, 0.13, 0], 0.004);
   m.box([0.68, 0.03, 0.68], JUL_GOLD, [0, 0.19, 0], 0.003);
@@ -822,12 +830,12 @@ const juleTree = (): Model => {
   const hang: [number, number, number][] = [
     [-0.5, 0.52, 0],
     [0.5, 0.52, 1],
-    [0.0, 0.62, 1],
+    [0, 0.62, 1],
     [-0.38, 0.86, 1],
     [0.38, 0.86, 0],
     [-0.2, 1.17, 0],
     [0.22, 1.18, 1],
-    [0.0, 1.44, 1],
+    [0, 1.44, 1],
     [-0.14, 1.66, 0],
   ];
   for (const [x, y, k] of hang) {
@@ -863,8 +871,9 @@ const juleTree = (): Model => {
     const gy = t[2] + 0.12 + rnd() * 0.1;
     const g = i >= 8 ? tip : m;
     g.box([0.04, 0.04, 0.04], glint.mats[i % 4]!, [gx, i >= 8 ? gy - 1.3 : gy, gz], 0.001);
-    if (i % 2)
+    if (i % 2) {
       g.box([0.04, 0.04, 0.04], JUL_RED, [gx + 0.07, i >= 8 ? gy - 1.32 : gy - 0.02, gz + 0.03], 0.001);
+    }
   }
   // Real candles clipped to the front tips of the tiers, twinkling in sequence round the tree.
   const spots: [number, number, number, number][] = [

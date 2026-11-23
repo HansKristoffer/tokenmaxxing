@@ -40,8 +40,10 @@ function bar(
 function star8(m: Model, x: number, y: number, z: number, s: number, col: string, core: Paint): void {
   const w = s * 0.2;
   const d = s * 0.14;
-  for (let i = 0; i < 4; i++)
-    bar(m, x, y, z - (i % 2) * 0.004, s * (i % 2 ? 0.78 : 1), w, d, (i * Math.PI) / 4, col);
+  for (let i = 0; i < 4; i++) {
+    const len = s * (i % 2 ? 0.78 : 1);
+    bar(m, x, y, z - (i % 2) * 0.004, len, w, d, (i * Math.PI) / 4, col);
+  }
   m.box([s * 0.26, s * 0.26, d * 1.3], core, [x - s * 0.13, y - s * 0.13, z], BEV);
 }
 
@@ -118,8 +120,8 @@ const nisseDoor = (): Model => {
   const wy = y0 + 0.46;
   m.box([0.3, 0.3, 0.03], WOOD_L, [0, wy, 0.1], BEV);
   m.box([0.24, 0.24, 0.03], glow("#ffd98a"), [0, wy + 0.03, 0.115], 0.002);
-  for (let r = 0; r < 4; r++)
-    for (const s of [-1, 1])
+  for (let r = 0; r < 4; r++) {
+    for (const s of [-1, 1]) {
       for (let c = 0; c < 2; c++) {
         const on = (r + c) % 2 === 0;
         m.box(
@@ -129,13 +131,15 @@ const nisseDoor = (): Model => {
           0.001,
         );
       }
+    }
+  }
   m.box([0.34, 0.025, 0.04], WOOD_D, [0, wy - 0.025, 0.13], 0.002);
   m.box([0.34, 0.03, 0.03], WOOD_D, [0, wy + 0.3, 0.12], 0.002);
   // Brass knob and a tiny brass number plate; a green wreath sprig on the lintel.
   m.box([0.045, 0.045, 0.04], JUL_GOLD, [0.19, y0 + 0.4, 0.13], 0.004);
   m.box([0.14, 0.05, 0.02], JUL_GOLD, [0, y0 + 0.78, 0.115], 0.003);
   m.box([0.1, 0.05, 0.03], JUL_GREEN, [-0.06, y0 + 0.86, 0.12], 0.003);
-  m.box([0.03, 0.03, 0.03], JUL_RED, [0.0, y0 + 0.88, 0.14], 0.002);
+  m.box([0.03, 0.03, 0.03], JUL_RED, [0, y0 + 0.88, 0.14], 0.002);
   light(m, [0, y0 + 0.5, 0.45], "#ffcf7a", 0.5, 2.5);
   return m;
 };
@@ -151,8 +155,10 @@ function blockHeart(m: Model, x: number, y: number, z: number, u: number, a: str
     [[0], a],
   ];
   rows.forEach(([xs, col], i) => {
-    for (const cx of xs)
-      m.box([u, u, 0.02], i === 1 && cx === 0 ? a : col, [x + cx * u, y + (2 - i) * u - u / 2, z], 0.001);
+    for (const cx of xs) {
+      const cell = i === 1 && cx === 0 ? a : col;
+      m.box([u, u, 0.02], cell, [x + cx * u, y + (2 - i) * u - u / 2, z], 0.001);
+    }
   });
 }
 
@@ -229,9 +235,9 @@ function present(
 
 const presentStack = (): Model => {
   const m = new Model();
-  present(m, -0.02, 0, 0.0, 0.5, 0.3, 0.46, JUL_RED, JUL_CREAM, 0.12);
-  present(m, 0.03, 0.3, 0.0, 0.34, 0.24, 0.32, JUL_GREEN, JUL_GOLD, -0.2);
-  present(m, 0.0, 0.54, 0.0, 0.2, 0.18, 0.2, JUL_CREAM, JUL_RED, 0.35);
+  present(m, -0.02, 0, 0, 0.5, 0.3, 0.46, JUL_RED, JUL_CREAM, 0.12);
+  present(m, 0.03, 0.3, 0, 0.34, 0.24, 0.32, JUL_GREEN, JUL_GOLD, -0.2);
+  present(m, 0, 0.54, 0, 0.2, 0.18, 0.2, JUL_CREAM, JUL_RED, 0.35);
   present(m, 0.33, 0, 0.18, 0.24, 0.2, 0.24, "#e8dcc0", JUL_GREEN, -0.25);
   present(m, -0.34, 0, 0.2, 0.2, 0.16, 0.2, JUL_GREEN, JUL_CREAM, 0.3);
   // A gift tag hanging off the big box.

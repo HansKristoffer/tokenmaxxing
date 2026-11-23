@@ -361,14 +361,14 @@ class Renderer3D implements Renderer {
     const roomChanged = world.room !== this.room;
     // Nothing next door was ready: close the veil first and build on the frame after, so the stall is under black
     // rather than the old room freezing in view.
-    if (
+    const veilFirst =
       roomChanged &&
       this.stage &&
       !this.veiled &&
       this.overlay.faded < 0.95 &&
       !this.settings?.reduceMotion &&
-      !this.aheadFor(key)
-    ) {
+      !this.aheadFor(key);
+    if (veilFirst) {
       this.veiled = true;
       this.overlay.snapFade(1);
       return null;
@@ -516,8 +516,9 @@ class Renderer3D implements Renderer {
       return;
     }
     if (!this.settings || !this.stage || this.warmed === this.room || world.portalPending) return;
-    if (now - this.since < WARM_AFTER_MS || now - this.stillSince < STILL_MS || this.stats.lastGap > 40)
-      return;
+    // Not before the room has been shown a while and the walk has stopped, and not while frames are stalling.
+    const tooSoon = now - this.since < WARM_AFTER_MS || now - this.stillSince < STILL_MS;
+    if (tooSoon || this.stats.lastGap > 40) return;
     const id = roomsNextTo(world.room).find((k) => WARM_KINDS.includes(k) && roomReady(k));
     this.warmed = this.room;
     if (!id) return;
@@ -619,13 +620,10 @@ class Renderer3D implements Renderer {
       (view.bounds.minX + view.bounds.maxX) / 2,
       (view.bounds.minZ + view.bounds.maxZ) / 2,
     ];
-    if (
-      this.rig.panned() &&
-      me &&
-      this.selfAt &&
-      Math.hypot(me[0] - this.selfAt[0], me[1] - this.selfAt[1]) > 0.7
-    )
-      this.rig.easePan(dt);
+    // Walking on from where the pan was set makes the pan ease back to you.
+    const walkedOn =
+      !!me && !!this.selfAt && Math.hypot(me[0] - this.selfAt[0], me[1] - this.selfAt[1]) > 0.7;
+    if (this.rig.panned() && walkedOn) this.rig.easePan(dt);
     if (!this.rig.panned() || !this.selfAt) this.selfAt = me ? [me[0], me[1]] : null;
     const mine = world.avatars.get(world.selfId);
     // Shops' interiors are built ahead a slice a frame, but not while the town is still settling in, nor on a frame

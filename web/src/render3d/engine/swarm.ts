@@ -79,7 +79,8 @@ export class Figures {
     this.torso.mesh.geometry = new THREE.BoxGeometry(0.34, 0.42, 0.22);
     this.head.mesh.geometry.dispose();
     this.head.mesh.geometry = new THREE.BoxGeometry(0.24, 0.24, 0.24);
-    this.torso.mesh.castShadow = this.head.mesh.castShadow = true;
+    this.torso.mesh.castShadow = true;
+    this.head.mesh.castShadow = true;
     this.group.add(this.torso.mesh, this.head.mesh);
   }
 

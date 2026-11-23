@@ -53,8 +53,9 @@ function roomsOf(s: Slice): readonly MapId[] {
 }
 
 /**
- * Imports the slices and registers their `tile:` assets. With `rooms` only the slices that draw in those rooms load (and
- * the ones that draw everywhere): the dungeon, the Tavern, the basement and the shops are fetched when somebody goes there.
+ * Imports the slices and registers their `tile:` assets. With `rooms` only the slices that draw in those rooms load
+ * (and the ones that draw everywhere): the dungeon, the Tavern, the basement and the shops are fetched when somebody
+ * goes there.
  * Returns the assets of the slices loaded by this call.
  */
 export async function loadSlices(rooms?: readonly MapId[]): Promise<Asset[]> {

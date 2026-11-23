@@ -34,13 +34,14 @@ function lantern(m: Model, x: number, top: number, color: string, size = 1, phas
   const body = m.ball(r, mat, [x, top - 0.06 * size - r * 1.1, 0], [1, 1.2, 1], 12);
   m.cyl(r * 0.55, 0.025 * size, GOLD, [x, top - 0.06 * size - r * 0.1, 0], r * 0.55, 10);
   m.cyl(r * 0.55, 0.025 * size, GOLD, [x, top - 0.06 * size - r * 2.2, 0], r * 0.55, 10);
-  for (const dy of [-0.3, 0.3])
+  for (const dy of [-0.3, 0.3]) {
     m.box(
       [r * 2.05, 0.008, 0.008],
       tint(color, -0.35),
       [x, top - 0.06 * size - r * 1.1 + r * 1.2 * dy, r * 0.95],
       0.002,
     );
+  }
   m.cyl(0.006 * size, 0.1 * size, GOLD, [x, top - 0.06 * size - r * 2.2 - 0.1 * size, 0], 0.006 * size, 4);
   ticks.push((t) => body.scale.set(1, 1.2 + 0.03 * Math.sin(t * 5 + phase), 1));
 }
@@ -225,8 +226,9 @@ const clawMachine = (): Model => {
     [1, -1],
     [-1, 1],
     [1, 1],
-  ] as const)
+  ] as const) {
     m.box([0.04, 1.1, 0.04], "#cfd6df", [sx * (W / 2 - 0.02), 0.72, sz * (D / 2 - 0.02)], 0.005);
+  }
   m.box([W - 0.06, 0.93, D - 0.06], glass("#a8dcf7", 0.28), [0, 0.76, 0], 0.01);
   m.box([W, 0.05, D], NAVY, [0, 0.72, 0], 0.01);
   m.box([W + 0.04, 0.26, D + 0.04], PINK, [0, 1.7, 0], 0.03);

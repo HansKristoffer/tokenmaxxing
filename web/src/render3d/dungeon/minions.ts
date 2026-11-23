@@ -32,20 +32,24 @@ function pose(t: number): Pose {
     // A glow mesh is a child of a solid one: both are visible only when their parents are.
     for (let p: THREE.Object3D | null = m; p; p = p.parent) if (!p.visible) return;
     const g = m.geometry.clone();
-    for (const name of Object.keys(g.attributes))
+    for (const name of Object.keys(g.attributes)) {
       if (name !== "position" && name !== "normal" && name !== "color") g.deleteAttribute(name);
+    }
     g.applyMatrix4(m.matrixWorld);
     const mat = m.material as THREE.Material;
     const list = parts.get(mat) ?? [];
     list.push(g);
     parts.set(mat, list);
   });
+
   let solid: Part | null = null;
   let glow: Part | null = null;
   for (const [material, list] of parts) {
     const geometry = mergeGeometries(list, false);
     for (const g of list) g.dispose();
     if (!geometry) continue;
+
+    // Unlit glints are the basic material; the body is toon-shaded.
     if (material.type === "MeshBasicMaterial") glow = { geometry, material };
     else solid = { geometry, material };
   }
@@ -163,11 +167,12 @@ export class Minions {
     this.blob.count = on ? this.blobs : 0;
     this.blob.visible = on && this.blobs > 0;
     this.blob.instanceMatrix.needsUpdate = on;
-    for (const k of [0, 1])
+    for (const k of [0, 1]) {
       for (const mesh of this.meshes[k]!) {
         mesh.count = this.counts[k]!;
         mesh.visible = mesh.count > 0;
         mesh.instanceMatrix.needsUpdate = true;
       }
+    }
   }
 }

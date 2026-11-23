@@ -59,7 +59,6 @@ const FALL_S = 2.2;
 const BANNER_S = 3.5;
 const HIT_COLOUR = new THREE.Color("#e0b3ff");
 const MINION_COLOUR = new THREE.Color("#9dff8a");
-const SEAT_Y = RAID_SEAT_Y;
 const PET_COLOUR = new THREE.Color("#ffc46b");
 const MINION_SCALE = 0.5;
 const MAX_NEW_PER_FRAME = 1;
@@ -388,15 +387,22 @@ export class DungeonLive {
   }
 
   private removeSeated(s: Seated): void {
-    if (s.setup) {
-      s.setup.model.removeFromParent();
-      disposeObject(s.setup.model);
-      s.setup = null;
-    }
-    if (s.avatar) {
-      s.avatar.root.removeFromParent();
-      disposeObject(s.avatar.root);
-    }
+    this.removeSetup(s);
+    this.removeAvatar(s);
+  }
+
+  private removeSetup(s: Seated): void {
+    if (!s.setup) return;
+    s.setup.model.removeFromParent();
+    disposeObject(s.setup.model);
+    s.setup = null;
+  }
+
+  private removeAvatar(s: Seated): void {
+    if (!s.avatar) return;
+    s.avatar.root.removeFromParent();
+    disposeObject(s.avatar.root);
+    s.avatar = null;
   }
 
   /** The laptops on their desks, and who gets to be drawn as a person. */
@@ -418,11 +424,7 @@ export class DungeonLive {
       // Their chosen monitors stand on the desk where the laptop would (the laptop itself is shrunk away).
       const tier = Math.max(0, Math.min(s.raider.desk ?? 0, DESKS.length - 1));
       if (tier === 0 || s.setup?.tier !== tier) {
-        if (s.setup) {
-          s.setup.model.removeFromParent();
-          disposeObject(s.setup.model);
-          s.setup = null;
-        }
+        this.removeSetup(s);
         if (tier > 0) {
           const model = fleetDesk(tier, 3 + s.raider.id, false);
           this.group.add(model);
@@ -438,14 +440,12 @@ export class DungeonLive {
       this.lids.setMatrixAt(i, this.mat);
       this.screens.setMatrixAt(i, this.mat);
       this.paintScreen(i, false);
-      if (!shown.has(s.raider.id) && s.avatar) {
-        s.avatar.root.removeFromParent();
-        disposeObject(s.avatar.root);
-        s.avatar = null;
-      }
+      if (!shown.has(s.raider.id)) this.removeAvatar(s);
+
       // Minions behind the chair, while the crowd is small enough.
+      const roomForMinions = Math.max(0, this.caps.minionsTotal - bots);
       const want = shown.has(s.raider.id)
-        ? Math.min(minionsOf(s.raider.agents, this.caps.minions), Math.max(0, this.caps.minionsTotal - bots))
+        ? Math.min(minionsOf(s.raider.agents, this.caps.minions), roomForMinions)
         : 0;
       bots += want;
       s.bots.length = Math.min(s.bots.length, want);
@@ -479,16 +479,15 @@ export class DungeonLive {
       if (!s.avatar) {
         const av = new Avatar(lookFrom2D(s.raider.look as never, { level: 1 }), "voxel");
         av.pose = "type";
-        av.root.position.set(x, SEAT_Y, z);
+        av.root.position.set(x, RAID_SEAT_Y, z);
         av.root.rotation.y = Math.PI;
         this.group.add(av.root);
         s.avatar = av;
         budget--;
       }
-      const want = Math.min(
-        minionsOf(s.raider.agents, this.caps.minions),
-        Math.max(0, this.caps.minionsTotal - (bots - s.bots.length)),
-      );
+
+      const roomForMinions = Math.max(0, this.caps.minionsTotal - (bots - s.bots.length));
+      const want = Math.min(minionsOf(s.raider.agents, this.caps.minions), roomForMinions);
       while (s.bots.length < want && budget > 0) {
         const i = s.bots.length;
         s.bots.push({
@@ -562,7 +561,8 @@ export class DungeonLive {
         for (let i = 0; i < got.shots; i++) this.fire(this.tmp.set(dx, 1.0, dz), "laptop");
       }
       const lit = this.t < s.lit;
-      if (lit !== (s.idx < LAPTOP_MAX && this.litNow.has(s.idx))) {
+      const wasLit = s.idx < LAPTOP_MAX && this.litNow.has(s.idx);
+      if (lit !== wasLit) {
         if (lit) this.litNow.add(s.idx);
         else this.litNow.delete(s.idx);
         if (s.idx < LAPTOP_MAX) this.paintScreen(s.idx, lit);
@@ -674,12 +674,14 @@ export class DungeonLive {
       beam.visible = false;
       ring.visible = false;
       const name = lootById(n.item)?.name ?? n.item;
+      // Drops alternate sides and spread out, so a burst of them does not land on one spot.
+      const sideways = (i % 2 ? 1 : -1) * (0.5 + ((i * 7) % 18) / 12);
       this.lootQueue.push({
         news: n,
         rarity,
         colour,
         start: this.t + LOOT_DELAY_S + i * LOOT_STAGGER_S,
-        dx: (i % 2 ? 1 : -1) * (0.5 + ((i * 7) % 18) / 12),
+        dx: sideways,
         root,
         model,
         beam,
@@ -790,9 +792,11 @@ export class DungeonLive {
       const l = this.later.splice(i, 1)[0]!;
       this.boss.flinch(l.text, l.gold);
     }
+
     this.build();
     // A week with kills ends in gold sparkles instead of missiles.
-    if ((r?.closed || r?.cleared) && !r.prelaunch && r.kills.length > 0 && Math.random() < dt * 4)
+    const weekEnded = (r?.closed || r?.cleared) && !r.prelaunch && r.kills.length > 0;
+    if (weekEnded && Math.random() < dt * 4) {
       this.burstAt(
         this.bossAt.x + (Math.random() - 0.5) * 1.8,
         BOSS_Y + BOSS_MID + (Math.random() - 0.5) * 1.2,
@@ -801,6 +805,8 @@ export class DungeonLive {
         1,
         0.9,
       );
+    }
+
     this.shoot(dt, closed);
     this.flyShots();
     this.flyLoot();
@@ -822,7 +828,13 @@ export class DungeonLive {
     this.figures.begin();
     for (const s of this.seated.values()) {
       if (s.avatar || occupied(s)) continue;
-      this.figures.add(s.seat[0] - this.map.x0 + 0.5, SEAT_Y, s.seat[1] - this.map.y0 + 0.5, s.shirt, s.skin);
+      this.figures.add(
+        s.seat[0] - this.map.x0 + 0.5,
+        RAID_SEAT_Y,
+        s.seat[1] - this.map.y0 + 0.5,
+        s.shirt,
+        s.skin,
+      );
     }
     this.figures.end();
 
@@ -926,8 +938,10 @@ export class DungeonLive {
       onClick: () => hud.set({ panel: { kind: "raid" } }),
     });
     for (const f of this.lootQueue) {
+      // Only a drop that has landed and is still in its landing window gets a label.
       const age = this.t - f.start;
-      if (!f.to || age <= LOOT_POP_S + LOOT_FLY_S || age >= LOOT_POP_S + LOOT_FLY_S + LOOT_LAND_S) continue;
+      const landing = age > LOOT_POP_S + LOOT_FLY_S && age < LOOT_POP_S + LOOT_FLY_S + LOOT_LAND_S;
+      if (!f.to || !landing) continue;
       list.push({
         key: `loot:${f.news.userId}:${f.news.item}`,
         at: [f.to.x, 1.4, f.to.z],

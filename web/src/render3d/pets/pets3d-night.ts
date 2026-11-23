@@ -280,8 +280,9 @@ export function tanuki(): Built {
   const lg = new Grid();
   for (let z = -5; z <= 5; z++) {
     const hw = Math.round(3.4 * Math.sin(((z + 5.5) / 11) * Math.PI));
-    for (let x = -hw; x <= hw; x++)
+    for (let x = -hw; x <= hw; x++) {
       lg.set(x, 0, z, x === 0 ? "#2f7d3a" : hash(x, 0, z, 9) < 0.15 ? "#74d482" : "#5cc16a");
+    }
     if (hw >= 1 && z % 2 === 0) lg.set(hw > 2 ? 1 : 0, 0, z, "#3f9a4c");
   }
   lg.box(0, 0, 0, 0, -7, -6, "#2f7d3a");
@@ -364,22 +365,27 @@ export function maneki(): Built {
   const hg = new Grid();
   hg.ell(0, 0, 0, 7, 5.6, 5.2, W, 2.2);
   hg.paint((c) => (c.x < -1 && c.y > 1.5 ? "#f0a040" : speckle(c, W, "#ece7de", 7, 0.15)));
-  for (const s of SIDES)
+  for (const s of SIDES) {
     for (let j = 0; j < 4; j++) {
       const w = Math.round(2 - j * 0.5);
       hg.box(s * 4.5 - w, s * 4.5 + w, 4 + j, 4 + j, -1, 0, s < 0 && j < 3 ? "#f0a040" : W);
-      if (j < 3)
-        hg.box(s * 4.5 - Math.max(0, w - 1), s * 4.5 + Math.max(0, w - 1), 4 + j, 4 + j, 1, 1, "#f2a0b0");
+      if (j < 3) {
+        const pink = Math.max(0, w - 1);
+        hg.box(s * 4.5 - pink, s * 4.5 + pink, 4 + j, 4 + j, 1, 1, "#f2a0b0");
+      }
     }
+  }
   hg.set(0, 0, 5, "#f2a0b0");
   hg.set(-1, -1, 5, DARK).set(1, -1, 5, DARK).set(0, -2, 5, DARK);
-  for (const s of SIDES)
+  for (const s of SIDES) {
     for (const [dx, dy] of [
       [0, 1],
       [0, 0],
       [0, -1],
-    ] as const)
+    ] as const) {
       hg.set(s * (7 + dx), dy - 1, 2, DARK).set(s * 8, dy * 2 - 1, 2, DARK);
+    }
+  }
   put(head, hg, [0, 0, 0], 2);
   const eyes: THREE.Mesh[] = [];
   for (const s of SIDES) {
@@ -558,8 +564,9 @@ export function kitsune(): Built {
           p.rotation.z = Math.sin(t * (moving ? 6 : 1.7) + i * 0.7) * (moving ? 0.1 : 0.05);
           p.rotation.x = Math.sin(t * (moving ? 5 : 1.3) + i * 0.5) * 0.05;
         });
-        for (const [i, l] of [...fores, ...hinds].entries())
+        for (const [i, l] of [...fores, ...hinds].entries()) {
           l.rotation.x = moving ? Math.sin(t * 13 + (i % 2 ? Math.PI : 0) + (i > 1 ? 1.4 : 0)) * 0.7 : 0;
+        }
         head.rotation.y = Math.sin(t * 0.8) * 0.1;
       },
     },
@@ -658,13 +665,11 @@ export function tengu(): Built {
       else if (k === 1 || k === 3) extra = 1.5;
       const len = 9 + extra;
       const to: V3 = [s * Math.cos(th) * len, Math.sin(th) * len + 1, -Math.cos(th) * len * 0.3];
-      g.tube(
-        [[s * 1.5, 0.5, 0], to],
-        1.8,
-        0.7,
-        (c) => (hash(c.x, c.y, c.z, k) < 0.2 ? "#3a4a6e" : c.u > 0.8 ? "#14151f" : "#1c1e2c"),
-        2,
-      );
+      const feather = (c: Cell) => {
+        if (hash(c.x, c.y, c.z, k) < 0.2) return "#3a4a6e";
+        return c.u > 0.8 ? "#14151f" : "#1c1e2c";
+      };
+      g.tube([[s * 1.5, 0.5, 0], to], 1.8, 0.7, feather, 2);
     }
     put(j, g, [0, 0, 0], 4 + (s > 0 ? 1 : 0));
     return { j, s };

@@ -101,10 +101,14 @@ function lathe(
   for (let y = Math.ceil(y0); y <= Math.floor(y1); y++) {
     const [rx, rz] = rad(y);
     if (rx <= 0 || rz <= 0) continue;
-    for (let x = Math.ceil(cx - rx); x <= Math.floor(cx + rx); x++)
-      for (let z = Math.ceil(cz - rz); z <= Math.floor(cz + rz); z++)
-        if (Math.abs((x - cx) / rx) ** pow + Math.abs((z - cz) / rz) ** pow <= 1.0001)
-          g.box(x, x, y, y, z, z, p);
+
+    for (let x = Math.ceil(cx - rx); x <= Math.floor(cx + rx); x++) {
+      for (let z = Math.ceil(cz - rz); z <= Math.floor(cz + rz); z++) {
+        // A superellipse: `pow` above 2 squares the outline. The 0.0001 keeps cells on the rim in.
+        const distance = Math.abs((x - cx) / rx) ** pow + Math.abs((z - cz) / rz) ** pow;
+        if (distance <= 1.0001) g.box(x, x, y, y, z, z, p);
+      }
+    }
   }
 }
 
@@ -177,11 +181,12 @@ function rateLimit(c: (k: string) => string): Sculpt {
   frame.box(-12, 12, 5, 5, -8, 8, c("woodDark"));
   frame.box(-13, 13, 41, 43, -9, 9, wood);
   frame.box(-12, 12, 40, 40, -8, 8, c("woodDark"));
-  for (const sx of [-1, 1])
+  for (const sx of [-1, 1]) {
     for (const sz of [-1, 1]) {
       frame.ell(sx * 11, 22.5, sz * 7.5, 1.7, 17.5, 1.7, wood, 5);
       frame.box(sx * 11 - 2, sx * 11 + 2, 0, 1, sz * 7.5 - 2, sz * 7.5 + 2, c("woodDark"));
     }
+  }
   frame.ell(0, 45, 0, 2.2, 2.2, 2.2, c("gold"), 2.4);
   for (const sx of [-1, 1]) {
     frame.box(sx * 13, sx * 15, 36, 42, -2, 2, c("woodDark"));
@@ -226,12 +231,16 @@ function rateLimit(c: (k: string) => string): Sculpt {
       face.set(bx, by, zTop(sand, bx, by, 4) + 1, c("mouth"));
     }
   }
-  for (let x = -3; x <= 3; x++)
+  for (let x = -3; x <= 3; x++) {
     for (let y = 29; y <= 31; y++) {
       const z = zTop(sand, x, y, 3);
       sand.set(x, y, z, c("mouth"));
-      if ((y === 31 && x % 2 !== 0) || (y === 29 && x % 2 === 0)) sand.set(x, y, z + 1, c("teeth"));
+
+      // Teeth alternate between the two rows of the mouth.
+      const isTooth = (y === 31 && x % 2 !== 0) || (y === 29 && x % 2 === 0);
+      if (isTooth) sand.set(x, y, z + 1, c("teeth"));
     }
+  }
   sand.merge(face);
   part(rig, sand, [0, 0, 0]);
   const stream = new Grid();
@@ -321,29 +330,35 @@ function contextWindow(c: (k: string) => string): Sculpt {
   );
   // Front: title bar, recessed screen.
   g.box(-15, 15, 34, 37, 5, 5, c("title"));
-  for (let x = -14; x <= 14; x++)
+  for (let x = -14; x <= 14; x++) {
     for (let y = 10; y <= 32; y++) {
       g.del(x, y, 4);
       g.del(x, y, 5);
       g.set(x, y, 3, (x + y) % 6 === 0 ? c("screenDark") : c("screen"));
     }
-  for (const [i, k] of (["red", "yellow", "green"] as const).entries())
+  }
+  for (const [i, k] of (["red", "yellow", "green"] as const).entries()) {
     g.box(-14 + i * 4, -13 + i * 4, 35, 36, 6, 6, c(k));
+  }
+
   // Mouth: recessed, with teeth.
-  for (let x = -7; x <= 7; x++)
+  for (let x = -7; x <= 7; x++) {
     for (let y = 15; y <= 19; y++) {
       g.del(x, y, 3);
       g.set(x, y, 2, c("mouth"));
       if (y >= 18 && x % 3 === 0) g.box(x, x + 1, y, y, 3, 3, c("teeth"));
       if (y <= 16 && (x + 2) % 3 === 0) g.box(x, x + 1, y, y, 3, 3, c("teeth"));
     }
+  }
+
   // Back: a dark panel, faded text lines and a scroll bar.
-  for (let x = -14; x <= 14; x++)
+  for (let x = -14; x <= 14; x++) {
     for (let y = 10; y <= 32; y++) {
       g.del(x, y, -5);
       g.del(x, y, -4);
       g.set(x, y, -3, c("back"));
     }
+  }
   for (let y = 31; y >= 12; y -= 3) {
     const len = 6 + Math.floor(hash(y, 3, 9, 1) * 14);
     g.box(-12, -12 + len, y, y, -4, -4, c("line"));
@@ -351,10 +366,13 @@ function contextWindow(c: (k: string) => string): Sculpt {
   g.box(11, 13, 11, 31, -4, -4, c("rim"));
   g.box(11, 13, 19, 27, -5, -5, lighten(c("rim"), 0.3));
   // Crumbling bottom: holes grow towards the lower edge.
-  for (let x = -17; x <= 17; x++)
-    for (let y = 7; y <= 15; y++)
-      for (let z = -6; z <= 7; z++)
+  for (let x = -17; x <= 17; x++) {
+    for (let y = 7; y <= 15; y++) {
+      for (let z = -6; z <= 7; z++) {
         if (g.has(x, y, z) && hash(x, y, z, 9) < ((16 - y) / 8) ** 1.3 * 0.85) g.del(x, y, z);
+      }
+    }
+  }
   part(rig, g, [0, 24, 0]);
   const eyes: THREE.Group[] = [];
   for (const sx of [-1, 1]) {
@@ -477,14 +495,15 @@ function mergeConflict(c: (k: string) => string): Sculpt {
       [20, 4],
       [26, 6],
       [28, 3],
-    ] as const)
+    ] as const) {
       body.box(-11, -11 + len, y, y, -8, -8, light);
+    }
     body.box(-9, -5, 22, 23, -8, -8, dark);
     // Head.
     const head = new Grid();
     head.ell(-5.5, 38, 0, 5.8, 8, 7.5, skin, 4.5);
     const hz = (x: number, y: number) => zTop(head, x, y, 7);
-    for (let x = -10; x <= -1; x++)
+    for (let x = -10; x <= -1; x++) {
       for (let y = 32; y <= 34; y++) {
         const z = hz(x, y);
         head.del(x, y, z);
@@ -492,6 +511,8 @@ function mergeConflict(c: (k: string) => string): Sculpt {
         if (y === 34 && x % 2 === 0) head.set(x, y, z, c("teeth"));
         if (y === 32 && x % 2 !== 0) head.set(x, y, z, c("teeth"));
       }
+    }
+
     // Conflict marker hair: a gold chevron.
     for (const x0 of [-10, -7, -4]) {
       for (let z = -2; z <= 2; z++) {
@@ -564,7 +585,9 @@ function mergeConflict(c: (k: string) => string): Sculpt {
       const breathe = Math.sin(t * 2.2);
       for (const h of halves) {
         const sx = h.sx;
-        h.grp.position.x = sx * (argue * 0.5 + Math.max(0, w) * 3.5 + (w < 0 ? w * 1.5 : 0)) * VOX;
+        // Leaning in while winding up, and pulled back past home when the slam overshoots (w < 0).
+        const lean = argue * 0.5 + Math.max(0, w) * 3.5 + (w < 0 ? w * 1.5 : 0);
+        h.grp.position.x = sx * lean * VOX;
         h.grp.rotation.z =
           -sx * (0.03 + argue * 0.03 + Math.max(0, w) * 0.1) + hurt * 0.05 * Math.sin(t * 55);
         h.grp.scale.y = 1 + breathe * 0.012;
@@ -772,8 +795,9 @@ function invoice(c: (k: string) => string): Sculpt {
     [17, 9],
     [14, 6],
     [11, 8],
-  ] as const)
+  ] as const) {
     sheet.box(-9, -9 + w, y, y, 2, 2, c("text"));
+  }
   sheet.box(-9, -3, 7, 8, 2, 2, c("red"));
   for (let a = 0; a < 24; a++) {
     const th = (a / 24) * Math.PI * 2;
@@ -789,13 +813,18 @@ function invoice(c: (k: string) => string): Sculpt {
   }
   sheet.box(4, 8, 13, 13, 3, 3, c("red"));
   // Snarl: angry brows, a wide mouth of teeth.
-  for (const sx of [-1, 1])
+  for (const sx of [-1, 1]) {
     for (let i = 0; i < 6; i++) sheet.set(sx * (3 + i), 36 + Math.round(i * 0.7), 2, c("ink"));
-  for (let x = -6; x <= 6; x++)
+  }
+  for (let x = -6; x <= 6; x++) {
     for (let y = 23; y <= 27; y++) {
       sheet.set(x, y, 2, c("mouth"));
-      if ((y === 27 && x % 2 === 0) || (y === 23 && x % 2 !== 0)) sheet.set(x, y, 3, c("teeth"));
+
+      // Teeth alternate between the top and bottom rows of the mouth.
+      const isTooth = (y === 27 && x % 2 === 0) || (y === 23 && x % 2 !== 0);
+      if (isTooth) sheet.set(x, y, 3, c("teeth"));
     }
+  }
   const body = part(rig, sheet, [0, 4, 0]);
   const eyes: THREE.Group[] = [];
   for (const sx of [-1, 1]) {
@@ -978,7 +1007,7 @@ export function buildTrophy(): THREE.Group {
     },
     (p) => (p.x < -3 && p.y > 13 && p.y < 20 ? lighten(gold, 0.45) : gold),
   );
-  for (const sx of [-1, 1])
+  for (const sx of [-1, 1]) {
     g.tube(
       [
         [sx * 8, 20, 0],
@@ -990,13 +1019,17 @@ export function buildTrophy(): THREE.Group {
       1.4,
       gold,
     );
-  for (let x = -7; x <= 7; x++)
-    for (let z = -7; z <= 7; z++)
+  }
+  // The bowl's mouth is hollowed out: a disc of radius about 6.3, squared to 40 here.
+  for (let x = -7; x <= 7; x++) {
+    for (let z = -7; z <= 7; z++) {
       if (x * x + z * z < 40) {
         g.del(x, 22, z);
         g.del(x, 21, z);
         g.set(x, 20, z, darken(gold, 0.35));
       }
+    }
+  }
   g.ell(0, 17, 6.3, 2.2, 2.2, 1.5, mix(gold, "#c9971f", 0.5), 2.4);
   part(root, g, [0, 0, 0]);
   return root;

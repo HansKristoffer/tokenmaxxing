@@ -8,8 +8,8 @@ export const MAX_PIXEL_RATIO = 2;
 /**
  * What each graphics tier means for the 3D pipeline. Medium is the genuinely light one: the classic look at a
  * lower resolution with silhouette lines only (one scene pass, no normals, no depth float, no shadows).
- * High caps density at 1.5 by default, with 12-sample AO, haze, grade, 2x MSAA and split 2K shadows; Ultra adds tilt-shift, 4x MSAA
- * and a 4K shadow map drawn every frame.
+ * High caps density at 1.5 by default, with 12-sample AO, haze, grade, 2x MSAA and split 2K shadows; Ultra adds
+ * tilt-shift, 4x MSAA and a 4K shadow map drawn every frame.
  */
 /** Medium and Low draw the classic look on lean geometry. */
 const isLeanTier = (s: GraphicsSettings): boolean => s.tier === "medium" || s.tier === "low";

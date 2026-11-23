@@ -8,11 +8,11 @@ import { occluderSphere, occlusionBlocked } from "./occlusion-ray.ts";
  * x, y: the player's place in the render target's pixels; z: their depth from the camera; w: the ring's
  * radius in those pixels (0 turns it off).
  *
- * What is cut is decided per piece (a leaf block, a wall, a roof), never per pixel: by pixel, a block straddling the
- * player's depth was sliced diagonally across its faces, and the slice swept over it with every step (the trees and
- * walls glittering round the player as they walked). A batched mesh (`perf/bake.ts`) carries each source piece's middle
- * in `seeAt` (w = 2), as does any geometry `seeThrough` or the Voxel swap has seen (`markMiddle`); anything else (a
- * person, built after) uses its own origin.
+ * What is cut is decided per piece (a leaf block, a wall, a roof), never per pixel: by pixel, a block straddling
+ * the player's depth was sliced diagonally across its faces, and the slice swept over it with every step (the
+ * trees and walls glittering round the player as they walked). A batched mesh (`perf/bake.ts`) carries each source
+ * piece's middle in `seeAt` (w = 2), as does any geometry `seeThrough` or the Voxel swap has seen (`markMiddle`);
+ * anything else (a person, built after) uses its own origin.
  */
 export const SEE = { value: new THREE.Vector4(0, 0, 0, 0) };
 
@@ -24,7 +24,9 @@ const PROBE_LOW = -0.35;
 const PROBE_RISE = 0.22;
 /** No sample is farther than this from the probe's middle, so no sample's ray is farther from the middle's. */
 const PROBE_REACH = Math.hypot(PROBE_SIDE, Math.max(-PROBE_LOW, PROBE_LOW + 2 * PROBE_RISE)) + 0.01;
-/** How much nearer than the player a piece's middle must be to be cut: its surface is about half a piece nearer. */
+/**
+ * How much nearer than the player a piece's middle must be to be cut: its surface is about half a piece nearer.
+ */
 const PIECE_NEARER = 0.5;
 /** Below this height (the floor, a lawn, a path) nothing is cut. */
 const FLOOR_TOP = 0.14;
@@ -81,16 +83,13 @@ export function markMiddle(g: THREE.BufferGeometry): void {
   if (g.getAttribute("seeAt")) return;
   if (!g.boundingBox) g.computeBoundingBox();
   const c = g.boundingBox!.getCenter(middleVec);
-  const cx = c.x;
-  const cy = c.y;
-  const cz = c.z;
   const n = g.getAttribute("position").count;
   const at = new Float32Array(n * 4);
   for (let i = 0; i < n; i++) {
     const o = i * 4;
-    at[o] = cx;
-    at[o + 1] = cy;
-    at[o + 2] = cz;
+    at[o] = c.x;
+    at[o + 1] = c.y;
+    at[o + 2] = c.z;
     at[o + 3] = 2;
   }
   g.setAttribute("seeAt", new THREE.BufferAttribute(at, 4));

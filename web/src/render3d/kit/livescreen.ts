@@ -45,7 +45,7 @@ export function endLanScope(): () => void {
   };
 }
 
-/** Fridays and Saturdays from 18:00 in Aarhus (`core/src/tavern.ts` `isLanParty`). */
+/** Fridays and Saturdays from 18:00 in Copenhagen time (`core/src/tavern.ts` `isLanParty`). */
 export function isLanPartyAt(ms: number = Date.now()): boolean {
   const parts = new Intl.DateTimeFormat("en-GB", {
     timeZone: "Europe/Copenhagen",
@@ -239,7 +239,11 @@ export function paintRaid(
     idleDot(g, w, h, t);
     return;
   }
-  g.fillStyle = share > 0.5 ? "#3ddc84" : share > 0.2 ? "#f5d14a" : "#e8584f";
+  // Green above half, amber above a fifth, red below.
+  let barColour = "#e8584f";
+  if (share > 0.5) barColour = "#3ddc84";
+  else if (share > 0.2) barColour = "#f5d14a";
+  g.fillStyle = barColour;
   g.fillRect(w * 0.08, h * 0.32, Math.max(2, share * w * 0.84), h * 0.36);
 }
 
@@ -259,7 +263,8 @@ function scanLines(g: CanvasRenderingContext2D, w: number, h: number): void {
 function idleDot(g: CanvasRenderingContext2D, w: number, h: number, t: number): void {
   g.fillStyle = "#2f7a4f";
   const n = 8;
-  g.fillRect(w * 0.08 + (Math.floor(t * 2) % n) * ((w * 0.84) / n), h * 0.46, (w * 0.84) / n, h * 0.08);
+  const cell = (w * 0.84) / n;
+  g.fillRect(w * 0.08 + (Math.floor(t * 2) % n) * cell, h * 0.46, cell, h * 0.08);
 }
 
 export interface LiveScreen<S> extends Panel {

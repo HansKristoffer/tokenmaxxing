@@ -473,6 +473,20 @@ interface SceneLights {
   sun?: THREE.DirectionalLight;
 }
 
+/** A full-screen pass: a plane drawn with a shader material. */
+type Quad = THREE.Mesh<THREE.PlaneGeometry, THREE.ShaderMaterial>;
+
+/** A person or pet in the crowd, with its squared distance from the middle of the picture (in NDC). */
+type Ranked = { o: THREE.Object3D; d: number };
+
+/** A shadow step the next render takes: which map to draw, and whether it is the baked or the live one. */
+type ShadowPlan = {
+  sun: THREE.DirectionalLight;
+  dyn: THREE.DirectionalLight;
+  fixed: boolean;
+  live: boolean;
+};
+
 export class Pipeline {
   readonly renderer: THREE.WebGLRenderer;
   pixelSize = 3;
@@ -481,9 +495,9 @@ export class Pipeline {
   private color?: THREE.WebGLRenderTarget;
   private normal?: THREE.WebGLRenderTarget;
   private readonly normals = new THREE.MeshNormalMaterial();
-  private readonly quad: THREE.Mesh<THREE.PlaneGeometry, THREE.ShaderMaterial>;
-  private readonly quadCreased: THREE.Mesh<THREE.PlaneGeometry, THREE.ShaderMaterial>;
-  private readonly blit: THREE.Mesh<THREE.PlaneGeometry, THREE.ShaderMaterial>;
+  private readonly quad: Quad;
+  private readonly quadCreased: Quad;
+  private readonly blit: Quad;
   private readonly quadCamera = new THREE.Camera();
   private size = "";
 
@@ -501,10 +515,10 @@ export class Pipeline {
   private opts: Partial<PipelineOptions> = {};
   private vox?: THREE.WebGLRenderTarget;
   private voxKey = "";
-  private readonly voxQuad: THREE.Mesh<THREE.PlaneGeometry, THREE.ShaderMaterial>;
-  private readonly aoQuad: THREE.Mesh<THREE.PlaneGeometry, THREE.ShaderMaterial>;
+  private readonly voxQuad: Quad;
+  private readonly aoQuad: Quad;
   private ao?: THREE.WebGLRenderTarget;
-  private readonly aoBlurQuad: THREE.Mesh<THREE.PlaneGeometry, THREE.ShaderMaterial>;
+  private readonly aoBlurQuad: Quad;
   private aoRaw?: THREE.WebGLRenderTarget;
   private aoKey = "";
   private readonly fill = new THREE.DirectionalLight("#9ec4ff", 0);
@@ -808,18 +822,8 @@ export class Pipeline {
   }
 
   /** What the next render's shadow step does (see `shadowsFor`); null leaves it to three. */
-  private plan: {
-    sun: THREE.DirectionalLight;
-    dyn: THREE.DirectionalLight;
-    fixed: boolean;
-    live: boolean;
-  } | null = null;
-  private readonly planScratch: {
-    sun: THREE.DirectionalLight;
-    dyn: THREE.DirectionalLight;
-    fixed: boolean;
-    live: boolean;
-  } = { sun: null!, dyn: null!, fixed: false, live: false };
+  private plan: ShadowPlan | null = null;
+  private readonly planScratch: ShadowPlan = { sun: null!, dyn: null!, fixed: false, live: false };
   private readonly staticCam = new THREE.Camera();
   private readonly liveCam = new THREE.Camera();
 
@@ -867,7 +871,8 @@ export class Pipeline {
     const split = scene.userData.splitLight as THREE.DirectionalLight | undefined;
     const unmapped = !st && !!split?.castShadow && !split.shadow.map;
     if (unmapped) split.shadow.needsUpdate = true;
-    if (!st && on && sun && !bakePending(scene) && (this.frameNo > 30 || scene.userData.splitReady)) {
+    const splitDue = this.frameNo > 30 || scene.userData.splitReady;
+    if (!st && on && sun && !bakePending(scene) && splitDue) {
       const dyn = split ?? newSplitLight();
       if (dyn.parent !== scene) scene.add(dyn, dyn.target);
       st = { dyn, epoch: -1, key: new Float64Array(15), hasKey: false, size: 0, nextLive: 0, at: 0 };
@@ -886,7 +891,8 @@ export class Pipeline {
       r.shadowMap.needsUpdate = false;
       return;
     }
-    // The small map follows the sun exactly; compare the 15 key fields numerically without string churn.
+    // The key rounds the sun's position and target to a 0.2 grid, then compares the 15 fields numerically:
+    // a sun that drifts less than that does not redraw the small map.
     const sc = sun.shadow.camera;
     const k0 = Math.round(sun.position.x / 0.2);
     const k1 = Math.round(sun.position.y / 0.2);
@@ -956,6 +962,7 @@ export class Pipeline {
     plan.dyn = dyn;
     plan.fixed = false;
     plan.live = false;
+    // A moving sun redraws the baked map at most every 120 ms, so a slow pan does not redraw it every frame.
     if (invalid || (keyChanged && now - st.at > 120)) {
       st.epoch = staticShadowEpoch();
       sk[0] = k0;
@@ -1206,8 +1213,8 @@ export class Pipeline {
   }
 
   private readonly crowds = new WeakMap<THREE.Scene, ActorCache>();
-  private readonly rankPool: { o: THREE.Object3D; d: number }[] = [];
-  private readonly rank: { o: THREE.Object3D; d: number }[] = [];
+  private readonly rankPool: Ranked[] = [];
+  private readonly rank: Ranked[] = [];
   private readonly ndc = new THREE.Vector3();
 
   /**
@@ -1343,7 +1350,8 @@ export class Pipeline {
       // Normals of everything solid: see-through things (glass, faces, light cones) would draw lines.
       const hidden: THREE.Object3D[] = [];
       scene.traverseVisible((o) => {
-        if (o instanceof THREE.Mesh && !Array.isArray(o.material) && o.material.transparent) hidden.push(o);
+        const isSeeThrough = o instanceof THREE.Mesh && !Array.isArray(o.material) && o.material.transparent;
+        if (isSeeThrough) hidden.push(o);
       });
       for (const o of hidden) o.visible = false;
       const background = scene.background;

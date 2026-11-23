@@ -49,15 +49,17 @@ function gear(wear: number, rig: Rig): { group: Model; spin?: THREE.Object3D } |
       g.ball(0.02, "#962626", [0, -0.015, -r], [1, 1, 1], 6);
       break;
     case 2: // Pink bow.
-      for (const s of SIDES)
-        g.ball(0.04 * gs, "#ff7fb0", [0.06 * gs + s * 0.04 * gs, 0.01, 0], [1.1, 0.8, 0.5], 8).rotation.z =
-          s * 0.3;
+      for (const s of SIDES) {
+        const loop = g.ball(0.04 * gs, "#ff7fb0", [0.06 * gs + s * 0.04 * gs, 0.01, 0], [1.1, 0.8, 0.5], 8);
+        loop.rotation.z = s * 0.3;
+      }
       g.ball(0.02 * gs, "#c23a6b", [0.06 * gs, 0.01, 0.005], [1, 1, 1], 6);
       break;
     case 3: // Bow tie.
-      for (const s of SIDES)
-        g.cyl(0.001, 0.05 * gs, "#2a3a8a", [0, -0.04, r * 0.85], 0.025 * gs, 4).rotation.z =
-          s * (Math.PI / 2);
+      for (const s of SIDES) {
+        const wing = g.cyl(0.001, 0.05 * gs, "#2a3a8a", [0, -0.04, r * 0.85], 0.025 * gs, 4);
+        wing.rotation.z = s * (Math.PI / 2);
+      }
       g.ball(0.016 * gs, "#f5c842", [0, -0.04, r * 0.88], [1, 1, 1], 6);
       break;
     case 4: // Party hat.
@@ -85,13 +87,14 @@ function gear(wear: number, rig: Rig): { group: Model; spin?: THREE.Object3D } |
     case 7: // Winter scarf: red and white rings, an end hanging down the shoulder.
       for (let i = 0; i < 3; i++)
         g.cyl(r * 1.08, 0.022, i % 2 ? C.white : "#d23c3c", [0, -0.055 + i * 0.02, 0], r * 1.08, 14);
-      for (let i = 0; i < 4; i++)
+      for (let i = 0; i < 4; i++) {
         g.box(
           [0.03, 0.025, 0.012],
           i % 2 ? C.white : "#d23c3c",
           [r * 0.8, -0.1 - i * 0.025, r * 0.55],
           0.004,
         );
+      }
       break;
   }
   return { group: g, spin };
@@ -372,7 +375,9 @@ export class Pet3D {
       r.head.add(group);
       this.prestiged = { rank, hat, crown: crowned, group };
     }
-    if (crowned !== !!this.crowned || (this.crowned && this.crowned.lifted !== hat)) {
+    // The crown is rebuilt when it appears or goes, or when the hat moves it up or down.
+    const crownChanged = crowned !== !!this.crowned || (!!this.crowned && this.crowned.lifted !== hat);
+    if (crownChanged) {
       this.crowned?.group.removeFromParent();
       this.crowned = null;
       if (crowned) {

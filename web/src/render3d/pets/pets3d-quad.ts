@@ -125,9 +125,11 @@ function earGrid(e: EarSpec, outer: (c: Cell) => string, inner: (c: Cell) => str
       );
       const cx = (lean * k) / e.h;
       const th = Math.max(1, e.th - Math.floor(f * e.th * 0.6));
-      for (let i = 0; i < w; i++)
-        for (let z = 0; z < th; z++)
+      for (let i = 0; i < w; i++) {
+        for (let z = 0; z < th; z++) {
           paint(Math.round(cx - (w - 1) / 2 + i), k, z, z === th - 1 && th > 1, k, w);
+        }
+      }
     }
   } else if (e.kind === "floppy" || e.kind === "rose") {
     const flare = e.kind === "rose" ? 0.5 : (lean * e.h) / 3;
@@ -136,9 +138,11 @@ function earGrid(e: EarSpec, outer: (c: Cell) => string, inner: (c: Cell) => str
       const w = Math.max(2, Math.round(e.w * (1 - f * 0.35)));
       const th = Math.max(2, Math.round(e.th * (1 - f * 0.35)));
       const cx = Math.round(flare * f);
-      for (let i = 0; i < w; i++)
-        for (let z = 0; z < th; z++)
+      for (let i = 0; i < w; i++) {
+        for (let z = 0; z < th; z++) {
           paint(cx + i, -k, z - (e.kind === "rose" ? 0 : Math.round(f * 1.5)), false, k, w);
+        }
+      }
     }
   } else {
     const r = e.w / 2;
@@ -184,7 +188,7 @@ export function buildQuad(
   const czC = cz + (ovF - ovB) / 2;
   const ry = s.H / 2;
   bg.ell(0, cy, czC, s.W / 2, ry, rz, "#b0b0b0", 2.5);
-  if (s.chest)
+  if (s.chest) {
     bg.ell(
       0,
       cy - s.chest / 2,
@@ -195,12 +199,15 @@ export function buildQuad(
       "#b0b0b0",
       2.6,
     );
+  }
   const tuck = s.tuck ?? 0;
-  if (tuck)
+  if (tuck) {
     bg.each((x, y, z) => {
-      if (z < s.zF * 0.55 && y < cy - ry * (1 - tuck) + (z / (s.zF * 0.55)) * ry * tuck * 0.6)
+      if (z < s.zF * 0.55 && y < cy - ry * (1 - tuck) + (z / (s.zF * 0.55)) * ry * tuck * 0.6) {
         bg.del(x, y, z);
+      }
     });
+  }
   // Haunches and shoulders: a plump bump above each leg.
   const lx = Math.max(1, Math.round(s.W / 2 - s.lw / 2));
   for (const sd of SIDES) {
@@ -242,8 +249,9 @@ export function buildQuad(
   if (s.sn && !s.pumpkin) {
     const ty = Math.round(scy - s.hh / 2 + s.sn.h + 0.4 + (s.sn.up ?? 0)) - 1;
     const nw = s.noseW ?? Math.max(1, Math.round(s.sn.w / 2));
-    for (let x = -Math.floor((nw - 1) / 2); x <= Math.ceil((nw - 1) / 2); x++)
+    for (let x = -Math.floor((nw - 1) / 2); x <= Math.ceil((nw - 1) / 2); x++) {
       for (let y = ty - (s.noseH ?? 1) + 1; y <= ty; y++) hg.set(x, y, snoutFront + 1, s.nose);
+    }
     if (s.tongue) {
       const by = Math.round(scy - s.hh / 2 + 0.4 + (s.sn.up ?? 0));
       hg.set(0, by - 1, snoutFront - 1, s.tongue);
@@ -288,11 +296,12 @@ export function buildQuad(
     const ey = Math.round(scy + s.eyeY);
     let zf: number | undefined;
     const ew = Math.max(...rows.map((r) => r.length));
-    for (let j = 0; j < eh; j++)
+    for (let j = 0; j < eh; j++) {
       for (let i = 0; i < ew; i++) {
         const f = hg.front(ex + sd * i, ey - j);
         if (f !== undefined) zf = zf === undefined ? f : Math.min(zf, f);
       }
+    }
     const e = eye(rows);
     e.position.set(U(ex + (sd * (ew - 1)) / 2), U(ey - (eh - 1) / 2), U((zf ?? snoutFront - 2) + 0.55));
     head.add(e);
@@ -308,13 +317,14 @@ export function buildQuad(
       (c) => s.coat("ear", { ...c, y: c.y }),
       (c) => s.coat("earIn", c),
     );
-    if (s.fluff?.head)
+    if (s.fluff?.head) {
       grid.fluff(s.fluff.head * 0.7, 9, 0.08, [
         [1, 0, 0],
         [0, 1, 0],
         [0, 0, 1],
         [0, 0, -1],
       ]);
+    }
     for (const sd of SIDES) {
       const g = sd > 0 ? grid : grid.mirrored();
       const m = bake(g, { seed: 5 + sd });
@@ -333,7 +343,7 @@ export function buildQuad(
   // Legs: a shaft that stretches and a paw that doesn't.
   const foreLegs: THREE.Mesh[] = [];
   const hindLegs: THREE.Mesh[] = [];
-  for (const sd of SIDES)
+  for (const sd of SIDES) {
     for (const [parent, list, z0] of [
       [body, hindLegs, 0],
       [fore, foreLegs, s.zF],
@@ -343,7 +353,7 @@ export function buildQuad(
       const paw = new Grid();
       const half = Math.floor(s.lw / 2);
       const hi = s.lw % 2 ? half : half - 1;
-      for (let x = -half; x <= hi; x++)
+      for (let x = -half; x <= hi; x++) {
         for (let z = -half; z <= hi; z++) {
           for (let y = 0; y <= s.lh + 1; y++) {
             const cell: Cell = {
@@ -361,6 +371,7 @@ export function buildQuad(
             (isPaw ? paw : shaft).set(x, y, z, s.coat(isPaw ? "paw" : "leg", cell));
           }
         }
+      }
       // A toe cell out the front.
       for (let x = -half + (s.lw > 3 ? 1 : 0); x <= hi - (s.lw > 3 ? 1 : 0); x++)
         paw.set(x, 0, hi + 1, s.coat("paw", { x, y: 0, z: hi + 1, u: 1, t: 0, s: 0, c: "" }));
@@ -380,6 +391,7 @@ export function buildQuad(
       parent.add(m, pm);
       list.push(m, pm);
     }
+  }
 
   // Tails.
   const tails: THREE.Object3D[] = [];
@@ -1457,8 +1469,9 @@ const OUTFITS: Record<string, (e: Extras) => void> = {
     head.fluff(0.3, 23, 0);
     const z0 = s.zF / 2;
     body.each((x, y, z) => {
-      if (Math.abs(z - z0 - x * 1.1) < 0.9)
+      if (Math.abs(z - z0 - x * 1.1) < 0.9) {
         body.set(x, y, z, hash(x, y, z, 3) < 0.25 ? "#9a9eb0" : "#1f1e27");
+      }
     });
   },
 };
@@ -1491,15 +1504,17 @@ export function quadSpec(species: Species, variant: string, outfit: string | nul
     s.hw = r(s.hw);
     s.hh = r(s.hh);
     s.hl = r(s.hl);
-    if (s.sn)
+    if (s.sn) {
       s.sn = {
         ...s.sn,
         l: Math.max(1, Math.round(s.sn.l * (1 + (k - 1) * 0.5))),
         w: r(s.sn.w),
         h: r(s.sn.h),
       };
-    if (s.ear)
+    }
+    if (s.ear) {
       s.ear = { ...s.ear, w: r(s.ear.w), h: Math.round(s.ear.h * k), x: s.ear.x * k, z: s.ear.z * k };
+    }
   }
   if (species === "cat" || species === "forkedcat") {
     const prev = s.extra;
@@ -1507,10 +1522,13 @@ export function quadSpec(species: Species, variant: string, outfit: string | nul
       prev?.(e);
       // Whiskers: a few pale cells out from each cheek.
       const w = e.s.sn ? e.s.sn.w / 2 : 2;
-      for (const sd of SIDES)
-        for (const dy of [0, -1])
-          for (let i = 1; i <= 3; i++)
+      for (const sd of SIDES) {
+        for (const dy of [0, -1]) {
+          for (let i = 1; i <= 3; i++) {
             e.head.set(sd * (w + i), e.skull.cy - 2 + dy, e.snoutFront - 1 - i, "#f4f1ea");
+          }
+        }
+      }
     };
   }
   if (outfit && OUTFITS[outfit]) {

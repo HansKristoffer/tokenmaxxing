@@ -327,9 +327,14 @@ export function buildNorseKey(register: Register): Model {
     [-0.07, HOLE + 0.36],
     [0, HOLE + 0.41],
   ];
-  for (const s of [-1, 1])
-    for (let i = 0; i < loop.length - 1; i++)
-      strand([s * loop[i]![0], loop[i]![1]], [s * loop[i + 1]![0], loop[i + 1]![1]]);
+  // Each side of the loop is a chain of strands between consecutive points, mirrored across the hole.
+  for (const s of [-1, 1]) {
+    for (let i = 0; i < loop.length - 1; i++) {
+      const [ax, ay] = loop[i]!;
+      const [bx, by] = loop[i + 1]!;
+      strand([s * ax, ay], [s * bx, by]);
+    }
+  }
   spin.box([0.04, 0.034, 0.15], LEATHER, [0, HOLE + 0.03, 0], 0.008);
   spin.box([0.07, 0.07, 0.06], OAK_LIGHT, [0, HOLE + 0.38, 0], 0.012);
   for (const s of [-1, 1])

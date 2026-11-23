@@ -185,7 +185,8 @@ export function chamferBox(w: number, h: number, d: number, r: number): THREE.Bu
     tri(a, b, c, na, na, nb, face);
     tri(a, c, d2, na, nb, nb, face);
   };
-  for (const ax of AXES)
+  // Six flat faces: each one is a square at the box's half size, inset by the bevel on its two other axes.
+  for (const ax of AXES) {
     for (const sg of [-1, 1]) {
       const n = dirs(ax, sg);
       const u = (ax + 1) % 3;
@@ -199,13 +200,14 @@ export function chamferBox(w: number, h: number, d: number, r: number): THREE.Bu
       };
       quad(c(-1, -1), c(1, -1), c(1, 1), c(-1, 1), n, n, n);
     }
+  }
   // Edge strips: face A (axis a) meets face B (axis b); the edge runs along c.
   for (const [a, b, c] of [
     [0, 1, 2],
     [0, 2, 1],
     [1, 2, 0],
-  ] as const)
-    for (const sa of [-1, 1])
+  ] as const) {
+    for (const sa of [-1, 1]) {
       for (const sb of [-1, 1]) {
         const na = dirs(a, sa);
         const nb = dirs(b, sb);
@@ -225,15 +227,19 @@ export function chamferBox(w: number, h: number, d: number, r: number): THREE.Bu
         };
         quad(onA(-1), onA(1), onB(1), onB(-1), na, nb, na);
       }
+    }
+  }
   // Corners.
-  for (const sx of [-1, 1])
-    for (const sy of [-1, 1])
+  for (const sx of [-1, 1]) {
+    for (const sy of [-1, 1]) {
       for (const sz of [-1, 1]) {
         const px = [sx * half[0]!, sy * inner[1]!, sz * inner[2]!];
         const py = [sx * inner[0]!, sy * half[1]!, sz * inner[2]!];
         const pz = [sx * inner[0]!, sy * inner[1]!, sz * half[2]!];
         tri(px, py, pz, dirs(0, sx), dirs(1, sy), dirs(2, sz), dirs(2, sz));
       }
+    }
+  }
   const g = new THREE.BufferGeometry();
   g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
   g.setAttribute("normal", new THREE.Float32BufferAttribute(nor, 3));
@@ -288,12 +294,13 @@ export const geometryDetail = (): 0 | 1 => detail;
 /** Where in the code a piece was made (`userData.src`), for `web/scripts/zfight.ts` to say what to look at: off unless asked for. */
 function callSite(): string {
   const lines = new Error().stack?.split("\n") ?? [];
-  for (const l of lines.slice(1))
-    if (!l.includes("/kit/kit.ts") && !l.includes("callSite"))
-      return l
-        .replace(/^\s*at\s+/, "")
-        .replace(/.*\/(src\/render3d\/)/, "$1")
-        .replace(/\)$/, "");
+  for (const l of lines.slice(1)) {
+    if (l.includes("/kit/kit.ts") || l.includes("callSite")) continue;
+    return l
+      .replace(/^\s*at\s+/, "")
+      .replace(/.*\/(src\/render3d\/)/, "$1")
+      .replace(/\)$/, "");
+  }
   return "";
 }
 
@@ -527,8 +534,9 @@ export function endTickScope(scope: TickScope, root: THREE.Object3D): void {
 /** A room that is no longer kept: its ticks stop running (and stop holding its models alive). */
 export function dropTickScope(scope: TickScope): void {
   const gone = new Set(scope.fns);
-  for (let i = ticks.length - 1; i >= 0; i--)
+  for (let i = ticks.length - 1; i >= 0; i--) {
     if (gone.has(ticks[i]!)) Array.prototype.splice.call(ticks, i, 1);
+  }
   scope.fns.length = 0;
 }
 /** The scene being drawn: ticks of rooms in any other scene sit out. Null runs everything. */

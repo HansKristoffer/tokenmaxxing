@@ -126,8 +126,9 @@ const ravenBanner = (): Model => {
     const shade = i % 2 ? RED : tint(RED, -0.07);
     p.box([W / N + 0.004, h, 0.024], shade, [0, -h, 0], 0.004);
     p.box([W / N + 0.004, 0.035, 0.03], GOLD, [0, -h, 0], 0.004);
-    if (i === 0 || i === N - 1)
+    if (i === 0 || i === N - 1) {
       p.box([0.02, h, 0.03], GOLD, [(i ? 1 : -1) * (W / N / 2 - 0.006), -h, 0], 0.003);
+    }
     strips.push({ p, x });
   }
   m.box([W + 0.02, 0.07, 0.034], GOLD, [0, top - 0.075, 0.002], 0.006);
@@ -234,8 +235,9 @@ const meadStump = (): Model => {
   // The stump: bark, a pale cut top with growth rings, roots at the foot.
   m.cyl(0.3, 0.1, tint(OAK_DARK, 0.12), [0, 0, 0], 0.27, 10);
   m.cyl(0.27, 0.32, BARK, [0, 0.08, 0], 0.255, 10);
-  for (const [i, c] of [OAK_DARK, BARK, OAK_DARK].entries())
+  for (const [i, c] of [OAK_DARK, BARK, OAK_DARK].entries()) {
     m.box([0.02, 0.28, 0.02], c, [Math.cos(i * 2.2) * 0.265, 0.1, Math.sin(i * 2.2) * 0.265], 0.004);
+  }
   for (const [i, a] of [0.4, 1.7, 3.1, 4.4, 5.5].entries()) {
     const r = m.part([Math.cos(a) * 0.22, 0.04, Math.sin(a) * 0.22], -a);
     r.box([0.2, 0.07, 0.07], i % 2 ? BARK : OAK_DARK, [0.08, -0.02, 0], 0.02).rotation.z = -0.25;
@@ -547,8 +549,9 @@ const yggdrasil = (): Model => {
   const tipX = Math.sin(Math.PI / 2 + 0.5) * 0.45;
   const tipY = Math.cos(Math.PI / 2 + 0.5) * 0.45;
   stub.cyl(0.046, 0.05, "#d9c19a", [tipX, tipY - 0.012, 0], 0.03, 7).rotation.z = -(Math.PI / 2 + 0.5);
-  for (const dz of [-0.02, 0.02])
-    stub.box([0.02, 0.012, 0.008], BARK_DARK, [tipX - 0.035, tipY + 0.0, dz * 2], 0.002);
+  for (const dz of [-0.02, 0.02]) {
+    stub.box([0.02, 0.012, 0.008], BARK_DARK, [tipX - 0.035, tipY, dz * 2], 0.002);
+  }
   for (const [x, z] of [
     [0.5, 0.35],
     [0.58, 0.28],
@@ -576,7 +579,9 @@ const yggdrasil = (): Model => {
     }
   };
   const bough = (y: number, a: number, len: number, lean: number, size: number) => {
-    const b = m.part([drums[Math.min(3, Math.floor(y / 0.5))]![4], y, 0], a);
+    // The bough grows out of the drum at its height, so it takes that drum's sideways offset.
+    const drumIndex = Math.min(3, Math.floor(y / 0.5));
+    const b = m.part([drums[drumIndex]![4], y, 0], a);
     b.cyl(0.04, len, BARK, [0, 0, 0], 0.014, 7).rotation.z = -lean;
     const tip: [number, number, number] = [Math.sin(lean) * len, Math.cos(lean) * len, 0];
     cluster(b, tip, size, 7);
@@ -618,7 +623,7 @@ const yggdrasil = (): Model => {
   const sq = orbit.part([0, 0, 0]);
   sq.scale.setScalar(2.2);
   const SQ = "#b4602e";
-  sq.ball(0.04, SQ, [0, 0.0, 0.0], [0.8, 1.35, 0.8], 8);
+  sq.ball(0.04, SQ, [0, 0, 0], [0.8, 1.35, 0.8], 8);
   sq.ball(0.026, "#f3d9b0", [0, -0.005, -0.025], [0.9, 1, 0.4], 6);
   sq.ball(0.032, SQ, [0, 0.07, 0.008], [1, 1, 1], 8);
   sq.box([0.01, 0.026, 0.01], SQ, [0.018, 0.088, 0.0], 0.002);

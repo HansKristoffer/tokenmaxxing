@@ -223,7 +223,7 @@ export class GateLive {
     });
     this.sparks.begin();
     // Each spark's angle and speed come from a fixed hash of its index, so every burst scatters the same way.
-    // 628 / 100 is 2 pi, a full turn.
+    // The angle is the hash mod 628 over 100, which covers 0 to 2 pi.
     for (let i = 0; i < 40; i++) {
       const a = (((i * 2654435761) >>> 0) % 628) / 100;
       const v = 0.7 + ((((i * 40503) >>> 0) % 100) / 100) * 1.8;
