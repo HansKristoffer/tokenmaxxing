@@ -17,8 +17,8 @@ describe("coins and the shop", () => {
       const w = await a.town.wallet();
       return w.balance - questCoins(w);
     };
-    // 100M today pays 2.5 × 100^0.6 = 39. 400M more the same day makes it 500M's 104, not 39 + 4 × 39. (A minute counts
-    // for at most 200M, so the 400M comes over the next two.)
+    // 100M today pays 2.5 × 100^0.6 = 39. 400M more the same day makes it 500M's 104, not 39 + 4 × 39.
+    // A minute counts for at most 200M, so the 400M comes over the next two.
     const now = Date.now();
     await as(a.token)
       .player(a.userId)

@@ -17,9 +17,10 @@ async function database() {
   const ran: string[] = [];
   const counted: TxSql = {
     execute: (q, ...args) => {
-      ran.push(
-        `${q.split(/\s+/, 1)[0]} ${args.filter((_, i) => i % 2 === 0 || q.startsWith("DELETE")).join(",")}`,
-      );
+      const verb = q.split(/\s+/, 1)[0];
+      // The arguments come in name and json pairs, so the even ones are the keys; a DELETE's are all keys.
+      const keys = args.filter((_, i) => i % 2 === 0 || q.startsWith("DELETE"));
+      ran.push(`${verb} ${keys.join(",")}`);
       return sql.execute(q, ...args);
     },
     transaction: (fn) => sql.transaction(() => fn(counted)),

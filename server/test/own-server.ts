@@ -67,13 +67,15 @@ export async function serve(storage: string, engine: number) {
     stderr: "ignore",
   });
   const origin = `http://127.0.0.1:${port}`;
-  for (const end = Date.now() + 120_000; ; await Bun.sleep(100)) {
+  const end = Date.now() + 120_000;
+  for (;;) {
     const up = await fetch(`${origin}/health`).then(
       (r) => r.ok,
       () => false,
     );
     if (up) break;
     if (Date.now() > end || server.exitCode !== null) throw new Error("the server didn't start");
+    await Bun.sleep(100);
   }
   return {
     client: createClient<typeof Registry>({ endpoint: `${origin}/api/rivet` }),

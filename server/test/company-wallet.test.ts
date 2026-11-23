@@ -197,7 +197,6 @@ describe("merch", () => {
     expect(itemById("merch.0.tee")).toBeUndefined();
     expect(itemById("merch.1.sock")).toBeUndefined();
     expect(merchPrice("tee", false)).toBe(120);
-    expect(merchPrice("hoodie", true)).toBe(Math.round(240 * (1 - EMPLOYEE_MERCH_DISCOUNT)));
     expect(EMPLOYEE_MERCH_DISCOUNT).toBe(1);
     expect(merchPrice("hoodie", true)).toBe(0);
   });

@@ -36,7 +36,7 @@ beforeEach(async () => {
       `u${id}`,
       Date.UTC(2026, 0, 1),
     );
-    // 100M tokens a day for 400 days: plenty of coins.
+    // 10B tokens a day for 400 days: plenty of coins.
     for (let d = 0; d < 400; d++)
       await sql.execute(
         "INSERT INTO usage_daily (user_id, day, model, input, output, cache_creation, cache_read, turns) VALUES (?, date('2026-01-02', ?), 'm', ?, 0, 0, 0, 1)",
