@@ -38,7 +38,7 @@ const { NPC_SPRITES } = await import("../src/art/festive-npc.ts");
 const { NPC_MODELS } = await import("../src/render3d/town/festive-npc3d.ts");
 const { itemFrame } = await import("../src/art/characters.ts");
 const { COVERS_HAIR, HAT_BUILDERS } = await import("../src/render3d/people/gear3dHead.ts");
-const { festiveNpcAt, blocksFestiveNpc } = await import("../src/game/festive-npc.ts");
+const { festiveNpcAt } = await import("../src/game/festive-npc.ts");
 
 const map = world.map;
 const toWorld = (tx: number, ty: number): [number, number] => [tx - map.x0 + 1.5, ty - map.y0 + 1.5];
@@ -55,7 +55,7 @@ test("the props and Pak Budi block their tiles, nothing else on the square", () 
     expect(blocksAgustusan(s.x, s.y), `${s.x},${s.y}`).toBe(true);
   const n = FESTIVE_NPC.agustusan!;
   expect(festiveNpcAt(n.x, n.y)).toBe(true);
-  expect(blocksFestiveNpc(n.x, n.y)).toBe(true);
+  expect(festiveNpcAt(n.x, n.y)).toBe(true);
   expect(blocksAgustusan(9, 5)).toBe(false);
   expect(blocksAgustusan(GAPURA.left.x + 1, GAPURA.left.y)).toBe(false);
 });

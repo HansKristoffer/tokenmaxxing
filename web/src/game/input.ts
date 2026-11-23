@@ -40,7 +40,7 @@ import { chalkboardText } from "./chalkboard.ts";
 import { blocksChristmas, christmasInteract } from "./christmas.ts";
 import { clocksText } from "./clocks.ts";
 import { barrelInteract, blocksBarrel } from "./fastelavn.ts";
-import { blocksFestiveNpc, festiveNpcAt, talkToFestiveNpc } from "./festive-npc.ts";
+import { festiveNpcAt, talkToFestiveNpc } from "./festive-npc.ts";
 import { bindGhost, recordTake, tickGhost } from "./furniture.ts";
 import { gameHits } from "./games.ts";
 import { blocksGrave, graveInteract } from "./graveyard.ts";
@@ -278,7 +278,7 @@ export function goToShopDoor(shop: ShopId): boolean {
 }
 
 /** Where a walk goes round: the festive props and the festive NPC (the way a step onto them is no step). */
-const avoidProps = (x: number, y: number): boolean => blocksAgustusan(x, y) || blocksFestiveNpc(x, y);
+const avoidProps = (x: number, y: number): boolean => blocksAgustusan(x, y) || festiveNpcAt(x, y);
 
 /** The next leg of the trip to `heading`: the shop's door in town, otherwise this room's way out. */
 function planTrip(me: { x: number; y: number }, shop: ShopId): void {
