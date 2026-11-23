@@ -4,7 +4,8 @@ import { hud } from "../../store.ts";
 import type { PokerModel, PokerScene } from "./poker3d.ts";
 import type { LiveFrame } from "./rooms.ts";
 
-const v = new THREE.Vector3();
+// Scratch vector for seat and table positions, reused every frame.
+const worldPos = new THREE.Vector3();
 
 /** The felt's picture of the table the server sent (`hud.poker`): what the chips and cards on it show. */
 export function sceneOf(state: PokerState | null): PokerScene {
@@ -33,16 +34,18 @@ export function sceneOf(state: PokerState | null): PokerScene {
 function seatText(state: PokerState, i: number, left: number): string {
   const s = state.seats[i]!;
   const tail = state.toAct === i ? `⏱ ${left}s` : (s.last ?? "");
-  return `${state.names[s.userId] ?? "?"} · 🪙 ${s.stack}${tail ? ` · ${tail}` : ""}`;
+  const tailPart = tail ? ` · ${tail}` : "";
+  return `${state.names[s.userId] ?? "?"} · 🪙 ${s.stack}${tailPart}`;
 }
 
 /** What the table says about the hand: the pot, the street, or who won with what. */
 export function tableText(state: PokerState): string {
-  const r = state.result;
-  if (state.street === null && r) {
-    const wins = Object.entries(r.won).map(([id, n]) => {
-      const hand = r.shown.find((s) => s.userId === Number(id))?.name;
-      return `${state.names[Number(id)] ?? "?"} wins 🪙 ${n}${hand ? ` · ${hand}` : ""}`;
+  const result = state.result;
+  if (state.street === null && result) {
+    const wins = Object.entries(result.won).map(([id, n]) => {
+      const hand = result.shown.find((s) => s.userId === Number(id))?.name;
+      const handPart = hand ? ` · ${hand}` : "";
+      return `${state.names[Number(id)] ?? "?"} wins 🪙 ${n}${handPart}`;
     });
     return wins.join(" · ");
   }
@@ -74,6 +77,7 @@ export class PokerEvents {
     if (!table) return;
     const state = hud.get().poker;
     table.show(sceneOf(state));
+
     const seated = state?.seats.some((s) => s !== null) ?? false;
     if (!state || !seated) {
       for (const el of [...this.seats, this.pot]) {
@@ -81,6 +85,7 @@ export class PokerEvents {
       }
       return;
     }
+
     // Whole seconds left on the turn clock, counted from the state's own timestamp.
     const elapsedMs = Date.now() - state.at;
     const left = Math.max(0, Math.ceil((state.turnMs - elapsedMs) / 1000));
@@ -95,17 +100,17 @@ export class PokerEvents {
 
       const turn = state.toAct === i;
       this.say(el, seatText(state, i, left), turn ? "gold" : s.folded ? "dim" : "dark");
-      table.seatWorld(i, v);
+      table.seatWorld(i, worldPos);
       // The label floats 1.7 units above the seat.
-      v.y += 1.7;
-      f.overlay.place(el, v, f.camera, 0, -30, true);
+      worldPos.y += 1.7;
+      f.overlay.place(el, worldPos, f.camera, 0, -30, true);
     }
 
     this.pot = this.pot ?? f.overlay.make("r3-sign");
     const showsResult = state.street === null && state.result;
     this.say(this.pot, tableText(state), showsResult ? "gold" : "dark");
-    table.centreWorld(v);
-    f.overlay.place(this.pot, v, f.camera, 0, 22, true);
+    table.centreWorld(worldPos);
+    f.overlay.place(this.pot, worldPos, f.camera, 0, 22, true);
   }
 
   dispose(): void {

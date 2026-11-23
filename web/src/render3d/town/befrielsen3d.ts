@@ -70,6 +70,7 @@ function flagTexture(): THREE.CanvasTexture {
   );
 }
 
+/** A dark plate with one line of serif lettering: the years on the memorial wall. */
 function plaqueTexture(text: string): THREE.CanvasTexture {
   return canvasTexture(
     128,
@@ -89,6 +90,17 @@ function plaqueTexture(text: string): THREE.CanvasTexture {
 
 /** Where 14 candles stand on the tray: two rows of seven, local to the memorial's middle. */
 const trayAt = (i: number): [number, number] => [-1.05 + (i % 7) * 0.35, i < 7 ? 0.28 : 0.6];
+
+/** A flag on a hinge: a live group at the pole's top, with the cloth hanging off it at `clothX`. */
+function hingedCloth(material: THREE.Material, width: number, height: number, clothX: number): THREE.Group {
+  const hinge = new THREE.Group();
+  const cloth = new THREE.Mesh(new THREE.PlaneGeometry(width, height), material);
+  cloth.position.x = clothX;
+  cloth.userData.live = true;
+  hinge.add(cloth);
+  hinge.userData.live = true;
+  return hinge;
+}
 
 export class Befrielsen3d {
   readonly group = new THREE.Group();
@@ -190,16 +202,12 @@ export class Befrielsen3d {
     // Small flags on the wall's ends.
     for (const sx of [-1, 1]) {
       mem.cyl(0.015, 0.95, WHITE, [sx * 1.32, 0.58, -0.55], 0.015, 6);
-      const hinge = new THREE.Group();
+      const hinge = hingedCloth(flagMat, 0.34, 0.25, sx * 0.17);
       hinge.position.set(sx * 1.32, 1.35, -0.55);
-      const cloth = new THREE.Mesh(new THREE.PlaneGeometry(0.34, 0.25), flagMat);
-      cloth.position.x = sx * 0.17;
-      cloth.userData.live = true;
-      hinge.add(cloth);
-      hinge.userData.live = true;
       mem.add(hinge);
       flags.push(hinge);
     }
+
     // The tray, and its fourteen candles.
     mem.box([2.5, 0.1, 0.8], "#a39f98", [0, 0, 0.44], 0.02);
     mem.box([2.56, 0.03, 0.86], "#c9c4bb", [0, 0.1, 0.44], 0.01);
@@ -230,17 +238,13 @@ export class Befrielsen3d {
       const pole = still.part([px, 0, pz]);
       pole.cyl(0.035, 3.3, WHITE, [0, 0, 0], 0.03, 8);
       pole.ball(0.06, "#e9b73d", [0, 3.34, 0], [1, 1, 1], 8);
-      const hinge = new THREE.Group();
+      const hinge = hingedCloth(flagMat, 1.1, 0.82, 0.55);
       hinge.position.set(0, 2.95, 0);
-      const cloth = new THREE.Mesh(new THREE.PlaneGeometry(1.1, 0.82), flagMat);
-      cloth.position.x = 0.55;
-      cloth.userData.live = true;
-      hinge.add(cloth);
-      hinge.userData.live = true;
       hinge.rotation.y = i * 0.7;
       pole.add(hinge);
       flags.push(hinge);
     }
+
     // Henning, at his tile, looking along the memorial (as `HENNING.facing`).
     const [hx, hz] = this.toWorld(HENNING.x, HENNING.y);
     const henning = henningModel();
@@ -251,7 +255,7 @@ export class Befrielsen3d {
     root.add(still);
     mergeStill(still);
 
-    // The ground glow at the memorial: a warm pool for dusk.
+    // The ground glow at the memorial: a warm pool for dusk. It is live, so the batching leaves it alone.
     const halo = haloTexture();
     const pool = new THREE.Mesh(
       new THREE.PlaneGeometry(5, 4),
@@ -269,11 +273,12 @@ export class Befrielsen3d {
     pool.userData.live = true;
     root.add(pool);
 
-    // A candle in every window.
+    // A candle in every window. Their flames and halos are merged apart from the candle bodies.
     const bodies = new Model();
     const flameGeos: THREE.BufferGeometry[] = [];
     const haloGeos: THREE.BufferGeometry[] = [];
     for (const { at, normal } of this.sills) {
+      // The candle stands 0.1 off the wall and 0.2 below the sill point.
       const sx = at.x + normal.x * 0.1;
       const sz = at.z + normal.z * 0.1;
       const sy = at.y - 0.2;
@@ -286,6 +291,7 @@ export class Befrielsen3d {
     }
     root.add(bodies);
     mergeStill(bodies);
+
     let windowFlames: THREE.Mesh | null = null;
     let windowHalos: THREE.Mesh | null = null;
     if (flameGeos.length) {
@@ -294,6 +300,7 @@ export class Befrielsen3d {
       windowFlames = new THREE.Mesh(fg, glow(FLAME));
       windowFlames.userData.live = true;
       root.add(windowFlames);
+
       const hg = mergeGeometries(haloGeos);
       for (const g of haloGeos) g.dispose();
       windowHalos = new THREE.Mesh(
@@ -310,6 +317,7 @@ export class Befrielsen3d {
       windowHalos.userData.live = true;
       root.add(windowHalos);
     }
+
     root.traverse((o) => {
       o.userData.nopick = true;
       o.userData.noBlock = true;

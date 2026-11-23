@@ -220,7 +220,7 @@ function nisse(m: Model, h: number, bowl: boolean): void {
     arm.cyl(0.07 * k, 0.32 * k, GREY, [0, -0.28 * k, 0], 0.06 * k, 8);
     arm.ball(0.065 * k, INK, [0, -0.3 * k, 0], [1, 1, 1], 8);
   }
-  // The head (a face under the cap), a great white beard from the cheeks down to the belt (a cone, wide at the chin), and a nose.
+  // The head: a face under the cap, a white beard from the cheeks to the belt (a cone, wide at the chin), a nose.
   m.ball(0.19 * k, "#f2c29b", [0, 0.88 * k, 0.02 * k], [1, 0.95, 0.95], 12);
   m.cyl(0.05 * k, 0.5 * k, CREAM, [0, 0.36 * k, 0.1 * k], 0.22 * k, 14).scale.z = 0.85;
   m.ball(0.2 * k, CREAM, [0, 0.8 * k, 0.1 * k], [1, 0.8, 0.8], 12);
@@ -259,7 +259,10 @@ export function knudModel(_npc: FestiveNpc): THREE.Object3D {
   return root;
 }
 
-/** Where each kind of door's wreath hangs, from its tile's middle: `z` and `y` in units, `r` its radius. Tuned against the buildings. */
+/**
+ * Where each kind of door's wreath hangs, from its tile's middle: `z` and `y` in world units, `r` its radius.
+ * Tuned by eye against the buildings.
+ */
 const WREATH: Record<DoorSpot["kind"], { z: number; y: number; r: number }> = {
   inn: { z: 0.08, y: 1.02, r: 0.3 },
   company: { z: -0.12, y: 0.82, r: 0.17 },
@@ -273,7 +276,7 @@ const CANDLES: Record<DoorSpot["kind"], { dx: number[]; y: number; dz: number }>
   shop: { dx: [-0.62, 0.62], y: 0.55, dz: 0.05 },
 };
 
-/** Off the picking and the block swap: decoration the player walks past. */
+/** Decoration: a click passes through it, and it blocks no tile. */
 const markScenery = (o: THREE.Object3D): void => {
   o.userData.nopick = true;
   o.userData.noBlock = true;
@@ -282,11 +285,11 @@ const markScenery = (o: THREE.Object3D): void => {
 type Keys = { orn: string; gifts: number; snow: number; lights: string };
 
 /**
- * Christmas in the 3D town (`core/src/christmas.ts` places it; the 2D town is `game/christmas.ts`): the tree with its
- * ornaments, the gift pile, wreaths and window candles at the doors, a nisse on each doorstep, candy-cane stripes on the
- * square's lamp posts, lights strung between them, and snowmen. Built the first frame the theme is on (not before),
- * merged into a few meshes; the parts that change through the days (ornaments, gifts, snowmen, lit bulbs) are rebuilt
- * when their count does, a handful of times a window. Everything is taken down when the window closes.
+ * Christmas in the 3D town. `core/src/christmas.ts` places it; the 2D town is `game/christmas.ts`. It has the tree
+ * with its ornaments, the gift pile, wreaths and window candles at the doors, a nisse on each doorstep, candy-cane
+ * stripes on the square's lamp posts, lights strung between them, and snowmen. Built on the first frame the theme
+ * is on, merged into a few meshes. The parts that change through the days (ornaments, gifts, snowmen, lit bulbs)
+ * are rebuilt when their count does, a handful of times a window. Everything is taken down when the window closes.
  */
 export class Christmas3d {
   readonly group = new THREE.Group();
@@ -329,6 +332,7 @@ export class Christmas3d {
       this.p = progress(f);
       this.sync();
     }
+
     // Each bulb colour twinkles at its own phase; the star and the candle flames pulse on top.
     for (const [i, b] of this.bulbs.entries()) {
       const k = 0.62 + 0.38 * (0.5 + 0.5 * Math.sin(t * 2.6 + i * 1.7));
@@ -344,44 +348,49 @@ export class Christmas3d {
   private build(): void {
     this.built = true;
     this.spots = { doors: wreathSpots(this.map), nisser: nisseSpots(this.map) };
-    const s = new Model();
-    // The tree.
+    const props = new Model();
+
     const [tx, tz] = this.toWorld(TREE.x, TREE.y);
-    const tree = s.part([tx, 0, tz]);
+    const tree = props.part([tx, 0, tz]);
     treeBody(tree);
+
     // The lamp posts, striped red and white like candy canes, with a bow.
     for (const [lx, ly] of SQUARE_LAMPS) {
       const [x, z] = this.toWorld(lx, ly);
-      const post = s.part([x, 0, z]);
-      for (let i = 0; i < 6; i++)
+      const post = props.part([x, 0, z]);
+      for (let i = 0; i < 6; i++) {
         post.box([0.425, 0.152, 0.425], i % 2 ? CREAM : RED, [0, 0.13 + i * 0.155, 0], 0.005);
+      }
       const bow = post.part([0, 0.92, 0.23]);
       for (const side of [-1, 1]) {
-        const w = bow.part([side * 0.07, 0, 0]);
-        w.rotation.z = side * 0.4;
-        w.box([0.1, 0.07, 0.03], RED_DARK, [0, 0, 0], 0.004);
+        const loop = bow.part([side * 0.07, 0, 0]);
+        loop.rotation.z = side * 0.4;
+        loop.box([0.1, 0.07, 0.03], RED_DARK, [0, 0, 0], 0.004);
       }
     }
+
     // Wreaths, window candles and a nisse at each door.
     for (const d of this.spots.doors) {
       const [x, z] = this.toWorld(d.x, d.y);
-      const c = WREATH[d.kind];
-      const w = s.part([x, c.y, z + c.z]);
-      wreath(w, c.r);
+      const wreathSpot = WREATH[d.kind];
+      const wreathAt = props.part([x, wreathSpot.y, z + wreathSpot.z]);
+      wreath(wreathAt, wreathSpot.r);
 
-      const candles = CANDLES[d.kind];
-      for (const dx of candles.dx) {
-        candle(s, this.flameMat, [x + dx, candles.y, z + c.z + candles.dz]);
+      const candleSpot = CANDLES[d.kind];
+      for (const dx of candleSpot.dx) {
+        candle(props, this.flameMat, [x + dx, candleSpot.y, z + wreathSpot.z + candleSpot.dz]);
       }
     }
     for (const n of this.spots.nisser) {
       const [x, z] = this.toWorld(n.x, n.y);
-      const p = s.part([x, 0, z + 0.05], n.facing === "left" ? -0.5 : 0.5);
-      nisse(p, 0.55, true);
+      const nisseAt = props.part([x, 0, z + 0.05], n.facing === "left" ? -0.5 : 0.5);
+      nisse(nisseAt, 0.55, true);
     }
-    this.group.add(s);
-    mergeStill(s, (m) => m.userData.live === true);
-    // The star lives on its own, to pulse.
+
+    this.group.add(props);
+    mergeStill(props, (m) => m.userData.live === true);
+
+    // The star lives on its own, so it can pulse.
     this.star = starModel(this.starMat);
     this.star.position.set(tx, 2.4, tz);
     this.group.add(this.star);
@@ -408,6 +417,7 @@ export class Christmas3d {
     const n = ornamentsShown(p);
     const own = ownHearts();
     const orn = `${n}:${own}`;
+
     if (orn !== this.keys.orn) {
       this.keys.orn = orn;
       const [tx, tz] = this.toWorld(TREE.x, TREE.y);
@@ -443,8 +453,9 @@ export class Christmas3d {
               break;
           }
         }
+        // Your own hearts climb the tree, alternating sides.
         for (let k = 0; k < own; k++) {
-          const a = (k % 2 ? 1 : -1) * (0.25 + (k >> 1) * 0.35);
+          const a = (k % 2 ? 1 : -1) * (0.25 + Math.floor(k / 2) * 0.35);
           const h = 0.16 + k * 0.085;
           hang(
             tree,
@@ -457,18 +468,22 @@ export class Christmas3d {
       });
     }
     if (this.star) this.star.visible = starUp(p);
+
     const gifts = giftsShown(p);
     if (gifts !== this.keys.gifts) {
       this.keys.gifts = gifts;
       this.swap("gifts", (m) => {
         for (let k = 0; k < gifts; k++) {
+          // Gifts alternate between the two gift tiles; `slot` counts the gifts already on the tile.
           const side = k % 2;
-          const slot = k >> 1;
+          const slot = Math.floor(k / 2);
           const tile = GIFT_TILES[side]!;
           const [x, z] = this.toWorld(tile.x, tile.y);
           const [cb, rb] = GIFT_COLOURS[k % GIFT_COLOURS.length]!;
-          const spreadX = [0, 0.22, 0.04, -0.2][slot]! * (side ? 1 : -1);
-          const dx = (side ? 0.05 : -0.05) + spreadX;
+
+          const sideSign = side ? 1 : -1;
+          const spreadX = [0, 0.22, 0.04, -0.2][slot]! * sideSign;
+          const dx = sideSign * 0.05 + spreadX;
           const dz = [0.25, 0.1, -0.1, 0.32][slot]!;
           const lift = slot === 2 ? 0.2 : 0;
           gift(m, cb, rb, 1 + (k % 3) * 0.12, [x + dx, lift, z + dz], k * 0.6);
@@ -476,6 +491,7 @@ export class Christmas3d {
       });
     }
     const snow = snowmenShown(p);
+
     if (snow !== this.keys.snow) {
       this.keys.snow = snow;
       this.swap("snowmen", (m) => {
@@ -508,7 +524,9 @@ export class Christmas3d {
               [1, 1.25, 1],
               6,
             );
-            if (k % 5 === 2) hang(m, k % 10 === 2 ? RED : CREAM, 0.18, [b.at.x, b.at.y - 0.2, b.at.z], 0);
+            if (k % 5 === 2) {
+              hang(m, k % 10 === 2 ? RED : CREAM, 0.18, [b.at.x, b.at.y - 0.2, b.at.z], 0);
+            }
           }
         }
       });
@@ -521,13 +539,16 @@ export class Christmas3d {
     const [bx, by] = SQUARE_LAMPS[g.to]!;
     const [x0, z0] = this.toWorld(ax, ay);
     const [x1, z1] = this.toWorld(bx, by);
+
+    // A bulb every 0.55 units. The string starts at height 1.55 and sags by 0.5 at its middle.
     const n = Math.round(Math.hypot(x1 - x0, z1 - z0) / 0.55);
     return Array.from({ length: n + 1 }, (_, k) => {
       const t = k / n;
-      return {
-        at: new THREE.Vector3(x0 + (x1 - x0) * t, 1.55 - 0.5 * Math.sin(Math.PI * t), z0 + (z1 - z0) * t),
-        i: k + gi * 40,
-      };
+      const x = x0 + (x1 - x0) * t;
+      const y = 1.55 - 0.5 * Math.sin(Math.PI * t);
+      const z = z0 + (z1 - z0) * t;
+      // The index feeds `bulbHash`; the garland offset keeps the indices of different garlands apart.
+      return { at: new THREE.Vector3(x, y, z), i: k + gi * 40 };
     });
   }
 

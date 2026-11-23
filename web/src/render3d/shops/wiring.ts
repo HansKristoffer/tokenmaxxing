@@ -24,6 +24,7 @@ export const realNet = (): GameNet => ({
 export const realStore = (): GameStore => ({
   me: () => hud.get().me,
   wallet: () => hud.get().wallet,
+  // No stats until the server's first answer: the shops read level 1 until then.
   level: () => hud.get().stats?.level ?? 1,
   decorInUse: () => ({ wall: gameWorld.owner?.wall, floor: gameWorld.owner?.floor }),
   setWallet: (wallet) => hud.set({ wallet }),

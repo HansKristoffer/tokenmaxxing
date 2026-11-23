@@ -1,8 +1,8 @@
 /**
  * The money and keepsakes side of the four shops, as the buy panel (`shopPanel.ts`) and the item actions
- * (`shopActions.ts`) see it. `gameBackend.ts` implements it: coins, bag, look, pet and Office live on the server and
- * are read from the HUD store, bought with the same calls the Shop page makes.
- * Every write answers with an `Outcome` (never throws), so the panel can toast a refusal and roll back.
+ * (`shopActions.ts`) see it. `gameBackend.ts` implements it. Coins, bag, look, pet and Office live on the
+ * server and are read from the HUD store, and they are bought with the same calls the Shop page makes.
+ * Every write answers with an `Outcome` and never throws, so the panel can toast a refusal and roll back.
  */
 import type { Look2D } from "../people/gear3d.ts";
 import type { ShopId, ShopItem } from "./catalog.ts";
@@ -26,7 +26,7 @@ export interface ShopBackend {
   stackable(id: string): boolean;
   /** It is on me, my pet, my walls or my desk right now. */
   inUse(id: string): boolean;
-  /** Pays for `id` and, for what has a use, puts it to use. Coins go down at once and back if refused. */
+  /** Pays for `item` and, for what has a use, puts it to use. Coins go down at once and back if refused. */
   buy(shop: ShopId, item: ShopItem, price: number): Promise<Outcome>;
   /** The look `item` would give me (for the fitting room and the barber's mirror), or null if it changes none. */
   preview(shop: ShopId, item: ShopItem): Look2D | null;

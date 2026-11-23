@@ -45,11 +45,11 @@ interface Built {
 }
 
 /**
- * Halloween's spooky night in the 3D town (the 2D one is `game/spooky.ts`, over `core/src/spooky.ts`): bats around the
- * Tavern and the windmill, ghosts that drift and shy away from you, cobwebs at the doors, the cauldron, the lawn's
- * extra tombstones and sweets. Built lazily the first frame the festive theme is Halloween,
- * taken down (geometry and all) when it ends while the page stays open. Scenery: nothing is pickable, and Gerda's
- * tile and the cauldron block through the input (`blocksSpooky`).
+ * Halloween's spooky night in the 3D town (the 2D one is `game/spooky.ts`, over `core/src/spooky.ts`): bats around
+ * the Tavern and the windmill, ghosts that drift and shy away from you, cobwebs at the doors, the cauldron, and the
+ * lawn's extra tombstones and sweets. Built lazily on the first frame the festive theme is Halloween, and taken
+ * down (geometry and all) when it ends while the page stays open. Scenery: nothing is pickable, and Gerda's tile
+ * and the cauldron block through the input (`blocksSpooky`).
  */
 export class HalloweenTown3d {
   readonly group = new THREE.Group();
@@ -61,7 +61,7 @@ export class HalloweenTown3d {
     private readonly toWorld: (tx: number, ty: number) => [number, number],
   ) {
     this.group.name = "halloween";
-    // Built after the town is batched (an empty group would be put to sleep, hidden and all): the batching leaves it alone.
+    // Built after the town is batched. An empty group would be put to sleep, hidden and all, so the batching skips it.
     this.group.userData.live = true;
     this.group.userData.nobatch = true;
     const [x, z] = toWorld(0, 0);
@@ -79,12 +79,12 @@ export class HalloweenTown3d {
     if (!on && this.built) this.teardown();
     // Shown or hidden with the theme, like the pumpkins.
     this.group.visible = on;
-    const b = this.built;
-    if (!b) return;
-    const intensity = festiveNow()?.intensity ?? 0.5;
+    const built = this.built;
+    if (!built) return;
 
+    const intensity = festiveNow()?.intensity ?? 0.5;
     const n = Math.min(MAX_BATS, batCount(intensity));
-    b.bats.forEach((bat, i) => {
+    built.bats.forEach((bat, i) => {
       bat.root.visible = i < n;
       if (i >= n) return;
       const p = batAt(i, t);
@@ -98,7 +98,7 @@ export class HalloweenTown3d {
       bat.wings[1].rotation.z = w;
     });
 
-    for (const { rig, i } of b.ghosts) {
+    for (const { rig, i } of built.ghosts) {
       const h = HAUNTS[i]!;
       const p = ghostAt(h, t);
       const q = ghostAt(h, t + 0.1);
@@ -116,12 +116,12 @@ export class HalloweenTown3d {
       dark.opacity = 0.85 * shy;
     }
 
-    b.cauldron.bubbles.forEach((m, i) => {
+    built.cauldron.bubbles.forEach((m, i) => {
       const k = (t * 0.7 + i * 0.27) % 1;
       m.position.set(Math.sin(i * 2.4) * 0.16, 0.74 + k * 0.28, Math.cos(i * 2.4) * 0.16);
       m.scale.setScalar(Math.max(0.05, 1 - k * k));
     });
-    b.cauldron.flames.forEach((m, i) => {
+    built.cauldron.flames.forEach((m, i) => {
       m.scale.set(1, 0.8 + Math.abs(Math.sin(t * 7 + i * 2)) * 0.5, 1);
     });
   }
@@ -158,14 +158,14 @@ export class HalloweenTown3d {
       const [x, z] = this.toWorld(door[0], door[1]);
       for (const side of [-1, 1]) {
         // The web hangs from the corner: its middle is half its size in and down from it.
-        const g = new THREE.PlaneGeometry(WEB.size, WEB.size);
-        if (side > 0) g.scale(-1, 1, 1);
-        g.translate(x + side * (WEB.dx - WEB.size / 2), WEB.y - WEB.size / 2, z + WEB.dz);
-        webs.push(g);
+        const web = new THREE.PlaneGeometry(WEB.size, WEB.size);
+        if (side > 0) web.scale(-1, 1, 1);
+        web.translate(x + side * (WEB.dx - WEB.size / 2), WEB.y - WEB.size / 2, z + WEB.dz);
+        webs.push(web);
       }
     }
     const webMesh = webs.length ? new THREE.Mesh(mergeGeometries(webs), cobwebMaterial()) : null;
-    for (const g of webs) g.dispose();
+    for (const web of webs) web.dispose();
     if (webMesh) {
       webMesh.userData.live = true;
       root.add(webMesh);
@@ -177,9 +177,9 @@ export class HalloweenTown3d {
     root.add(cauldron.root);
 
     const bats = Array.from({ length: MAX_BATS }, () => {
-      const b = batModel();
-      root.add(b.root);
-      return b;
+      const rig = batModel();
+      root.add(rig.root);
+      return rig;
     });
     const ghosts = HAUNTS.map((h, i) => {
       const rig = ghostModel(h.hue, h.size);

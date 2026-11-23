@@ -24,8 +24,6 @@ import { nightGlow } from "../town/props.ts";
 import type { ShopItem, ShopSpec } from "./furniture.ts";
 import { CASE_Y, MarketSlots, SHELF_Y } from "./market-slots.ts";
 
-// MARK: Palette
-
 const CREAM = "#f6ead0";
 const PLASTER = "#f1dfbd";
 const BRICK = "#b8603f";
@@ -46,8 +44,6 @@ const TOYS = ["#e8584a", "#4f8fe0", "#f0b53c", "#58b36a", "#9b6fd6", "#f28bb2", 
 
 const W = SHOPS.market.w;
 const D = SHOPS.market.d;
-
-// MARK: Pieces
 
 /** A thin wire between two points. */
 function wire(m: Model, a: [number, number, number], b: [number, number, number], color = "#5a4a3a"): void {
@@ -231,7 +227,10 @@ function vitrine(n: number): Model {
   return m;
 }
 
-/** The counter, `w` wide: a wooden front with teal panels, a marble top, the till, a bell, a scale and a stack of bags. */
+/**
+ * The counter, `w` wide: a wooden front with teal panels, a marble top, the till, a bell, a scale and a stack
+ * of bags.
+ */
 function counter(w: number): Model {
   const m = new Model();
   m.box([w - 0.04, 0.9, 0.7], WOOD, [0, 0, 0], 0.03);
@@ -287,8 +286,6 @@ function runner(): Model {
   for (const z of [-2, -1, 0, 1, 2]) m.box([0.5, 0.02, 0.08], CREAM, [0, 0, z], 0.002);
   return m;
 }
-
-// MARK: The street side
 
 /** The striped awning over a window, sloping from the wall (high) to the front (low). */
 function awning(m: Model, cx: number, w: number, y: number, front: number, drop: number): void {
@@ -416,8 +413,11 @@ function exterior(): Model {
   m.box([1.38, 1.7, 0.08], WOOD_L, [0, 0.16, 0], 0.01);
   m.ball(0.62, "#2a1a14", [0, 1.84, 0.045], [1, 0.62, 0.1], 14);
   m.box([1.24, 1.68, 0.1], "#2a1a14", [0, 0.16, 0.03], 0.01);
-  nightGlow(m.box([1.0, 1.6, 0.04], "#fbe7bd", [0, 0.16, 0.065], 0.005), "#ffd592");
-  nightGlow(m.ball(0.5, "#fbe7bd", [0, 1.76, 0.07], [1, 0.62, 0.1], 14), "#ffd592");
+
+  const hallPane = m.box([1.0, 1.6, 0.04], "#fbe7bd", [0, 0.16, 0.065], 0.005);
+  nightGlow(hallPane, "#ffd592");
+  const hallArch = m.ball(0.5, "#fbe7bd", [0, 1.76, 0.07], [1, 0.62, 0.1], 14);
+  nightGlow(hallArch, "#ffd592");
   m.box([1.6, 0.1, 0.5], "#8d857c", [0, 0, 0.26], 0.02);
   // Two window displays with awnings; the bunting along the eave.
   for (const [s, seed] of [
@@ -457,8 +457,6 @@ function exterior(): Model {
   return m;
 }
 
-// MARK: The keeper
-
 /** Torvald: shirtsleeves, a green-teal apron, rolled up cuffs, never sells a thing himself. */
 function makeKeeper(): Avatar {
   const look = personLook({
@@ -476,8 +474,6 @@ function makeKeeper(): Avatar {
   b.box([0.14, 0.1, 0.022], "#f6ead0", [0, 0.26, 0.112], 0.004);
   return a;
 }
-
-// MARK: The room
 
 const asset = (id: string, name: string, w: number, d: number, build: () => Model): Asset => ({
   id,

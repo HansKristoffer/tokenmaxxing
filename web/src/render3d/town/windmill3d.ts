@@ -24,12 +24,12 @@ export interface Windmill extends Model {
 
 /** One sail, along +y from the hub: the stock, and the lattice frame and cloth on its trailing side (+x). */
 function sail(rotor: Model, turn: number): void {
-  const s = rotor.part();
-  s.rotation.z = turn;
-  s.box([0.07, 2.25, 0.07], C.woodDark, [0, 0.05, 0], 0.01);
-  s.box([0.4, 1.65, 0.02], C.white, [0.25, 0.6, -0.03], 0);
-  for (const x of [0.05, 0.45]) s.box([0.035, 1.65, 0.04], C.woodDark, [x, 0.6, 0], 0);
-  for (let k = 0; k < 6; k++) s.box([0.44, 0.03, 0.04], C.woodDark, [0.25, 0.6 + k * 0.32, 0], 0);
+  const blade = rotor.part();
+  blade.rotation.z = turn;
+  blade.box([0.07, 2.25, 0.07], C.woodDark, [0, 0.05, 0], 0.01);
+  blade.box([0.4, 1.65, 0.02], C.white, [0.25, 0.6, -0.03], 0);
+  for (const x of [0.05, 0.45]) blade.box([0.035, 1.65, 0.04], C.woodDark, [x, 0.6, 0], 0);
+  for (let k = 0; k < 6; k++) blade.box([0.44, 0.03, 0.04], C.woodDark, [0.25, 0.6 + k * 0.32, 0], 0);
 }
 
 /**
@@ -43,7 +43,9 @@ function oneBatch(rigid: THREE.Object3D): void {
 
   // A mesh inside a rigid part of its own belongs to that part, so it is not moved here.
   const insideOtherRigid = (o: THREE.Object3D) => {
-    for (let p = o.parent; p && p !== rigid; p = p.parent) if (p.userData.rigid) return true;
+    for (let p = o.parent; p && p !== rigid; p = p.parent) {
+      if (p.userData.rigid) return true;
+    }
     return false;
   };
   const meshes: THREE.Mesh[] = [];
@@ -66,11 +68,13 @@ function oneBatch(rigid: THREE.Object3D): void {
 /** A windmill standing on 2×2 tiles round its middle; its sails face +z until the wind says otherwise. */
 export function windmill(): Windmill {
   const m = new Model() as Windmill;
+
   // The brick base on a stone plinth, a door in front.
   m.cyl(1.08, 0.12, C.stone, [0, 0, 0], 1.06, 8).rotation.y = OCTAGON;
   m.cyl(1.0, 1.3, BRICK, [0, 0.1, 0], 0.95, 8).rotation.y = OCTAGON;
   m.box([0.46, 0.78, 0.06], C.ink, [0, 0.12, 0.9], 0.01);
   m.box([0.38, 0.72, 0.06], C.woodDark, [0, 0.12, 0.92], 0.01);
+
   // The gallery, its posts and rails round the tower.
   m.cyl(1.38, 0.08, C.wood, [0, 1.36, 0], 1.38, 8).rotation.y = OCTAGON;
   for (let i = 0; i < 8; i++) {
@@ -80,6 +84,7 @@ export function windmill(): Windmill {
     const rail = m.box([0.98, 0.05, 0.04], C.woodDark, [Math.cos(mid) * 1.2, 1.82, Math.sin(mid) * 1.2], 0);
     rail.rotation.y = -mid - Math.PI / 2;
   }
+
   // The tower, tapering, and a window over the gallery.
   m.cyl(0.85, TOP - 1.44, C.wall, [0, 1.44, 0], 0.56, 8).rotation.y = OCTAGON;
   const windowPane = m.box([0.2, 0.3, 0.05], C.ink, [0, 2.45, 0.68], 0.01);
@@ -107,8 +112,9 @@ export function windmill(): Windmill {
   }
   const fan = cap.part([0, 0.55, -1.08]);
   fan.ball(0.06, C.woodDark);
-  for (let k = 0; k < 6; k++)
+  for (let k = 0; k < 6; k++) {
     fan.box([0.02, 0.3, 0.12], C.white, [0, 0, 0], 0).rotation.x = (k * Math.PI) / 3;
+  }
 
   // The sails, turning on the windshaft's end.
   const rotor = cap.part([0, 0.36, 1.14]);

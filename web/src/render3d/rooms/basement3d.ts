@@ -27,8 +27,7 @@ import { type PokerModel, pokerChair, pokerTable3d } from "./poker3d.ts";
 import { Room, type Turn } from "./room.ts";
 import { type RouletteModel, rouletteMats, rouletteTable3d } from "./roulette3d.ts";
 
-export type { BoardRow, BracketView, MatchRow, ScreenFeed } from "../kit/livescreen.ts";
-export { isLanPartyAt, lanParty, setLanParty } from "../kit/livescreen.ts";
+export type { MatchRow, ScreenFeed } from "../kit/livescreen.ts";
 
 /** The turn that faces a chair the way a sitter looks (a chair at turn 0 faces +z, towards the table below it). */
 const CHAIR_TURN: Record<"down" | "right" | "up" | "left", Turn> = { down: 0, right: 1, up: 2, left: 3 };
@@ -38,11 +37,11 @@ const NEON = "#ff46be";
 const LAN_PINK = "#ff8fe6";
 
 /** A light that is on in the basement day and night, and turns magenta at the LAN party. */
-function roomLight(m: Model, at: V3, color: string, intensity: number, distance = 3): void {
-  light(m, at, color, intensity, distance);
-  const l = m.children.at(-1) as THREE.PointLight;
-  l.intensity = intensity;
-  onLanParty((on) => l.color.set(on ? "#ff5fd2" : color));
+function roomLight(model: Model, at: V3, color: string, intensity: number, distance = 3): void {
+  light(model, at, color, intensity, distance);
+  const lamp = model.children.at(-1) as THREE.PointLight;
+  lamp.intensity = intensity;
+  onLanParty((on) => lamp.color.set(on ? "#ff5fd2" : color));
 }
 
 /**
@@ -83,7 +82,9 @@ function attract(g: CanvasRenderingContext2D, game: CabinetGame, hex: string, t:
     // A line climbing, then crashing.
     let y = 18;
     for (let x = 2; x < 26; x++) {
-      y = Math.max(3, Math.min(19, y - 1 + ((x * 7 + beat * 3) % 5 === 0 ? 3 : 0)));
+      // Every fifth column, shifted by the beat, jumps up instead of sliding down.
+      const jump = (x * 7 + beat * 3) % 5 === 0 ? 3 : 0;
+      y = Math.max(3, Math.min(19, y - 1 + jump));
       g.fillRect(x, y, 1, 1);
     }
   } else if (game === "dice") {
@@ -114,27 +115,27 @@ function attract(g: CanvasRenderingContext2D, game: CabinetGame, hex: string, t:
   if (beat % 2 === 0) g.fillRect(8, 20, 12, 1);
 }
 
-const cabinet = (i: number) => (): Model => {
-  const game = CABINET_GAMES[i]!;
+/** One arcade cabinet for `game`; `i` is its slot on the row, which offsets its flicker. */
+const cabinet = (game: CabinetGame, i: number) => (): Model => {
   const { label, hex } = CABINET[game];
-  const m = new Model();
+  const model = new Model();
   const body = tint(hex, -0.62);
-  m.box([0.76, 0.9, 0.7], body, [0, 0, 0], 0.02);
-  m.box([0.78, 0.13, 0.42], "#2b2433", [0, 0.88, 0.14], 0.02).rotation.x = 0.22;
-  m.box([0.76, 1.05, 0.46], body, [0, 0.9, -0.12], 0.02);
-  m.box([0.8, 0.3, 0.6], body, [0, 1.85, -0.05], 0.02);
+  model.box([0.76, 0.9, 0.7], body, [0, 0, 0], 0.02);
+  model.box([0.78, 0.13, 0.42], "#2b2433", [0, 0.88, 0.14], 0.02).rotation.x = 0.22;
+  model.box([0.76, 1.05, 0.46], body, [0, 0.9, -0.12], 0.02);
+  model.box([0.8, 0.3, 0.6], body, [0, 1.85, -0.05], 0.02);
   // Side stripes in the game's colour, lit.
   const stripe = glow(hex);
   for (const x of [-0.385, 0.385]) {
-    m.box([0.012, 1.8, 0.05], stripe, [x, 0.05, 0.3], 0.004);
-    m.box([0.012, 0.05, 0.6], stripe, [x, 1.12, -0.05], 0.004);
+    model.box([0.012, 1.8, 0.05], stripe, [x, 0.05, 0.3], 0.004);
+    model.box([0.012, 0.05, 0.6], stripe, [x, 1.12, -0.05], 0.004);
   }
   // The screen: a lit canvas of attract mode.
   const canvas = canvasTexture(28, 22, (g) => attract(g, game, hex, 0));
   const screenCtx = (canvas.image as HTMLCanvasElement).getContext("2d")!;
   const screenMat = glow("#fff", canvas);
-  m.box([0.6, 0.5, 0.05], INK, [0, 1.1, 0.09], 0.01).rotation.x = -0.18;
-  m.plane(0.52, 0.41, screenMat, [0, 1.37, 0.123]).rotation.x = -0.18;
+  model.box([0.6, 0.5, 0.05], INK, [0, 1.1, 0.09], 0.01).rotation.x = -0.18;
+  model.plane(0.52, 0.41, screenMat, [0, 1.37, 0.123]).rotation.x = -0.18;
   // The marquee: the name in the game's colour.
   const marquee = canvasTexture(64, 16, (g) => {
     g.fillStyle = tint(hex, -0.7);
@@ -150,12 +151,12 @@ const cabinet = (i: number) => (): Model => {
     g.fillRect(2, 14, 60, 1);
   });
   const marqueeMat = glow("#fff", marquee);
-  m.plane(0.74, 0.26, marqueeMat, [0, 1.86, 0.2515]);
+  model.plane(0.74, 0.26, marqueeMat, [0, 1.86, 0.2515]);
   // Stick, buttons and the coin slot.
-  m.cyl(0.015, 0.08, "#2b2433", [-0.15, 0.97, 0.22], 0.015, 6);
-  m.ball(0.032, "#e25d5d", [-0.15, 1.06, 0.22]);
-  for (let b = 0; b < 3; b++)
-    m.cyl(
+  model.cyl(0.015, 0.08, "#2b2433", [-0.15, 0.97, 0.22], 0.015, 6);
+  model.ball(0.032, "#e25d5d", [-0.15, 1.06, 0.22]);
+  for (let b = 0; b < 3; b++) {
+    model.cyl(
       0.025,
       0.02,
       ["#f0b53c", "#4f8fe0", "#3ddc84"][b]!,
@@ -163,22 +164,23 @@ const cabinet = (i: number) => (): Model => {
       0.025,
       8,
     );
-  m.box([0.1, 0.12, 0.02], "#2b2433", [0, 0.35, 0.355], 0.005);
-  m.plane(0.03, 0.05, glow(hex), [0, 0.38, 0.367]);
-  roomLight(m, [0, 1.5, 0.7], hex, 1.1, 2.6);
+  }
+  model.box([0.1, 0.12, 0.02], "#2b2433", [0, 0.35, 0.355], 0.005);
+  model.plane(0.03, 0.05, glow(hex), [0, 0.38, 0.367]);
+  roomLight(model, [0, 1.5, 0.7], hex, 1.1, 2.6);
   let shown = -1;
   ticks.push((t) => {
-    const k = flick(t, i);
-    marqueeMat.color.setScalar(k);
-    screenMat.color.setScalar(0.55 + 0.45 * k);
-    const f = Math.floor(t * 6);
-    if (f === shown) return;
-    shown = f;
+    const brightness = flick(t, i);
+    marqueeMat.color.setScalar(brightness);
+    screenMat.color.setScalar(0.55 + 0.45 * brightness);
+    const frame = Math.floor(t * 6);
+    if (frame === shown) return;
+    shown = frame;
     screenCtx.clearRect(0, 0, 28, 22);
     attract(screenCtx, game, hex, t);
     canvas.needsUpdate = true;
   });
-  return m;
+  return model;
 };
 
 export interface BigScreen extends Model {
@@ -188,10 +190,10 @@ export interface BigScreen extends Model {
 
 /** The livestream screen over the back wall: a run of 6 tiles, a bezel and the live glass. */
 const bigScreen = (): BigScreen => {
-  const m = new Model() as BigScreen;
+  const model = new Model() as BigScreen;
   const z = -0.4;
-  m.box([5.9, 2.4, 0.14], C.metal, [0, 0.62, z], 0.04);
-  m.box([5.9, 0.03, 0.15], C.metalLight, [0, 3.0, z], 0.01);
+  model.box([5.9, 2.4, 0.14], C.metal, [0, 0.62, z], 0.04);
+  model.box([5.9, 0.03, 0.15], C.metalLight, [0, 3.0, z], 0.01);
   const screen = liveScreen<ScreenFeed>(
     5.52,
     2.0,
@@ -205,23 +207,23 @@ const bigScreen = (): BigScreen => {
     },
   );
   screen.position.set(0, 0, z + 0.04);
-  m.add(screen);
+  model.add(screen);
   // A shelf of cables and the mounting bar under it; the standby LED.
-  m.box([5.4, 0.1, 0.12], INK, [0, 0.52, z], 0.02);
-  m.box([5.3, 0.04, 0.1], C.metal, [0, 0.56, z + 0.01]);
-  m.plane(0.05, 0.05, glow("#3ddc84"), [2.78, 0.68, z + 0.081]);
+  model.box([5.4, 0.1, 0.12], INK, [0, 0.52, z], 0.02);
+  model.box([5.3, 0.04, 0.1], C.metal, [0, 0.56, z + 0.01]);
+  model.plane(0.05, 0.05, glow("#3ddc84"), [2.78, 0.68, z + 0.081]);
   const wash = new THREE.PointLight("#46aaff", 1.6, 7, 1.4);
   wash.position.set(0, 1.9, 0.6);
   wash.userData.night = 1.6;
-  m.add(wash);
+  model.add(wash);
   const rewash = (on: boolean) => wash.color.set(on ? "#ff50d2" : "#46aaff");
   onLanParty(rewash);
   ticks.push((t) => {
     wash.intensity = 1.6 * flick(t / 3, 7);
   });
-  m.show = screen.set;
+  model.show = screen.set;
   screen.set({ matches: [] });
-  return m;
+  return model;
 };
 
 export interface BoardPairing {
@@ -249,22 +251,28 @@ function paintBoard(g: CanvasRenderingContext2D, w: number, h: number, view: Tou
   const rounds = view.rounds;
   if (!rounds) {
     // Four lines into two into one, and a gold star: the 2D board's chalk sketch.
-    const ys = [0.22, 0.4, 0.62, 0.8].map((v) => v * h);
+    const y0 = h * 0.22;
+    const y1 = h * 0.4;
+    const y2 = h * 0.62;
+    const y3 = h * 0.8;
     g.beginPath();
-    for (const y of ys) {
+    for (const y of [y0, y1, y2, y3]) {
       g.moveTo(w * 0.1, y);
       g.lineTo(w * 0.32, y);
     }
-    g.moveTo(w * 0.32, ys[0]!);
-    g.lineTo(w * 0.32, ys[1]!);
-    g.moveTo(w * 0.32, ys[2]!);
-    g.lineTo(w * 0.32, ys[3]!);
-    g.moveTo(w * 0.32, (ys[0]! + ys[1]!) / 2);
-    g.lineTo(w * 0.5, (ys[0]! + ys[1]!) / 2);
-    g.moveTo(w * 0.32, (ys[2]! + ys[3]!) / 2);
-    g.lineTo(w * 0.5, (ys[2]! + ys[3]!) / 2);
-    g.moveTo(w * 0.5, (ys[0]! + ys[1]!) / 2);
-    g.lineTo(w * 0.5, (ys[2]! + ys[3]!) / 2);
+
+    const upperMid = (y0 + y1) / 2;
+    const lowerMid = (y2 + y3) / 2;
+    g.moveTo(w * 0.32, y0);
+    g.lineTo(w * 0.32, y1);
+    g.moveTo(w * 0.32, y2);
+    g.lineTo(w * 0.32, y3);
+    g.moveTo(w * 0.32, upperMid);
+    g.lineTo(w * 0.5, upperMid);
+    g.moveTo(w * 0.32, lowerMid);
+    g.lineTo(w * 0.5, lowerMid);
+    g.moveTo(w * 0.5, upperMid);
+    g.lineTo(w * 0.5, lowerMid);
     g.moveTo(w * 0.5, h * 0.5);
     g.lineTo(w * 0.64, h * 0.5);
     g.stroke();
@@ -285,13 +293,13 @@ function paintBoard(g: CanvasRenderingContext2D, w: number, h: number, view: Tou
   g.textAlign = "left";
   for (const [r, round] of rounds.entries()) {
     const slot = h / (round.length * 2);
-    for (const [i, m] of round.entries()) {
+    for (const [i, pairing] of round.entries()) {
       for (const [side, name] of [
-        ["a", m.a],
-        ["b", m.b],
+        ["a", pairing.a],
+        ["b", pairing.b],
       ] as const) {
         const y = (i * 2 + (side === "a" ? 0.5 : 1.5)) * slot;
-        const won = m.winner === side;
+        const won = pairing.winner === side;
         g.fillStyle = won ? "#ffd75a" : CHALK;
         g.globalAlpha = name ? 1 : 0.4;
         g.fillText(cutText(g, name ?? "…", colW - 8), r * colW + 4, y);
@@ -309,20 +317,20 @@ function cutText(g: CanvasRenderingContext2D, text: string, maxW: number): strin
 
 /** A crown that turns over the board once there is a champion. */
 function crown(): Model {
-  const m = new Model();
+  const model = new Model();
   const gold = "#ffd75a";
-  m.cyl(0.14, 0.08, gold, [0, 0, 0], 0.14, 12);
+  model.cyl(0.14, 0.08, gold, [0, 0, 0], 0.14, 12);
   for (let i = 0; i < 5; i++) {
     const a = (i / 5) * Math.PI * 2;
-    m.cyl(0.04, 0.14, gold, [Math.cos(a) * 0.11, 0.07, Math.sin(a) * 0.11], 0.005, 6);
-    m.ball(0.022, "#e25d5d", [Math.cos(a) * 0.11, 0.22, Math.sin(a) * 0.11], [1, 1, 1], 6);
+    model.cyl(0.04, 0.14, gold, [Math.cos(a) * 0.11, 0.07, Math.sin(a) * 0.11], 0.005, 6);
+    model.ball(0.022, "#e25d5d", [Math.cos(a) * 0.11, 0.22, Math.sin(a) * 0.11], [1, 1, 1], 6);
   }
-  return m;
+  return model;
 }
 
 /** The tournament board on the wall: a chalk slate, the champion's name and a crown under it. */
 const tournamentBoard = (): TournamentBoard => {
-  const m = new Model() as TournamentBoard;
+  const model = new Model() as TournamentBoard;
   const z = -0.4;
   const slate = liveScreen<TournamentBoardView>(1.4, 0.95, {}, (g, w, h, v) => paintBoard(g, w, h, v), {
     px: 80,
@@ -331,8 +339,8 @@ const tournamentBoard = (): TournamentBoard => {
     lit: false,
   });
   slate.position.set(0, 0, z + 0.04);
-  m.add(slate);
-  m.box([1.5, 0.04, 0.12], C.woodDark, [0, 1.2, z + 0.04]);
+  model.add(slate);
+  model.box([1.5, 0.04, 0.12], C.woodDark, [0, 1.2, z + 0.04]);
   const plate = liveScreen<string>(
     1.2,
     0.2,
@@ -350,22 +358,23 @@ const tournamentBoard = (): TournamentBoard => {
   );
   plate.position.set(0, 0, z + 0.07);
   plate.visible = false;
-  m.add(plate);
-  const c = crown();
-  c.position.set(0, 2.5, z + 0.1);
-  c.visible = false;
-  m.add(c);
+  model.add(plate);
+  const crownModel = crown();
+  crownModel.position.set(0, 2.5, z + 0.1);
+  crownModel.visible = false;
+  model.add(crownModel);
   ticks.push((t) => {
-    c.rotation.y = t * 1.2;
-    c.position.y = 2.5 + Math.sin(t * 2) * 0.03;
+    crownModel.rotation.y = t * 1.2;
+    crownModel.position.y = 2.5 + Math.sin(t * 2) * 0.03;
   });
-  m.show = (view) => {
+  model.show = (view) => {
     slate.set(view);
-    plate.visible = c.visible = !!view.champion;
+    crownModel.visible = !!view.champion;
+    plate.visible = crownModel.visible;
     if (view.champion) plate.set(view.champion);
   };
   slate.set({});
-  return m;
+  return model;
 };
 
 export interface Terminal extends Model {
@@ -374,13 +383,13 @@ export interface Terminal extends Model {
 }
 
 const terminal = (kind: "board" | "raid") => (): Terminal => {
-  const m = new Model() as Terminal;
+  const model = new Model() as Terminal;
   const z = -0.35;
   // A green-glass CRT on a bracket.
-  m.box([0.2, 0.2, 0.2], C.metal, [0, 0.98, z - 0.02], 0.02);
-  m.box([0.86, 0.74, 0.3], C.metal, [0, 1.08, z + 0.1], 0.04);
-  m.box([0.88, 0.05, 0.3], C.metalLight, [0, 1.8, z + 0.1], 0.015);
-  m.box([0.5, 0.06, 0.1], INK, [0, 1.0, z + 0.26]);
+  model.box([0.2, 0.2, 0.2], C.metal, [0, 0.98, z - 0.02], 0.02);
+  model.box([0.86, 0.74, 0.3], C.metal, [0, 1.08, z + 0.1], 0.04);
+  model.box([0.88, 0.05, 0.3], C.metalLight, [0, 1.8, z + 0.1], 0.015);
+  model.box([0.5, 0.06, 0.1], INK, [0, 1.0, z + 0.26]);
   const state: { v: BoardRow[] | number | null } = { v: kind === "board" ? [] : null };
   const screen = liveScreen<typeof state>(
     0.68,
@@ -393,10 +402,10 @@ const terminal = (kind: "board" | "raid") => (): Terminal => {
     { px: 64, frame: INK, lift: 1.2, fps: 2, smooth: false },
   );
   screen.position.set(0, 0, z + 0.23);
-  m.add(screen);
-  roomLight(m, [0, 1.5, 0.3], "#46ff96", 0.6, 2);
-  m.show = (v) => screen.set({ v });
-  return m;
+  model.add(screen);
+  roomLight(model, [0, 1.5, 0.3], "#46ff96", 0.6, 2);
+  model.show = (v) => screen.set({ v });
+  return model;
 };
 
 const PC_HUES = ["#bfe9ff", "#c8ffd8", "#ffc8f0"] as const;
@@ -405,45 +414,46 @@ let pcs = 0;
 
 /** A PC pair: two screens on a standing desk (2D `ζ`), each in its own colour and flickering slowly. */
 const pcDesk = (): Model => {
-  const n = pcs++;
-  const m = new Model();
+  const deskIndex = pcs++;
+  const model = new Model();
   for (const x of [-0.7, 0.7]) {
-    m.box([0.08, 0.04, 0.6], INK, [x, 0, 0]);
-    m.box([0.07, 0.75, 0.07], C.metalLight, [x, 0.04, 0]);
+    model.box([0.08, 0.04, 0.6], INK, [x, 0, 0]);
+    model.box([0.07, 0.75, 0.07], C.metalLight, [x, 0.04, 0]);
   }
-  m.box([1.85, 0.05, 0.72], "#3c4454", [0, 0.8, 0], 0.015);
+  model.box([1.85, 0.05, 0.72], "#3c4454", [0, 0.8, 0], 0.015);
   const mats: THREE.MeshBasicMaterial[] = [];
   for (const [j, x] of [-0.45, 0.45].entries()) {
-    const seed = n * 2 + j + 21;
-    m.box([0.16, 0.012, 0.1], C.metal, [x, 0.85, -0.17]);
-    m.box([0.03, 0.14, 0.03], C.metal, [x, 0.85, -0.19]);
-    m.box([0.5, 0.31, 0.035], INK, [x, 0.96, -0.17]);
+    const seed = deskIndex * 2 + j + 21;
+    model.box([0.16, 0.012, 0.1], C.metal, [x, 0.85, -0.17]);
+    model.box([0.03, 0.14, 0.03], C.metal, [x, 0.85, -0.19]);
+    model.box([0.5, 0.31, 0.035], INK, [x, 0.96, -0.17]);
     const mat = glow("#fff", codeScreen(seed, "#10141f"));
-    m.plane(0.46, 0.27, mat, [x, 1.115, -0.151]);
+    model.plane(0.46, 0.27, mat, [x, 1.115, -0.151]);
     mats.push(mat);
-    m.box([0.38, 0.02, 0.12], "#2b2433", [x, 0.85, 0.12], 0.008);
-    m.box([0.07, 0.025, 0.1], "#2b2433", [x + 0.28, 0.85, 0.13], 0.012);
+    model.box([0.38, 0.02, 0.12], "#2b2433", [x, 0.85, 0.12], 0.008);
+    model.box([0.07, 0.025, 0.1], "#2b2433", [x + 0.28, 0.85, 0.13], 0.012);
   }
-  const hue = n % PC_HUES.length;
+  const hue = deskIndex % PC_HUES.length;
   const paint = (on: boolean, t = 0) => {
-    for (const mat of mats)
-      mat.color.set(on ? LAN_PINK : PC_HUES[hue]!).multiplyScalar(0.7 + 0.3 * flick(t, n));
+    const base = on ? LAN_PINK : PC_HUES[hue]!;
+    const brightness = 0.7 + 0.3 * flick(t, deskIndex);
+    for (const mat of mats) mat.color.set(base).multiplyScalar(brightness);
   };
   paint(lanParty());
   onLanParty((on) => paint(on));
   ticks.push((t) => paint(lanParty(), t / 4));
-  roomLight(m, [0, 1.1, 0.5], PC_LIGHT[hue]!, 0.5, 2);
-  return m;
+  roomLight(model, [0, 1.1, 0.5], PC_LIGHT[hue]!, 0.5, 2);
+  return model;
 };
 
 const rack = (): Model => {
-  const m = new Model();
+  const model = new Model();
   const id = pcs + Math.floor(Math.random() * 1000);
   const rnd = seeded(id);
-  m.box([0.8, 1.95, 0.7], "#343c4c", [0, 0, 0], 0.03);
+  model.box([0.8, 1.95, 0.7], "#343c4c", [0, 0, 0], 0.03);
   const leds: { mat: THREE.MeshBasicMaterial; on: string; period: number; phase: number }[] = [];
   for (let i = 0; i < 9; i++) {
-    m.box([0.68, 0.16, 0.02], "#3c4454", [0, 0.1 + i * 0.2, 0.35], 0.01);
+    model.box([0.68, 0.16, 0.02], "#3c4454", [0, 0.1 + i * 0.2, 0.35], 0.01);
     for (let j = 0; j < 3; j++) {
       const amber = rnd() < 0.3;
       leds.push({
@@ -452,20 +462,21 @@ const rack = (): Model => {
         period: 0.26 + rnd() * 0.3,
         phase: rnd() * 5,
       });
-      m.plane(0.03, 0.03, leds.at(-1)!.mat, [-0.28 + j * 0.06, 0.18 + i * 0.2, 0.361]);
+      model.plane(0.03, 0.03, leds.at(-1)!.mat, [-0.28 + j * 0.06, 0.18 + i * 0.2, 0.361]);
     }
-    for (let k = 0; k < 5; k++)
-      m.box([0.06, 0.08, 0.005], "#1b1f2a", [0.04 + k * 0.05, 0.14 + i * 0.2, 0.362], 0.002);
+    for (let k = 0; k < 5; k++) {
+      model.box([0.06, 0.08, 0.005], "#1b1f2a", [0.04 + k * 0.05, 0.14 + i * 0.2, 0.362], 0.002);
+    }
   }
   ticks.push((t) => {
     for (const l of leds) l.mat.color.set(Math.floor((t + l.phase) / l.period) % 2 === 0 ? l.on : "#183021");
   });
-  roomLight(m, [0, 1.2, 0.8], "#50ff8c", 0.9, 2.4);
-  return m;
+  roomLight(model, [0, 1.2, 0.8], "#50ff8c", 0.9, 2.4);
+  return model;
 };
 
 const neon = (): Model => {
-  const m = new Model();
+  const model = new Model();
   const tex = canvasTexture(72, 22, (g) => {
     g.fillStyle = "#1b1f2a";
     g.fillRect(0, 0, 72, 22);
@@ -482,23 +493,26 @@ const neon = (): Model => {
   });
   const mat = glow("#fff", tex);
   const z = -0.42;
-  m.box([1.9, 0.62, 0.05], "#1b1f2a", [0, 1.45, z], 0.02);
-  m.plane(1.84, 0.56, mat, [0, 1.75, z + 0.026]);
-  const l = new THREE.PointLight(NEON, 1.4, 5, 1.4);
-  l.position.set(0, 1.7, 0.4);
-  l.userData.night = 1.4;
-  m.add(l);
+  model.box([1.9, 0.62, 0.05], "#1b1f2a", [0, 1.45, z], 0.02);
+  model.plane(1.84, 0.56, mat, [0, 1.75, z + 0.026]);
+  const neonLight = new THREE.PointLight(NEON, 1.4, 5, 1.4);
+  neonLight.position.set(0, 1.7, 0.4);
+  neonLight.userData.night = 1.4;
+  model.add(neonLight);
   ticks.push((t) => {
     // 2D: 0.65 + 0.35 sin(now / 650 ms), or / 180 at the LAN party.
     const k = 0.65 + 0.35 * Math.sin((t * 1000) / (lanParty() ? 180 : 650));
     mat.color.setScalar(0.45 + 0.55 * k);
-    l.intensity = 1.4 * k;
+    neonLight.intensity = 1.4 * k;
   });
-  onLanParty((on) => l.color.set(on ? "#ff2fd0" : NEON));
-  return m;
+  onLanParty((on) => neonLight.color.set(on ? "#ff2fd0" : NEON));
+  return model;
 };
 
-/** The stairs tile (the shared `buildStairs`, wall at -z; the room turns it to the south wall): up is the basement's `x`; down is the dark hatch. */
+/**
+ * The stairs tile, built by the shared `buildStairs` with its wall at -z. The room turns it to the south wall.
+ * Up is the basement's `x`; down is the dark hatch.
+ */
 const stairs = (down: boolean) => (): Model =>
   buildStairs({
     dir: down ? "down" : "up",
@@ -520,7 +534,7 @@ const tile = (
 const reuse = (id: string): (() => Model) => assetById.get(id)!.build;
 
 export const BASEMENT_ASSETS: readonly Asset[] = [
-  ...CABINET_GAMES.map((g, i) => tile(`C:${g}`, `${CABINET[g].label} cabinet`, 1, 1, cabinet(i))),
+  ...CABINET_GAMES.map((g, i) => tile(`C:${g}`, `${CABINET[g].label} cabinet`, 1, 1, cabinet(g, i))),
   tile("E", "Big screen", 6, 1, bigScreen),
   tile("M", "Wall terminal (leaderboard)", 1, 1, terminal("board")),
   tile("M:raid", "Wall terminal (raid)", 1, 1, terminal("raid")),
@@ -579,7 +593,8 @@ export function buildBasement(): BasementScene {
     );
   for (let x = 0; x < 6; x++) at("tile:η", x, 0);
   const screenP = at("tile:E", 6, 0);
-  const [t1, t2] = [at("tile:M", 12, 0), at("tile:M:raid", 13, 0)];
+  const leaderboardP = at("tile:M", 12, 0);
+  const raidP = at("tile:M:raid", 13, 0);
   const boardP = at("tile:i", 14, 0);
   at("tile:δ", 15, 0);
   for (let i = 0; i < 5; i++) at(`tile:C:${CABINET_GAMES[i]}`, 1 + i, 2);
@@ -594,42 +609,44 @@ export function buildBasement(): BasementScene {
   for (const [px, pz] of [
     [19, 0],
     [18, 10],
-  ] as const)
+  ] as const) {
     room.place(assetById.get("plant")!, px, pz);
+  }
   at("tile:s", 1, 10, 2);
   at("tile:s", 3, 10, 2);
   at("tile:x", 9, 11, 2);
   at("stairs:down", 18, 11, 2);
-  // The poker table and its six chairs, then the roulette table and a mat under each of its spots, where the map says.
+  // The poker table and its six chairs, then the roulette table and a mat under each of its spots.
   // The room's (0, 0) is map tile (1, 2): every map position below is shifted by this origin.
   const map = MAPS.basement;
-  const [ix, iz] = [1, 2];
+  const ix = 1;
+  const iz = 2;
 
-  const felt = pokerTable(map);
+  const pokerSpot = pokerTable(map);
   let poker: PokerModel | null = null;
-  if (felt) {
-    poker = at("tile:♠", felt.x - ix, felt.y - iz).model as PokerModel;
-    for (const ch of pokerChairs(map)) at("tile:♣", ch.x - ix, ch.y - iz, CHAIR_TURN[ch.facing]);
+  if (pokerSpot) {
+    poker = at("tile:♠", pokerSpot.x - ix, pokerSpot.y - iz).model as PokerModel;
+    for (const chair of pokerChairs(map)) at("tile:♣", chair.x - ix, chair.y - iz, CHAIR_TURN[chair.facing]);
   }
 
-  const wheel = map.find("♦");
+  const wheelTiles = map.find("♦");
   const spots = rouletteSpots(map).map(([px, py]) => [px - ix, py - iz] as const);
   let roulette: RouletteModel | null = null;
-  if (wheel.length) {
-    const x = Math.min(...wheel.map(([px]) => px));
-    const z = Math.min(...wheel.map(([, py]) => py));
-    roulette = at("tile:♦", x - ix, z - iz).model as RouletteModel;
+  if (wheelTiles.length) {
+    const wheelX = Math.min(...wheelTiles.map(([px]) => px));
+    const wheelZ = Math.min(...wheelTiles.map(([, py]) => py));
+    roulette = at("tile:♦", wheelX - ix, wheelZ - iz).model as RouletteModel;
 
     // The table's middle (3x2 tiles) is the origin of its own space.
-    const middleX = x - ix + 1.5;
-    const middleZ = z - iz + 1;
+    const middleX = wheelX - ix + 1.5;
+    const middleZ = wheelZ - iz + 1;
     roulette.setSpots(spots.map(([sx, sz]) => [sx + 0.5 - middleX, sz + 0.5 - middleZ] as const));
   }
   if (spots.length) room.group.add(rouletteMats(spots));
 
   const screen = screenP.model as BigScreen;
   const board = boardP.model as TournamentBoard;
-  const terminals: [Terminal, Terminal] = [t1.model as Terminal, t2.model as Terminal];
+  const terminals: [Terminal, Terminal] = [leaderboardP.model as Terminal, raidP.model as Terminal];
   board.show({ rounds: null });
   return { room, screen, board, terminals, poker, roulette };
 }

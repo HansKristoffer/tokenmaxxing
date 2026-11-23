@@ -28,8 +28,8 @@ import { placeholder, type RoomSkin, WorldRoom } from "./world.ts";
 /** The 3D piece for each map character that is furniture. */
 const ASSET_OF = new Map<string, Asset>();
 const bind = (ch: string, id: string) => {
-  const a = assetById.get(id) ?? extraAssetById.get(id);
-  if (a) ASSET_OF.set(ch, a);
+  const asset = assetById.get(id) ?? extraAssetById.get(id);
+  if (asset) ASSET_OF.set(ch, asset);
 };
 for (const [ch, id] of Object.entries({
   p: "plant",
@@ -48,8 +48,9 @@ for (const [ch, id] of Object.entries({
   bind(ch, id);
 for (const f of COMPANY_FURNITURE) bind(f.ch, f.art);
 for (const h of [...HOME_PIECES, ...ALL_CASE_PIECES]) bind(h.ch, h.art);
-for (const a of [...DUNGEON_ASSETS, ...PETS_ASSETS])
-  if (/^tile:[UYVQ]$/u.test(a.id)) ASSET_OF.set(a.id.slice(5), a);
+for (const asset of [...DUNGEON_ASSETS, ...PETS_ASSETS]) {
+  if (/^tile:[UYVQ]$/u.test(asset.id)) ASSET_OF.set(asset.id.slice(5), asset);
+}
 // The rug is a flat tile of the floor (`furnish` draws it with `flat`); the ghost shows the same.
 ASSET_OF.set("=", flat("="));
 const stool = TAVERN_ASSETS.find((a) => a.id === "tile:v");
@@ -73,15 +74,15 @@ export function flat(ch: string): Asset {
     w: 1,
     d: 1,
     build: () => {
-      const m = new Model();
+      const model = new Model();
       const tex = canvasTexture(16, 16, (g) => {
         g.fillStyle = colour;
         g.fillRect(0, 0, 16, 16);
         g.fillStyle = ch === "e" ? "#9a6a40" : C.rugLight;
         g.fillRect(2, 2, 12, 12);
       });
-      m.box([1, 0.025, 1], painted(tex), [0, 0, 0], 0.005);
-      return m;
+      model.box([1, 0.025, 1], painted(tex), [0, 0, 0], 0.005);
+      return model;
     },
   };
 }
@@ -93,9 +94,13 @@ const WIDTH = new Map<string, number>(
     p.w ?? 1,
   ]),
 );
+/** Characters drawn flat on the floor (the rug and the stage floor), not as a model. */
 const FLAT = new Set(["=", "e"]);
 
-/** Fills `room` with what the map has on its floor. `at` maps a map tile to the room's. */
+/**
+ * Fills `room` with what the map has on its floor. A map tile (x, y) is room tile (x - inset[0], y - inset[1]),
+ * because the room's walls sit outside the floor.
+ */
 export function furnish(
   room: Room,
   map: GameMap,
@@ -106,7 +111,7 @@ export function furnish(
   const done = new Set<string>();
   map.rows.forEach((row, ry) => {
     for (let rx = 0; rx < row.length; rx++) {
-      const ch = row[rx]!;
+      const ch = row.charAt(rx);
       const key = `${rx},${ry}`;
       if (done.has(key)) continue;
       const x = rx + map.x0 - inset[0];
@@ -115,11 +120,11 @@ export function furnish(
       const piece = pieceOf(ch);
       if (piece?.wall) {
         const asset = ASSET_OF.get(ch);
-        const w = piece.w ?? 1;
-        for (let i = 1; i < w; i++) done.add(`${rx + i},${ry}`);
-        if (asset && x >= 0 && x + w <= room.W) {
+        const width = piece.w ?? 1;
+        for (let i = 1; i < width; i++) done.add(`${rx + i},${ry}`);
+        if (asset && x >= 0 && x + width <= room.W) {
           const model = models[ch]?.() ?? asset.build();
-          room.hang(model, x + w / 2, 0.95);
+          room.hang(model, x + width / 2, 0.95);
           placed.push({ asset, x, z, turn: 0, model });
         }
         continue;
@@ -133,14 +138,8 @@ export function furnish(
       if (!asset) {
         // Things the legend names but no one has drawn: a labelled block, so the tile is not empty.
         const legend = LEGEND[ch];
-        if (
-          legend?.name &&
-          !legend.walk &&
-          !legend.portal &&
-          !"WΨΘπ".includes(ch) &&
-          ch !== "_" &&
-          WIDTH.has(ch)
-        ) {
+        const isLabelledBlock = !"WΨΘπ".includes(ch) && ch !== "_" && WIDTH.has(ch);
+        if (legend?.name && !legend.walk && !legend.portal && isLabelledBlock) {
           const block = {
             id: `ph:${ch}`,
             name: legend.name,
@@ -155,17 +154,17 @@ export function furnish(
       }
 
       // A piece several tiles wide writes its character on each.
-      const w = Math.max(1, Math.round(WIDTH.get(ch) ?? asset.w));
+      const width = Math.max(1, Math.round(WIDTH.get(ch) ?? asset.w));
       // Turned a quarter (F), it lies down its column instead, from this top tile.
       const turned = turnAt(map, rx + map.x0, ry + map.y0);
-      for (let i = 1; i < w; i++) {
+      for (let i = 1; i < width; i++) {
         const covered = sideways(turned?.rot) ? `${rx},${ry + i}` : `${rx + i},${ry}`;
         done.add(covered);
       }
 
       placed.push(
         turned
-          ? room.placeTurned(asset, x, z, TURN[ch] ?? 0, turned.rot, w, models[ch]?.())
+          ? room.placeTurned(asset, x, z, TURN[ch] ?? 0, turned.rot, width, models[ch]?.())
           : room.place(asset, x, z, TURN[ch] ?? 0, models[ch]?.()),
       );
     }
@@ -176,8 +175,10 @@ export function furnish(
 /** The window columns of a map's top wall row (`Ψ`), as the room's `north` list (a tile's middle, inset applied). */
 function windowsOf(map: GameMap, row: number, inset: number): number[] {
   const out: number[] = [];
-  const r = map.rows[row - map.y0] ?? "";
-  for (let x = 0; x < r.length; x++) if (r[x] === "Ψ") out.push(x + map.x0 - inset + 0.5);
+  const rowText = map.rows[row - map.y0] ?? "";
+  for (let x = 0; x < rowText.length; x++) {
+    if (rowText[x] === "Ψ") out.push(x + map.x0 - inset + 0.5);
+  }
   return out;
 }
 
@@ -193,6 +194,7 @@ function buildFurnished(id: RoomId, ctx: RoomCtx): RoomView {
   const inset: [number, number] = office ? [1, 1] : [1, 2];
   const W = map.width - 2;
   const D = map.height - inset[1] - 1;
+
   const scope = beginTickScope();
   const built = withTicks(() => {
     const room = new Room(W, D, {
@@ -202,6 +204,7 @@ function buildFurnished(id: RoomId, ctx: RoomCtx): RoomView {
       ...(office ? {} : { floor: "#c9a574", wall: "#efe4cf", stripe: "#e1d3b6" }),
     });
     if (map.decor) applyDecor(room, map.decor);
+
     // The owner's trophies are on the shelf: the real ones (the room is built again when they change).
     const owner = ownerOfOffice(id);
     const placed = furnish(
@@ -210,6 +213,7 @@ function buildFurnished(id: RoomId, ctx: RoomCtx): RoomView {
       inset,
       owner === null ? {} : { U: () => trophyShelf(earnedBy(owner), true) },
     );
+
     // The way out, which `furnish` leaves to the room: the Office's door in its south wall, the common room's
     // stairs down. A door stands on its wall tile; stairs on the floor tile in front (the Room's wall is thin).
     for (const [ex, ey] of map.find("x")) {
@@ -222,6 +226,7 @@ function buildFurnished(id: RoomId, ctx: RoomCtx): RoomView {
     }
     return { room, placed } satisfies Furnished;
   });
+
   const { room } = built.value;
   endTickScope(scope, room.group);
   const skin: RoomSkin = {

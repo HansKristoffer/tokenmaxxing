@@ -1,13 +1,13 @@
 /**
- * The cold in the 3D town (2D: `game/cold.ts`, `game/snow.ts`): how iced over the pond is, a person's breath in the air
- * and the bots' scarves. `Fx` eases `ICE`; `entities.ts` puts the breath and scarves on the people.
+ * The cold in the 3D town (2D: `game/cold.ts`, `game/snow.ts`): how iced over the pond is, a person's breath in
+ * the air, and the bots' scarves. `Fx` eases `ICE`; `entities.ts` puts the breath and scarves on the people.
  */
 
 import * as THREE from "three";
 import { breathPuff, scarfOf } from "../../game/cold.ts";
 import { Model } from "../kit/kit.ts";
 
-/** 0..1 how iced over the pond is: `Fx` eases it towards the weather, the pond (`town3d.ts`) reads it every frame. */
+/** 0..1 how iced over the pond is. `Fx` eases it towards the weather; the pond (`town3d.ts`) reads it each frame. */
 export const ICE = { value: 0 };
 
 const PUFF = new THREE.SphereGeometry(1, 8, 6);
@@ -27,7 +27,7 @@ const loose = (o: THREE.Object3D) => {
 };
 
 /**
- * Where a person's neck is, above their feet, standing: measured once from where the voxel head sits on them (heads
+ * Where a person's neck is, above their feet, standing. Measured from where the voxel head sits on them (heads
  * differ by style), not counting how far the pose has the body dropped right now.
  */
 export function neckOf(root: THREE.Object3D, body: THREE.Object3D, head: THREE.Object3D): number {
@@ -95,23 +95,26 @@ export class BreathPool {
     const sin = Math.sin(yaw);
     const cos = Math.cos(yaw);
     const e = puffMat.elements;
+
     for (let i = 0; i < 2; i++) {
       const k = Math.max(0, t - i * 0.18);
-      const s = Math.max(0.001, Math.sin(Math.PI * Math.min(1, k * 1.2)) * (0.1 + i * 0.03));
+      const size = Math.max(0.001, Math.sin(Math.PI * Math.min(1, k * 1.2)) * (0.1 + i * 0.03));
       const lx = (i - 0.5) * 0.05;
       const ly = mouth + k * 0.18;
       const lz = 0.22 + k * 0.45;
-      e[0] = s;
+
+      // Column-major 4x4: a uniform scale on the diagonal, then the puff's place turned by the person's yaw.
+      e[0] = size;
       e[1] = 0;
       e[2] = 0;
       e[3] = 0;
       e[4] = 0;
-      e[5] = s;
+      e[5] = size;
       e[6] = 0;
       e[7] = 0;
       e[8] = 0;
       e[9] = 0;
-      e[10] = s;
+      e[10] = size;
       e[11] = 0;
       e[12] = x + lx * cos + lz * sin;
       e[13] = y + ly;

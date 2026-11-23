@@ -1,8 +1,8 @@
 /**
  * Fireworks in the 3D town's sky. Which shows are up, and every rocket in them, come from the same place the
- * 2D canvas reads them (`game/fireworks.ts`, `core/src/fireworks.ts`), so both draw the same rockets at the
- * same moment. One instanced mesh of small glowing sparks (the camera is orthographic, so points would be a
- * pixel), set in place each frame; hidden, and drawing nothing, while no show is on.
+ * 2D canvas reads them (`game/fireworks.ts`, `core/src/fireworks.ts`), so both draw the same rockets at the same
+ * moment. One instanced mesh of small glowing sparks (the camera is orthographic, so points would be a pixel),
+ * set in place each frame. It is hidden, and draws nothing, while no show is on.
  */
 import { climbOf, sparkAt, sparkFade } from "@tokenmaxxing/core/fireworks.ts";
 import * as THREE from "three";
@@ -32,15 +32,15 @@ export class Fireworks3d {
 
   constructor(private readonly toWorld: (tx: number, ty: number) => [number, number]) {
     // They move every frame and fly well out of their box: never batched, culled, picked or shadowed.
-    const s = this.sparks;
-    s.frustumCulled = false;
-    s.castShadow = false;
-    s.receiveShadow = false;
-    s.userData.live = true;
-    s.userData.nopick = true;
-    s.setColorAt(0, this.tint);
-    s.count = 0;
-    this.group.add(s);
+    const mesh = this.sparks;
+    mesh.frustumCulled = false;
+    mesh.castShadow = false;
+    mesh.receiveShadow = false;
+    mesh.userData.live = true;
+    mesh.userData.nopick = true;
+    mesh.setColorAt(0, this.tint);
+    mesh.count = 0;
+    this.group.add(mesh);
     this.group.visible = false;
   }
 
@@ -57,33 +57,36 @@ export class Fireworks3d {
     const rockets = rocketsNow();
     this.group.visible = rockets.length > 0;
     if (!this.group.visible) return;
-    const s = this.sparks;
+    const mesh = this.sparks;
     let n = 0;
-    const put = (x: number, y: number, z: number, c: THREE.Color, k: number) => {
+    const addSpark = (x: number, y: number, z: number, c: THREE.Color, k: number) => {
       if (n >= MAX) return;
       // Fading sparks shrink as they dim (they keep their colour).
       const size = 0.3 + 0.9 * k;
-      s.setMatrixAt(n, this.m4.makeScale(size, size, size).setPosition(x, y, z));
-      s.setColorAt(n, this.tint.copy(c));
+      mesh.setMatrixAt(n, this.m4.makeScale(size, size, size).setPosition(x, y, z));
+      mesh.setColorAt(n, this.tint.copy(c));
       n++;
     };
+
     for (const r of rockets) {
       const [x, z] = this.toWorld(r.x, r.y);
       const c = this.colourOf(r.colour);
       if (r.burst === null) {
+        // A rocket still climbing: its head, and a tail of sparks fading out below it.
         const top = climbOf(r);
-        for (let i = 0; i < TRAIL; i++) put(x, top - i * 0.25, z, c, 1 - i * 0.25);
+        for (let i = 0; i < TRAIL; i++) addSpark(x, top - i * 0.25, z, c, 1 - i * 0.25);
         continue;
       }
       const fade = sparkFade(r);
       for (let i = 0; i < r.sparks; i++) {
         const [dx, dy, dz] = sparkAt(r, i);
-        put(x + dx, r.height + dy, z + dz, c, fade);
+        addSpark(x + dx, r.height + dy, z + dz, c, fade);
       }
     }
-    s.count = n;
-    s.instanceMatrix.needsUpdate = true;
-    if (s.instanceColor) s.instanceColor.needsUpdate = true;
+
+    mesh.count = n;
+    mesh.instanceMatrix.needsUpdate = true;
+    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
   }
 
   dispose(): void {

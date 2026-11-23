@@ -107,10 +107,11 @@ export function createGameBackend({ net, store, world }: GameDeps): ShopBackend 
       case "piece":
         return false;
       default: {
-        // Earned ones are the server's to say: rewards sit in the bag, a level's decor and desks in their lists.
-        const m = /^(decor\.(?:wall|floor)\.|desk\.)(.+)$/.exec(id);
-        if (m) return m[1] === "desk." ? desks.owned.has(m[2]!) : decorOwned.has(id.slice(6));
-        return owned().includes(id);
+        // Earned items are the server's to say: rewards sit in the bag, a level's decor and desks in their lists.
+        const earned = /^(decor\.(?:wall|floor)\.|desk\.)(.+)$/.exec(id);
+        if (!earned) return owned().includes(id);
+        const isDesk = earned[1] === "desk.";
+        return isDesk ? desks.owned.has(earned[2]!) : decorOwned.has(id.slice(6));
       }
     }
   };
@@ -135,7 +136,10 @@ export function createGameBackend({ net, store, world }: GameDeps): ShopBackend 
     return l ? wornIn(l, id) : false;
   };
 
-  /** Writes `next` as my look: on the avatar and in the HUD at once, to the server; the old look comes back if refused. */
+  /**
+   * Writes `next` as my look: on the avatar and in the HUD at once, to the server. The old look comes back if
+   * the server refuses.
+   */
   async function commitLook(next: Look): Promise<Outcome> {
     const me = store.me();
     if (!me) return fail("offline", "Not signed in yet.");
@@ -198,6 +202,7 @@ export function createGameBackend({ net, store, world }: GameDeps): ShopBackend 
     }
   }
 
+  /** Re-reads what the server holds. One failed read keeps its list as it was; the others still land. */
   async function refresh(): Promise<void> {
     const got = await Promise.allSettled([
       net.decorOwned(),
@@ -206,10 +211,10 @@ export function createGameBackend({ net, store, world }: GameDeps): ShopBackend 
       net.refreshWallet(),
       net.refreshMe(),
     ]);
-    const [d, k, b] = got;
-    if (d.status === "fulfilled") decorOwned = new Set(d.value);
-    if (k.status === "fulfilled") desks = { owned: new Set(k.value.owned), using: k.value.using };
-    if (b.status === "fulfilled") bag = new Map(b.value.map((r) => [r.item, r.count]));
+    const [decor, desk, bagRows] = got;
+    if (decor.status === "fulfilled") decorOwned = new Set(decor.value);
+    if (desk.status === "fulfilled") desks = { owned: new Set(desk.value.owned), using: desk.value.using };
+    if (bagRows.status === "fulfilled") bag = new Map(bagRows.value.map((r) => [r.item, r.count]));
     changed();
   }
 
@@ -218,6 +223,7 @@ export function createGameBackend({ net, store, world }: GameDeps): ShopBackend 
     const me = store.me();
     const w = store.wallet();
     if (!me || !w) return fail("offline", "Not signed in yet.");
+
     switch (p.kind) {
       case "unsold":
         return fail("level", unsoldMessage(item, p.why));
@@ -230,9 +236,11 @@ export function createGameBackend({ net, store, world }: GameDeps): ShopBackend 
     }
     if (!stackable(item.id) && owns(item.id)) return fail("owned", "You have that already.");
 
+    // Merch is priced by its kind, and cheaper for the company's own staff.
     const employee = p.kind === "merch" && me.company?.id === p.companyId;
     const merchKind = item.id.split(".")[2] as MerchKind;
     const price = p.kind === "merch" ? merchPrice(merchKind, employee) : listed;
+
     const company = me.company;
     if (p.kind === "piece") {
       if (!company)
@@ -243,16 +251,16 @@ export function createGameBackend({ net, store, world }: GameDeps): ShopBackend 
     }
 
     // Optimistic: spend now, put it back if the server says no.
-    const was = { wallet: w, me };
-    if (p.kind === "piece") store.setMe({ ...me, company: { ...company!, wallet: company!.wallet - price } });
-    else
-      store.setWallet({
-        ...w,
-        balance: w.balance - price,
-        owned: stackable(item.id)
-          ? w.owned
-          : [...w.owned, p.kind === "item" || p.kind === "merch" ? p.id : item.id],
-      });
+    const before = { wallet: w, me };
+    if (p.kind === "piece") {
+      store.setMe({ ...me, company: { ...company!, wallet: company!.wallet - price } });
+    } else {
+      const nextOwned = stackable(item.id)
+        ? w.owned
+        : [...w.owned, p.kind === "item" || p.kind === "merch" ? p.id : item.id];
+      store.setWallet({ ...w, balance: w.balance - price, owned: nextOwned });
+    }
+
     try {
       switch (p.kind) {
         case "item":
@@ -276,10 +284,11 @@ export function createGameBackend({ net, store, world }: GameDeps): ShopBackend 
         default:
       }
     } catch (err) {
-      store.setWallet(was.wallet);
-      store.setMe(was.me);
+      store.setWallet(before.wallet);
+      store.setMe(before.me);
       return failOf(err);
     }
+
     // What was bought goes on, as on the Shop page: the first one worn, a piece of furniture waits to be placed.
     const eq = equip(item.id);
     let used: Outcome = done();
@@ -289,6 +298,7 @@ export function createGameBackend({ net, store, world }: GameDeps): ShopBackend 
       used = await commitLook(lookWith(look(), eq));
     else if (isFurniture(item.id)) bag.set(item.id, (bag.get(item.id) ?? 0) + 1);
     changed();
+
     return used.ok
       ? done(`Bought ${item.name} for 🪙 ${price}`)
       : done(`Bought ${item.name}, but ${used.message}`);
@@ -327,9 +337,9 @@ export function createGameBackend({ net, store, world }: GameDeps): ShopBackend 
     buy,
     preview(_shop, item) {
       const eq = equip(item.id);
-      return eq.kind === "wear" || eq.kind === "restyle" || eq.kind === "pet" || eq.kind === "petwear"
-        ? lookWith(look(), eq)
-        : null;
+      const changesLook =
+        eq.kind === "wear" || eq.kind === "restyle" || eq.kind === "pet" || eq.kind === "petwear";
+      return changesLook ? lookWith(look(), eq) : null;
     },
     equip: equipItem,
     refresh,

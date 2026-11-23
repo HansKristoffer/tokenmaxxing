@@ -130,16 +130,14 @@ export interface Town3d {
   windmills: Map<string, Windmill>;
 }
 
-// MARK: Building the town
-
 /**
  * The bushes' green on the day: bronzing a little in autumn, dull in winter. Only a little: the Voxel style draws a
  * bush as a cube, and a brown one reads as a cardboard box.
  */
-function hedgeColour(l: SeasonLook): string {
+function hedgeColour(look: SeasonLook): string {
   const c = new THREE.Color(LEAF[1]!);
-  c.lerp(new THREE.Color("#8f8a35"), l.turn * 0.5);
-  c.lerp(new THREE.Color("#5b7f4c"), l.dormant * (1 - l.turn) * 0.7);
+  c.lerp(new THREE.Color("#8f8a35"), look.turn * 0.5);
+  c.lerp(new THREE.Color("#5b7f4c"), look.dormant * (1 - look.turn) * 0.7);
   return `#${c.getHexString()}`;
 }
 
@@ -152,7 +150,7 @@ function dim(m: THREE.Object3D): void {
   m.traverse((o) => {
     if (o instanceof THREE.PointLight) lights.push(o);
   });
-  for (const l of lights) l.parent?.remove(l);
+  for (const light of lights) light.parent?.remove(light);
 }
 
 /** Aarhus's wall clock, in minutes since midnight (`?clock=HH:MM` moves it). */
@@ -166,8 +164,8 @@ function aarhusMinutes(): number {
     second: "2-digit",
     hour12: false,
   }).formatToParts(new Date());
-  const n = (t: string) => Number(parts.find((p) => p.type === t)?.value ?? 0) % 24;
-  return n("hour") * 60 + n("minute") + n("second") / 60;
+  const part = (type: string) => Number(parts.find((p) => p.type === type)?.value ?? 0) % 24;
+  return part("hour") * 60 + part("minute") + part("second") / 60;
 }
 
 /**
@@ -261,12 +259,13 @@ export function buildTown3d(
   };
   if (park) {
     const [bx, by] = park;
-    for (let dy = 1; dy <= 6; dy++)
+    for (let dy = 1; dy <= 6; dy++) {
       for (let dx = 1; dx <= 9; dx++) {
         const tx = bx * BLOCK_W + dx;
         const ty = by * BLOCK_H + dy;
         if ('T^"'.includes(plain.at(tx, ty))) set(tx, ty, ".");
       }
+    }
     set(bx * BLOCK_W + 5, by * BLOCK_H + 6, "A");
     for (const dy of [7, 8]) set(bx * BLOCK_W + 5, by * BLOCK_H + dy, ",");
   }
@@ -283,8 +282,8 @@ export function buildTown3d(
     plain.y0,
     plain.parks,
   );
-  const W = map.width + MARGIN * 2;
-  const D = map.height + MARGIN * 2;
+  const width = map.width + MARGIN * 2;
+  const depth = map.height + MARGIN * 2;
   const wx = (tx: number) => tx - map.x0 + MARGIN;
   const wz = (ty: number) => ty - map.y0 + MARGIN;
   const toWorld = (tx: number, ty: number): [number, number] => [wx(tx) + 0.5, wz(ty) + 0.5];
@@ -300,7 +299,7 @@ export function buildTown3d(
       return x - cx > -3.2 && x - cx < 7 && z > cz + 1.6;
     });
   const g = new THREE.Group();
-  const px = Math.max(8, Math.min(32, Math.floor(textureCap() / Math.max(W, D))));
+  const px = Math.max(8, Math.min(32, Math.floor(textureCap() / Math.max(width, depth))));
   // The island: the painted ground on a slab of soil, its layers showing on the edge.
   const soil = soilTexture();
   const edge = (along: number) => {
@@ -308,8 +307,8 @@ export function buildTown3d(
     t.repeat.set(along / (SLAB_DEPTH * 2), 1);
     return painted(t);
   };
-  const [alongX, alongZ] = [edge(D), edge(W)];
-  const ground = new THREE.Mesh(new THREE.BoxGeometry(W, SLAB_DEPTH, D), [
+  const [alongX, alongZ] = [edge(depth), edge(width)];
+  const ground = new THREE.Mesh(new THREE.BoxGeometry(width, SLAB_DEPTH, depth), [
     alongX,
     alongX,
     painted(groundTexture(map, px)),
@@ -317,7 +316,7 @@ export function buildTown3d(
     alongZ,
     alongZ,
   ]);
-  ground.position.set(W / 2, -SLAB_DEPTH / 2, D / 2);
+  ground.position.set(width / 2, -SLAB_DEPTH / 2, depth / 2);
   ground.receiveShadow = true;
   g.add(ground);
 
@@ -397,7 +396,9 @@ export function buildTown3d(
         case "B": {
           // Benches face the fountain square-on, along whichever axis it lies further.
           const [dx, dz] = fountains.length ? [fountainX - cx, fountainZ - cz] : [0, 1];
-          const turn = Math.abs(dx) > Math.abs(dz) ? (Math.sign(dx) * Math.PI) / 2 : dz < 0 ? Math.PI : 0;
+          let turn = 0;
+          if (Math.abs(dx) > Math.abs(dz)) turn = (Math.sign(dx) * Math.PI) / 2;
+          else if (dz < 0) turn = Math.PI;
           add(parkBench(), cx, cz, turn);
           seats.push({ at: [cx + Math.sin(turn) * 0.05, cz + Math.cos(turn) * 0.05], y: 0.38, turn });
           break;
@@ -433,9 +434,10 @@ export function buildTown3d(
             [0, 1, 1],
             [-1, 0, 2],
             [1, 0, 3],
-          ] as const)
-            if (map.at(tx + dx, ty + dy) !== "~" && surfaceAt(map, tx + dx, ty + dy) !== "jetty")
-              stones.push([cx + dx * 0.5, cz + dy * 0.5, a]);
+          ] as const) {
+            const isShore = map.at(tx + dx, ty + dy) !== "~" && surfaceAt(map, tx + dx, ty + dy) !== "jetty";
+            if (isShore) stones.push([cx + dx * 0.5, cz + dy * 0.5, a]);
+          }
           break;
       }
     }
@@ -449,16 +451,19 @@ export function buildTown3d(
   // The jetty: a post at each corner of its boards, standing in the water.
   for (const [x, z, north] of jetties) {
     const posts = new Model();
-    for (const side of [-0.47, 0.47])
-      for (const along of [-0.42, 0.42])
+    for (const side of [-0.47, 0.47]) {
+      for (const along of [-0.42, 0.42]) {
         posts.cyl(0.055, 0.42, C.woodDark, north ? [side, -0.14, along] : [along, -0.14, side], 0.05, 7);
+      }
+    }
     add(posts, x, z);
   }
 
   // The windmills, each in the middle of its 2x2 tiles, turning with the weather's wind.
   const windmills = new Map<string, Windmill>();
-  for (const [tx, ty] of mills)
+  for (const [tx, ty] of mills) {
     windmills.set(`${tx},${ty}`, add(windmill(), wx(tx) + 1, wz(ty) + 1) as Windmill);
+  }
   let weather: () => Weather = () => CALM;
   let windAt: number | null = null;
   if (windmills.size)
@@ -528,8 +533,9 @@ export function buildTown3d(
       waterTile.position.set(x, 0.03, z);
       g.add(waterTile);
     }
-    // The sparkle drifts, so the batching leaves it alone: one mesh for the whole pond rather than one per tile. It sits
-    // in the middle of the pond (blended things sort by where they are), drawn after the water sheet as the tiles were.
+    // The sparkle drifts, so the batching leaves it alone: one mesh for the whole pond rather than one per tile.
+    // It sits in the middle of the pond (blended things sort by where they are), drawn after the water sheet as
+    // the tiles were.
     const [cx, cz] = water.reduce(([a, b], [x, z]) => [a + x / water.length, b + z / water.length], [0, 0]);
     const glints = new THREE.Mesh(
       mergeGeometries(
@@ -542,7 +548,7 @@ export function buildTown3d(
     glints.position.set(cx, 0, cz);
     glints.renderOrder = 1;
     g.add(glints);
-    // Ice, below freezing (`cold3d.ts`): a pale sheet over the water with glare and cracks, the sparkle gone under it.
+    // Ice, below freezing (`cold3d.ts`): a pale sheet over the water with glare and cracks. The sparkle is gone under it.
     const cracks = canvasTexture(96, 96, (c) => {
       const rnd = seeded(12);
       c.fillStyle = "#ffffff";
@@ -619,9 +625,9 @@ export function buildTown3d(
 
   // The forest in the margin round the town. Trees are sparser the nearer a tile is to the town.
   const rnd = seeded(21);
-  for (let cy = 0; cy < D; cy++)
-    for (let cx = 0; cx < W; cx++) {
-      const ring = Math.min(cx, cy, W - 1 - cx, D - 1 - cy);
+  for (let cy = 0; cy < depth; cy++) {
+    for (let cx = 0; cx < width; cx++) {
+      const ring = Math.min(cx, cy, width - 1 - cx, depth - 1 - cy);
       if (ring >= MARGIN) continue;
       if (rnd() < 0.5 + ring * 0.15) continue;
       const species = SPECIES[Math.floor(rnd() * SPECIES.length)]!;
@@ -631,6 +637,7 @@ export function buildTown3d(
       const tz = cy + 0.5 + (rnd() - 0.5) * 0.6;
       if (!clearOf(tx, tz)) plant(species, seed, size, tx, tz);
     }
+  }
 
   // The Tavern, on tile I.
   const inn = map.find("I")[0];
@@ -709,7 +716,7 @@ export function buildTown3d(
   }
 
   // Street lamps at every lot and park corner.
-  for (let by = Math.floor(plain.y0 / BLOCK_H); by * BLOCK_H < plain.y0 + plain.height; by++)
+  for (let by = Math.floor(plain.y0 / BLOCK_H); by * BLOCK_H < plain.y0 + plain.height; by++) {
     for (let bx = Math.floor(plain.x0 / BLOCK_W); bx * BLOCK_W < plain.x0 + plain.width; bx++) {
       if (CORE_BLOCKS.some(([cx, cy]) => cx === bx && cy === by)) continue;
       if (!map.contains(bx * BLOCK_W + 1, by * BLOCK_H + 1)) continue;
@@ -717,6 +724,7 @@ export function buildTown3d(
       dim(lamp);
       add(lamp, wx(bx * BLOCK_W) + 0.5, wz(by * BLOCK_H + 1) + 0.5, Math.PI);
     }
+  }
 
   // Street life: the cart, the snail, the goal flag and the paperboy, all on the clock.
   const cart = polseCart();
@@ -736,28 +744,28 @@ export function buildTown3d(
   );
   let lastOpen: boolean | null = null;
   ticks.push((t) => {
-    const m = clock();
-    const open = m >= 11 * 60 && m < 14 * 60;
+    const minutes = clock();
+    const open = minutes >= 11 * 60 && minutes < 14 * 60;
     if (open !== lastOpen) {
       lastOpen = open;
       cart.setOpen(open);
     }
     // The snail: 07:00 to 17:00 along its row.
-    const p = Math.min(1, Math.max(0, (m - SNAIL.leaves) / (SNAIL.arrives - SNAIL.leaves)));
+    const p = Math.min(1, Math.max(0, (minutes - SNAIL.leaves) / (SNAIL.arrives - SNAIL.leaves)));
     snail.position.set(wx(SNAIL.from + (SNAIL.to - SNAIL.from) * p) + 0.5, 0, wz(SNAIL.y) + 0.5);
     snail.inch(t);
     // The paperboy.
-    const ride = rides.find((r) => m >= r.at && m < r.at + (r.to - r.from) / 4 / 60);
+    const ride = rides.find((r) => minutes >= r.at && minutes < r.at + (r.to - r.from) / 4 / 60);
     bike.visible = !!ride;
     if (ride) {
-      bike.position.set(wx(ride.from + (m - ride.at) * 4 * 60) + 0.5, 0, wz(ride.y) + 0.5);
+      bike.position.set(wx(ride.from + (minutes - ride.at) * 4 * 60) + 0.5, 0, wz(ride.y) + 0.5);
       bike.pedal(t);
     }
     for (const paper of papers) {
       const [dx, dy] = paper.userData.door as [number, number];
       const road = (Math.floor(dy / BLOCK_H) + 1) * BLOCK_H;
       const r = rides.find((q) => q.y === road);
-      paper.visible = !!r && m >= r.at + Math.max(0, dx + 1 - r.from) / 4 / 60;
+      paper.visible = !!r && minutes >= r.at + Math.max(0, dx + 1 - r.from) / 4 / 60;
     }
   });
 
@@ -776,7 +784,7 @@ export function buildTown3d(
 
   return {
     group: g,
-    size: [W, D],
+    size: [width, depth],
     map,
     doors,
     doorOf: (plot) => doors.find((d) => d.plot === plot),
@@ -804,8 +812,6 @@ function rideList(doors: readonly [number, number][], left: number, right: numbe
   const minutes = (right - left) / 4 / 60;
   return roads.map((y, i) => ({ y, from: left, to: right, at: 7 * 60 + i * minutes }));
 }
-
-// MARK: Assets
 
 /** Wraps a building so it stands `dz` further along the tile than its model's own origin. */
 const footprint = (m: Model, dz: number): Model => {

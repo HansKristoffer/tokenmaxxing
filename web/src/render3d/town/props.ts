@@ -13,12 +13,12 @@ import { canvasTexture, glass, glow, Model, seeded, ticks, tint, toon, type V3 }
  * while power is expensive (`Fx`'s `lampDim`).
  */
 function light(m: Model, at: V3, color: string, intensity: number, distance = 5, street = false): void {
-  const l = new THREE.PointLight(color, 0, distance, 1.5);
-  l.position.set(...at);
-  l.userData.night = intensity;
-  l.visible = false;
-  if (street) l.userData.street = true;
-  m.add(l);
+  const lamp = new THREE.PointLight(color, 0, distance, 1.5);
+  lamp.position.set(...at);
+  lamp.userData.night = intensity;
+  lamp.visible = false;
+  if (street) lamp.userData.street = true;
+  m.add(lamp);
 }
 
 /** Things that glow only at night (lamp heads, windows, light pools): swapped by `setPropsNight`. */
@@ -32,19 +32,21 @@ const nightListeners = new Set<(on: boolean) => void>();
 let propsNight = false;
 /** `night`: the glow's colour, or the material to wear at night. */
 export function nightGlow(mesh: THREE.Mesh, night: string | THREE.Material): void {
-  const g = {
+  const entry = {
     mesh,
     day: mesh.material as THREE.Material,
     night: typeof night === "string" ? glow(night) : night,
   };
   // The static batching builds a day and a night copy and flips between them (`onPropsNight`).
-  mesh.userData.nightGlow = g;
-  nightGlows.push(g);
+  mesh.userData.nightGlow = entry;
+  nightGlows.push(entry);
 }
 /** Forgets the glows under `root`, when its room is thrown away. */
 export function dropPropsNight(root: THREE.Object3D): void {
   const inside = (m: THREE.Object3D) => {
-    for (let o: THREE.Object3D | null = m; o; o = o.parent) if (o === root) return true;
+    for (let o: THREE.Object3D | null = m; o; o = o.parent) {
+      if (o === root) return true;
+    }
     return false;
   };
   for (let i = nightGlows.length - 1; i >= 0; i--) {
@@ -108,9 +110,11 @@ export function treePlanter(): Model {
     m.box([0.24, 0.12, 0.24], LEAF[k]!, [x, TREE_PLANTER_H, z], 0);
   // Uplights in the corners, glowing at night (no light of their own: a lamp that lights the scene costs every
   // surface in it).
-  for (const x of [-0.36, 0.36])
-    for (const z of [-0.36, 0.36])
+  for (const x of [-0.36, 0.36]) {
+    for (const z of [-0.36, 0.36]) {
       nightGlow(m.box([0.07, 0.03, 0.07], "#cfd8e8", [x, TREE_PLANTER_H + 0.01, z], 0.005), "#ffe9a8");
+    }
+  }
   return m;
 }
 
@@ -132,7 +136,7 @@ export function flowerBed(seed: number, dormant = 0): Model {
   const blooms = BED_BLOOMS[Math.abs(seed) % BED_BLOOMS.length]!;
   const n = 4;
   // Little blocks, not balls: a bed is a hundred of them, and a ball is five times the triangles.
-  for (let j = 0; j < n; j++)
+  for (let j = 0; j < n; j++) {
     for (let i = 0; i < n; i++) {
       const x = ((i + 0.5) / n - 0.5) * 0.74 + (rnd() - 0.5) * 0.05;
       const z = ((j + 0.5) / n - 0.5) * 0.74 + (rnd() - 0.5) * 0.05;
@@ -141,6 +145,7 @@ export function flowerBed(seed: number, dormant = 0): Model {
       if (rnd() < dormant) continue;
       m.box([0.11, 0.12, 0.11], blooms[(i + j) % 2]!, [x, tall, z], 0).castShadow = false;
     }
+  }
   return m;
 }
 
@@ -185,8 +190,9 @@ const CANOPY: Record<Exclude<TreeKind, "pine">, string[]> = {
 };
 
 /**
- * A few millimetres, different for every lobe of a canopy: the Voxel style draws each lobe as a block, and two lobes whose
- * blocks share a face (equal sizes, or centres a block apart) fought over it as the camera moved: leaves flickering.
+ * A few millimetres, different for every lobe of a canopy. The Voxel style draws each lobe as a block, and two
+ * lobes whose blocks share a face (equal sizes, or centres a block apart) fought over it as the camera moved:
+ * leaves flickering.
  */
 const nudge = (i: number): [number, number, number] => [
   ((i * 5) % 7) * 0.002 - 0.006,
@@ -203,8 +209,15 @@ export function tree(kind: TreeKind, seed: number, size = 1): Model {
 }
 
 const lobeCount = (oak: boolean) => (oak ? 11 : 7);
-/** Which of a palette's three shades lobe `i` of a canopy of `n` (and the middle and top) wears. */
-const shadeOf = (i: number, n: number) => (i === 0 ? 0 : i === n + 1 ? 1 : (i - 1) % 3);
+/**
+ * Which of a palette's three shades lobe `i` of a canopy of `n` wears: 0 for the big middle lobe, 1 for the top,
+ * and the rest cycle through the other three.
+ */
+function shadeOf(i: number, n: number): number {
+  if (i === 0) return 0;
+  if (i === n + 1) return 1;
+  return (i - 1) % 3;
+}
 
 function pine(seed: number, size: number): Model {
   const m = new Model();
@@ -235,7 +248,7 @@ function broadleaf(
   const s = size * (oak ? 1.6 : 1);
   const h = (0.9 + rnd() * 0.4) * s;
   m.cyl(0.11 * s, h, C.trunk, [0, 0, 0], 0.08 * s, 9);
-  if (oak)
+  if (oak) {
     for (const [k, a] of [0.5, 2.6, 4.4].entries()) {
       // Each a little different: three equal branches turned about the trunk made blocks sharing a face (flicker).
       const branch = m.cyl(
@@ -248,7 +261,7 @@ function broadleaf(
       );
       branch.rotation.set(Math.sin(a) * 0.7, 0, Math.cos(a) * 0.7);
     }
-  else if (bare)
+  } else if (bare) {
     for (const [k, a] of [0.3, 2.4, 4.3].entries()) {
       const branch = m.cyl(
         (0.05 + k * 0.005) * s,
@@ -260,12 +273,16 @@ function broadleaf(
       );
       branch.rotation.set(Math.sin(a) * 0.6, 0, Math.cos(a) * 0.6);
     }
-  if (bare)
-    // Twigs at the crown, where the canopy was.
+  }
+
+  // Twigs at the crown, where the canopy was.
+  if (bare) {
     for (const [k, a] of [1.4, 3.5, 5.6].entries()) {
       const twig = m.cyl(0.025 * s, (0.4 + k * 0.04) * s, C.trunkDark, [0, h + 0.15 * s, 0], 0.008 * s, 5);
       twig.rotation.set(Math.sin(a) * 0.45, 0, Math.cos(a) * 0.45);
     }
+  }
+
   const n = lobeCount(oak);
   const firstColour = lobe(0);
   const first = firstColour && m.ball(0.55 * s, firstColour, [0, h + 0.4 * s, 0], [1.1, 0.85, 1.1], 14);
@@ -345,8 +362,8 @@ export function bush(seed: number, color = LEAF[1]!): Model {
     );
     lobe.position.add(new THREE.Vector3(...nudge(i)));
   }
-  if (rnd() < 0.5)
-    for (let i = 0; i < 5; i++)
+  if (rnd() < 0.5) {
+    for (let i = 0; i < 5; i++) {
       m.ball(
         0.035,
         C.flowerRed,
@@ -354,6 +371,8 @@ export function bush(seed: number, color = LEAF[1]!): Model {
         [1, 1, 1],
         6,
       );
+    }
+  }
   return m;
 }
 
@@ -475,8 +494,9 @@ export function grandFountain(): Model {
     [0.17, 0.38],
     [0.02, 0.38],
     [0.1, 0.62],
-  ] as const)
+  ] as const) {
     shape.lineTo(x, y);
+  }
   const boltMesh = new THREE.Mesh(
     new THREE.ExtrudeGeometry(shape, {
       depth: 0.08,
@@ -490,13 +510,15 @@ export function grandFountain(): Model {
   boltMesh.position.z = -0.04;
   bolt.add(boltMesh);
   ticks.push((t) => (bolt.rotation.y = t * 0.6));
+
   // Falling water: rings of drops from each tier, all one instanced draw (they move, so they can't be batched).
   const drops: { a: number; r0: number; y0: number; drop: number }[] = [];
   for (const [r0, y0, drop, n] of [
     [0.38, 2.13, 0.6, 10],
     [0.78, 1.54, 0.98, 16],
-  ] as const)
+  ] as const) {
     for (let i = 0; i < n; i++) drops.push({ a: (i / n) * Math.PI * 2, r0, y0, drop });
+  }
   const drop = m.ball(0.035, glass("#e4f5fd", 0.85));
   drop.removeFromParent();
   const spray = new THREE.InstancedMesh(drop.geometry, drop.material, drops.length);
@@ -562,8 +584,9 @@ export function arcadeBuilding(): Model {
   // Awning and sign.
   const awning = m.box([w - 1.1, 0.12, 0.7], "#5b3fbf", [0, 1.95, d / 2 + 0.3], 0.03);
   awning.rotation.x = 0.18;
-  for (let i = 0; i < 9; i++)
+  for (let i = 0; i < 9; i++) {
     m.ball(0.04, glow(i % 2 ? "#ffe28a" : "#8fe3ff"), [-2.4 + i * 0.6, 1.9, d / 2 + 0.66]);
+  }
   const sign = canvasTexture(
     512,
     160,
@@ -617,8 +640,9 @@ export function arcadeBuilding(): Model {
 export function bar(w: number): Model {
   const m = new Model();
   m.box([w, 1.0, 0.55], "#b98a52", [0, 0, 0], 0.03);
-  for (let i = 0; i < Math.round(w / 0.5); i++)
+  for (let i = 0; i < Math.round(w / 0.5); i++) {
     m.box([0.4, 0.8, 0.02], tint("#b98a52", (i % 2) * 0.08), [-w / 2 + 0.3 + i * 0.5, 0.1, 0.28]);
+  }
   m.box([w + 0.1, 0.07, 0.65], "#e8e0cc", [0, 1.0, 0], 0.02);
   const rnd = seeded(77);
   for (let i = 0; i < 9; i++) {
@@ -735,12 +759,13 @@ export function car(color: string): Model {
   m.box([0.78, 0.32, 0.64], tint(color, 0.15), [-0.08, 0.46, 0], 0.12);
   const win = glass("#bfe6ff", 0.85);
   m.box([0.8, 0.22, 0.66], win, [-0.08, 0.5, 0], 0.08);
-  for (const x of [-0.42, 0.42])
+  for (const x of [-0.42, 0.42]) {
     for (const z of [-0.34, 0.34]) {
       const wheel = m.cyl(0.15, 0.1, "#2b2433", [x, 0.15, z - 0.05 * Math.sign(z)], 0.15, 14);
       wheel.rotation.x = Math.PI / 2;
       wheel.position.y = 0.15;
     }
+  }
   for (const z of [-0.22, 0.22]) {
     m.ball(0.055, glow("#fff6d0"), [0.67, 0.32, z], [0.5, 1, 1]);
     m.ball(0.045, glow("#ff5a4a"), [-0.67, 0.32, z], [0.5, 1, 1]);

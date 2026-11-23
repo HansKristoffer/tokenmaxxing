@@ -30,8 +30,6 @@ const HOUSE_STYLES: readonly Style[] = [
 const FLOOR = 1.0;
 const PLINTH = 0.2;
 
-// MARK: Logos
-
 /** Each logo once it has loaded, or the redraws waiting for it. */
 const logos = new Map<string, HTMLImageElement | (() => void)[]>();
 
@@ -49,14 +47,15 @@ function drawLogo(g: CanvasRenderingContext2D, src: string, w: number, h: number
     img.src = src;
     return;
   }
-  // Every board built while it loads repaints, not just the first: a town rebuilt meanwhile would keep a blank one.
+  // Every board built while it loads repaints, not just the first. A town rebuilt meanwhile would keep a blank one.
   if (Array.isArray(known)) {
     known.push(again);
     return;
   }
-  const s = Math.min(w / (known.naturalWidth || w), h / (known.naturalHeight || h));
-  const iw = (known.naturalWidth || w) * s;
-  const ih = (known.naturalHeight || h) * s;
+  // Fit the logo inside the box, keeping its proportions and centring it.
+  const scale = Math.min(w / (known.naturalWidth || w), h / (known.naturalHeight || h));
+  const iw = (known.naturalWidth || w) * scale;
+  const ih = (known.naturalHeight || h) * scale;
   g.imageSmoothingEnabled = true;
   g.drawImage(known, (w - iw) / 2, (h - ih) / 2, iw, ih);
 }
@@ -121,8 +120,6 @@ function roofLogo(
   roof.add(board);
 }
 
-// MARK: Pieces
-
 /** A gable roof over a `w`×`d` house with eaves at `y`; the ridge runs along x. Returns the rise. */
 function gableRoof(m: Model, w: number, d: number, y: number, color: string, gable: string): number {
   const half = d / 2 + 0.2;
@@ -141,7 +138,7 @@ function gableRoof(m: Model, w: number, d: number, y: number, color: string, gab
   m.add(mesh);
   m.box([w + 0.36, 0.08, 0.14], tint(color, -0.25), [0, y + rise - 0.04, 0], 0.03);
   // Shingle courses on both slopes.
-  for (const s of [-1, 1])
+  for (const s of [-1, 1]) {
     for (const f of [0.3, 0.55, 0.8]) {
       const c = m.box(
         [w + 0.3, 0.025, 0.04],
@@ -152,6 +149,7 @@ function gableRoof(m: Model, w: number, d: number, y: number, color: string, gab
       c.rotation.x = s * Math.atan(rise / half);
       c.userData.detailSize = 0.025;
     }
+  }
   const end = new THREE.Shape();
   end.moveTo(-d / 2, 0);
   end.lineTo(0, rise - 0.12);
@@ -178,14 +176,15 @@ function windowOn(face: Model, x: number, y: number, trim: string, box = false):
   face.box([0.03, 0.44, 0.06], C.white, [x, y + 0.02, 0.01]).userData.detailSize = 0.03;
   face.box([0.38, 0.03, 0.06], C.white, [x, y + 0.22, 0.01]).userData.detailSize = 0.03;
   face.box([0.58, 0.05, 0.1], C.white, [x, y - 0.06, 0.03], 0.01);
-  for (const s of [-1, 1])
+  for (const s of [-1, 1]) {
     face.box([0.1, 0.54, 0.03], tint(trim, 0.05), [x + s * 0.33, y - 0.03, 0.02], 0.01);
+  }
   if (box) face.box([0.5, 0.08, 0.12], C.leafLight, [x, y - 0.12, 0.08], 0.03);
 }
 
 /** The front door in the middle of a wall, in the company's trim colour. */
 function doorOn(m: Model, trim: string, width = 0.62): void {
-  m.box([width, 0.98, 0.07], C.white, [0, 0, 0.0], 0.02);
+  m.box([width, 0.98, 0.07], C.white, [0, 0, 0], 0.02);
   m.box([width - 0.1, 0.9, 0.07], tint(trim, -0.1), [0, 0, 0.02], 0.015);
   for (const y of [0.1, 0.52]) m.box([width - 0.26, 0.32, 0.02], tint(trim, 0.12), [0, y, 0.06], 0.01);
   m.ball(0.03, "#e9b73d", [width / 2 - 0.12, 0.45, 0.1]);
@@ -193,7 +192,10 @@ function doorOn(m: Model, trim: string, width = 0.62): void {
   nightGlow(m.box([0.08, 0.16, 0.08], "#f4e6c0", [width / 2 + 0.18, 0.7, 0.07], 0.02), "#ffe28a");
 }
 
-/** One run of the lot's fence, the 2D art's: a thick rail and chunky posts every half tile, ink-edged light wood. */
+/**
+ * One run of the lot's fence, as the 2D art draws it: a thick rail and chunky posts every half tile, in ink-edged
+ * light wood.
+ */
 function picket(m: Model, x0: number, x1: number, z: number, alongZ = false, solid = false): void {
   const part = alongZ ? m.part([z, 0, 0], -Math.PI / 2) : m.part([0, 0, z]);
   const a = Math.min(x0, x1);
@@ -296,8 +298,6 @@ function lantern(m: Model, x: number, z: number): void {
   m.box([0.18, 0.04, 0.18], "#2b2433", [x, 0.68, z], 0.01);
 }
 
-// MARK: Houses
-
 /**
  * A company's house by tier (0 basement hatch … 5 mansion) with the lot's yard, fence, bushes and mailbox.
  * `brand` recolours roof, walls and trim and hangs the logo plaque; without it the tier's own style.
@@ -329,20 +329,23 @@ export function companyHouse(tier: number, name: string, brand: Brand | null): M
   if (t === 1) {
     // Planks.
     m.box([w, h - PLINTH, d], s.wall, [0, PLINTH, -d / 2], 0.02);
-    for (let x = -w / 2 + 0.25; x < w / 2; x += 0.25)
+    for (let x = -w / 2 + 0.25; x < w / 2; x += 0.25) {
       m.box([0.015, h - PLINTH - 0.04, 0.02], tint(s.wall, -0.14), [x, PLINTH + 0.02, 0.01]);
+    }
   } else {
     m.box([w - 0.008, h - PLINTH - 0.008, d - 0.016], s.wall, [0, PLINTH, -d / 2], 0.02);
-    for (let y = PLINTH + 0.15; y < h - 0.1; y += 0.2)
+    for (let y = PLINTH + 0.15; y < h - 0.1; y += 0.2) {
       m.box([w + 0.005, 0.012, d + 0.005], tint(s.wall, -0.07), [0, y, -d / 2], 0.002);
+    }
   }
-  for (let f = 1; f < floors; f++)
+  for (let f = 1; f < floors; f++) {
     m.box(
       [w + 0.05, 0.07, d + 0.05],
       t >= 4 ? s.trim : tint(s.wall, -0.14),
       [0, PLINTH + f * FLOOR, -d / 2],
       0.01,
     );
+  }
   const eave = h;
   const roofGroup = m.part([0, 0, -d / 2]);
   const rise = gableRoof(roofGroup, w, d, eave, s.roof, tint(s.wall, -0.04));
@@ -353,18 +356,22 @@ export function companyHouse(tier: number, name: string, brand: Brand | null): M
   while ((n + 2) * 0.5 + (n + 1) * 0.5 <= w - 0.3) n += 2;
   const step = (w - 0.6) / Math.max(1, n);
   const face = m.part([0, 0, 0]);
-  for (let f = 0; f < floors; f++)
+  for (let f = 0; f < floors; f++) {
     for (let i = 0; i < n; i++) {
       if (f === 0 && i === (n - 1) / 2) continue;
       const x = n === 1 ? 0 : -((n - 1) * step) / 2 + i * step;
       windowOn(face, x, 0.52 + PLINTH + f * FLOOR - 0.05, s.trim, f === 0 && t === 2);
     }
+  }
+
   const side = (sign: number) => {
     const sf = m.part([sign * (w / 2), 0, -d / 2], (sign * Math.PI) / 2);
     const cols = Math.max(1, Math.floor(d / 1.2));
-    for (let f = 0; f < floors; f++)
-      for (let c = 0; c < cols; c++)
+    for (let f = 0; f < floors; f++) {
+      for (let c = 0; c < cols; c++) {
         windowOn(sf, -((cols - 1) * 0.55) + c * 1.1, 0.52 + PLINTH + f * FLOOR - 0.05, s.trim);
+      }
+    }
   };
   side(1);
   side(-1);
@@ -450,7 +457,10 @@ function tower(m: Model, d: number, h: number, rise: number, s: Style, brand: Br
   windowOn(face, 0, top + 0.6, s.trim);
 }
 
-/** The cellar of the lowest tier: a hatch with its doors swung open, a barred window, a signpost and the logo's billboard. */
+/**
+ * The cellar of the lowest tier: a hatch with its doors swung open, a barred window, a signpost and the logo's
+ * billboard.
+ */
 function basement(m: Model, name: string, s: Style, brand: Brand | null): Model {
   yard(m);
   m.box([2.3, 0.2, 1.5], C.stoneDark, [0, 0, -0.35], 0.03);
@@ -488,8 +498,6 @@ function basement(m: Model, name: string, s: Style, brand: Brand | null): Model 
   return m;
 }
 
-// MARK: The Tavern
-
 /** The Tavern: a green-roofed inn, seven tiles wide, with its sign, lanterns and barrels. The door goes to `inn`. */
 export function tavernBuilding(): Model {
   const m = new Model();
@@ -500,10 +508,11 @@ export function tavernBuilding(): Model {
   m.box([w + 0.2, 0.22, d + 0.2], C.stone, [0, 0, -d / 2], 0.02);
   m.box([w, h - 0.22, d], wall, [0, 0.22, -d / 2], 0.02);
   // Timber framing.
-  for (let x = -w / 2; x <= w / 2 + 0.01; x += w / 8)
-    m.box([0.12, h - 0.22, 0.05], C.woodDark, [x, 0.22, 0.0], 0.01);
-  m.box([w + 0.05, 0.12, 0.06], C.woodDark, [0, h - 0.14, 0.0], 0.01);
-  m.box([w + 0.05, 0.1, 0.06], C.woodDark, [0, 0.22, 0.0], 0.01);
+  for (let x = -w / 2; x <= w / 2 + 0.01; x += w / 8) {
+    m.box([0.12, h - 0.22, 0.05], C.woodDark, [x, 0.22, 0], 0.01);
+  }
+  m.box([w + 0.05, 0.12, 0.06], C.woodDark, [0, h - 0.14, 0], 0.01);
+  m.box([w + 0.05, 0.1, 0.06], C.woodDark, [0, 0.22, 0], 0.01);
   const roofGroup = m.part([0, 0, -d / 2]);
   gableRoof(roofGroup, w, d, h, roofC, tint(wall, -0.04));
 
@@ -522,7 +531,7 @@ export function tavernBuilding(): Model {
     door.box([0.36, 0.4, 0.02], C.woodLight, [x, 0.55, 0.07], 0.01);
     door.ball(0.03, "#e9b73d", [x > 0 ? -0.07 : 0.07, 0.55, 0.1]);
   }
-  door.cyl(0.65, 0.08, C.woodDark, [0, 1.2, 0.0], 0.65, 3);
+  door.cyl(0.65, 0.08, C.woodDark, [0, 1.2, 0], 0.65, 3);
   door.box([1.7, 0.12, 0.5], C.stoneLight, [0, 0, 0.18], 0.02);
   for (const x of [-1.05, 1.05]) {
     m.box([0.05, 0.18, 0.05], C.metal, [x, 1.02, 0.1]);
@@ -552,8 +561,8 @@ export function tavernBuilding(): Model {
   m.plane(1.84, 0.36, glow("#fff", sign), [0, h - 0.72 + 0.19, 0.07]);
   const hang = m.part([2.05, h - 0.35, 0.3]);
   hang.box([0.04, 0.04, 0.5], C.woodDark, [0, 0.1, -0.2]);
-  const swing = hang.part([0, 0, 0.0]);
-  swing.box([0.5, 0.42, 0.05], C.flowerYellow, [0, -0.45, 0.0], 0.02);
+  const swing = hang.part([0, 0, 0]);
+  swing.box([0.5, 0.42, 0.05], C.flowerYellow, [0, -0.45, 0], 0.02);
   swing.box([0.14, 0.18, 0.06], "#b57c4b", [-0.04, -0.4, 0.04], 0.02);
   swing.box([0.1, 0.05, 0.07], C.white, [-0.04, -0.2, 0.04]);
   ticks.push((time) => (swing.rotation.z = Math.sin(time * 1.6) * 0.08));

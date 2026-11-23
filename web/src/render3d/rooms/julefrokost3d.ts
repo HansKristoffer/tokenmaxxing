@@ -19,36 +19,42 @@ export class JulefrokostSpread {
 
   constructor(room: Room, tables: readonly THREE.Object3D[]) {
     this.group.name = "julefrokost";
-    const m = new Model();
+    const model = new Model();
     const box = new THREE.Box3();
-    const c = new THREE.Vector3();
+    const centre = new THREE.Vector3();
     const size = new THREE.Vector3();
     room.group.updateMatrixWorld(true);
 
-    for (const [k, t] of tables.entries()) {
-      box.setFromObject(t);
-      room.group.worldToLocal(box.getCenter(c));
+    for (const [tableIndex, table] of tables.entries()) {
+      box.setFromObject(table);
+      room.group.worldToLocal(box.getCenter(centre));
       box.getSize(size);
 
       const along = size.x >= size.z;
       const len = Math.max(size.x, size.z) - 0.25;
-      m.box(along ? [len, 0.012, 0.24] : [0.24, 0.012, len], RUNNER, [c.x, TOP, c.z], 0.002);
+      model.box(along ? [len, 0.012, 0.24] : [0.24, 0.012, len], RUNNER, [centre.x, TOP, centre.z], 0.002);
 
       // A place either side of each tile of the table.
       const tiles = Math.max(1, Math.round(len));
       for (let i = 0; i < tiles; i++) {
-        const a = (i - (tiles - 1) / 2) * (len / tiles);
+        const offset = (i - (tiles - 1) / 2) * (len / tiles);
         for (const side of [-1, 1]) {
-          const [x, z] = along ? [c.x + a, c.z + side * 0.25] : [c.x + side * 0.25, c.z + a];
-          m.cyl(0.12, 0.015, "#fbf7ef", [x, TOP, z], 0.12, 14);
-          m.ball(0.055, FOOD[(k + i + side + 2) % FOOD.length]!, [x, TOP + 0.02, z], [1, 0.45, 1], 8);
-          m.cyl(0.022, 0.07, "#dff3ff", [x + 0.17, TOP, z], 0.026, 8);
+          const [x, z] = along
+            ? [centre.x + offset, centre.z + side * 0.25]
+            : [centre.x + side * 0.25, centre.z + offset];
+
+          // Varies the food colour along the table and across its two sides.
+          const food = FOOD[(tableIndex + i + side + 2) % FOOD.length]!;
+          model.cyl(0.12, 0.015, "#fbf7ef", [x, TOP, z], 0.12, 14);
+          model.ball(0.055, food, [x, TOP + 0.02, z], [1, 0.45, 1], 8);
+          model.cyl(0.022, 0.07, "#dff3ff", [x + 0.17, TOP, z], 0.026, 8);
         }
       }
     }
 
-    this.group.add(m);
-    mergeStill(m);
+    this.group.add(model);
+    mergeStill(model);
+
     this.group.traverse((o) => {
       o.userData.nopick = true;
     });

@@ -7,7 +7,7 @@ import { fleetDesk } from "./hq3d.ts";
 import type { Placed } from "./room.ts";
 
 /** How often the desks look at who sits at them (ms): a sitter's screens change in a blink, not a frame. */
-const EVERY = 250;
+const LOOK_EVERY_MS = 250;
 
 /**
  * The screens on a room's desks, as the 2D game has them: whoever sits at a desk (on the chair below it) brings the
@@ -17,7 +17,7 @@ const EVERY = 250;
  */
 export class DeskSetups {
   private readonly desks: { x: number; y: number; model: Placed["model"]; tier: number; seed: number }[] = [];
-  private at = -Infinity;
+  private lastLookAt = -Infinity;
 
   /** `inset` is what a room tile's (x, z) adds to be the map tile's: (1, 2) in a house, (1, 1) in an office. */
   constructor(
@@ -34,24 +34,28 @@ export class DeskSetups {
   }
 
   update(nowMs: number): void {
-    if (!this.desks.length || nowMs - this.at < EVERY) return;
-    this.at = nowMs;
+    if (!this.desks.length || nowMs - this.lastLookAt < LOOK_EVERY_MS) return;
+    this.lastLookAt = nowMs;
 
     const fleet = world.companies.get(companyOfRoom(world.room) ?? -1)?.deskFleet;
+
+    // Map tile index -> the desk each working or sitting avatar has chosen.
     const seated = new Map<number, number | undefined>();
     for (const a of world.avatars.values()) {
       if (a.state === "working" || a.state === "sit") seated.set(this.map.index(a.x, a.y), a.info.desk);
     }
 
     for (const d of this.desks) {
-      const isChairBelow = this.map.at(d.x, d.y + 1) === "c";
-      const chair = isChairBelow ? this.map.index(d.x, d.y + 1) : -1;
-      const sitterDesk = world.owner?.desk ?? (chair < 0 ? undefined : seated.get(chair));
+      // A personal room's owner picks the setup; otherwise whoever sits on the chair below the desk does.
+      const chairBelow = this.map.at(d.x, d.y + 1) === "c" ? this.map.index(d.x, d.y + 1) : -1;
+      const sitterDesk = world.owner?.desk ?? (chairBelow < 0 ? undefined : seated.get(chairBelow));
       const tier = effectiveDesk(sitterDesk, fleet);
       if (tier === d.tier) continue;
 
       d.tier = tier;
       const next = fleetDesk(tier, d.seed);
+
+      // Copies the children first: removing from `children` while looping over it skips every other one.
       for (const c of [...d.model.children]) {
         d.model.remove(c);
         disposeObject(c);

@@ -1,5 +1,4 @@
 import { compact } from "@tokenmaxxing/core/format.ts";
-import { TAVERN } from "@tokenmaxxing/core/tavern.ts";
 import type { Peek, PlayerState } from "@tokenmaxxing/core/world.ts";
 import * as THREE from "three";
 import { world } from "../../game/world.ts";
@@ -63,7 +62,7 @@ export class Signs {
   }
 
   private textOf(s: Sign): string | null {
-    if (s.kind === "inn") return `🛏 The ${TAVERN ? "Tavern" : "Inn"}`;
+    if (s.kind === "inn") return "🛏 The Tavern";
     if (s.kind === "door" || s.kind === "label") return s.text ?? null;
     const c = world.companies.get(s.companyId ?? -1);
     return c ? `🏢 ${c.name} · ${compact(c.todayTokens)} today` : null;

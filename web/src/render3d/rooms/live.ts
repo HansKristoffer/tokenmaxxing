@@ -44,7 +44,10 @@ const OFFICES_EVERY_MS = 30_000;
 let openOffices: string[] | null = null;
 let officesAt = -Infinity;
 
-/** The names of the offices left open, asked for again every half minute (the server keeps its own for a while too). */
+/**
+ * The names of the offices left open, asked for again every half minute (the server keeps its own for a while too).
+ * A failed request keeps the last list, so the board does not blank out on a dropped connection.
+ */
 function officesOpen(now: number): string[] | null {
   if (now - officesAt > OFFICES_EVERY_MS) {
     officesAt = now;
@@ -58,7 +61,10 @@ function officesOpen(now: number): string[] | null {
   return openOffices;
 }
 
-/** The Tavern: this week's regulars on the bar tab and the plaques, the day's special on the easel, the world clocks, the jukebox on. */
+/**
+ * The Tavern: this week's regulars on the bar tab and the plaques, the day's special on the easel, the world clocks,
+ * and the jukebox on or off.
+ */
 export function liveTavern(inn: TavernRoom): (t: number) => void {
   const tab = inn.by.get("tile:J")?.[0];
   const plaques = [inn.by.get("tile:P")?.[0], inn.by.get("tavern:plaque-2")?.[0]];
@@ -68,20 +74,22 @@ export function liveTavern(inn: TavernRoom): (t: number) => void {
     last: number | null;
     ids: number[];
   }>(({ rows, last, ids }) => {
-    if (tab)
+    if (tab) {
       setBarTab(
         tab,
         rows.map((r) => tabLine(r)),
         ids.indexOf(last ?? -1),
       );
+    }
+
     for (const [i, plaque] of plaques.entries()) {
       if (!plaque) continue;
       const first = i === 0 ? 1 : LEFT_PLATES + 1;
       const lastRank = i === 0 ? LEFT_PLATES : REGULARS_TOP;
       const names: string[] = [];
       for (let rank = first; rank <= lastRank; rank++) {
-        const r = rows.find((q) => q.rank === rank && plaqueOf(q.rank) === i);
-        names.push(r ? plateText(r) : "");
+        const row = rows.find((q) => q.rank === rank && plaqueOf(q.rank) === i);
+        names.push(row ? plateText(row) : "");
       }
       setPlaque(plaque, names);
     }
@@ -97,15 +105,21 @@ export function liveTavern(inn: TavernRoom): (t: number) => void {
   const paintClocks = watch<ClocksShown>((s) => clocks?.show(s));
   return () => {
     askRegulars();
+
     const { rows, last } = regularsBoard();
     paintBoard({ rows: [...rows], last, ids: rows.map((r) => r.userId) });
     paintSpecial(specialOn(new Date()));
     paintOffices(officesOpen(Date.now()));
+
     const { hands, lit } = clockFaces();
     paintClocks({ hands, lit });
+
     const playing = hud.get().jukebox;
     inn.jukebox.playing = playing !== null;
-    if (playing) inn.jukebox.track = TUNES.find((t) => t.id === playing.track)?.name ?? playing.track;
+    if (playing) {
+      const tune = TUNES.find((t) => t.id === playing.track);
+      inn.jukebox.track = tune?.name ?? playing.track;
+    }
   };
 }
 
@@ -125,6 +139,7 @@ const nameOf = (id: number): string => {
 function matchRow(game: WorldGame): MatchRow {
   const def = GAMES[game.game]!;
   const endsInMin = game.endsAt ? Math.max(0, Math.ceil((game.endsAt - Date.now()) / 60_000)) : null;
+
   return {
     emoji: def.emoji,
     name: def.name,
@@ -135,7 +150,10 @@ function matchRow(game: WorldGame): MatchRow {
   };
 }
 
-/** The basement: the livestream screen (or the running bracket), the tournament board, the terminals, the LAN party. */
+/**
+ * The basement: the livestream screen (or the running bracket), the tournament board, the terminals and the LAN
+ * party.
+ */
 export function liveBasement(b: BasementScene): (t: number) => void {
   const showScreen = watch<ScreenFeed>((f) => b.screen.show(f));
   const showBoard = watch<Parameters<typeof b.board.show>[0]>((v) => b.board.show(v));
@@ -145,47 +163,54 @@ export function liveBasement(b: BasementScene): (t: number) => void {
     setLanParty(isLanParty(skyNow()));
     void refreshTournament();
 
-    const t = hud.get().tournament;
-    const running = t?.current?.status === "running" && t.current.bracket ? t.current : null;
+    const tournament = hud.get().tournament;
+    const running =
+      tournament?.current?.status === "running" && tournament.current.bracket ? tournament.current : null;
     if (running) {
       const rounds = running.bracket!;
+
       // The first round with an open match; findIndex gives -1 when none is open, and the first round stays up.
-      const r = Math.max(
+      const shownRound = Math.max(
         0,
         rounds.findIndex((round) => round.some((m) => m.winner === null)),
       );
-      const name = (id: number | null) =>
+      const playerName = (id: number | null) =>
         id === null ? null : (running.players.find((p) => p.id === id)?.name ?? "?");
-      const side = (m: { a: number | null; b: number | null; winner: number | null }): "a" | "b" | null =>
-        m.winner === null ? null : m.winner === m.a ? "a" : "b";
+      const side = (m: { a: number | null; b: number | null; winner: number | null }): "a" | "b" | null => {
+        if (m.winner === null) return null;
+        return m.winner === m.a ? "a" : "b";
+      };
 
+      const openMatches = rounds[shownRound]!.filter((m) => m.a !== null || m.b !== null)
+        .slice(0, FEED_ROWS)
+        .map((m) => ({ a: playerName(m.a), b: playerName(m.b), winner: side(m) }));
       showScreen({
         matches: [],
         bracket: {
           game: GAMES[running.game]!.name,
-          round: roundName(rounds.length, r),
-          matches: rounds[r]!.filter((m) => m.a !== null || m.b !== null)
-            .slice(0, FEED_ROWS)
-            .map((m) => ({ a: name(m.a), b: name(m.b), winner: side(m) })),
+          round: roundName(rounds.length, shownRound),
+          matches: openMatches,
         },
       });
       showBoard({
         rounds: rounds.map((round): BoardPairing[] =>
-          round.map((m) => ({ a: name(m.a), b: name(m.b), winner: side(m) })),
+          round.map((m) => ({ a: playerName(m.a), b: playerName(m.b), winner: side(m) })),
         ),
-        champion: t?.champion?.name ?? null,
+        champion: tournament?.champion?.name ?? null,
       });
     } else {
       showScreen({ matches: feedOf(world.games.values()).map(matchRow), total: world.games.size });
-      showBoard(t?.champion ? { rounds: null, champion: t.champion.name } : { rounds: null });
+      const champion = tournament?.champion;
+      showBoard(champion ? { rounds: null, champion: champion.name } : { rounds: null });
     }
-    showTop(
-      hud
-        .get()
-        .board.filter((r) => r.tokens > 0)
-        .slice(0, 3)
-        .map((r) => ({ tokens: r.tokens })),
-    );
+
+    const topTokens = hud
+      .get()
+      .board.filter((r) => r.tokens > 0)
+      .slice(0, 3)
+      .map((r) => ({ tokens: r.tokens }));
+    showTop(topTokens);
+
     const raid = hud.get().raid;
     const raidIsUp = raid && !raid.prelaunch && !raid.closed && raid.hp > 0;
     showRaid(raidIsUp ? left(raid) / raid.hp : null);

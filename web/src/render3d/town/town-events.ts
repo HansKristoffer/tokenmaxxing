@@ -83,10 +83,13 @@ const stripLights = (o: THREE.Object3D): void => {
   o.traverse((c) => {
     if (c instanceof THREE.PointLight) lights.push(c);
   });
-  for (const l of lights) l.parent?.remove(l);
+  for (const light of lights) light.parent?.remove(light);
 };
 
-/** The cart as the town wants it: no real lights, the lantern's flame and halo kept out of any batch, the halo a soft ball. */
+/**
+ * The cart as the town wants it: no real lights, and the lantern's flame and halo kept out of any batch. The halo
+ * is a soft ball.
+ */
 function prep(c: ReturnType<typeof merchantCart>): void {
   stripLights(c.model);
   c.flame.userData.live = true;
@@ -112,7 +115,8 @@ interface Coin {
  * The town's world events, drawn from the real game's state (the 2D game's `merchant.ts`, `picnic.ts`,
  * `street.ts`, `race.ts`, `launch.ts`): the traveling merchant's cart on the server's clock, the outage picnic
  * with its bunting and the "touched grass" moment, the pølsevogn's sign, the build snail's status and the
- * paperboy's tag, the launch stand and its pamphlets, and the Sprint Race's start line. Officer 429 and the racers are people, drawn by `Entities`.
+ * paperboy's tag, the launch stand and its pamphlets, and the Sprint Race's start line. Officer 429 and the
+ * racers are people, drawn by `Entities`.
  *
  * Everything is built once per town and only shown and hidden, positions are set in place, labels are a few
  * DOM nodes: nothing allocates per frame.
@@ -192,7 +196,8 @@ export class TownEvents {
     this.polseAt = [px + 0.5, pz];
     this.stand = this.toWorld(CART_SPOT.x - 1, CART_SPOT.y);
 
-    // The merchant's cart, stocked for this week: the lantern's flame and halo change colour, so they stay out of any batch.
+    // The merchant's cart, stocked for this week. The lantern's flame and halo change colour, so they stay out of
+    // any batch.
     this.weekShown = weekOf(serverNow());
     this.cart = merchantCart(goodsColors(lineup(this.weekShown)));
     prep(this.cart);
@@ -218,7 +223,8 @@ export class TownEvents {
     this.post.position.set(this.spot[0], 0, this.spot[1] + 0.9);
     this.group.add(this.cartRoot, this.post, this.merchant.root);
 
-    // The launch stand, on its two by two tiles, with someone behind the counter; hidden until something ships.
+    // The launch stand, on its two by two tiles, with someone behind the counter. It stays hidden until something
+    // ships.
     const [lx, lz] = this.toWorld(STAND.x, STAND.y);
     this.launchAt = [lx + (STAND.w - 1) / 2, lz + (STAND.h - 1) / 2];
     this.launchRoot.position.set(this.launchAt[0], 0, this.launchAt[1]);
@@ -285,11 +291,12 @@ export class TownEvents {
       4,
       12,
       (g) => {
-        for (let y = 0; y < 12; y++)
+        for (let y = 0; y < 12; y++) {
           for (let x = 0; x < 4; x++) {
             g.fillStyle = (x + y) % 2 ? "#2b2433" : "#fbf7ef";
             g.fillRect(x, y, 1, 1);
           }
+        }
       },
       false,
     );
@@ -330,8 +337,6 @@ export class TownEvents {
     this.ripple.userData.live = true;
     this.group.add(this.ripple);
   }
-
-  // MARK: Labels
 
   private pill(
     key: string,
@@ -378,8 +383,6 @@ export class TownEvents {
     hud.set({ notice: { text, at: Date.now() } });
   }
 
-  // MARK: Frame
-
   /** A coin from where you stand into the fountain at tile (`tx`, `ty`): an arc, then a ripple. */
   toss(tx: number, ty: number): void {
     const free = this.coins.find((c) => c.at < 0 || this.clock - c.at > COIN_MS) ?? this.coins[0]!;
@@ -402,26 +405,27 @@ export class TownEvents {
   private coinsFrame(f: LiveFrame): void {
     for (const c of this.coins) {
       if (!c.mesh.visible) continue;
-      const k = (f.now - c.at) / COIN_MS;
-      if (k >= 1) {
+      const progress = (f.now - c.at) / COIN_MS;
+      if (progress >= 1) {
         c.mesh.visible = false;
         this.rippleAt = f.now;
         this.rippleWhere = c.to;
         continue;
       }
       c.mesh.position.set(
-        c.from[0] + (c.to[0] - c.from[0]) * k,
-        1.1 + Math.sin(k * Math.PI) * 0.8 - k * 0.5,
-        c.from[1] + (c.to[1] - c.from[1]) * k,
+        c.from[0] + (c.to[0] - c.from[0]) * progress,
+        1.1 + Math.sin(progress * Math.PI) * 0.8 - progress * 0.5,
+        c.from[1] + (c.to[1] - c.from[1]) * progress,
       );
-      c.mesh.rotation.set(k * 14, 0, k * 6);
+      c.mesh.rotation.set(progress * 14, 0, progress * 6);
     }
-    const r = (f.now - this.rippleAt) / 900;
-    this.ripple.visible = r >= 0 && r < 1;
+
+    const ringT = (f.now - this.rippleAt) / 900;
+    this.ripple.visible = ringT >= 0 && ringT < 1;
     if (this.ripple.visible) {
       this.ripple.position.set(this.rippleWhere[0], 0.55, this.rippleWhere[1]);
-      this.ripple.scale.setScalar(1 + r * 3.5);
-      (this.ripple.material as THREE.MeshBasicMaterial).opacity = 0.8 * (1 - r);
+      this.ripple.scale.setScalar(1 + ringT * 3.5);
+      (this.ripple.material as THREE.MeshBasicMaterial).opacity = 0.8 * (1 - ringT);
     }
   }
 
@@ -451,7 +455,9 @@ export class TownEvents {
         bird.root.position.set(px + pose.offset * (i % 2 ? 0.7 : -0.7), pose.lift, pz + pose.offset * 0.2);
         bird.update(pose, i, f.calm);
       });
-    } else for (const bird of this.pigeons) bird.root.visible = false;
+    } else {
+      for (const bird of this.pigeons) bird.root.visible = false;
+    }
     this.coinsFrame(f);
     const near = this.nearCamera(f);
     const calm = f.calm;
@@ -472,13 +478,11 @@ export class TownEvents {
     this.firstFrame = false;
   }
 
-  /** The cart's and the square's corner of the picture is on screen (otherwise the avatars skip their animation). */
+  /** Whether the cart's corner of the square is on screen. Off screen, the avatars skip their animation. */
   private nearCamera(f: LiveFrame): boolean {
     v3.set(this.spot[0], 1, this.spot[1]).project(f.camera);
     return Math.abs(v3.x) < 1.5 && Math.abs(v3.y) < 1.5;
   }
-
-  // MARK: The merchant
 
   private merchantFrame(f: LiveFrame, near: boolean, calm: boolean): void {
     const { cartRoot, merchant, spot } = this;
@@ -510,7 +514,9 @@ export class TownEvents {
       if (this.cartState === "away") {
         cartRoot.visible = false;
         merchant.root.visible = false;
-      } else merchant.pose = "stand";
+      } else {
+        merchant.pose = "stand";
+      }
     }
     if (this.cartState === "arriving") {
       this.cartAt = Math.min(ROLL_TILES, this.cartAt + f.dt * ROLL_SPEED * (calm ? 4 : 1));
@@ -539,16 +545,16 @@ export class TownEvents {
       (this.cart.halo.material as THREE.MeshBasicMaterial).opacity =
         (0.05 + lightsNow(f.now) * 0.1) * (flick ? 1 : 0.85);
       // The merchant walks beside it, then stands by the back wheel and nods at the square now and then.
-      const m = merchant.root;
+      const root = merchant.root;
       if (state === "here") {
-        m.position.set(mx, 0, mz);
+        root.position.set(mx, 0, mz);
         const look = Math.floor(f.now / 2600) % 3 === 2;
-        m.rotation.y = look ? Math.PI / 2 : 0;
+        root.rotation.y = look ? Math.PI / 2 : 0;
         merchant.pose = "wave";
         merchant.expression = "happy";
       } else {
-        m.position.set(mx, 0, z - 0.4);
-        m.rotation.y = state === "leaving" ? Math.PI : 0;
+        root.position.set(mx, 0, z - 0.4);
+        root.rotation.y = state === "leaving" ? Math.PI : 0;
         merchant.pose = "walk";
       }
       if (near) merchant.update(f.dt, f.t);
@@ -574,19 +580,17 @@ export class TownEvents {
 
   /** The cart's goods as this week's lineup (the colours of the four editions). */
   private restock(colors: string[]): void {
-    const was = this.cart.model;
+    const previous = this.cart.model;
     const next = merchantCart(colors);
     prep(next);
     mergeStill(next.model);
-    this.cartRoot.remove(was);
-    disposeObject(was);
+    this.cartRoot.remove(previous);
+    disposeObject(previous);
     this.cartRoot.add(next.model);
     this.cart.model = next.model;
     this.cart.flame = next.flame;
     this.cart.halo = next.halo;
   }
-
-  // MARK: The picnic
 
   private picnicFrame(f: LiveFrame): void {
     const on = outageNow() !== null;
@@ -595,10 +599,10 @@ export class TownEvents {
       this.picnic.visible = on;
     }
     // The reward: the server's notice for the badge says "Touched grass": a patch sprouts where you sit.
-    const n = hud.get().notice;
-    if (n && n.at !== this.noticeAt) {
-      this.noticeAt = n.at;
-      if (isGrassNotice(n.text) && f.me) {
+    const notice = hud.get().notice;
+    if (notice && notice.at !== this.noticeAt) {
+      this.noticeAt = notice.at;
+      if (isGrassNotice(notice.text) && f.me) {
         this.grassAt = f.now;
         this.grass.visible = true;
         this.grass.position.set(f.me[0] + 0.7, 0, f.me[1] + 0.2);
@@ -607,22 +611,22 @@ export class TownEvents {
       }
     }
     if (this.grass.visible) {
-      const k = Math.min(1, Math.max(0, (f.now - this.grassAt) / 600)) - 1;
-      // k runs from -1 to 0. The sprout swells a little past full size, then settles at 1.
-      const e = f.calm ? 1 : 1 + 2.7 * k ** 3 + 1.7 * k ** 2;
-      this.grass.scale.setScalar(Math.max(0.01, e));
+      const growth = Math.min(1, Math.max(0, (f.now - this.grassAt) / 600)) - 1;
+      // `growth` runs from -1 to 0. The sprout swells a little past full size, then settles at 1.
+      const scale = f.calm ? 1 : 1 + 2.7 * growth ** 3 + 1.7 * growth ** 2;
+      this.grass.scale.setScalar(Math.max(0.01, scale));
       if (f.now - this.grassAt > GRASS_MS || !on) {
         this.grass.visible = false;
       }
     }
   }
 
-  // MARK: The street
-
-  /** The street's clock-driven state, worked out four times a second (the clock is read through `Intl`) and drawn every frame. */
+  /**
+   * The street's clock-driven state, worked out four times a second (the clock is read through `Intl`) and drawn
+   * every frame.
+   */
   private readonly street = {
     at: -Infinity,
-    m: 0,
     open: false,
     phase: "queued" as "queued" | "deploying" | "deployed",
     snail: [0, 0] as [number, number],
@@ -634,25 +638,24 @@ export class TownEvents {
     if (f.now - st.at >= STREET_EVERY_MS) {
       st.at = f.now;
       const at = skyNow();
-      const m = clockMinutes(at);
-      st.m = m;
+      const minute = clockMinutes(at);
       st.open = polseOpen(at);
-      const s = snailAt(at);
-      st.phase = s.phase;
-      st.snail = this.toWorld(s.x, s.y);
+      const snail = snailAt(at);
+      st.phase = snail.phase;
+      st.snail = this.toWorld(snail.x, snail.y);
       if (this.ridesFor !== world.map) {
         this.ridesFor = world.map;
         const map = world.map;
         this.rides = paperRides([...map.find("D"), ...map.find("I")], map.x0 + 1, map.x0 + map.width - 1);
       }
-      const boy = m >= PAPER.at ? paperboyAt(this.rides!, m) : null;
+      const boy = minute >= PAPER.at ? paperboyAt(this.rides!, minute) : null;
       st.boy = boy ? this.toWorld(boy.x, boy.y) : null;
       // The build finishing while you watch: confetti over the snail, once.
-      if (crossed(this.lastMinute, m, SNAIL.arrives)) {
+      if (crossed(this.lastMinute, minute, SNAIL.arrives)) {
         this.burst(["🎉", "✨", "✅"], st.snail[0], 0.9, st.snail[1], f.now);
         this.notify("🐌 Build succeeded. The snail has deployed to production.");
       }
-      this.lastMinute = m;
+      this.lastMinute = minute;
     }
     // The pølsevogn's sign over its two tiles.
     v3.set(this.polseAt[0], 1.75, this.polseAt[1]);
@@ -683,8 +686,6 @@ export class TownEvents {
       this.pill("paper", "r3-sign own", "📰 Paper!", v3, f.camera);
     } else this.hide("paper");
   }
-
-  // MARK: The launch stand
 
   /** The price board on the square's north-east lamp post (`core/src/grid.ts`), as in 2D. */
   private gridFrame(f: LiveFrame): void {
@@ -727,7 +728,8 @@ export class TownEvents {
       this.flyer.visible = false;
       return;
     }
-    // The presenter waves only while the stand is in the picture (the merchant's `near` is the other side of the square).
+    // The presenter waves only while the stand is in the picture. The merchant's `near` is the other side of the
+    // square.
     v3.set(this.launchAt[0], 1, this.launchAt[1]).project(f.camera);
     if (Math.abs(v3.x) < 1.5 && Math.abs(v3.y) < 1.5) this.presenter.update(f.dt, f.t);
     v3.set(this.launchAt[0], 2.05, this.launchAt[1]);
@@ -746,17 +748,15 @@ export class TownEvents {
       const [tx, tz] = this.toWorld(flying.x, flying.y);
       const fx = this.launchAt[0];
       const fz = this.launchAt[1] + 0.3;
-      const k = flying.t;
+      const progress = flying.t;
       this.flyer.position.set(
-        fx + (tx - fx) * k,
-        0.95 + Math.sin(k * Math.PI) * 0.9 - k * 0.15,
-        fz + (tz - fz) * k,
+        fx + (tx - fx) * progress,
+        0.95 + Math.sin(progress * Math.PI) * 0.9 - progress * 0.15,
+        fz + (tz - fz) * progress,
       );
-      this.flyer.rotation.set(0, k * 9, Math.sin(k * Math.PI) * 0.6);
+      this.flyer.rotation.set(0, progress * 9, Math.sin(progress * Math.PI) * 0.6);
     }
   }
-
-  // MARK: The race
 
   private raceFrame(): void {
     const game = [...world.games.values()].find(raceLive);
@@ -785,9 +785,7 @@ export class TownEvents {
     this.line.visible = true;
   }
 
-  // MARK: Teardown
-
-  /** The town is kept while you are elsewhere: its signs and bursts are DOM labels and would hang over another room. */
+  /** The town is kept while you are elsewhere. Its signs and bursts are DOM labels, and would hang over another room. */
   leave(): void {
     for (const k of this.pills.keys()) this.hide(k);
     for (const b of this.bursts) b.burst.dispose();

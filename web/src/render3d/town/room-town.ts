@@ -45,7 +45,7 @@ export function buildTownView(id: string, ctx: RoomCtx): RoomView {
   const town: Town3d = built.value;
   town.setClock(ctx.minutes);
   town.setWeather(weatherNow);
-  const [W, D] = town.size;
+  const [width, depth] = town.size;
   const events = new TownEvents((tx, ty) => town.toWorld(tx, ty));
   const statue = new StatueLayer(town.map.find(STATUE_TILE)[0], (tx, ty) => town.toWorld(tx, ty));
   events.group.add(statue.group);
@@ -123,7 +123,8 @@ export function buildTownView(id: string, ctx: RoomCtx): RoomView {
   group.add(befrielsen.group);
   // The festive theme's named NPC, there while its theme is (`FESTIVE_NPC`).
   const festiveNpc = new FestiveNpc3d((tx, ty) => town.toWorld(tx, ty));
-  // Added after the room is batched, like the statue: what is built later must not be swept into the room's batches.
+  // Added after the room is batched, like the statue: what is built later must not be swept into the room's
+  // batches.
   events.group.add(festiveNpc.group);
   // Halloween's spooky night: bats, ghosts, cobwebs, the cauldron, the lawn stones, mist (`core/src/spooky.ts`).
   const halloween = new HalloweenTown3d(ctx.map, (tx, ty) => town.toWorld(tx, ty));
@@ -152,20 +153,25 @@ export function buildTownView(id: string, ctx: RoomCtx): RoomView {
   const signs = (): Sign[] =>
     town.doors.flatMap((d): Sign[] => {
       const at: [number, number, number] = [d.at[0], 3.2, d.at[1]];
-      if (d.kind === "inn") return [{ key: "inn", at: [d.at[0], 3.4, d.at[1]], kind: "inn" }];
-      if (d.kind === "hq" && d.companyId !== undefined)
+      if (d.kind === "inn") {
+        return [{ key: "inn", at: [d.at[0], 3.4, d.at[1]], kind: "inn" }];
+      }
+      if (d.kind === "hq" && d.companyId !== undefined) {
         return [{ key: `co:${d.companyId}`, at, kind: "company", companyId: d.companyId }];
-      if (d.kind === "julemarked")
+      }
+      if (d.kind === "julemarked") {
         return [{ key: d.id, at: [d.at[0], 3.9, d.at[1] - 0.4], kind: "door", text: "🎄 Julemarked" }];
-      if (d.kind === "shop")
+      }
+      if (d.kind === "shop") {
         return [{ key: d.id, at: [d.at[0], 2.6, d.at[1] + 0.2], kind: "door", text: `🛍 ${d.label}` }];
+      }
       return [];
     });
   return {
     id,
     group,
     outdoors: true,
-    bounds: { minX: 0, maxX: W, minZ: 0, maxZ: D, height: 3 },
+    bounds: { minX: 0, maxX: width, minZ: 0, maxZ: depth, height: 3 },
     view: TOWN_VIEW,
     toWorld: (tx, ty) => town.toWorld(tx, ty),
     toTile: (x, z) => town.toTile(x, z),
@@ -205,7 +211,7 @@ export function buildTownView(id: string, ctx: RoomCtx): RoomView {
       graveyard.update(f.now);
       statue.update(f);
 
-      const [x, z] = f.me ?? [W / 2, D / 2];
+      const [x, z] = f.me ?? [width / 2, depth / 2];
       wind.set(windPush(weatherNow()) * 2.5, 0);
       leaves.update(f.dt, f.t, seasonLookNow().look.falling, f.density, wind, x, z);
     },

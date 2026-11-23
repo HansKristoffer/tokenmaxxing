@@ -13,6 +13,8 @@ export const MARKER_REACH = 3.2;
 
 let ringGeometry: THREE.RingGeometry | null = null;
 let ringMaterial: THREE.MeshBasicMaterial | null = null;
+
+/** The ring geometry and material every marker shares, made on first use. */
 function shared(): { geometry: THREE.RingGeometry; material: THREE.MeshBasicMaterial } {
   ringGeometry ??= new THREE.RingGeometry(0.3, 0.46, 24);
   ringMaterial ??= new THREE.MeshBasicMaterial({
@@ -37,9 +39,12 @@ export function thresholdOf(map: GameMap, x: number, y: number): [number, number
     [0, 1],
     [0, -1],
   ] as const;
-  for (const [dx, dy] of sides)
+  for (const [dx, dy] of sides) {
     if (map.walkable(x + dx, y + dy) && map.at(x - dx, y - dy) === "W") return [x + dx, y + dy];
-  for (const [dx, dy] of sides) if (map.walkable(x + dx, y + dy)) return [x + dx, y + dy];
+  }
+  for (const [dx, dy] of sides) {
+    if (map.walkable(x + dx, y + dy)) return [x + dx, y + dy];
+  }
   return [x, y];
 }
 
@@ -57,7 +62,7 @@ export function exitsOf(map: GameMap): Exit[] {
     for (let rx = 0; rx < row.length; rx++) {
       const x = rx + map.x0;
       const y = ry + map.y0;
-      if (map.kind(x, y).portal) out.push({ ch: row[rx]!, x, y, at: thresholdOf(map, x, y) });
+      if (map.kind(x, y).portal) out.push({ ch: row.charAt(rx), x, y, at: thresholdOf(map, x, y) });
     }
   });
   return out;
@@ -77,7 +82,8 @@ export class ExitMarkers {
       mesh.rotation.x = -Math.PI / 2;
       mesh.position.set(x, 0.03, z);
       mesh.visible = false;
-      mesh.castShadow = mesh.receiveShadow = false;
+      mesh.castShadow = false;
+      mesh.receiveShadow = false;
       mesh.frustumCulled = false;
       this.group.add(mesh);
       this.rings.push({ mesh, x, z });

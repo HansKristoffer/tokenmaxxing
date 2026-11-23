@@ -23,6 +23,25 @@ const WALL_H = 2.6;
 /** How thick a room's walls are: they stand just outside its floor, their inner face on its edge. */
 export const WALL_T = 0.15;
 
+/**
+ * A floor slab, 0.35 thick and standing just under the floor line: `top` on its upper face, `edge` (a colour) on
+ * the four sides and the underside.
+ */
+export function floorSlab(W: number, D: number, top: THREE.Texture, edge: string): THREE.Mesh {
+  const side = toon(edge);
+  const slab = new THREE.Mesh(new THREE.BoxGeometry(W, 0.35, D), [
+    side,
+    side,
+    painted(top),
+    side,
+    side,
+    side,
+  ]);
+  slab.position.set(W / 2, -0.175, D / 2);
+  slab.receiveShadow = true;
+  return slab;
+}
+
 /** The sky through a window, by day or night. */
 const skyTexture = (night: boolean) =>
   canvasTexture(8, 16, (g) => {
@@ -49,27 +68,28 @@ const DAY_SKY = glow("#fff", skyTexture(false));
 const NIGHT_SKY = glow("#fff", skyTexture(true));
 const windows: THREE.Mesh[] = [];
 
-/** A window on a wall's inner face; `at` is its bottom centre. */
+/** A window on a wall's inner face, `x` along the wall from its centre. */
 function windowOn(wall: Model, x: number): void {
-  const w = wall.part([x, 1.2, WALL_T / 2 + 0.01]);
-  const pane = w.plane(0.9, 0.85, DAY_SKY, [0, 0.45, 0]);
+  const frame = wall.part([x, 1.2, WALL_T / 2 + 0.01]);
+  const pane = frame.plane(0.9, 0.85, DAY_SKY, [0, 0.45, 0]);
   pane.userData.nightGlow = { mesh: pane, day: DAY_SKY, night: NIGHT_SKY };
   windows.push(pane);
-  w.box([1.02, 0.07, 0.07], C.white, [0, -0.04, 0], 0.015);
-  w.box([1.02, 0.07, 0.05], C.white, [0, 0.86, 0], 0.015);
-  for (const s of [-1, 0, 1]) w.box([0.06, 0.88, 0.05], C.white, [s * 0.48, 0.01, 0], 0.012);
-  w.box([0.96, 0.04, 0.04], C.white, [0, 0.43, 0]);
-  w.box([1.2, 0.05, 0.16], C.white, [0, -0.08, 0.05], 0.015);
-  for (const s of [-1, 1]) w.box([0.22, 1.0, 0.04], "#6d7fc4", [s * 0.6, -0.08, 0.04], 0.02);
-  w.box([1.4, 0.04, 0.06], C.woodDark, [0, 1.0, 0.04]);
+  frame.box([1.02, 0.07, 0.07], C.white, [0, -0.04, 0], 0.015);
+  frame.box([1.02, 0.07, 0.05], C.white, [0, 0.86, 0], 0.015);
+  for (const s of [-1, 0, 1]) frame.box([0.06, 0.88, 0.05], C.white, [s * 0.48, 0.01, 0], 0.012);
+  frame.box([0.96, 0.04, 0.04], C.white, [0, 0.43, 0]);
+  frame.box([1.2, 0.05, 0.16], C.white, [0, -0.08, 0.05], 0.015);
+  for (const s of [-1, 1]) frame.box([0.22, 1.0, 0.04], "#6d7fc4", [s * 0.6, -0.08, 0.04], 0.02);
+  frame.box([1.4, 0.04, 0.06], C.woodDark, [0, 1.0, 0.04]);
 }
 
+/** A door on a wall's inner face, `x` along the wall from its centre. */
 function doorOn(wall: Model, x: number): void {
-  const d = wall.part([x, 0, WALL_T / 2 + 0.01]);
-  d.box([0.95, 2.05, 0.06], C.white, [0, 0, 0], 0.02);
-  d.box([0.8, 1.95, 0.05], C.woodDark, [0, 0, 0.02], 0.02);
-  for (const y of [0.2, 1.1]) d.box([0.6, 0.7, 0.02], C.wood, [0, y, 0.045], 0.02);
-  d.ball(0.04, "#e9b73d", [0.3, 1.0, 0.09]);
+  const door = wall.part([x, 0, WALL_T / 2 + 0.01]);
+  door.box([0.95, 2.05, 0.06], C.white, [0, 0, 0], 0.02);
+  door.box([0.8, 1.95, 0.05], C.woodDark, [0, 0, 0.02], 0.02);
+  for (const y of [0.2, 1.1]) door.box([0.6, 0.7, 0.02], C.wood, [0, y, 0.045], 0.02);
+  door.ball(0.04, "#e9b73d", [0.3, 1.0, 0.09]);
 }
 
 export class Room {
@@ -135,6 +155,7 @@ export class Room {
 
   private build(): void {
     const { W, D } = this;
+
     // The static batching holds copies of the old shell: let it go (and batch the new one).
     invalidateBaked(this.group);
     this.shell.removeFromParent();
@@ -153,36 +174,28 @@ export class Room {
     const floor = this.look.floor.clone();
     floor.repeat.set(W / this.look.floorSpan, D / this.look.floorSpan);
     floor.needsUpdate = true;
-    const side = toon(tint(this.look.floorColor, -0.35));
-    const slab = new THREE.Mesh(new THREE.BoxGeometry(W, 0.35, D), [
-      side,
-      side,
-      painted(floor),
-      side,
-      side,
-      side,
-    ]);
-    slab.position.set(W / 2, -0.175, D / 2);
-    slab.receiveShadow = true;
-    this.shell.add(slab);
+    this.shell.add(floorSlab(W, D, floor, tint(this.look.floorColor, -0.35)));
 
     const paper = this.look.wall;
     const wall = (length: number, at: [number, number], turn: number, normal: [number, number]) => {
-      const m = new Model();
-      m.position.set(at[0], 0, at[1]);
-      m.rotation.y = turn;
+      const piece = new Model();
+      piece.position.set(at[0], 0, at[1]);
+      piece.rotation.y = turn;
+
       const tex = paper.clone();
       tex.repeat.set(length / this.look.wallSpan, 1);
       tex.needsUpdate = true;
-      const face = m.box([length, WALL_H, WALL_T], painted(tex), [0, 0, 0], 0);
+      const face = piece.box([length, WALL_H, WALL_T], painted(tex), [0, 0, 0], 0);
       face.castShadow = false;
-      m.box([length + 0.02, 0.12, WALL_T + 0.04], C.woodDark, [0, 0, 0.01], 0.01);
-      m.box([length + 0.04, 0.08, WALL_T + 0.06], C.wallTop, [0, WALL_H, 0], 0.01);
-      this.shell.add(m);
-      m.userData.rigid = true;
-      this.walls.push({ model: m, normal: new THREE.Vector3(normal[0], 0, normal[1]) });
-      return m;
+      piece.box([length + 0.02, 0.12, WALL_T + 0.04], C.woodDark, [0, 0, 0.01], 0.01);
+      piece.box([length + 0.04, 0.08, WALL_T + 0.06], C.wallTop, [0, WALL_H, 0], 0.01);
+
+      this.shell.add(piece);
+      piece.userData.rigid = true;
+      this.walls.push({ model: piece, normal: new THREE.Vector3(normal[0], 0, normal[1]) });
+      return piece;
     };
+
     const gap = this.opts.gap;
     let north: Model;
     if (gap) {
@@ -196,13 +209,14 @@ export class Room {
     const west = wall(D, [-WALL_T / 2, D / 2], Math.PI / 2, [1, 0]);
     wall(W + WALL_T * 2, [W / 2, D + WALL_T / 2], Math.PI, [0, -1]);
     wall(D, [W + WALL_T / 2, D / 2], -Math.PI / 2, [-1, 0]);
+
     // Windows and the door, in each wall's own coordinates (x along it, from its centre).
     if (this.opts.bare) return;
     const before = windows.length;
-    const o = this.opts;
-    for (const x of o.north ?? [3, 10.5]) windowOn(north, x - W / 2);
-    if (o.door !== null) doorOn(north, (o.door ?? 7.5) - W / 2);
-    for (const z of o.west ?? [5.5, 8.5]) windowOn(west, D / 2 - z);
+    const opts = this.opts;
+    for (const x of opts.north ?? [3, 10.5]) windowOn(north, x - W / 2);
+    if (opts.door !== null) doorOn(north, (opts.door ?? 7.5) - W / 2);
+    for (const z of opts.west ?? [5.5, 8.5]) windowOn(west, D / 2 - z);
     this.shellWindows = windows.slice(before);
   }
 
@@ -217,7 +231,7 @@ export class Room {
   }
 
   /**
-   * Hangs `o` on the wall with this normal (as `[x, z]`), where it already stands: it is lowered and raised with the
+   * Hangs `o` on the wall with this normal (as `[x, z]`), where it already stands. It is lowered and raised with the
    * wall (a doorway in it, say), instead of standing at full height when the wall goes down in front of the camera.
    */
   attachToWall(normal: [number, number], o: THREE.Object3D): void {
@@ -227,7 +241,10 @@ export class Room {
     w.model.attach(o);
   }
 
-  /** Keeps the wall with this normal (as `[x, z]`) lowered whatever the camera does: a cutaway while someone is behind it. */
+  /**
+   * Keeps the wall with this normal (as `[x, z]`) lowered whatever the camera does: a cutaway while someone is
+   * behind it.
+   */
   cutaway(normal: [number, number], on: boolean): void {
     for (const w of this.walls) if (w.normal.x === normal[0] && w.normal.z === normal[1]) w.low = on;
   }
@@ -239,7 +256,7 @@ export class Room {
   /** The piece on tile (x, z), or null for an empty or outside tile. */
   at(x: number, z: number): Placed | null {
     if (x < 0 || z < 0 || x >= this.W || z >= this.D) return null;
-    return this.grid[z * this.W + x]!;
+    return this.grid[z * this.W + x] ?? null;
   }
 
   inside(x: number, z: number): boolean {
@@ -270,9 +287,12 @@ export class Room {
     return true;
   }
 
-  /** Marks a tile as taken by `p`. A rug stays under whatever is put on it, so it never takes a tile from a piece. */
-  private claim(cell: number, p: Placed): void {
-    if (p.asset.id !== "rug" || !this.grid[cell]) this.grid[cell] = p;
+  /**
+   * Marks a tile as taken by `piece`. A rug stays under whatever is put on it, so it never takes a tile from a
+   * piece.
+   */
+  private claim(cell: number, piece: Placed): void {
+    if (piece.asset.id !== "rug" || !this.grid[cell]) this.grid[cell] = piece;
   }
 
   place(asset: Asset, x: number, z: number, turn: Turn = 0, model = asset.build()): Placed {
@@ -280,18 +300,19 @@ export class Room {
     model.position.set(x + w / 2, 0, z + d / 2);
     model.rotation.y = (turn * Math.PI) / 2;
     this.group.add(model);
-    const p: Placed = { asset, x, z, turn, model };
-    this.placed.push(p);
+
+    const piece: Placed = { asset, x, z, turn, model };
+    this.placed.push(piece);
     for (let i = 0; i < w; i++) {
-      for (let j = 0; j < d; j++) this.claim((z + j) * this.W + x + i, p);
+      for (let j = 0; j < d; j++) this.claim((z + j) * this.W + x + i, piece);
     }
-    return p;
+    return piece;
   }
 
   /**
-   * Places a piece that is turned `rot` quarter turns clockwise (F) on top of its own `turn`, over the `tiles` map tiles
-   * from (`x`, `z`): along its row, or down its column when it is turned sideways, so what is drawn and what blocks
-   * the way are the tiles the map says.
+   * Places a piece that is turned `rot` quarter turns clockwise (F) on top of its own `turn`, over the `tiles` map
+   * tiles from (`x`, `z`): along its row, or down its column when it is turned sideways. What is drawn and what
+   * blocks the way are then the tiles the map says.
    */
   placeTurned(
     asset: Asset,
@@ -302,16 +323,19 @@ export class Room {
     tiles: number,
     model = asset.build(),
   ): Placed {
+    // The `+ 4` keeps the modulo positive when `turn - rot` is negative.
     const quarter = (((turn - rot) % 4) + 4) % 4;
     if (rot % 2 === 0) return this.place(asset, x, z, quarter as Turn, model);
+
     // Lying down its column: centred on its `tiles` map tiles, whatever depth its art has.
     model.position.set(x + 0.5, 0, z + tiles / 2);
     model.rotation.y = (quarter * Math.PI) / 2;
     this.group.add(model);
-    const p: Placed = { asset, x, z, turn: quarter as Turn, model };
-    this.placed.push(p);
-    for (let j = 0; j < tiles; j++) this.claim((z + j) * this.W + x, p);
-    return p;
+
+    const piece: Placed = { asset, x, z, turn: quarter as Turn, model };
+    this.placed.push(piece);
+    for (let j = 0; j < tiles; j++) this.claim((z + j) * this.W + x, piece);
+    return piece;
   }
 
   /** Something hung on a wall: `x` along the north wall, `y` up it. */

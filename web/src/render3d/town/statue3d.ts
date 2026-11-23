@@ -16,7 +16,8 @@ import { drapeModel, STATUE_TOP, statueModel } from "./fx3d-town.ts";
  * with a burst of confetti. Its sign shows near it, and opens the plaque.
  */
 
-const v3 = new THREE.Vector3();
+// Reused for every projection, so a frame allocates no vector.
+const scratch = new THREE.Vector3();
 
 export class StatueLayer {
   readonly group = new THREE.Group();
@@ -48,40 +49,41 @@ export class StatueLayer {
 
   update(f: LiveFrame): void {
     if (!this.group.visible) return;
-    const s = statueNow();
+    const statue = statueNow();
     const { sign, accent } = plaqueNow();
 
     // Built again only when its colour changes, or it gets its first leader.
-    const look = `${accent}:${!s.leader}`;
+    const look = `${accent}:${!statue.leader}`;
     if (look !== this.look) {
       this.look = look;
       for (const old of [...this.root.children]) {
         this.root.remove(old);
         disposeObject(old);
       }
-      const model = statueModel(accent, !s.leader);
+      const model = statueModel(accent, !statue.leader);
       mergeStill(model);
       this.root.add(model);
     }
 
-    const k = f.calm ? null : unveiling(s, serverNow());
-    this.drape.visible = !s.leader || k !== null;
-    if (k === null) {
+    // `unveil` runs from 0 to 1 while the drape comes off, and is null when there is nothing to lift.
+    const unveil = f.calm ? null : unveiling(statue, serverNow());
+    this.drape.visible = !statue.leader || unveil !== null;
+    if (unveil === null) {
       this.drape.position.y = STATUE_TOP;
       this.drape.scale.setScalar(1);
     } else {
       // Pulled up off the figure, then shrinking away once it's clear.
-      this.drape.position.y = STATUE_TOP + k * 2.4;
-      this.drape.scale.setScalar(1 - k * k);
-      if (this.burstFor !== s.since) {
-        this.burstFor = s.since;
+      this.drape.position.y = STATUE_TOP + unveil * 2.4;
+      this.drape.scale.setScalar(1 - unveil * unveil);
+      if (this.burstFor !== statue.since) {
+        this.burstFor = statue.since;
         this.burst?.dispose();
         this.burst = new Burst(f.overlay, ["🎉", "✨", "🏆"], f.now);
       }
     }
 
     if (this.burst) {
-      const [sx, sy] = f.overlay.project(v3.set(this.at[0], 2, this.at[1]), f.camera);
+      const [sx, sy] = f.overlay.project(scratch.set(this.at[0], 2, this.at[1]), f.camera);
       if (!this.burst.step(f.now, sx, sy)) {
         this.burst.dispose();
         this.burst = null;
@@ -100,7 +102,7 @@ export class StatueLayer {
       this.signBg = accent;
       this.sign.style.background = accent;
     }
-    f.overlay.place(this.sign, v3.set(this.at[0], 2.35, this.at[1]), f.camera, 0, 0, true);
+    f.overlay.place(this.sign, scratch.set(this.at[0], 2.35, this.at[1]), f.camera, 0, 0, true);
   }
 
   /** The town is kept while you're elsewhere: its sign is a DOM label and would hang over another room. */

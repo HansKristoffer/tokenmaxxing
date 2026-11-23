@@ -97,17 +97,18 @@ export class FishingLine {
   update(now: number, toWorld: (x: number, y: number) => [number, number], calm: boolean): void {
     const server = serverNow();
     const shown = lines();
-    for (const [i, l] of shown.entries()) {
+    for (const [i, line] of shown.entries()) {
       let t = this.tackle[i];
       if (!t) {
         t = new Tackle();
         this.tackle.push(t);
         this.group.add(t.group);
       }
+
       t.group.visible = true;
-      const [px, pz] = toWorld(l.x, l.y);
-      const [wx, wz] = toWorld(l.waterX, l.waterY);
-      t.place(px, pz, wx, wz, now, calm, biting(l, server));
+      const [px, pz] = toWorld(line.x, line.y);
+      const [wx, wz] = toWorld(line.waterX, line.waterY);
+      t.place(px, pz, wx, wz, now, calm, biting(line, server));
     }
     for (const t of this.tackle.slice(shown.length)) t.group.visible = false;
     this.updateHeld(now, toWorld, calm);
@@ -142,7 +143,8 @@ export class FishingLine {
       const [wx, wz] = toWorld(h.waterX, h.waterY);
       const { k, lift } = leap(h.t);
       const thrashing = !calm && h.t < 0.8;
-      rig.root.position.set(wx + (px - wx) * k, 0.1 + (HELD_Y - 0.1) * Math.min(1, lift), wz + (pz - wz) * k);
+      const liftY = 0.1 + (HELD_Y - 0.1) * Math.min(1, lift);
+      rig.root.position.set(wx + (px - wx) * k, liftY, wz + (pz - wz) * k);
       // Nose towards the water; it thrashes, tail flapping, until it's back in.
       rig.root.rotation.set(0, wx < px ? Math.PI : 0, thrashing ? Math.sin(now / 60) * 0.25 : 0);
       if (rig.tail) rig.tail.rotation.y = thrashing ? Math.sin(now / 45) * 0.6 : 0;

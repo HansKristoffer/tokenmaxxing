@@ -107,8 +107,6 @@ function layout(n: number, cols: number, w: number, d: number, top = 0.55, botto
   return out;
 }
 
-// MARK: Pens
-
 export interface PenOptions {
   w: number;
   d: number;
@@ -152,6 +150,7 @@ export function petPen(o: PenOptions): Model {
       m.ball(0.16, C.stone, [x, 0.1, z], [1.2, 0.6, 1], 6);
   }
   if (o.bamboo) {
+    // A fixed value between 0 and 1 per index, so the same stalks grow in the same places every time.
     const rnd = (i: number) => ((i * 9301 + 49297) % 233280) / 233280;
     for (let i = 0; i < 16; i++) {
       const x = -w / 2 + 0.3 + rnd(i) * 1.6 + (i % 2 ? w - 2.2 : 0);
@@ -182,14 +181,16 @@ export function petPen(o: PenOptions): Model {
       [x, z] = (water ?? bank ?? [x, z]) as [number, number];
       if (water) y = 0.1;
     }
+    // Each pet turns a little differently from its neighbours.
     const turn = Math.sin(i * 2.7) * 0.7;
     const pet = stand(m, e, x, y, z, o.seed + i, turn);
     if (o.pond && i < 4) {
       live(pet, (t) => (pet.position.y = y + Math.sin(t * 1.8 + i) * 0.012));
     }
-    const t = tag(e.title, e.line, e.kind, { w: 0.48, accent: o.accent, lift: 0.07, lean: -0.55 });
-    t.position.set(x + 0.04, 0, z + 0.46);
-    m.add(t);
+
+    const card = tag(e.title, e.line, e.kind, { w: 0.48, accent: o.accent, lift: 0.07, lean: -0.55 });
+    card.position.set(x + 0.04, 0, z + 0.46);
+    m.add(card);
     o.reg(e.id, x, z, pet);
   });
   // A bone and a ball lying about.
@@ -211,8 +212,6 @@ export function petPen(o: PenOptions): Model {
   return m;
 }
 
-// MARK: Cat condo
-
 const CUSHIONS = ["#e8a0b4", "#a0c4e8", "#c8b0e8", "#f0d080", "#a0d8b0", "#f0a888"];
 
 /** Three tiers of cubbies against the wall, a cat in each, on cushions: 6×1 tiles. */
@@ -230,7 +229,8 @@ export function catCondo(entries: Entry[], reg: Reg): Model {
     // Perch rail on the front of each cubby.
     m.box([W - 0.3, 0.035, 0.035], "#c9a96a", [0, y + 0.2, 0.5], 0.01);
     [-2, 0, 2].forEach((cx, ci) => {
-      m.box([1.55, 0.07, 0.72], CUSHIONS[(ti * 3 + ci) % CUSHIONS.length]!, [cx, y + 0.08, -0.05], 0.03);
+      const cushion = CUSHIONS[(ti * 3 + ci) % CUSHIONS.length]!;
+      m.box([1.55, 0.07, 0.72], cushion, [cx, y + 0.08, -0.05], 0.03);
     });
   });
   // Posts wrapped in rope up one side.
@@ -264,8 +264,7 @@ export function catCondo(entries: Entry[], reg: Reg): Model {
   return m;
 }
 
-// MARK: Dragon terrariums
-
+/** How a terrarium looks: the floor, the colour of its heat lamp, and the decor set on the floor. */
 interface Theme {
   floor: string;
   glow: string;
@@ -280,6 +279,7 @@ const crystals = (t: Model, c: string) => {
   ] as const)
     t.cyl(0.07, h, glass(c, 0.85), [x, 0, z], 0.01, 5);
 };
+/** A dragon's variant names its theme; the base dragon, with no variant, is the `""` one. */
 const THEMES: Record<string, Theme> = {
   "": {
     floor: "#7a8a5a",
@@ -390,8 +390,6 @@ export function terrariums(entries: Entry[], reg: Reg): Model {
   return m;
 }
 
-// MARK: Fish tank
-
 /** A long aquarium on a cabinet against the west wall, goldfish circling: 4×1 tiles (turned to run along z). */
 export function fishTank(): Model {
   const m = new Model();
@@ -478,8 +476,6 @@ export function fishTank(): Model {
   return m;
 }
 
-// MARK: Petwear rack
-
 /** A two-step stand against the wall with the seven pieces of pet gear, each worn by a pet: 5×1 tiles. */
 export function wearRack(entries: Entry[], reg: Reg): Model {
   const m = new Model();
@@ -535,8 +531,6 @@ export function wearRack(entries: Entry[], reg: Reg): Model {
   return m;
 }
 
-// MARK: Domes (the crown and the orb)
-
 /** A pedestal under a glass dome, stood on a 1×1 tile. */
 export function dome(inner: (m: Model) => void, title: string, line: string, glowColor: string): Model {
   const m = new Model();
@@ -572,8 +566,6 @@ export function crownDome(): Model {
     "#ffd96a",
   );
 }
-
-// MARK: Counter, shelf and door
 
 /** The counter with its till, a bell and a jar of biscuits: 5×1 tiles. */
 export function counter(): Model {
@@ -681,7 +673,7 @@ export function toyShelf(): Model {
   for (const y of ys) m.box([W - 0.1, 0.06, 0.9], WOOD_L, [0, y, 0], 0.012);
   // Bottom: bags of food.
   ["#e0584f", "#4f8fe0", "#58b36a", "#f0b53c", "#9b6fd6", "#e0788f"].forEach((c, i) => {
-    foodBag(m, -1.25 + i * 0.5, 0.06, 0 + (i % 2) * 0.04, c);
+    foodBag(m, -1.25 + i * 0.5, 0.06, (i % 2) * 0.04, c);
   });
   // Treats and tins.
   ["#e0584f", "#4f8fe0", "#58b36a", "#f0b53c", "#9b6fd6", "#3fa7a0", "#f28bb2", "#e8e2d4", "#c4544b"].forEach(
@@ -698,14 +690,10 @@ export function toyShelf(): Model {
   yarn(m, -0.5, ys[2]! + 0.06, -0.2, "#e0584f");
   yarn(m, -0.3, ys[2]! + 0.06, -0.2, "#4f8fe0");
   // Top: leashes and a feather wand on hooks.
+  const leashColours = ["#e0584f", "#4f8fe0", "#f5c842", "#3ddc84", "#9b6fd6", "#e0788f"];
   for (let i = 0; i < 6; i++) {
     const x = -1.3 + i * 0.5;
-    m.box(
-      [0.02, 0.4, 0.02],
-      ["#e0584f", "#4f8fe0", "#f5c842", "#3ddc84", "#9b6fd6", "#e0788f"][i]!,
-      [x, ys[3]! - 0.5, -0.4],
-      0.005,
-    );
+    m.box([0.02, 0.4, 0.02], leashColours[i]!, [x, ys[3]! - 0.5, -0.4], 0.005);
     m.box([0.05, 0.05, 0.05], "#5d6470", [x, ys[3]! - 0.12, -0.4], 0.005);
   }
   return m;

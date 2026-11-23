@@ -14,7 +14,10 @@ import { done, type Outcome } from "./purchase.ts";
 
 export const RARITY_COLOUR: Record<string, string> = RARITY_HEX;
 
-/** What the buy panel needs of the world (`ShopWorld`, `world.ts`): showing a look for now, and the render style of its 3D preview. */
+/**
+ * What the buy panel needs of the world (`ShopWorld`, `world.ts`): showing a look for now, and the render
+ * style of its 3D preview.
+ */
 export interface PanelHooks {
   /** Shows `look` on the player for now (null puts the saved one back). */
   previewLook(look: Look2D | null): void;
@@ -48,6 +51,8 @@ export interface ItemInfo {
 }
 
 const pretty = (s: string) => s.replace(/[-_]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+
+/** The pet a look belongs to: `pet.2.calico` is `pet.2`. */
 const petOf = (id: string) => CATALOG_PETS.find((p) => p.id === id.split(".").slice(0, 2).join("."));
 
 /** Company furniture and the posters are paid from the company wallet. */
@@ -115,8 +120,11 @@ export function infoOf(shop: ShopId, item: ShopItem, backend: ShopBackend): Item
   const g = d.gate;
   const count = backend.count(item.id);
   const again = backend.stackable(item.id);
-  const have =
-    d.have ?? (again ? count > 0 : g.kind === "free" || g.kind === "earned" || backend.owns(item.id));
+
+  // A stackable item is held when any are; a one-off when it is free, earned or owned.
+  const heldOnce = g.kind === "free" || g.kind === "earned" || backend.owns(item.id);
+  const have = d.have ?? (again ? count > 0 : heldOnce);
+
   return {
     group: d.group,
     rarity: d.rarity,
@@ -143,6 +151,7 @@ export interface Action {
 /** The things to do with an item the player has. */
 export function actionsOf(shop: ShopId, item: ShopItem, hooks: PanelHooks, backend: ShopBackend): Action[] {
   const out: Action[] = [];
+
   const equip =
     (on = true) =>
     () =>
@@ -152,6 +161,7 @@ export function actionsOf(shop: ShopId, item: ShopItem, hooks: PanelHooks, backe
     show();
     return done();
   };
+
   if (shop === "furniture") {
     const row = FURNITURE_SHOP_ROWS.find((r) => r.id === item.id);
     if (!row) return out;
