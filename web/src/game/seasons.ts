@@ -26,7 +26,7 @@ import { skyNow } from "./sky.ts";
 const urlPin = pinnedDay(new URLSearchParams(location.search).get("season") ?? "");
 
 /** The day of the year the town shows: the date's (moved by `?sky=`), unless it is pinned. */
-export const seasonDayNow = (): number => townDay(skyNow(), urlPin ?? hud.get().seasonDay);
+const seasonDayNow = (): number => townDay(skyNow(), urlPin ?? hud.get().seasonDay);
 export const seasonNow = (): Season => seasonOfDay(seasonDayNow());
 
 let shown: { minute: number; pin: number | null; look: SeasonLook; key: string } | null = null;
@@ -40,8 +40,6 @@ export function seasonLookNow(): { look: SeasonLook; key: string } {
   shown = { minute, pin, look, key: lookKey(look) };
   return shown;
 }
-
-// MARK: Colours
 
 type RGB = readonly [number, number, number];
 const mix = (a: RGB, b: RGB, t: number): RGB => [
@@ -131,7 +129,7 @@ const BRANCHES: readonly (readonly [number, number])[] = [
 export type Plant = "tree" | "bush" | "ground";
 
 /** Trees come in three variants: each turns a colour of its own, a little earlier or later, and blossoms or not. */
-export const TREE_VARIANTS = 3;
+const TREE_VARIANTS = 3;
 
 /** Paints `l` into a copy of `src`, whose pixels are the town's palette. */
 function paint(src: HTMLCanvasElement, plant: Plant, variant: number, l: SeasonLook): HTMLCanvasElement {
@@ -175,12 +173,12 @@ function paint(src: HTMLCanvasElement, plant: Plant, variant: number, l: SeasonL
     const turn = tree ? l.turn : l.turn * 0.6;
     const early = variant / TREE_VARIANTS;
     const was = Uint8ClampedArray.from(d);
-    const shade = (x: number, y: number) =>
-      x < 0 || y < 0 || x >= w || y >= out.height
-        ? undefined
-        : leafIndex.get(pack(was[(y * w + x) * 4]!, was[(y * w + x) * 4 + 1]!, was[(y * w + x) * 4 + 2]!));
-    // Leaves fall two by two pixels: a clump stays while `leaf` is above its number.
-    // Clumps of two by two pixels stay or fall together. The hash maps to 0.03 to 0.97, so `leaf` is the share kept.
+    const shade = (x: number, y: number) => {
+      if (x < 0 || y < 0 || x >= w || y >= out.height) return undefined;
+      const i = (y * w + x) * 4;
+      return leafIndex.get(pack(was[i]!, was[i + 1]!, was[i + 2]!));
+    };
+    // Two-by-two clumps of leaves stay or fall together. The hash lands in 0.03 to 0.97, so `leaf` is the share kept.
     const stays = (x: number, y: number) => hash(x >> 1, y >> 1, 75 + variant) * 0.94 + 0.03 < leaf;
     if (tree && leaf < 1) {
       for (const [x, y] of BRANCHES) {

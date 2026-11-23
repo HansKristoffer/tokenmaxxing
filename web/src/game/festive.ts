@@ -32,7 +32,7 @@ const urlPin = urlText === null ? null : parseFestivePin(urlText, loaded);
 export const festiveUrlPinned = urlPin !== null;
 
 /** Whether the player has seasonal effects on (default). */
-export const seasonalOn = (): boolean => graphics.get().overrides.seasonal !== false;
+const seasonalOn = (): boolean => graphics.get().overrides.seasonal !== false;
 
 /** A pin moved on by the time since it was made, so a pinned evening goes on into the night. */
 const ticking = (pin: FestivePin, since: number): FestivePin =>

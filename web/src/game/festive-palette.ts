@@ -69,10 +69,6 @@ export const SKY: Record<
   agustusan: { duskTop: "#5f7cc0", duskHor: "#ffb07c", nightTop: "#0c1438", nightHor: "#3c3f78" },
 };
 
-/** How far the dome moves toward `SKY` (0..1): none by day, most at dusk and night. */
-export const skyWeight = (f: Festive, darkness: number, warmth: number): number =>
-  Math.min(1, f.intensity * 0.8 * Math.max(darkness, warmth));
-
 /** The toast for the first visit of the day in a theme: "Happy Halloween", "6 sleeps to Christmas". */
 export function festiveGreeting(f: Festive): string {
   switch (f.id) {
@@ -86,19 +82,17 @@ export function festiveGreeting(f: Festive): string {
     case "sanktHans":
       return f.days < 0 ? "🔥 Sankt Hans tomorrow: bonfires on the beach" : "🔥 Glædelig Sankt Hans";
     case "nytar":
-      return f.days < 0
-        ? "🎆 Nytårsaften tomorrow"
-        : f.days === 0
-          ? "🎆 Godt nytår i aften"
-          : "🎆 Godt nytår";
+      if (f.days < 0) return "🎆 Nytårsaften tomorrow";
+      return f.days === 0 ? "🎆 Godt nytår i aften" : "🎆 Godt nytår";
     case "paaske":
       if (f.days < 0) return `🐣 ${plural(-f.days, "sleep")} to Easter: painted eggs are hidden in town`;
       return f.days === 0 ? "🐣 Glædelig påske, Easter Sunday" : "🐣 Glædelig påske, Easter Monday";
     case "befrielsen":
       return f.days === 0 ? "🕯️ Lys i vinduerne i aften, 4. maj" : "🕊️ Glædelig befrielsesdag";
-    case "agustusan":
-      return f.days === 0
-        ? "🇮🇩 Selamat Hari Kemerdekaan! Dirgahayu RI, merdeka!"
-        : `🇮🇩 ${f.days === -1 ? "Besok" : `${-f.days} hari lagi`}: 17 Agustus, Hari Kemerdekaan`;
+    case "agustusan": {
+      if (f.days === 0) return "🇮🇩 Selamat Hari Kemerdekaan! Dirgahayu RI, merdeka!";
+      const when = f.days === -1 ? "Besok" : `${-f.days} hari lagi`;
+      return `🇮🇩 ${when}: 17 Agustus, Hari Kemerdekaan`;
+    }
   }
 }

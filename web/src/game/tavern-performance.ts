@@ -26,9 +26,7 @@ export function bandCaption(): string {
 }
 export function bandText(): string {
   const at = tavernNow();
-  return tavernSet(at)
-    ? hud.get().jukebox
-      ? `${BAND_NAME} are taking a break for the jukebox.`
-      : `${BAND_NAME} · ${themeOf("inn", null, at).name}. Lute, flute, and a little 8-bit magic.`
-    : `${BAND_NAME} play medieval chiptunes here every day, 16:00–00:00.`;
+  if (!tavernSet(at)) return `${BAND_NAME} play medieval chiptunes here every day, 16:00–00:00.`;
+  if (hud.get().jukebox) return `${BAND_NAME} are taking a break for the jukebox.`;
+  return `${BAND_NAME} · ${themeOf("inn", null, at).name}. Lute, flute, and a little 8-bit magic.`;
 }

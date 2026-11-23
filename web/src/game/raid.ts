@@ -277,7 +277,7 @@ export function drawRaid(f: Frame): void {
     const occupied = [...world.avatars.values()].some(
       (a) => a.state === "sit" && (a.info.id === p.id || (a.x === seat[0] && a.y === seat[1])),
     );
-    if (!occupied)
+    if (!occupied) {
       items.push({
         y: py + TILE - 0.5,
         draw: () => {
@@ -285,6 +285,7 @@ export function drawRaid(f: Frame): void {
           g.drawImage(chairBack(), px, py);
         },
       });
+    }
 
     // Minions: up to two rows of four behind the chair.
     const minions = Math.min(MINIONS_SHOWN, p.agents - 1);
@@ -475,7 +476,7 @@ function drawBoss(f: Frame, r: Raid): void {
     draw: () => {
       g.fillStyle = C.shadow;
       g.fillRect(AT.x - 14, AT.y - 2, 28, 3);
-      // Before Monday's opening the one that got away dozes, dim.
+      // A fallen boss fades out. While the week is closed the boss dozes, dim, until Monday.
       g.globalAlpha = fell ? Math.max(0.15, 1 - t) : closed ? 0.55 : arriving;
       g.drawImage(sprite, x, y, BOSS_W, h);
       if (zap) {
@@ -491,11 +492,12 @@ function drawBoss(f: Frame, r: Raid): void {
   const { sx, sy, x0: bx, y0: byTop, x1: bx2, y1: byBottom } = bossBox(f);
   labels.push(() => {
     const share = fell ? 0 : r.hp > 0 ? left(r) / r.hp : 0;
-    const title = fell
-      ? `🏆 ${fell.boss.name} fell!`
-      : closed
-        ? `🏁 ${r.cleared ? "Ladder cleared" : "Week over"} · ${r.kills.length} fell · opens ${opensAt(r)} Mon`
-        : `${r.boss.emoji} ${r.boss.name} · Rung ${r.boss.rung}`;
+    let title = `${r.boss.emoji} ${r.boss.name} · Rung ${r.boss.rung}`;
+    if (closed) {
+      title = `🏁 ${r.cleared ? "Ladder cleared" : "Week over"} · ${r.kills.length} fell · opens ${opensAt(r)} Mon`;
+    }
+    // A fallen boss takes the title over the week's closing line.
+    if (fell) title = `🏆 ${fell.boss.name} fell!`;
     const top = sy - 14 * dpr;
     const gold = !!fell || (closed && r.kills.length > 0);
     const { w, h } = pill(
@@ -602,8 +604,8 @@ function drawGate(f: Frame, r: Raid) {
     return;
   }
   if (fx.launch !== null && now - fx.launch < BURST_MS) drawBurst(f, gx, gy, now - fx.launch);
-  if (r.closed)
-    // A portcullis over the way down.
+  // A portcullis over the way down.
+  if (r.closed) {
     items.push({
       y: (gy + 1) * TILE - 0.25,
       draw: () => {
@@ -613,12 +615,12 @@ function drawGate(f: Frame, r: Raid) {
         g.fillRect(gx * TILE + 2, gy * TILE + 9, 12, 1);
       },
     });
+  }
   const [sx, sy] = toScreen((gx + 0.5) * TILE, gy * TILE - 12);
-  const text = r.closed
-    ? `⚔️ Raid Dungeon · shut · opens ${opensAt(r)}`
-    : r.cleared
-      ? `⚔️ Raid Dungeon · cleared · back Monday ${opensAt(r)}`
-      : `⚔️ Raid Dungeon · ${r.boss.emoji} ${r.boss.name} · rung ${r.boss.rung} · ${pct(r)}%`;
+  let text = `⚔️ Raid Dungeon · ${r.boss.emoji} ${r.boss.name} · rung ${r.boss.rung} · ${pct(r)}%`;
+  if (r.cleared) text = `⚔️ Raid Dungeon · cleared · back Monday ${opensAt(r)}`;
+  // A shut week reads as shut even when its ladder is cleared.
+  if (r.closed) text = `⚔️ Raid Dungeon · shut · opens ${opensAt(r)}`;
   labels.push(() => {
     const { w, h } = nearPill(g, sx, sy, text, dpr, "rgba(20, 24, 34, 0.9)", "#ffd35c");
     gameHits.push({ x: sx - w / 2, y: sy - h, w, h, open: openRaid });
@@ -660,13 +662,14 @@ function drawBoarded(
       g.drawImage(boardedGate(), x + shake, y);
       g.drawImage(dangerSign(), x + 7 + shake, y + 11);
       // Dust shaken off the arch.
-      if (rumbling)
+      if (rumbling) {
         for (let i = 0; i < 6; i++) {
           const t = (phase / RUMBLE_MS + i / 6) % 1;
           g.globalAlpha = 1 - t;
           g.fillStyle = C.stoneLight;
           g.fillRect(x + 3 + Math.floor(hash(i, 1, 3) * 18), y + 3 + Math.round(t * 22), 1, 1);
         }
+      }
       g.globalAlpha = 1;
     },
   });

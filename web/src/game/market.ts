@@ -47,7 +47,7 @@ function spriteOf(id: string): HTMLCanvasElement | null {
 }
 
 /** What a listing says about itself in a line, for the one you face. */
-export function listingLine(l: Listing): string {
+function listingLine(l: Listing): string {
   const name = itemById(l.item)?.name ?? l.item;
   const number = l.edition ? ` #${l.edition.n}` : "";
   return `${name}${number} · 🪙 ${l.price.toLocaleString()} · ${l.seller}`;

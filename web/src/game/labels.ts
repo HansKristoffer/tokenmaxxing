@@ -32,7 +32,7 @@ export function focusLabels(me: { x: number; y: number } | null, all: boolean, n
 }
 
 /** A label's alpha for its spot on screen (canvas pixels): fainter the farther away the player is, unless hovered. */
-export function alphaAt(sx: number, sy: number): number {
+function alphaAt(sx: number, sy: number): number {
   if (Number.isNaN(focus.x)) return 1;
   const tx = (sx / camera.scale + camera.x) / TILE;
   const ty = (sy / camera.scale + camera.y) / TILE;
@@ -69,9 +69,7 @@ function chipRow(g: CanvasRenderingContext2D, people: Peek[], dpr: number) {
   const hit = chipRows.get(people);
   if (hit?.dpr === dpr) return hit;
   g.font = fontsAt(dpr).chip;
-  const texts = people
-    .slice(0, CHIPS_MAX)
-    .map((p) => `${p.state === "away" ? "💤 " : p.state === "working" ? "💻 " : ""}${p.name} Lv${p.level}`);
+  const texts = people.slice(0, CHIPS_MAX).map((p) => `${stateIcon(p.state)}${p.name} Lv${p.level}`);
   if (people.length > CHIPS_MAX) texts.push(`+${people.length - CHIPS_MAX}`);
   const pad = 5 * dpr;
   const gap = 3 * dpr;
@@ -79,6 +77,13 @@ function chipRow(g: CanvasRenderingContext2D, people: Peek[], dpr: number) {
   const row = { dpr, texts, widths, w: sumBy(widths, (w) => w) + gap * (widths.length - 1), pad, gap };
   chipRows.set(people, row);
   return row;
+}
+
+/** A chip's icon: asleep or at a desk. Someone walking about gets none. */
+function stateIcon(state: Peek["state"]): string {
+  if (state === "away") return "💤 ";
+  if (state === "working") return "💻 ";
+  return "";
 }
 
 /** How wide a house's row of chips is, in canvas pixels. */
@@ -331,7 +336,8 @@ function wrapped(g: CanvasRenderingContext2D, text: string, dpr: number) {
   lines.push(line);
   const shown = lines.slice(0, 3);
   if (lines.length > 3) shown[2] = `${shown[2]!.slice(0, -1)}…`;
-  const w = Math.min(maxW, Math.max(...shown.map((l) => g.measureText(l).width))) + 14 * dpr;
+  const widest = Math.max(...shown.map((l) => g.measureText(l).width));
+  const w = Math.min(maxW, widest) + 14 * dpr;
   if (wraps.size > 500) wraps.clear();
   wraps.set(key, { shown, w });
   return { shown, w };

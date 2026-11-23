@@ -32,11 +32,13 @@ const CALLS = [
 ];
 
 export const openCart = (): void => {
-  if (cartOpen(serverNow())) hud.set({ panel: { kind: "merchant" } });
-  else
-    hud.set({
-      dialog: "The merchant's pitch. The cart rolls in on Thursday at 08:00 and stays the weekend.",
-    });
+  if (cartOpen(serverNow())) {
+    hud.set({ panel: { kind: "merchant" } });
+    return;
+  }
+  hud.set({
+    dialog: "The merchant's pitch. The cart rolls in on Thursday at 08:00 and stays the weekend.",
+  });
 };
 
 /** Whether E on (x, y) is talking to the merchant: the cart, him, or the signpost. */

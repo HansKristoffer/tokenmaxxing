@@ -36,8 +36,11 @@ export function sneezeOf(a: Avatar): number | null {
 }
 
 /** The sneeze's jolt, 0..1: a breath in, then the head snaps forward and comes back. */
-export const sneezeJolt = (t: number): number =>
-  t < 0.3 ? 0 : t < 0.42 ? 1 : Math.max(0, 1 - (t - 0.42) * 4);
+export function sneezeJolt(t: number): number {
+  if (t < 0.3) return 0;
+  if (t < 0.42) return 1;
+  return Math.max(0, 1 - (t - 0.42) * 4);
+}
 
 /** A breath every few seconds, each person on their own beat. */
 const BREATH_MS = 3_400;
@@ -64,8 +67,6 @@ export const scarfOf = (id: number): readonly [string, string] =>
 /** Whether `a` wears a scarf in this `chill`: the bots do, in the cold. */
 export const wearsScarf = (a: Avatar, chill: Chill | null): boolean =>
   !!chill?.scarves && isBot(a.info.id) && awake(a);
-
-// MARK: 2D
 
 /**
  * A scarf over a 16×16 character frame drawn at (`x`, `top`): round the neck at row 9 (where the body starts) and,

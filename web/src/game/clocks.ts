@@ -13,7 +13,7 @@ import { world } from "./world.ts";
  * The 3D Tavern reads the same `clockFaces`.
  */
 
-export interface ClockFaces {
+interface ClockFaces {
   hands: { hour: number; minute: number }[];
   /** The launch window is open (SF's working hours). */
   lit: boolean;
@@ -29,7 +29,7 @@ export function clockFaces(ms = skyNow()): ClockFaces {
     const times = CLOCKS.map((c) => cityTime(c.tz, ms));
     faces = {
       minute,
-      hands: times.map(({ hour, minute }) => ({ hour, minute })),
+      hands: times.map((time) => ({ hour: time.hour, minute: time.minute })),
       lit: inLaunchWindow(ms),
       sf: hhmm(times[0]!),
     };
@@ -49,15 +49,15 @@ let sprite: { of: ClockFaces; canvas: HTMLCanvasElement } | null = null;
 /** Queues the clocks on the wall (from the run's left tile), the lamp's glow and the sign. */
 export function drawClocks({ g, items, labels, toScreen, dpr }: Frame): void {
   if (world.map.id !== "inn") return;
-  const at = world.map.find("◷").find(([x, y]) => world.map.at(x - 1, y) !== "◷");
-  if (!at) return;
+  const runStart = world.map.find("◷").find(([x, y]) => world.map.at(x - 1, y) !== "◷");
+  if (!runStart) return;
   const f = clockFaces();
   if (sprite?.of !== f) sprite = { of: f, canvas: worldClocks(f.hands, f.lit) };
   const { canvas } = sprite;
-  const left = at[0] * TILE;
-  const top = at[1] * TILE + CLOCKS_DY;
+  const left = runStart[0] * TILE;
+  const top = runStart[1] * TILE + CLOCKS_DY;
   items.push({
-    y: at[1] * TILE + 4,
+    y: runStart[1] * TILE + 4,
     draw: () => {
       g.drawImage(canvas, left, top);
       if (f.lit) drawGlow(g, left + DIALS[0] + 0.5, top + 0.5, 7, "255,106,74", 0.5);

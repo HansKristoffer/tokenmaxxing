@@ -28,13 +28,14 @@ let heard = false;
 export function setStatue(s: Statue): void {
   const was = fromServer;
   fromServer = s;
-  if (heard && s.leader && !sameLeader(was.leader, s.leader))
+  if (heard && s.leader && !sameLeader(was.leader, s.leader)) {
     hud.set({
       notice: {
         text: `🗿 Unveiled on the square: ${s.leader.model}, #1 on ${s.leader.ranking}.`,
         at: Date.now(),
       },
     });
+  }
   heard = true;
 }
 

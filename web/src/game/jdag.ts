@@ -17,10 +17,10 @@ import { world } from "./world.ts";
 export const TRUCK_SIGN = `🍺 ${JULEBRYG.name} · free at the Tavern`;
 
 /** What E on it says. */
-export const TRUCK_SAYS = `The ${JULEBRYG.name} truck from ${JULEBRYG.brewery}. It's J-dag: the julebryg is out, and the Tavern pours it on the house all weekend. 🎅`;
+const TRUCK_SAYS = `The ${JULEBRYG.name} truck from ${JULEBRYG.brewery}. It's J-dag: the julebryg is out, and the Tavern pours it on the house all weekend. 🎅`;
 
 /** Where the truck is now, in town, or null. */
-export const truckNow = () => (world.room === "town" ? truckAt(skyNow()) : null);
+const truckNow = () => (world.room === "town" ? truckAt(skyNow()) : null);
 
 export function drawTruck(f: Frame): void {
   const t = truckNow();

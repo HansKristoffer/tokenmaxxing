@@ -34,7 +34,7 @@ export function computeInsets(
     if (rw <= 0 || rh <= 0) continue;
     const dist: Record<Side, number> = { left: r.left, top: r.top, right: w - r.right, bottom: h - r.bottom };
     const wide = rw >= rh;
-    // The nearest edge; a tie goes to the long way of the panel.
+    // The nearest edge. An edge across the panel's long way counts 16 pixels further off, so a tie goes to the long way.
     let side: Side = "top";
     let best = Infinity;
     for (const s of ["left", "top", "right", "bottom"] as const) {
@@ -46,6 +46,7 @@ export function computeInsets(
       }
     }
     const depth = { left: r.right, right: w - r.left, top: r.bottom, bottom: h - r.top }[side];
+    // A panel never counts for more than half the window across.
     thick[side] = Math.max(thick[side], Math.min(depth, (side === "left" || side === "right" ? w : h) * 0.5));
     span[side] += side === "left" || side === "right" ? rh / h : rw / w;
   }

@@ -39,7 +39,7 @@ export function townAnimals(): { cat: [number, number]; birds: [number, number][
 
 let petUntil = 0;
 let birdMotion = [new PigeonMotion(), new PigeonMotion(), new PigeonMotion()];
-export function animalAt(x: number, y: number): "cat" | "bird" | null {
+function animalAt(x: number, y: number): "cat" | "bird" | null {
   const animals = townAnimals();
   if (!animals) return null;
   if (animals.cat[0] === x && animals.cat[1] === y) return "cat";

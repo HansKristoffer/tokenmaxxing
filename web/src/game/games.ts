@@ -23,11 +23,12 @@ export const gameHits: { x: number; y: number; w: number; h: number; open: () =>
 export function drawGames(f: Frame): void {
   gameHits.length = 0;
   const at = serverNow();
-  if (world.room === "town")
+  if (world.room === "town") {
     for (const game of world.games.values()) {
       if (game.spot.kind === "table") drawTable(f, game, at);
       else drawArena(f, game, at);
     }
+  }
   drawSigns(f);
 }
 
@@ -75,7 +76,13 @@ function drawArena(f: Frame, game: WorldGame, at: number): void {
     // The leader's screen blazes; the rest flicker, faster the higher they rank.
     const place = rank.get(player) ?? rows.length;
     const speed = 120 + place * 90;
-    const glow = place === 0 ? 3 : Math.floor(now / speed) % 2 === 0 ? 2 : 1;
+
+    // The leader stays at full glow; the others flicker on a beat set by their place.
+    const isLeader = place === 0;
+    const beatOn = Math.floor(now / speed) % 2 === 0;
+    let glow = 1;
+    if (isLeader) glow = 3;
+    else if (beatOn) glow = 2;
     f.items.push({
       y: (seat.y - 1) * TILE + TILE - 1,
       draw: () => g.drawImage(arenaDesk(glow), seat.x * TILE, (seat.y - 1) * TILE),

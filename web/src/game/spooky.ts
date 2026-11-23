@@ -9,6 +9,7 @@
  * browser keeps a copy of today's doors and the candy for the bucket on screen.
  */
 import { doorSteps } from "@tokenmaxxing/core/halloween.ts";
+import type { GameMap } from "@tokenmaxxing/core/maps.ts";
 import {
   batAt,
   batCount,
@@ -48,8 +49,6 @@ import { self, world } from "./world.ts";
 /** Whether the spooky layer is on: the town, and the festive theme being Halloween (the setting and pins count). */
 export const spookyOn = (): boolean => world.room === "town" && festiveNow()?.id === "halloween";
 
-// MARK: The candy bucket (shared by the HUD chip and both renderers)
-
 const CANDY_KEY = "halloween:candy";
 const listeners = new Set<() => void>();
 let version = 0;
@@ -86,8 +85,6 @@ const changed = (): void => {
   version++;
   for (const fn of listeners) fn();
 };
-
-// MARK: Interaction
 
 let stirs = 0;
 
@@ -151,10 +148,8 @@ function knocked(r: Knock, day: string): void {
 /** The lawn stones, Gerda and the cauldron take a step off you. */
 export const blocksSpooky = (x: number, y: number): boolean => spookyOn() && spookyBlocks(x, y);
 
-// MARK: Drawing
-
 /** The doors in the town, for the cobwebs: asked per map. */
-let doors: { map: unknown; list: ReturnType<typeof doorSteps> } | null = null;
+let doors: { map: GameMap; list: ReturnType<typeof doorSteps> } | null = null;
 const doorsNow = (): ReturnType<typeof doorSteps> => {
   if (doors?.map !== world.map) doors = { map: world.map, list: doorSteps(world.map) };
   return doors.list;

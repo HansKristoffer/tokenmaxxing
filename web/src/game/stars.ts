@@ -21,13 +21,14 @@ export function setStars(next: Stars): void {
   hud.set({ stars: next });
   const { show } = next;
   // A milestone just passed (or you came in while its fireworks are still going): the town tells you.
-  if (show && show.at !== before?.at && serverNow() - show.at < STAR_SHOW_MS)
+  if (show && show.at !== before?.at && serverNow() - show.at < STAR_SHOW_MS) {
     hud.set({
       notice: {
         text: `🎆 ${show.milestone.toLocaleString("en-US")} stars on GitHub! Fireworks over the square.`,
         at: Date.now(),
       },
     });
+  }
 }
 
 /** The count as the counter shows it: grouped, or a dash before the first read. */
