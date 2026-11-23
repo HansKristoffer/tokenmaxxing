@@ -15,7 +15,7 @@
 import * as THREE from "three";
 import { C, HAIRS, SKINS } from "../../art/palette.ts";
 import { bandPlaying } from "../../game/tavern-performance.ts";
-import { aarhusDay, SPECIALS, STRIDE, type TabRow } from "../data/tavern.ts";
+import { copenhagenDay, SPECIALS, STRIDE, type TabRow } from "../data/tavern.ts";
 import { type Asset, assetById, light } from "../furniture/furniture.ts";
 import {
   canvasTexture,
@@ -1033,7 +1033,7 @@ export function setOfficeBoard(model: Model, open: OfficeBoardRows): void {
 }
 
 function specialToday(): string {
-  const day = aarhusDay(new Date());
+  const day = copenhagenDay(new Date());
   // The modulus keeps the index inside SPECIALS, which always has entries.
   return SPECIALS[(day * STRIDE) % SPECIALS.length]!;
 }
