@@ -29,14 +29,13 @@ import {
   dropTickScope,
   endTickScope,
   Model,
-  painted,
   seeded,
   type TickScope,
   tint,
-  toon,
 } from "../kit/kit.ts";
 import { invalidateBaked } from "../perf/bake.ts";
-import { SEAT_Y } from "./rooms.ts";
+import { floorSlab } from "./room.ts";
+import { SEAT_Y, whenIdle } from "./rooms.ts";
 import { wallEase } from "./walls.ts";
 
 export type { MapId, SeatKind };
@@ -65,7 +64,10 @@ export interface TileOpts {
   walk?: boolean;
   /** Turn the model to face the room when the tile is in an edge wall (default true). */
   face?: boolean;
-  /** Only in these rooms: the same character means different things in different maps (`M` is the basement's wall terminal and the dungeon's). */
+  /**
+   * Only in these rooms: the same character means different things in different maps (`M` is the basement's wall
+   * terminal and the dungeon's).
+   */
   rooms?: readonly MapId[];
 }
 interface TileEntry {
@@ -97,9 +99,9 @@ export function registerTile(ch: string, src: Asset | TileBuilder, opts: TileOpt
     walk: opts.walk,
     face: opts.face ?? true,
     build: (c) => {
-      const m = src.build();
+      const model = src.build();
       const wrap = new Model();
-      wrap.add(m);
+      wrap.add(model);
       if (c.w !== block[0] || c.d !== block[1]) wrap.scale.set(c.w / block[0], 1, c.d / block[1]);
       return wrap;
     },
@@ -112,7 +114,9 @@ const tileFor = (room: MapId, ch: string): TileEntry | undefined =>
 
 /** Registers every `tile:<ch>` asset of a slice's `*_ASSETS` list. Other assets are left to the catalogue. */
 export function registerTileAssets(list: readonly Asset[], rooms?: readonly MapId[]): void {
-  for (const a of list) if (/^tile:[^:.]$/u.test(a.id)) registerTile(a.id.slice(5), a, { rooms });
+  for (const a of list) {
+    if (/^tile:[^:.]$/u.test(a.id)) registerTile(a.id.slice(5), a, { rooms });
+  }
 }
 
 /**
@@ -134,7 +138,8 @@ const skins = new Map<MapId, () => RoomSkin>();
 export function registerRoomSkin(id: MapId, build: () => RoomSkin): void {
   skins.set(id, build);
 }
-/** A fresh skin of room `id` (the real game builds a room every time it is entered), or null when it has none. */
+
+/** A fresh skin of room `id`: the real game builds a room every time it is entered. Null when it has none. */
 export const buildRoomSkin = (id: MapId): RoomSkin | null => skins.get(id)?.() ?? null;
 
 const WALL_H = 2.6;
@@ -187,6 +192,17 @@ export interface Portal {
   to: MapId;
 }
 
+const DIRS = [
+  [1, 0],
+  [-1, 0],
+  [0, 1],
+  [0, -1],
+  [1, 1],
+  [1, -1],
+  [-1, 1],
+  [-1, -1],
+] as const;
+
 /** A shortest 8-way walk (no cutting corners) from one tile to the nearest tile `goal` accepts. */
 function walk(
   W: number,
@@ -205,38 +221,34 @@ function walk(
       found = key(x, y);
       break;
     }
+
     for (const [dx, dy] of DIRS) {
       const nx = x + dx;
       const ny = y + dy;
       if (nx < 0 || ny < 0 || nx >= W || ny >= D || prev.has(key(nx, ny))) continue;
+
       // Goals may be blocked tiles (a seat, a portal); everything else must be open.
       if (!step(nx, ny) && !goal(nx, ny)) continue;
+      // A diagonal step needs both tiles beside it open, so the walk never cuts a corner.
       if (dx && dy && !(step(x + dx, y) && step(x, y + dy))) continue;
+
       prev.set(key(nx, ny), key(x, y));
       // A goal that isn't open ends the search there; you can't walk through it.
-      if (step(nx, ny)) queue.push([nx, ny]);
-      else {
+      if (step(nx, ny)) {
+        queue.push([nx, ny]);
+      } else {
         found = key(nx, ny);
         queue.length = 0;
         break;
       }
     }
   }
+
   if (found < 0) return null;
   const out: [number, number][] = [];
   for (let k = found; k !== -1; k = prev.get(k)!) out.unshift([k % W, Math.floor(k / W)]);
   return out;
 }
-const DIRS = [
-  [1, 0],
-  [-1, 0],
-  [0, 1],
-  [0, -1],
-  [1, 1],
-  [1, -1],
-  [-1, 1],
-  [-1, -1],
-] as const;
 
 /** A small number from a string, for seeding the random look of a tile. */
 export function hash(s: string): number {
@@ -267,9 +279,9 @@ const labelCache = new Map<string, THREE.CanvasTexture>();
 /** A small sign for a placeholder: the tile's name on its colour. */
 function nameTexture(name: string, colour: string): THREE.CanvasTexture {
   const key = name + colour;
-  let t = labelCache.get(key);
-  if (!t) {
-    t = canvasTexture(
+  let texture = labelCache.get(key);
+  if (!texture) {
+    texture = canvasTexture(
       128,
       48,
       (g) => {
@@ -282,14 +294,15 @@ function nameTexture(name: string, colour: string): THREE.CanvasTexture {
         const words = name.split(" ");
         const lines =
           words.length > 1 && name.length > 9 ? [words.slice(0, -1).join(" "), words.at(-1)!] : [name];
-        for (const [i, l] of lines.entries())
-          g.fillText(l.slice(0, 11), 64, 24 + (i - (lines.length - 1) / 2) * 20);
+        for (const [i, line] of lines.entries()) {
+          g.fillText(line.slice(0, 11), 64, 24 + (i - (lines.length - 1) / 2) * 20);
+        }
       },
       true,
     );
-    labelCache.set(key, t);
+    labelCache.set(key, texture);
   }
-  return t;
+  return texture;
 }
 
 /** The stand-in for a tile character nobody has drawn yet: a coloured box with its name on it. */
@@ -298,16 +311,21 @@ export function placeholder(ch: string): Model {
   const name = kind?.name ?? ch;
   const rnd = seeded(hash(ch));
   const colour = `#${new THREE.Color().setHSL(rnd(), 0.45, 0.55).getHexString()}`;
-  const h = kind?.seat ? 0.45 : kind?.portal ? 1.9 : 0.8 + rnd() * 0.3;
-  const m = new Model();
-  m.box([0.84, h, 0.84], colour, [0, 0, 0], 0.04);
-  const tex = nameTexture(name, colour);
-  const mat = new THREE.MeshBasicMaterial({ map: tex });
-  const front = m.plane(0.7, 0.26, mat, [0, h * 0.5, 0.43]);
+
+  // Seats are low and portals tall; anything else gets a random height, so placeholders differ.
+  let h: number;
+  if (kind?.seat) h = 0.45;
+  else if (kind?.portal) h = 1.9;
+  else h = 0.8 + rnd() * 0.3;
+
+  const model = new Model();
+  model.box([0.84, h, 0.84], colour, [0, 0, 0], 0.04);
+  const mat = new THREE.MeshBasicMaterial({ map: nameTexture(name, colour) });
+  const front = model.plane(0.7, 0.26, mat, [0, h * 0.5, 0.43]);
   front.castShadow = false;
-  const side = m.plane(0.7, 0.26, mat, [0.43, h * 0.5, 0]);
+  const side = model.plane(0.7, 0.26, mat, [0.43, h * 0.5, 0]);
   side.rotation.y = Math.PI / 2;
-  return m;
+  return model;
 }
 
 export class WorldRoom {
@@ -334,12 +352,17 @@ export class WorldRoom {
     this.skin = skin;
     this.group.userData.bake = true;
     this.findPortals();
+
     if (skin) {
       skin.group.position.set(skin.offset[0], 0, skin.offset[1]);
       this.group.add(skin.group);
       return;
     }
-    if (!staged) for (const _ of this.steps());
+
+    // Not staged: build every piece now, in one go.
+    if (!staged) {
+      for (const _ of this.steps());
+    }
   }
 
   /** The tile-by-tile build in pieces (a row of tiles each): run it to the end, a little at a time. */
@@ -383,8 +406,8 @@ export class WorldRoom {
   }
 
   seatAt(x: number, y: number): { kind: SeatKind; y: number } | null {
-    const k = LEGEND[this.ch(x, y)]?.seat;
-    return k ? { kind: k, y: SEAT_Y[k] } : null;
+    const kind = LEGEND[this.ch(x, y)]?.seat;
+    return kind ? { kind, y: SEAT_Y[kind] } : null;
   }
 
   textAt(x: number, y: number): string | null {
@@ -398,7 +421,8 @@ export class WorldRoom {
 
   /** The tiles to walk to reach (`x`, `y`), or to stand next to it when it can't be stood on. */
   route(from: [number, number], x: number, y: number): [number, number][] | null {
-    if (this.walkable(x, y) || this.portalAt(x, y) || this.seatAt(x, y)) {
+    const standsOn = this.walkable(x, y) || this.portalAt(x, y) || this.seatAt(x, y);
+    if (standsOn) {
       if (from[0] === x && from[1] === y) return [];
       return (
         walk(
@@ -410,6 +434,7 @@ export class WorldRoom {
         )?.slice(1) ?? null
       );
     }
+
     // A prop: go and stand beside it.
     return (
       walk(
@@ -434,8 +459,9 @@ export class WorldRoom {
 
   /** Where you start in the room by default. */
   spawn(): { at: [number, number]; turn: number } {
-    if (this.id === "town")
+    if (this.id === "town") {
       return { at: [TOWN_SPAWN[0] - this.map.x0, TOWN_SPAWN[1] - this.map.y0], turn: 0 };
+    }
     const exit = this.portals[0];
     return exit ? this.beside(exit.x, exit.y) : { at: [1, 1], turn: 0 };
   }
@@ -456,19 +482,21 @@ export class WorldRoom {
     const px = 8;
     const rnd = seeded(hash(this.id));
     const base = groundTileOf(this.id);
+
     const tex = canvasTexture(W * px, D * px, (g) => {
       for (let y = 0; y < D; y++) {
         for (let x = 0; x < W; x++) {
           const ch = this.ch(x, y);
-          const [a, b] = GROUND_COLOURS[ch] ?? GROUND_COLOURS[base]!;
-          g.fillStyle = (x + y) % 2 ? a : b;
+          const [oddTile, evenTile] = GROUND_COLOURS[ch] ?? GROUND_COLOURS[base]!;
+          g.fillStyle = (x + y) % 2 ? oddTile : evenTile;
           g.fillRect(x * px, y * px, px, px);
           if (ch === "_" || ch === "e") {
             // Plank seams.
             g.fillStyle = C.floorLine;
             g.globalAlpha = 0.45;
             g.fillRect(x * px, y * px + 3, px, 1);
-            g.fillRect(x * px + ((x * 3 + y) % 2 ? 2 : 5), y * px + 4, 1, 4);
+            const seamX = x * px + ((x * 3 + y) % 2 ? 2 : 5);
+            g.fillRect(seamX, y * px + 4, 1, 4);
             g.globalAlpha = 1;
           } else if (ch === "." || ch === '"') {
             g.fillStyle = "#86c76d";
@@ -498,18 +526,7 @@ export class WorldRoom {
         }
       }
     });
-    const side = toon(tint(base === "." ? "#6fb35a" : C.floor, -0.4));
-    const slab = new THREE.Mesh(new THREE.BoxGeometry(W, 0.35, D), [
-      side,
-      side,
-      painted(tex),
-      side,
-      side,
-      side,
-    ]);
-    slab.position.set(W / 2, -0.175, D / 2);
-    slab.receiveShadow = true;
-    this.group.add(slab);
+    this.group.add(floorSlab(W, D, tex, tint(base === "." ? "#6fb35a" : C.floor, -0.4)));
   }
 
   private edgeOf(x: number, y: number): TileCtx["edge"] {
@@ -529,14 +546,17 @@ export class WorldRoom {
       e: new THREE.Vector3(-1, 0, 0),
       none: new THREE.Vector3(),
     };
+
+    // One group per edge, so the walls of an edge lower together when the camera looks through them.
     const groups = this.wallGroups;
     for (const [k, normal] of Object.entries(sides)) {
-      const m = new Model();
-      this.group.add(m);
-      groups.set(k, m);
-      m.userData.rigid = true;
-      this.walls.push({ model: m, normal });
+      const sideGroup = new Model();
+      this.group.add(sideGroup);
+      groups.set(k, sideGroup);
+      sideGroup.userData.rigid = true;
+      this.walls.push({ model: sideGroup, normal });
     }
+
     // The dungeon's walls are stone (`STONE` in dungeon3d.ts), not the rooms' plaster.
     const stone = this.id === "dungeon";
     const wall = stone ? "#3a3446" : C.wall;
@@ -545,14 +565,15 @@ export class WorldRoom {
     for (let y = 0; y < this.D; y++) {
       for (let x = 0; x < this.W; x++) {
         if (this.ch(x, y) !== "W") continue;
-        const g = groups.get(this.edgeOf(x, y) ?? "none")!;
-        // Interior walls and the north wall keep their height; the rest are lowered with the group.
+
+        const group = groups.get(this.edgeOf(x, y) ?? "none")!;
+        // The two top rows are the plaster colour; the walls further down the room are a shade darker.
         const tx = x + 0.5;
         const tz = y + 0.5;
-        const face = g.box([1, WALL_H, 1], y <= 1 ? wall : tint(wall, -0.03), [tx, 0, tz], 0);
+        const face = group.box([1, WALL_H, 1], y <= 1 ? wall : tint(wall, -0.03), [tx, 0, tz], 0);
         face.castShadow = true;
-        g.box([1.02, 0.1, 1.02], top, [tx, WALL_H, tz], 0.01);
-        g.box([1.01, 0.12, 1.01], base, [tx, 0, tz], 0.01);
+        group.box([1.02, 0.1, 1.02], top, [tx, WALL_H, tz], 0.01);
+        group.box([1.01, 0.12, 1.01], base, [tx, 0, tz], 0.01);
       }
     }
   }
@@ -564,10 +585,14 @@ export class WorldRoom {
       yield;
       for (let x = 0; x < W; x++) {
         if (claimed[y * W + x]) continue;
+
         const ch = this.ch(x, y);
         const entry = tileFor(this.id, ch);
         const kind = LEGEND[ch];
+        // Ground is painted into the floor, and a character the legend does not name draws nothing.
         if (!entry && (GROUND.has(ch) || !kind)) continue;
+
+        // A block of equal tiles is one piece only when all of it fits, unclaimed; otherwise the tile stands alone.
         const [bw, bd] = entry?.block ?? [1, 1];
         let w = 1;
         let d = 1;
@@ -586,15 +611,19 @@ export class WorldRoom {
         for (let j = 0; j < d; j++) {
           for (let i = 0; i < w; i++) claimed[(y + j) * W + x + i] = 1;
         }
+
         const edge = this.edgeOf(x, y);
         const ctx: TileCtx = { ch, room: this.id, x, y, w, d, edge, name: kind?.name ?? ch };
         const model = entry ? entry.build(ctx) : placeholder(ch);
         if (!model) continue;
+
         model.position.set(x + w / 2, 0, y + d / 2);
-        if (edge && (entry?.face ?? true))
+        if (edge && (entry?.face ?? true)) {
           model.rotation.y = { n: 0, s: Math.PI, w: Math.PI / 2, e: -Math.PI / 2 }[edge];
-        // Things in an edge wall lower with it when the camera looks through; a door or stairs stays up, so the way out
-        // is seen through the skirting the wall becomes.
+        }
+
+        // Things in an edge wall lower with it when the camera looks through. A door or stairs stays up, so the
+        // way out is seen through the skirting the wall becomes.
         const lowersWithWall = edge && !kind?.portal;
         const parent = lowersWithWall ? this.wallGroups.get(edge)! : this.group;
         parent.add(model);
@@ -605,9 +634,9 @@ export class WorldRoom {
 }
 
 /**
- * How a room gets its code: world-rooms.ts registers a loader per hand-built room (a dynamic import of its builder and a
- * `registerRoomSkin`), so a room's code is only fetched when someone is about to walk in. Rooms without a loader are
- * drawn from the tile map alone and need nothing.
+ * How a room gets its code: world-rooms.ts registers a loader per hand-built room (a dynamic import of its builder
+ * and a `registerRoomSkin`), so a room's code is only fetched when someone is about to walk in. Rooms without a
+ * loader are drawn from the tile map alone and need nothing.
  */
 const loaders = new Map<MapId, () => Promise<void>>();
 const loading = new Map<MapId, Promise<void>>();
@@ -619,24 +648,29 @@ export function registerRoomLoader(id: MapId, load: () => Promise<void>): void {
 export function loadRoomCode(id: MapId): Promise<void> {
   const load = loaders.get(id);
   if (!load || loaded.has(id)) return Promise.resolve();
-  let p = loading.get(id);
-  if (!p) {
-    p = load().then(() => void loaded.add(id));
-    loading.set(id, p);
+
+  let inFlight = loading.get(id);
+  if (!inFlight) {
+    inFlight = load().then(() => void loaded.add(id));
+    loading.set(id, inFlight);
   }
-  return p;
+  return inFlight;
 }
 const roomCodeReady = (id: MapId): boolean => !loaders.has(id) || loaded.has(id);
 
-/** A frame boundary: lets the browser paint (the loading veil) between pieces of work. */
+/**
+ * A frame boundary: lets the browser paint (the loading veil) between pieces of work. The 48 ms timer is the fallback
+ * for a tab where animation frames do not run, such as a hidden one.
+ */
 const nextFrame = (): Promise<void> =>
   new Promise((done) => {
-    const t = setTimeout(done, 48);
-    if (typeof requestAnimationFrame === "function")
+    const timer = setTimeout(done, 48);
+    if (typeof requestAnimationFrame === "function") {
       requestAnimationFrame(() => {
-        clearTimeout(t);
+        clearTimeout(timer);
         done();
       });
+    }
   });
 
 export class World {
@@ -663,26 +697,29 @@ export class World {
     return this.built.has(id);
   }
 
-  /** A built room at once. Hand-built rooms need their code first (`load`); asking before that is a mistake, not a blank room. */
+  /**
+   * A built room at once. Hand-built rooms need their code first (`load`). Asking before that is a mistake, not a
+   * blank room.
+   */
   room(id: MapId): WorldRoom {
-    let r = this.built.get(id);
-    if (!r) {
+    let room = this.built.get(id);
+    if (!room) {
       if (!roomCodeReady(id)) throw new Error(`room ${id} is not loaded: await world.load("${id}") first`);
       const scope = beginTickScope();
       const skin = skins.get(id)?.() ?? null;
       if (skin?.map) this.maps[id] = skin.map;
-      r = new WorldRoom(id, this.maps[id], skin);
-      endTickScope(scope, r.group);
-      this.built.set(id, r);
+      room = new WorldRoom(id, this.maps[id], skin);
+      endTickScope(scope, room.group);
+      this.built.set(id, room);
       this.scopes.set(id, scope);
     }
     this.touch(id);
-    return r;
+    return room;
   }
 
   /**
-   * Fetches the room's code and builds it a little at a time (a frame boundary between the steps, so a loading veil can
-   * paint and the game keeps running). Several calls for one room share one build. Resolves with the room.
+   * Fetches the room's code and builds it a little at a time (a frame boundary between the steps, so a loading veil
+   * can paint and the game keeps running). Several calls for one room share one build. Resolves with the room.
    */
   load(id: MapId, onStep?: (done: number) => void): Promise<WorldRoom> {
     const have = this.built.get(id);
@@ -690,72 +727,80 @@ export class World {
       this.touch(id);
       return Promise.resolve(have);
     }
-    let p = this.pending.get(id);
-    if (!p) {
-      p = this.build(id, onStep).finally(() => this.pending.delete(id));
-      this.pending.set(id, p);
+
+    let inFlight = this.pending.get(id);
+    if (!inFlight) {
+      inFlight = this.build(id, onStep).finally(() => this.pending.delete(id));
+      this.pending.set(id, inFlight);
     }
-    return p;
+    return inFlight;
   }
 
   private async build(id: MapId, onStep?: (done: number) => void): Promise<WorldRoom> {
     await loadRoomCode(id);
     await nextFrame();
     if (this.built.has(id)) return this.built.get(id)!;
+
     const skin = skins.get(id);
     if (skin) {
       // A hand-built room is one call; the frame boundary before and after is all the chunking it allows.
-      const r = this.room(id);
+      const room = this.room(id);
       await nextFrame();
       this.trim();
-      return r;
+      return room;
     }
+
     const scope = beginTickScope();
-    const r = new WorldRoom(id, this.maps[id], null, true);
-    // Ticks of props registered in each step belong to the room: the scope stays open between steps only within one synchronous slice.
-    endTickScope(scope, r.group);
-    const steps = r.steps();
-    let n = 0;
+    const room = new WorldRoom(id, this.maps[id], null, true);
+    // Ticks of props registered in each step belong to the room. The scope stays open between steps only within one
+    // synchronous slice.
+    endTickScope(scope, room.group);
+
+    const steps = room.steps();
+    let stepsDone = 0;
     for (;;) {
-      const t0 = performance.now();
+      const frameStart = performance.now();
       const open = beginTickScope();
       let end = false;
+
       // Six milliseconds of building per frame leaves the rest of a 60 fps frame to the game.
-      while (performance.now() - t0 < 6) {
-        const s = steps.next();
-        if (s.done) {
+      while (performance.now() - frameStart < 6) {
+        const step = steps.next();
+        if (step.done) {
           end = true;
           break;
         }
-        n++;
+        stepsDone++;
       }
-      endTickScope(open, r.group);
+
+      endTickScope(open, room.group);
       scope.fns.push(...open.fns);
-      onStep?.(n);
+      onStep?.(stepsDone);
       if (end) break;
       await nextFrame();
     }
-    this.built.set(id, r);
+
+    this.built.set(id, room);
     this.scopes.set(id, scope);
     this.touch(id);
     this.trim();
-    return r;
+    return room;
   }
 
   /** Builds the room in the background when the browser is idle: the next door someone is likely to take. */
   preload(id: MapId): void {
     if (this.built.has(id) || this.pending.has(id)) return;
-    const run = () => void this.load(id).catch(() => {});
-    const idle = (globalThis as { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => void })
-      .requestIdleCallback;
-    if (idle) idle(run, { timeout: 2000 });
-    else setTimeout(run, 200);
+
+    // A failed preload is not an error: the room is built again when the player walks in.
+    whenIdle(() => void this.load(id).catch(() => {}));
   }
 
   /** The rooms a portal of `id` leads to. */
   neighbours(id: MapId): MapId[] {
     const out = new Set<MapId>();
-    for (const [k, v] of Object.entries(LINKS)) if (k.startsWith(`${id}:`)) out.add(v[0]);
+    for (const [k, v] of Object.entries(LINKS)) {
+      if (k.startsWith(`${id}:`)) out.add(v[0]);
+    }
     return [...out];
   }
 
@@ -768,7 +813,7 @@ export class World {
     }
   }
 
-  /** Forgets a built room: its ticks stop, its batches and GPU copies are freed, and the next `room`/`load` builds it afresh. */
+  /** Forgets a built room: its ticks stop, its batches and GPU copies are freed. The next `room` or `load` builds it afresh. */
   evict(id: MapId): boolean {
     const r = this.built.get(id);
     if (!r) return false;
@@ -777,7 +822,7 @@ export class World {
     this.scopes.delete(id);
     invalidateBaked(r.group);
     r.group.removeFromParent();
-    // Frees what the room held on the GPU; the shared kit geometry and materials upload again if another room uses them.
+    // Frees what the room held on the GPU. The shared kit geometry and materials upload again if another room uses them.
     disposeObject(r.group);
     this.built.delete(id);
     this.used.splice(this.used.indexOf(id), 1);
@@ -798,14 +843,16 @@ export class World {
     const link = LINKS[`${from.id}:${portal.ch}`]!;
     const room = this.room(link[0]);
     const memory = this.back.get(from.id);
+
     // The way back leads to the door you came in by, when there is a choice.
     const matching = room.map
       .find(link[1])
       .map(([x, y]) => [x - room.map.x0, y - room.map.y0] as [number, number]);
     let door = matching[0] ?? [1, 1];
     if (memory && memory.room === room.id && memory.ch === link[1]) door = [memory.x, memory.y];
+
     this.back.set(room.id, { room: from.id, x: portal.x, y: portal.y, ch: portal.ch });
-    const b = room.beside(door[0], door[1]);
-    return { room, at: b.at, turn: b.turn };
+    const beside = room.beside(door[0], door[1]);
+    return { room, at: beside.at, turn: beside.turn };
   }
 }

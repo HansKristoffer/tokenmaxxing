@@ -1,9 +1,9 @@
 /**
- * Snapshot of the 2D clothing catalogue for the 3D Clothes shop, so the shop doesn't import the game's core.
- * Source: `core/src/shop.ts` `ITEMS` (the shop's own, `headwear.ts` HEADWEAR_ITEMS, `wardrobe.ts` WARDROBE, `editions.ts` EDITIONS,
- * `costumes.ts` COSTUMES and raid `loot.ts`) for the outfit, hat, glasses, held and back slots, plus the free outfits 0-7
- * (`FREE_OUTFITS`) and the company merch (`MERCH`). Rarity is `rarityOf` already resolved.
- * Regenerate by re-reading those files; ids are `<slot>.<index>`.
+ * Snapshot of the 2D clothing catalogue for the 3D Clothes shop, so the shop does not import the game's core.
+ * Source: `core/src/shop.ts` `ITEMS` (the shop's own), `headwear.ts` HEADWEAR_ITEMS, `wardrobe.ts` WARDROBE,
+ * `editions.ts` EDITIONS, `costumes.ts` COSTUMES and raid `loot.ts`, for the outfit, hat, glasses, held and back
+ * slots. The free outfits 0-7 (`FREE_OUTFITS`) and the company merch (`MERCH`) come from there too. Rarity is
+ * `rarityOf` already resolved. Regenerate by re-reading those files; ids are `<slot>.<index>`.
  */
 import { fromCore } from "./core.ts";
 

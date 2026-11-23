@@ -80,12 +80,17 @@ AURA_BUILDERS["Sakura Storm"] = (m, tick) => {
   tick((t) => {
     for (const p of petals) {
       const k = (t * 0.1 * p.s + p.p) % 1;
+      // The first 45% of a cycle is the rise; the rest is the slow fall.
+      const rising = k < 0.45;
+
       // Up fast with the wind, then down slowly: the swirl slows as it settles.
-      const lift = k < 0.45 ? Math.sin((k / 0.45) * (Math.PI / 2)) : 1 - ((k - 0.45) / 0.55) ** 1.6;
-      const a = (k < 0.45 ? k * 11 : 4.95 + (k - 0.45) * 3) + p.p * 6.28 + t * 0.35;
-      const r = p.r * (k < 0.45 ? 0.7 + 0.3 * Math.sin((k / 0.45) * Math.PI) : 1);
+      const lift = rising ? Math.sin((k / 0.45) * (Math.PI / 2)) : 1 - ((k - 0.45) / 0.55) ** 1.6;
+      const a = (rising ? k * 11 : 4.95 + (k - 0.45) * 3) + p.p * 6.28 + t * 0.35;
+      const r = p.r * (rising ? 0.7 + 0.3 * Math.sin((k / 0.45) * Math.PI) : 1);
       p.o.position.set(Math.cos(a) * r, BASE + 0.02 + lift * 1.05, Math.sin(a) * r);
       p.o.rotation.set(t * 2 + p.spin, t * 1.4 + p.spin, t * 1.7);
+
+      // A petal shrinks to nothing in the last 3% of its cycle, so it is gone before it restarts at the feet.
       const z = k > 0.97 ? 0.001 : 1.15;
       p.o.scale.set(0.055 * z, 0.012 * z, 0.04 * z);
     }
@@ -156,7 +161,7 @@ AURA_BUILDERS["Koi Current"] = (m, tick) => {
   });
 };
 
-// MARK: The Nusantara case (`core/src/case-nusantara.ts`, auras 400 to 403)
+// The Nusantara case (`core/src/case-nusantara.ts`, auras 400 to 403) is drawn as flat cut-out silhouettes.
 
 /** A flat extruded outline, `depth` thick, standing in the x-y plane (a cut-out silhouette). */
 function plate(shape: THREE.Shape, depth: number): THREE.BufferGeometry {
@@ -356,12 +361,15 @@ AURA_BUILDERS["Padi Gold"] = (m, tick) => {
     g.position.set(Math.cos(a) * r, BASE, Math.sin(a) * r);
     g.rotation.y = -a;
     m.add(g);
-    const hgt = 0.3 + rnd() * 0.12;
-    cube(g, [0.011, hgt, 0.011], lit(i % 3 ? "#6fbf4a" : "#2f7f3a"), [0, hgt / 2, 0]);
+    const height = 0.3 + rnd() * 0.12;
+    cube(g, [0.011, height, 0.011], lit(i % 3 ? "#6fbf4a" : "#2f7f3a"), [0, height / 2, 0]);
+
     // A leaf blade, and the head: golden grains drooping off to one side.
-    cube(g, [0.007, 0.1, 0.03], lit("#4a9f3a"), [0, hgt * 0.35, 0.012]).rotation.x = 0.3;
+    const blade = cube(g, [0.007, 0.1, 0.03], lit("#4a9f3a"), [0, height * 0.35, 0.012]);
+    blade.rotation.x = 0.3;
+
     const head = new THREE.Group();
-    head.position.set(0, hgt, 0);
+    head.position.set(0, height, 0);
     g.add(head);
     for (let k = 0; k < 3; k++)
       cube(head, [0.02, 0.026, 0.02], lit(k % 2 ? "#f2b632" : "#ffd25a"), [
@@ -369,7 +377,7 @@ AURA_BUILDERS["Padi Gold"] = (m, tick) => {
         -k * 0.012 + 0.016,
         0,
       ]);
-    return { g, head, p: rnd() * 6.28, hgt };
+    return { g, head, p: rnd() * 6.28, height };
   });
   const grains = Array.from({ length: 12 }, () => ({
     o: cube(m, [0.016, 0.016, 0.016], lit("#ffd25a")),

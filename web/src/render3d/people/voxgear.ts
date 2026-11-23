@@ -129,6 +129,15 @@ export function vpart(parent: THREE.Object3D, at: V3 = [0, 0, 0]): VoxModel {
 
 export const isVox = (m: THREE.Object3D): m is VoxModel => m instanceof VoxModel;
 
+/** A point at angle `a` round a head: on a circle for smooth models, on the square band for blocky ones. */
+export function roundAt(m: THREE.Object3D, a: number, r: number): [number, number] {
+  const x = Math.sin(a);
+  const z = Math.cos(a);
+  if (!isVox(m)) return [x * r, z * r];
+  const k = (r * 0.92) / Math.max(Math.abs(x), Math.abs(z));
+  return [x * k, z * k];
+}
+
 /** Applies a tilt only to smooth models: blocks stay square to the grid. */
 export function tilt<T extends THREE.Object3D>(m: THREE.Object3D, o: T, x = 0, y = 0, z = 0): T {
   if (!isVox(m)) o.rotation.set(x, y, z);
@@ -152,19 +161,17 @@ function prismOrSteps(radius: number, top: number, h: number): THREE.BufferGeome
   return boxes(list);
 }
 
-// MARK: Rings, domes, bands
-
-/** A square ring of blocks, flat (a halo, a brim) or standing up, `R` to its centre line. */
+/** A square ring of blocks, flat (a halo, a brim) or standing up, `radius` to its centre line. */
 export function boxRing(
   m: THREE.Object3D,
   p: Paint,
-  R: number,
+  radius: number,
   tube: number,
   at: V3 = [0, 0, 0],
   flat = true,
 ): THREE.Mesh {
   const t = Math.max(tube * 2, 0.022);
-  const r = R * 0.95;
+  const r = radius * 0.95;
   const g = cached(`vring${r},${t},${flat}`, () => {
     const a = r + t / 2;
     const l: Cube[] = [
@@ -232,8 +239,6 @@ export function squarePane(m: THREE.Object3D, r: number, p: Paint, at: V3): THRE
   const g = cached(`vpane${r}`, () => new THREE.PlaneGeometry(r * 1.8, r * 1.8));
   return place(m, g, p, at);
 }
-
-// MARK: Shapes and pixels
 
 /** A flat shape (heart, star, wedge) rebuilt from cubes about `cell` wide, its depth along z. */
 export function voxShape(
@@ -392,8 +397,6 @@ export function pixelPatch(
   mesh.castShadow = false;
   return mesh;
 }
-
-// MARK: Grid placement
 
 /**
  * Blocks by cube coordinates in `parent`'s frame: (x, y, z) is a box's low corner and (w, h, d) its size, all in

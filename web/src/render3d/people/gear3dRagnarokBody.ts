@@ -9,6 +9,7 @@ import { RAGNAROK_BASE } from "@tokenmaxxing/core/case-ragnarok.ts";
 import type * as THREE from "three";
 import { type Model, seeded } from "../kit/kit.ts";
 import {
+  armBand,
   BACK_BUILDERS,
   type BackBuilder,
   type BodyCtx,
@@ -45,8 +46,6 @@ function sway(tick: BodyCtx["tick"], p: VoxModel, axis: "x" | "z" = "x", phase =
   });
 }
 
-// MARK: Outfits
-
 /** A snowflake of nine 3-pixel cells (a plus and four corner dots), centred on (cx, cy) on a 3-pixel grid. */
 const flake = (g: CanvasRenderingContext2D, color: string, cx: number, cy: number) => {
   for (const [dx, dy] of [
@@ -62,12 +61,6 @@ const flake = (g: CanvasRenderingContext2D, color: string, cx: number, cy: numbe
   ] as const)
     px(g, color, cx + dx * 3, cy + dy * 3, 3, 3);
 };
-
-/** A band of colour round an arm: a cuff, a yoke. */
-const armBand = (c: BodyCtx, color: string, y: number, h: number, pad = 0) =>
-  c.arms.forEach((arm) => {
-    new Vx(vpart(arm)).b(-1.22 - pad, y, -1.22 - pad, 2.44 + 2 * pad, h, 2.44 + 2 * pad, color);
-  });
 
 // biome-ignore format: a catalogue reads best one to a line
 const OUTFITS: Record<number, (c: BodyCtx) => void> = {
@@ -294,7 +287,6 @@ const OUTFITS: Record<number, (c: BodyCtx) => void> = {
         px(g, SILVER, 6, 0, w - 12, h);
         px(g, STEEL, 27, 0, 3, h);
       },
-      false,
     );
     const v = grid(c);
     v.b(-3.3, 2.0, 2.0, 6.6, 5.6, 0.55, SILVER);
@@ -346,8 +338,6 @@ const OUTFITS: Record<number, (c: BodyCtx) => void> = {
 };
 for (const [n, build] of Object.entries(OUTFITS)) OUTFIT_BUILDERS[RAGNAROK_BASE + Number(n)] = build;
 
-// MARK: Held
-
 // biome-ignore format: a catalogue reads best one to a line
 const HELD: Record<string, HeldBuilder> = {
   // Drinking horn: a curved bone horn with an iron tip cap and a gold rim, foam heaped over amber liquid (deliberately not
@@ -390,31 +380,31 @@ const HELD: Record<string, HeldBuilder> = {
       s,
       0.3,
       0.3,
-      (g, w, hh) => {
+      (g, w, height) => {
         const cx = w / 2;
-        const cy = hh / 2;
-        const R = w / 2;
+        const cy = height / 2;
+        const radius = w / 2;
         const disc = (r: number, col: string) => {
           g.fillStyle = col;
           g.beginPath();
           g.arc(cx, cy, r, 0, Math.PI * 2);
           g.fill();
         };
-        disc(R, "#2b2a33");
-        disc(R * 0.92, "#5d6676");
+        disc(radius, "#2b2a33");
+        disc(radius * 0.92, "#5d6676");
         const quarter = (a0: number, col: string) => {
           g.fillStyle = col;
           g.beginPath();
           g.moveTo(cx, cy);
-          g.arc(cx, cy, R * 0.82, a0, a0 + Math.PI / 2);
+          g.arc(cx, cy, radius * 0.82, a0, a0 + Math.PI / 2);
           g.fill();
         };
         quarter(Math.PI, RED);
         quarter(Math.PI * 1.5, BONE);
         quarter(0, WOAD);
         quarter(Math.PI * 0.5, GOLD);
-        disc(R * 0.3, "#2b2a33");
-        disc(R * 0.26, "#8d97a8");
+        disc(radius * 0.3, "#2b2a33");
+        disc(radius * 0.26, "#8d97a8");
       },
       [0, 0, 0],
       120,
@@ -488,10 +478,10 @@ const HELD: Record<string, HeldBuilder> = {
     a.rotation.x = -0.12;
     a.rotation.y = -1.25;
     a.rotation.z = -0.3;
-    const L = -0.2;
-    a.box([0.034, 0.36, 0.034], OAK, [0, L, 0], 0.006);
+    const shaftY = -0.2;
+    a.box([0.034, 0.36, 0.034], OAK, [0, shaftY, 0], 0.006);
     for (const y of [-0.1, -0.05, 0.0]) a.box([0.04, 0.02, 0.04], LEATHER, [0, y, 0], 0.004);
-    a.box([0.045, 0.034, 0.045], OAK_DARK, [0, L - 0.005, 0], 0.006);
+    a.box([0.045, 0.034, 0.045], OAK_DARK, [0, shaftY - 0.005, 0], 0.006);
     // The head, flat to the shaft: a socket, a blade swept out to the front with a hooked beard under it.
     a.box([0.05, 0.1, 0.05], IRON, [0, 0.12, 0], 0.006);
     a.box([0.036, 0.04, 0.036], STEEL, [0, 0.22, 0], 0.006);
@@ -538,8 +528,6 @@ const HELD: Record<string, HeldBuilder> = {
   },
 };
 Object.assign(HELD_BUILDERS, HELD);
-
-// MARK: Back
 
 /** A shaggy cape: rows of fur slabs each hanging from the one above, so the lower ones swing out later, a ragged edge. */
 function furCape(b: VoxModel, tick: BodyCtx["tick"]): void {

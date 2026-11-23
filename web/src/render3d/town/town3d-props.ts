@@ -1,6 +1,6 @@
 /**
- * The town's own props, one per tile character of the 2D map that isn't already in `props.ts`: the
- * leaderboard (N), the star counter (★), the chalkboard (K), the open-offices board (w), the coffee stand (o), the raid
+ * The town's own props, one per tile character of the 2D map that isn't already in `props.ts`: the leaderboard
+ * (N), the star counter (★), the chalkboard (K), the open-offices board (w), the coffee stand (o), the raid
  * dungeon's gate (G), plus the street life of `core/src/street.ts` (pølsevogn, build snail and goal flag,
  * paperboy on his bike, the morning paper).
  */
@@ -23,8 +23,6 @@ const SAMPLE_ROWS: BoardRow[] = [
   { name: "Solo", value: "41M" },
   { name: "Cellar Dwellers", value: "12M" },
 ];
-
-// MARK: Boards
 
 export interface Board extends Model {
   /** Repaint the board's rows (top five). */
@@ -87,7 +85,7 @@ export function leaderboard(): Board {
   m.box([1.45, 0.06, 0.3], tint(C.roofRed, -0.2), [0, 1.57, -0.02], 0.02);
   // A bolt on top, in gold, turning.
   const bolt = m.part([0, 1.78, 0]);
-  const s = new THREE.Shape();
+  const shape = new THREE.Shape();
   for (const [x, y] of [
     [0.05, 0.4],
     [-0.1, 0.15],
@@ -96,10 +94,11 @@ export function leaderboard(): Board {
     [0.1, 0.25],
     [0, 0.25],
     [0.07, 0.4],
-  ] as const)
-    s.lineTo(x, y);
+  ] as const) {
+    shape.lineTo(x, y);
+  }
   const mesh = new THREE.Mesh(
-    new THREE.ExtrudeGeometry(s, { depth: 0.05, bevelEnabled: false }),
+    new THREE.ExtrudeGeometry(shape, { depth: 0.05, bevelEnabled: false }),
     toon("#f2c23a"),
   );
   mesh.position.z = -0.025;
@@ -118,14 +117,14 @@ export interface StarCounter extends Model {
 
 /** A five-pointed star's outline, `r` from its middle to a point. */
 function starShape(r: number): THREE.Shape {
-  const s = new THREE.Shape();
+  const shape = new THREE.Shape();
   for (let i = 0; i < 10; i++) {
     const a = Math.PI / 2 + (i * Math.PI) / 5;
     const d = i % 2 ? r * 0.45 : r;
-    if (i === 0) s.moveTo(Math.cos(a) * d, Math.sin(a) * d);
-    else s.lineTo(Math.cos(a) * d, Math.sin(a) * d);
+    if (i === 0) shape.moveTo(Math.cos(a) * d, Math.sin(a) * d);
+    else shape.lineTo(Math.cos(a) * d, Math.sin(a) * d);
   }
-  return s;
+  return shape;
 }
 
 /** The star counter on the square (tile ★): the repo's GitHub stars on a navy board, a gold star turning on top. */
@@ -264,8 +263,6 @@ export function chalkboard(): Chalkboard {
   return m;
 }
 
-// MARK: The coffee stand and the gate
-
 /** The coffee stand (tile o): a little striped kiosk with the machine on the counter. */
 export function coffeeStand(): Model {
   const m = new Model();
@@ -316,7 +313,7 @@ export function dungeonGate(): Model {
     m.box([0.3, 1.9, 0.4], stone, [x, 0.12, 0], 0.03);
     m.box([0.38, 0.12, 0.48], "#3a3446", [x, 0.12, 0], 0.02);
     m.box([0.38, 0.12, 0.48], "#3a3446", [x, 2.02, 0], 0.02);
-    for (const sx of [-1, 1]) m.cyl(0.05, 0.22, "#6b6480", [x + sx * 0.1, 2.14, 0.0], 0.01, 4);
+    for (const sx of [-1, 1]) m.cyl(0.05, 0.22, "#6b6480", [x + sx * 0.1, 2.14, 0], 0.01, 4);
   }
   m.box([1.6, 0.34, 0.44], stone, [0, 1.76, 0], 0.03);
   const swirl = canvasTexture(
@@ -371,8 +368,6 @@ export function dungeonGate(): Model {
   light(m, [0, 1.2, 0.8], "#b98cff", 3, 5);
   return m;
 }
-
-// MARK: Street life
 
 export interface Cart extends Model {
   setOpen: (open: boolean) => void;
@@ -464,8 +459,8 @@ export function buildSnail(): Snail {
   board.box([0.5, 0.24, 0.03], "#2b2433", [0, 0, 0], 0.01);
   board.plane(0.46, 0.2, glow("#fff", sign), [0, 0.12, 0.02]);
   m.inch = (t) => {
-    const s = 1 + Math.abs(Math.sin(t * 2.2)) * 0.18;
-    foot.scale.x = 2.1 * s;
+    const squash = 1 + Math.abs(Math.sin(t * 2.2)) * 0.18;
+    foot.scale.x = 2.1 * squash;
     shell.position.y = 0.34 + Math.sin(t * 4.4) * 0.01;
   };
   return m;
@@ -477,11 +472,12 @@ export function goalFlag(): Model {
   m.cyl(0.03, 1.5, C.metal, [0, 0, 0], 0.03, 8);
   m.ball(0.06, C.metalLight, [0, 1.5, 0]);
   const tex = canvasTexture(32, 24, (g) => {
-    for (let y = 0; y < 3; y++)
+    for (let y = 0; y < 3; y++) {
       for (let x = 0; x < 4; x++) {
         g.fillStyle = (x + y) % 2 ? C.ink : C.white;
         g.fillRect(x * 8, y * 8, 8, 8);
       }
+    }
   });
   const flag = m.plane(0.6, 0.45, painted(tex), [0.32, 1.25, 0]);
   (flag.material as THREE.MeshToonMaterial).side = THREE.DoubleSide;
@@ -501,11 +497,11 @@ class Bike extends Model {
     super();
     const tyre = toon("#2b2433");
     for (const x of [-0.4, 0.4]) {
-      const w = new THREE.Mesh(new THREE.TorusGeometry(0.22, 0.03, 6, 16), tyre);
-      w.position.set(x, 0.25, 0);
-      w.castShadow = true;
-      this.add(w);
-      this.wheels.push(w);
+      const wheel = new THREE.Mesh(new THREE.TorusGeometry(0.22, 0.03, 6, 16), tyre);
+      wheel.position.set(x, 0.25, 0);
+      wheel.castShadow = true;
+      this.add(wheel);
+      this.wheels.push(wheel);
     }
     this.box([0.8, 0.04, 0.04], "#d8343c", [0, 0.38, 0]);
     this.box([0.04, 0.4, 0.04], "#d8343c", [-0.1, 0.25, 0]);
@@ -513,7 +509,7 @@ class Bike extends Model {
     this.box([0.16, 0.04, 0.1], C.ink, [-0.12, 0.65, 0]);
     this.box([0.04, 0.04, 0.3], C.ink, [0.36, 0.7, 0]);
     this.crank = this.part([0, 0.22, 0]);
-    [-1, 1].map((s) => this.crank.box([0.05, 0.3, 0.05], "#3d4a6b", [0, -0.15, s * 0.08]));
+    for (const s of [-1, 1]) this.crank.box([0.05, 0.3, 0.05], "#3d4a6b", [0, -0.15, s * 0.08]);
     // The rider: yellow jacket, beanie.
     this.box([0.22, 0.4, 0.3], "#f0b53c", [-0.05, 0.62, 0], 0.06).rotation.z = -0.25;
     this.ball(0.11, "#f6d3b3", [0.08, 1.12, 0]);

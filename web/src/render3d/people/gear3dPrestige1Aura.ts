@@ -104,6 +104,7 @@ AURA_BUILDERS["Ascending sparks"] = (m, tick) => {
       b.o.scale.set(size, size * (1 + (1 - k) * 0.8), size);
       b.o.visible = size > 0.002;
     }
+
     for (const f of feathers) {
       const k = (t * 0.07 * f.s * pace + f.p) % 1;
       const a = f.a + t * 0.25 + k * 1.5;
@@ -111,10 +112,12 @@ AURA_BUILDERS["Ascending sparks"] = (m, tick) => {
       f.g.rotation.set(0, a, Math.sin(t * 1.3 + f.a) * 0.25 - 0.3);
       f.g.scale.setScalar(Math.max(0.001, smooth(0, 0.1, k) * (1 - smooth(0.88, 1, k))));
     }
+
     const beat = 0.5 + 0.5 * Math.sin(t * 2.2);
     halo.scale.setScalar(0.95 + beat * 0.12);
     halo.position.y = 0.6 + Math.sin(t * 1.1) * 0.012;
     halo.rotation.y = t * 0.6;
+
     rings.forEach((o, i) => {
       const k = (t * 0.3 + i * 0.5) % 1;
       const r = 0.12 + k * 0.4;

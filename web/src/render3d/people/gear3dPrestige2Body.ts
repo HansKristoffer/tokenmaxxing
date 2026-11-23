@@ -35,8 +35,6 @@ const SAND = "#e8c58a";
 const PLANET = "#6f7cf5";
 const PLANET_L = "#aab4ff";
 
-// MARK: Outfit
-
 /** The nebula over a 3-pixel grid of `w`×`h` cells: a swirl of cyan through violet to pink on midnight, stars in it. */
 function nebula(g: CanvasRenderingContext2D, w: number, h: number, seed: number): void {
   for (let y = 0; y < h; y += 3)
@@ -142,8 +140,6 @@ for (const [n, build] of Object.entries(OUTFITS)) {
   OUTFIT_BUILDERS[COSMIC + Number(n)] = build;
 }
 
-// MARK: Back
-
 // biome-ignore format: a catalogue reads best one to a line
 const BACKS: Record<string, BackBuilder> = {
   // Orbital backpack: a midnight rig on the back with a ringed planet set into its face, two thrusters that flicker
@@ -197,9 +193,9 @@ const BACKS: Record<string, BackBuilder> = {
     const ctr = vpart(b, [0, -1.0 * U, 2.0 * U]);
     ring(ctr, see(CYAN, 0.35, true), 0.27, 0.004, [0, 0, 0], true);
     const spin = vpart(ctr);
-    const R = 5.9 * U;
+    const orbitRadius = 5.9 * U;
     const body = (a: number, build: (v: Vx) => void) => {
-      const p = vpart(spin, [Math.sin(a) * R, 0, Math.cos(a) * R]);
+      const p = vpart(spin, [Math.sin(a) * orbitRadius, 0, Math.cos(a) * orbitRadius]);
       build(new Vx(p));
       return p;
     };

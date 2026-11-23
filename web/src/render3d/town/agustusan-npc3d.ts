@@ -12,10 +12,10 @@ const HAIR = "#8d8d98";
 const INK = "#2b2433";
 
 /**
- * Pak Budi, the RT (`AGUSTUSAN_NPC`), built from the kit like the other props: a white kemeja, dark trousers, grey at the
- * temples, the black peci (`HAT_BUILDERS["Peci hitam"]`, the same one the shop sells), a red-and-white sash across the chest
- * and the merah putih on a bamboo stick in his raised hand, waving. Built on the same look as his 2D sprite
- * (`art/agustusan-npc.ts`). About 1.4 tall, as the town's people are, facing +z.
+ * Pak Budi, the RT (`AGUSTUSAN_NPC`), built from the kit like the other props: a white kemeja, dark trousers,
+ * grey at the temples, the black peci (`HAT_BUILDERS["Peci hitam"]`, the one the shop sells), a red-and-white
+ * sash across the chest, and the merah putih on a bamboo stick in his raised hand, waving. Same look as his 2D
+ * sprite (`art/agustusan-npc.ts`). About 1.4 tall, as the town's people are, facing +z.
  */
 export const pakBudiModel: NpcModel = () => {
   const root = new THREE.Group();
@@ -44,6 +44,7 @@ export const pakBudiModel: NpcModel = () => {
     return part;
   };
   const arm = hangingArm(-0.27);
+
   // The head: grey at the temples, a face, and the peci on top.
   const head = m.part([0, 1.1, 0]);
   head.ball(0.27, SKIN, [0, 0, 0], [1, 1, 1], 18);

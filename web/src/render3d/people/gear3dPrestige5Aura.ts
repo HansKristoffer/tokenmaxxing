@@ -80,13 +80,13 @@ AURA_BUILDERS["Prismatic ascension"] = (m, tick) => {
   });
   // The helix: eight colours, five specks each, every one on its own lap of the climb.
   const SPECKS = 5;
-  const specks = SPECTRUM.flatMap((color, c) =>
+  const specks = SPECTRUM.flatMap((color, colorIndex) =>
     Array.from({ length: SPECKS }, (_, j) => ({
       o: cube(m, [1, 1, 1], basic(color, 0.95)),
-      c,
-      p: (j + c * 0.11) / SPECKS,
+      colorIndex,
+      p: (j + colorIndex * 0.11) / SPECKS,
       // Each colour's strand runs at its own pace, so the colours never climb in step.
-      s: 0.9 + ((c * 7) % 5) * 0.05,
+      s: 0.9 + ((colorIndex * 7) % 5) * 0.05,
     })),
   );
   // The rays over the head: one a colour, fanned out, growing and fading in turn.
@@ -103,7 +103,7 @@ AURA_BUILDERS["Prismatic ascension"] = (m, tick) => {
       // Up the column in a helix, one colour to a strand, then out and away over the head.
       const open = smooth(0.62, 1, k);
       const r = 0.27 + open * 0.3;
-      const a = (sp.c / SPECTRUM.length) * Math.PI * 2 + k * 5.5 + t * 0.5;
+      const a = (sp.colorIndex / SPECTRUM.length) * Math.PI * 2 + k * 5.5 + t * 0.5;
       sp.o.position.set(Math.sin(a) * r, y + open * 0.06, Math.cos(a) * r);
       const size = 0.026 * smooth(0, 0.08, k) * (1 - smooth(0.92, 1, k)) * (vox ? 0.85 : 1);
       // A scale of 0 can break the mesh's matrix, so each axis keeps a tiny floor above it.

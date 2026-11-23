@@ -11,10 +11,10 @@ import { nytarNpcModel } from "./nytar3d.ts";
 import { gudrun3d } from "./paaske-npc3d.ts";
 
 /**
- * The 3D models of the festive NPCs (`FESTIVE_NPC`, `core/src/festive.ts`). A theme's agent adds its builder here: it
- * returns a group standing on y = 0 at the origin, facing +z, about 1.7 units tall (build it with `Model` as
- * `pumpkins3d.ts` does, `mergeStill` the still parts). Put `group.userData.tick = (t: number) => ...` on it for an
- * idle animation. No entry, nothing is shown (the 2D sprite and the dialogue still work).
+ * The 3D models of the festive NPCs (`FESTIVE_NPC`, `core/src/festive.ts`). A theme's agent adds its builder here.
+ * It returns a group standing on y = 0 at the origin, facing +z, about 1.7 units tall. Build it with `Model` as
+ * `pumpkins3d.ts` does, and `mergeStill` the still parts. Put `group.userData.tick = (t: number) => ...` on it for
+ * an idle animation. With no entry, nothing is shown (the 2D sprite and the dialogue still work).
  */
 export type NpcModel = (npc: FestiveNpc) => THREE.Object3D;
 
@@ -53,8 +53,10 @@ export class FestiveNpc3d {
     const f = festiveNow();
     const npc = festiveNpcOf(f);
     const id = f?.id;
+
     if (this.shown && (this.shown.id !== id || this.shown.npc !== npc)) this.clear();
     if (!this.shown && id && npc) this.build(id, npc);
+
     // The room hides what it did not build itself: a built NPC shows its own group.
     this.group.visible = this.shown !== null;
     const root = this.shown?.root;

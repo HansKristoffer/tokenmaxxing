@@ -2,11 +2,12 @@ import type { BoardRow } from "@tokenmaxxing/core/games/types.ts";
 import type { WorldGame } from "@tokenmaxxing/core/world.ts";
 
 /**
- * The town's games as the 3D renderer draws them: pure rules over the world's `WorldGame`s (where their tables and
- * arena desks are, how the players sit, what the scoreboard says), the same data the 2D game draws from (`game/games.ts`).
+ * The town's games as the 3D renderer draws them: pure rules over the world's `WorldGame`s (where their tables
+ * and arena desks are, how the players sit, what the scoreboard says). The 2D game draws from the same data
+ * (`game/games.ts`).
  */
 
-/** The pose of someone at a game: sitting on a stool at a table, typing at an arena desk; null for anyone not in one. */
+/** The pose of someone at a game: sitting on a stool at a table, or typing at an arena desk. Null outside one. */
 export function seatPose(game: Pick<WorldGame, "spot"> | undefined, racing: boolean): "sit" | "type" | null {
   if (!game || racing) return null;
   return game.spot.kind === "arena" ? "type" : "sit";
@@ -15,13 +16,13 @@ export function seatPose(game: Pick<WorldGame, "spot"> | undefined, racing: bool
 /** How high a stool's top is: the sitter's hips go there. */
 export const STOOL_Y = 0.36;
 
-/** The tile a table stands on (the middle of its 3x3 patch) or an arena's desk row: where the props go. */
+/** The tiles a table or an arena's desk row covers, where the props go. A table's is its 3x3 patch's middle. */
 export function propTilesOf(spot: WorldGame["spot"]): [number, number][] {
   if (spot.kind === "table") return [[spot.x + 1, spot.y + 1]];
   return Array.from({ length: spot.w }, (_, i) => [spot.x + i, spot.y] as [number, number]);
 }
 
-/** How lit an arena desk's screen is, 0 to 3: the leader's blazes, the others flicker faster the higher they rank. */
+/** How lit an arena desk's screen is, 0 to 3. The leader's blazes; the others flicker, faster the higher they rank. */
 export function arenaGlow(place: number, now: number): number {
   if (place === 0) return 3;
   const speed = 120 + place * 90;

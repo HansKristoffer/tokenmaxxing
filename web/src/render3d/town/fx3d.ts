@@ -1,8 +1,8 @@
 /**
- * The town's sky and weather (ported from `web/src/game/sky.ts`): a sun that rises and sets, stars and a phased moon,
- * clouds, fog (as thick as the visibility says), drizzle, rain, storms with lightning, snow that settles on roofs, and a
- * pond that ices over below freezing (`cold3d.ts`). The light follows the game's clock
- * smoothly: lamps and windows switch on at dusk and dim in by degrees, and the sun swings round the sky.
+ * The town's sky and weather (ported from `web/src/game/sky.ts`): a sun that rises and sets, stars and a phased
+ * moon, clouds, fog (as thick as the visibility says), drizzle, rain, storms with lightning, snow that settles on
+ * roofs, and a pond that ices over below freezing (`cold3d.ts`). The light follows the game's clock smoothly:
+ * lamps and windows switch on at dusk and dim in by degrees, and the sun swings round the sky.
  */
 
 import { type Festive, festiveFog } from "@tokenmaxxing/core/festive.ts";
@@ -82,7 +82,10 @@ const srgb = (c: readonly [number, number, number]) =>
   scratch.setRGB(c[0] / 255, c[1] / 255, c[2] / 255, THREE.SRGBColorSpace);
 const MIST = "#b9a6d8";
 
-const SKY_VERT = /* glsl */ `varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`;
+const SKY_VERT = /* glsl */ `
+varying vec2 vUv;
+void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }
+`;
 const SKY_FRAG = /* glsl */ `
 varying vec2 vUv;
 uniform vec3 top; uniform vec3 hor; uniform vec3 cloudCol;
@@ -91,7 +94,11 @@ uniform float aspect; uniform float wind; uniform float moonAge; uniform float m
 float h(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 float n(vec2 p){ vec2 i = floor(p); vec2 f = fract(p); f = f*f*(3.0-2.0*f);
   return mix(mix(h(i), h(i+vec2(1.,0.)), f.x), mix(h(i+vec2(0.,1.)), h(i+vec2(1.,1.)), f.x), f.y); }
-float fbm(vec2 p){ float v = 0.0; float a = 0.5; for (int i = 0; i < 4; i++) { v += a*n(p); p *= 2.03; a *= 0.5; } return v; }
+float fbm(vec2 p){
+  float v = 0.0; float a = 0.5;
+  for (int i = 0; i < 4; i++) { v += a*n(p); p *= 2.03; a *= 0.5; }
+  return v;
+}
 void main(){
   vec3 c = mix(hor, top, smoothstep(0.0, 1.0, vUv.y));
   vec2 p = vec2(vUv.x * aspect, vUv.y);
@@ -114,7 +121,8 @@ void main(){
   } else c += vec3(0.8, 0.85, 1.0) * 0.12 * exp(-(len - 1.0) * 3.5) * night;
   // Clouds drifting with the wind: more of them the heavier the cover.
   float f = fbm(p * 2.4 + vec2(time * wind * 0.012, 0.0));
-  float m = smoothstep(0.66 - cloud * 0.36, 0.86 - cloud * 0.3, f) * (0.35 + 0.65 * smoothstep(0.0, 0.5, vUv.y + cloud * 0.3));
+  float m = smoothstep(0.66 - cloud * 0.36, 0.86 - cloud * 0.3, f)
+    * (0.35 + 0.65 * smoothstep(0.0, 0.5, vUv.y + cloud * 0.3));
   c = mix(c, cloudCol, m * (0.55 + 0.4 * cloud));
   c = mix(c, c * vec3(0.7, 0.74, 0.8), murk);
   c += vec3(0.75, 0.8, 1.0) * flash * (0.35 + 0.65 * m);
@@ -144,7 +152,7 @@ class Particles {
   private readonly ripples: { m: THREE.Mesh; age: number }[] = [];
   private readonly m4 = new THREE.Matrix4();
   private readonly q = new THREE.Quaternion();
-  private readonly s = new THREE.Vector3(1, 1, 1);
+  private readonly instanceScale = new THREE.Vector3(1, 1, 1);
   private readonly bolt = new THREE.Group();
   private boltUntil = 0;
   private flashAt = -9;
@@ -170,10 +178,13 @@ class Particles {
       m.count = 0;
       this.group.add(m);
     }
-    for (let i = 0; i < RAIN_MAX; i++)
+    for (let i = 0; i < RAIN_MAX; i++) {
       this.rainPos.push(new THREE.Vector3(rnd(REACH), Math.random() * 11, rnd(REACH)));
-    for (let i = 0; i < SNOW_MAX; i++)
+    }
+    for (let i = 0; i < SNOW_MAX; i++) {
       this.snowPos.push(new THREE.Vector3(rnd(REACH), Math.random() * 10, rnd(REACH)));
+    }
+    // Eighteen ripple rings, reused as the rain lands, each one starting spent (age 9).
     for (let i = 0; i < 18; i++) {
       const m = new THREE.Mesh(
         new THREE.RingGeometry(0.06, 0.09, 12),
@@ -240,7 +251,7 @@ class Particles {
       rainDir.copy(rainVel).normalize().negate();
       this.q.setFromUnitVectors(UP_Y, rainDir);
       const k = w.kind === "drizzle" ? 0.6 : w.kind === "storm" ? 1.4 : 1;
-      this.s.set(1, k, 1);
+      this.instanceScale.set(1, k, 1);
       for (let i = 0; i < rainN; i++) {
         const p = this.rainPos[i]!;
         p.addScaledVector(rainVel, dt * (0.8 + (i % 7) * 0.06));
@@ -248,22 +259,23 @@ class Particles {
           if (Math.random() < 0.05) this.drop(p.x, p.z);
           p.set((Math.random() - 0.5) * 2 * REACH, 10 + Math.random() * 3, (Math.random() - 0.5) * 2 * REACH);
         }
-        this.m4.compose(p, this.q, this.s);
+        this.m4.compose(p, this.q, this.instanceScale);
         this.rain.setMatrixAt(i, this.m4);
       }
       this.rain.instanceMatrix.needsUpdate = true;
     }
     if (snowN) {
       this.q.identity();
-      this.s.set(1, 1, 1);
+      this.instanceScale.set(1, 1, 1);
       for (let i = 0; i < snowN; i++) {
         const p = this.snowPos[i]!;
         p.y -= dt * (0.7 + (i % 5) * 0.15) * (1 + w.intensity);
         p.x += (wind.x * 0.5 + Math.sin(t * 0.9 + i) * 0.4) * dt;
         p.z += (wind.y * 0.5 + Math.cos(t * 0.8 + i * 1.7) * 0.3) * dt;
-        if (p.y < 0.05)
+        if (p.y < 0.05) {
           p.set((Math.random() - 0.5) * 2 * REACH, 9 + Math.random() * 2, (Math.random() - 0.5) * 2 * REACH);
-        this.m4.compose(p, this.q, this.s);
+        }
+        this.m4.compose(p, this.q, this.instanceScale);
         this.snow.setMatrixAt(i, this.m4);
       }
       this.snow.instanceMatrix.needsUpdate = true;
@@ -343,7 +355,7 @@ export class Fx {
     this.particles.density = d;
   }
 
-  /** How far the rain and snow spread round the middle: 1 is `REACH` (17 units) either way; wider for a wider picture. */
+  /** How far the rain and snow spread round the middle. 1 is `REACH` (17 units) each way; wider for a wider view. */
   set spread(k: number) {
     this.particles.group.scale.set(k, 1, k);
   }
@@ -420,7 +432,7 @@ export class Fx {
     return this.host.stages.find((s) => s.name === this.host.current()) ?? this.host.town;
   }
 
-  /** Jumps the light and weather to where the clock and the weather say, without blending (a room just built). */
+  /** Jumps the light and weather to where the clock and weather say, with no blend: for a room just built. */
   settle(t: number, camera: THREE.OrthographicCamera): void {
     ICE.value = iceOver(this.opts.weather()) ? 1 : 0;
     this.fog = fogOf(this.opts.weather());
@@ -439,22 +451,25 @@ export class Fx {
     const stage = this.current();
     const inTown = stage === this.host.town;
     const l = this.opts.light(ms);
+
     // Weather eases in and out.
     this.weather = this.opts.weather();
     const w = this.weather;
     const k = Math.min(1, dt * 1.5);
-    const s = this.shown;
-    if (s.kind !== w.kind) {
+    const shown = this.shown;
+    if (shown.kind !== w.kind) {
       // Cross over: fade the old intensity out first, then switch.
-      s.intensity = lerp(s.intensity, 0, Math.min(1, dt * 3));
-      if (s.intensity < 0.05 || w.kind === "clear" || w.kind === "cloudy" || w.kind === "fog")
-        s.kind = w.kind;
+      shown.intensity = lerp(shown.intensity, 0, Math.min(1, dt * 3));
+      if (shown.intensity < 0.05 || w.kind === "clear" || w.kind === "cloudy" || w.kind === "fog") {
+        shown.kind = w.kind;
+      }
     }
-    s.intensity = lerp(s.intensity, w.intensity, k);
-    s.cloud = lerp(s.cloud, w.cloud, k);
-    s.windMs = lerp(s.windMs, w.windMs, k);
-    s.windDir = w.windDir;
-    if (s.kind === w.kind) s.intensity = lerp(s.intensity, w.intensity, k);
+    shown.intensity = lerp(shown.intensity, w.intensity, k);
+    shown.cloud = lerp(shown.cloud, w.cloud, k);
+    shown.windMs = lerp(shown.windMs, w.windMs, k);
+    shown.windDir = w.windDir;
+    if (shown.kind === w.kind) shown.intensity = lerp(shown.intensity, w.intensity, k);
+
     this.fog = lerp(this.fog, fogOf(w), k);
     const fog = this.fog;
     this.festive = this.opts.festive?.() ?? null;
@@ -463,11 +478,11 @@ export class Fx {
     const haze = Math.max(fog, mist);
 
     // The light of the sky, with clouds dimming it.
-    const storm = s.kind === "storm" ? 0.2 : 0;
-    const murk = s.cloud * 0.35 + storm + 0.1 * fog;
+    const storm = shown.kind === "storm" ? 0.2 : 0;
+    const murk = shown.cloud * 0.35 + storm + 0.1 * fog;
     const glowTarget = Math.min(
       1,
-      Math.max(l.darkness, l.warmth * 0.5, s.cloud * 0.25 * (s.kind === "storm" ? 2 : 1)),
+      Math.max(l.darkness, l.warmth * 0.5, shown.cloud * 0.25 * (shown.kind === "storm" ? 2 : 1)),
     );
     const blend = Math.min(1, dt / BLEND);
     this.lit.dark = lerp(this.lit.dark, l.darkness, blend);
@@ -521,7 +536,7 @@ export class Fx {
         top.lerp(mixTo(tmpColC, fixed(sk.duskTop), fixed(sk.nightTop), dk), kk);
         hor.lerp(mixTo(tmpColC, fixed(sk.duskHor), fixed(sk.nightHor), dk), kk);
       }
-      const gk = clamp01(s.cloud * 0.6 + storm * 2 + Math.min(0.3, fog * 0.6)) * (1 - dark * 0.7);
+      const gk = clamp01(shown.cloud * 0.6 + storm * 2 + Math.min(0.3, fog * 0.6)) * (1 - dark * 0.7);
       const gScale = 1 - dark * 0.8 - storm;
       top.lerp(tmpColC.copy(grey).multiplyScalar(gScale), clamp01(gk));
       hor.lerp(tmpColC.copy(greyH).multiplyScalar(gScale), clamp01(gk));
@@ -535,10 +550,10 @@ export class Fx {
       ).multiplyScalar(1 - storm * 2.2);
       u.dark!.value = dark;
       u.time!.value = t;
-      u.cloud!.value = s.cloud;
+      u.cloud!.value = shown.cloud;
       u.flash!.value = this.flashBoost;
       u.aspect!.value = sw / sh;
-      u.wind!.value = s.windMs;
+      u.wind!.value = shown.windMs;
       u.moonAge!.value = moonPhase(ms).age;
       u.murk!.value = murk * 0.5;
       // Fog fades the far end of the slab into the horizon.
@@ -548,17 +563,20 @@ export class Fx {
         f.color.copy(hor);
         f.near = lerp(90, 46, haze);
         f.far = lerp(120, 78, haze);
-      } else stage.scene.fog = null;
+      } else {
+        stage.scene.fog = null;
+      }
     } else if (this.sky.parent) this.sky.removeFromParent();
 
     // Weather in the town (the indoor stages stay dry).
-    const heading = (s.windDir * Math.PI) / 180;
-    const gust = Math.min(1, s.windMs / 10);
+    const heading = (shown.windDir * Math.PI) / 180;
+    const gust = Math.min(1, shown.windMs / 10);
     windVec.set(-Math.sin(heading) * gust * 2.5, Math.cos(heading) * gust * 1.2);
     this.particles.group.visible = inTown;
-    this.particles.update(dt, t, s, this.host.town.target, windVec);
+    this.particles.update(dt, t, shown, this.host.town.target, windVec);
+
     // Snow settles on up-facing surfaces and melts away; fog banks drift.
-    const snowy = s.kind === "snow" && s.intensity > 0.05;
+    const snowy = shown.kind === "snow" && shown.intensity > 0.05;
     this.snowAmt.value = lerp(this.snowAmt.value, snowy ? 1 : 0, Math.min(1, dt * 0.5));
     // The pond freezes below 0 °C and thaws above it, over half a minute or so.
     ICE.value = clamp01(ICE.value + (iceOver(w) ? 1 : -1) * dt * 0.04);
@@ -653,8 +671,8 @@ export class Fx {
   }
 
   /**
-   * Patches what was built since the last pass (a room's batches, just made by `Pipeline.prepare`) now, before its
-   * shaders are compiled ahead: left to the next pass, every batch would compile again 1.5 s after being shown.
+   * Patches what was built since the last pass (a room's batches, just made by `Pipeline.prepare`) now, before
+   * its shaders are compiled ahead. Left to the next pass, every batch would compile again 1.5 s after being shown.
    */
   rescan(): void {
     this.whiten(this.host.town.scene);
@@ -681,7 +699,7 @@ export class Fx {
             .replace("#include <common>", "#include <common>\nvarying float vSnowUp;\nuniform float uSnow;")
             .replace(
               "#include <dithering_fragment>",
-              "#include <dithering_fragment>\n  gl_FragColor.rgb = mix(gl_FragColor.rgb, vec3(0.94, 0.97, 1.0), smoothstep(0.5, 0.8, vSnowUp) * uSnow * 0.95);",
+              "#include <dithering_fragment>\n  gl_FragColor.rgb = mix(gl_FragColor.rgb, vec3(0.94, 0.97, 1.0),\n    smoothstep(0.5, 0.8, vSnowUp) * uSnow * 0.95);",
             );
         });
       }

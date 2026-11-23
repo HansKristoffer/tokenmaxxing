@@ -4,10 +4,9 @@
  * of desk setups, a poster wall, a wall of wallpaper samples and a board of floor samples, and a shelf bank
  * of small things, each piece with a price placard. Freja the shopkeeper minds the counter.
  *
- * `SHOP_FURNITURE` follows the shared shop contract (`ShopSpec`, a local copy of the shape every store
- * implements; the integrator unifies them). `displays[].at` are world-grid tiles: the room's own tile plus
- * `INSET` (the two wall rows on top and one column on the left, as for every hand-built room), and so are
- * `counter` (the tile a customer stands on to talk to the shopkeeper) and `door`.
+ * `SHOP_FURNITURE` follows the shop contract (`ShopSpec`, the shape every store implements). `displays[].at` are
+ * world-grid tiles: the room's own tile plus `INSET` (the two wall rows on top and one column on the left, as for
+ * every hand-built room), and so are `counter` (the tile a customer stands on to talk to the shopkeeper) and `door`.
  */
 import { SUPPLIES_DESK } from "@tokenmaxxing/core/shoprooms.ts";
 import * as THREE from "three";
@@ -40,8 +39,6 @@ import {
   wallTag,
   windowOf,
 } from "./furniture-parts.ts";
-
-// MARK: Contract
 
 export interface ShopItem {
   id: string;
@@ -82,18 +79,16 @@ export interface ShopSpec {
 /** How far the room sits in the world grid: two wall rows on top, one column on the left. */
 export const INSET: [number, number] = [1, 2];
 
-// MARK: Previews
-
 const lookById = <T extends { id: string }>(list: readonly T[], id: string): T =>
-  list.find((l) => l.id === id)!;
+  list.find((entry) => entry.id === id)!;
 
 /** A small free-standing sample of a wallpaper: a framed board. */
 function wallpaperPreview(id: string): Model {
   const look = lookById(WALLPAPERS, id);
   const m = new Model();
   m.box([1.0, 1.0, 0.08], "#3a2a1c", [0, 0, 0], 0.015);
-  const t = windowOf(look.texture(), 1.0 / look.span, 0.3, 0, 0.3);
-  m.plane(0.9, 0.9, glow("#fff", t), [0, 0.5, 0.05]);
+  const texture = windowOf(look.texture(), 1.0 / look.span, 0.3, 0, 0.3);
+  m.plane(0.9, 0.9, glow("#fff", texture), [0, 0.5, 0.05]);
   return m;
 }
 
@@ -102,8 +97,8 @@ function floorPreview(id: string): Model {
   const look = lookById(FLOORS, id);
   const m = new Model();
   m.box([1.0, 0.12, 1.0], "#3a2a1c", [0, 0, 0], 0.015);
-  const t = windowOf(look.texture(), 0.3, 0.3, 0, 0);
-  const top = m.plane(0.94, 0.94, painted(t), [0, 0.125, 0]);
+  const texture = windowOf(look.texture(), 0.3, 0.3, 0, 0);
+  const top = m.plane(0.94, 0.94, painted(texture), [0, 0.125, 0]);
   top.rotation.x = -Math.PI / 2;
   top.userData.noBlock = true;
   return m;
@@ -124,23 +119,25 @@ function previewOf(row: FurnRow): () => Model {
   }
 }
 
-const ITEMS: ShopItem[] = FURNITURE_SHOP_ROWS.map((r) => ({
-  id: r.id,
-  name: r.name,
-  price: r.price,
-  level: r.level,
-  group: r.group,
-  preview: previewOf(r),
+const ITEMS: ShopItem[] = FURNITURE_SHOP_ROWS.map((row) => ({
+  id: row.id,
+  name: row.name,
+  price: row.price,
+  level: row.level,
+  group: row.group,
+  preview: previewOf(row),
 }));
-const itemOf = new Map(ITEMS.map((i) => [i.id, i]));
-const rowOf = new Map(FURNITURE_SHOP_ROWS.map((r) => [r.asset + (r.group === "Desks" ? ":desk" : ""), r]));
-const rowByAsset = (asset: string): FurnRow => {
-  const r = rowOf.get(asset);
-  if (!r) throw new Error(`furniture shop: no catalogue row for ${asset}`);
-  return r;
-};
+const itemOf = new Map(ITEMS.map((item) => [item.id, item]));
 
-// MARK: Layout
+// Desk rows use their tier index as `asset`, so their key gets a suffix to stay apart from the model ids.
+const rowOf = new Map(
+  FURNITURE_SHOP_ROWS.map((row) => [row.asset + (row.group === "Desks" ? ":desk" : ""), row]),
+);
+const rowByAsset = (asset: string): FurnRow => {
+  const row = rowOf.get(asset);
+  if (!row) throw new Error(`furniture shop: no catalogue row for ${asset}`);
+  return row;
+};
 
 const W = 29;
 const D = 18;
@@ -148,6 +145,16 @@ const WALL_H = 2.6;
 
 /** Rugs lie flat: they take the id Room treats as walk-over-able. */
 const RUGS = new Set(["rug", "rug-persian", "wool-rug"]);
+
+/** A shop-only asset: no price and no catalogue entry, just a footprint and a model. */
+const shopAsset = (id: string, name: string, w: number, d: number, build: () => Model): Asset => ({
+  id,
+  name,
+  price: 0,
+  w,
+  d,
+  build,
+});
 
 function buildInterior(): ReturnType<ShopSpec["buildInterior"]> {
   const room = new Room(W, D, { floor: "#d6b27a", wall: "#efe3cc", stripe: "#e0d0b2", bare: true });
@@ -157,9 +164,9 @@ function buildInterior(): ReturnType<ShopSpec["buildInterior"]> {
   const seen = new Set<string>();
   const used = new Set<number>();
   const tile = (x: number, z: number) => z * W + x;
-  const show = (r: FurnRow, x: number, z: number, model?: THREE.Object3D) => {
-    seen.add(r.id);
-    displays.push({ item: itemOf.get(r.id)!, at: [x + INSET[0], z + INSET[1]] });
+  const show = (row: FurnRow, x: number, z: number, model?: THREE.Object3D) => {
+    seen.add(row.id);
+    displays.push({ item: itemOf.get(row.id)!, at: [x + INSET[0], z + INSET[1]] });
     shown.push(model);
   };
 
@@ -168,26 +175,29 @@ function buildInterior(): ReturnType<ShopSpec["buildInterior"]> {
   const put = (id: string, x: number, z: number, turn: Turn = 0, row = rowByAsset(id)) => {
     const base = assetOf(id);
     if (!base) throw new Error(`furniture shop: no 3D asset ${id}`);
+
     const asset: Asset = RUGS.has(id) ? { ...base, id: "rug" } : base;
     if (!room.fits(asset, x, z, turn)) throw new Error(`furniture shop: ${id} does not fit at ${x},${z}`);
-    const p = room.place(asset, x, z, turn);
-    if (RUGS.has(id)) p.model.position.y = 0.012;
-    floorPlaced.push({ p, row });
-    show(row, x, z, p.model);
-    return p;
+    const placed = room.place(asset, x, z, turn);
+    if (RUGS.has(id)) placed.model.position.y = 0.012;
+
+    floorPlaced.push({ p: placed, row });
+    show(row, x, z, placed.model);
+    return placed;
   };
   const putDesk = (tier: number, x: number, z: number) => {
     const row = DESK_ROWS[tier]!;
     const asset = DESK_TIER_ASSETS[tier]!;
-    const p = room.place(asset, x, z, 0);
-    floorPlaced.push({ p, row });
-    show(row, x, z, p.model);
-    return p;
+    const placed = room.place(asset, x, z, 0);
+
+    floorPlaced.push({ p: placed, row });
+    show(row, x, z, placed.model);
+    return placed;
   };
 
   // Desk setups along the north wall.
-  [2, 5, 8, 11, 14].forEach((x, i) => {
-    putDesk(i, x, 1);
+  [2, 5, 8, 11, 14].forEach((x, tier) => {
+    putDesk(tier, x, 1);
   });
 
   // The lounge corner: a Persian rug, a Chesterfield and a table, a TV nook.
@@ -222,12 +232,13 @@ function buildInterior(): ReturnType<ShopSpec["buildInterior"]> {
   put("aquarium", 13, 10);
   put("trophy-case", 16, 10);
   put("touched-grass", 13, 12);
-  const chand = put("chandelier", 16, 12);
+  const chandelier = put("chandelier", 16, 12);
+
   // The chandelier hangs from a beam, since there is no ceiling here.
   const beam = new Model();
   beam.box([2.4, 0.12, 0.3], "#8c5c36", [0, 2.6, 0], 0.02);
-  for (const s of [-1, 1]) beam.box([0.1, 0.5, 0.1], "#8c5c36", [s * 1.15, 2.12, 0], 0.01);
-  beam.position.set(chand.x + 1, 0, chand.z + 0.5);
+  for (const side of [-1, 1]) beam.box([0.1, 0.5, 0.1], "#8c5c36", [side * 1.15, 2.12, 0], 0.01);
+  beam.position.set(chandelier.x + 1, 0, chandelier.z + 0.5);
   room.group.add(beam);
 
   // The home office, top right.
@@ -242,9 +253,10 @@ function buildInterior(): ReturnType<ShopSpec["buildInterior"]> {
   // The kitchenette: a checker floor patch and a run of appliances.
   const checker = new Model();
   checker.box([9, 0.02, 3], "#e8e2d4", [0, 0, 0], 0.002);
-  for (let i = 0; i < 9; i++) {
-    for (let j = 0; j < 3; j++) {
-      if ((i + j) % 2) checker.box([0.99, 0.025, 0.99], "#3b3f50", [-4 + i, 0.002, -1 + j], 0.001);
+  for (let cellX = 0; cellX < 9; cellX++) {
+    for (let cellZ = 0; cellZ < 3; cellZ++) {
+      if ((cellX + cellZ) % 2)
+        checker.box([0.99, 0.025, 0.99], "#3b3f50", [-4 + cellX, 0.002, -1 + cellZ], 0.001);
     }
   }
   checker.position.set(23.5, 0.005, 11.5);
@@ -275,59 +287,56 @@ function buildInterior(): ReturnType<ShopSpec["buildInterior"]> {
     return { id, model: assetOf(id)!.build(), row };
   });
   const bank = shelfBank(4, slots);
-  const bankAsset: Asset = {
-    id: "shop:bank",
-    name: "Shelf bank",
-    price: 0,
-    w: 4,
-    d: 1,
-    build: () => bank.model,
-  };
-  room.place(bankAsset, BANK_X, BANK_Z, 0, bank.model);
-  slots.forEach((s, i) => {
-    show(s.row, BANK_X + bank.cols[i]!, BANK_Z, s.model);
+  room.place(
+    shopAsset("shop:bank", "Shelf bank", 4, 1, () => bank.model),
+    BANK_X,
+    BANK_Z,
+    0,
+    bank.model,
+  );
+  slots.forEach((slot, index) => {
+    show(slot.row, BANK_X + bank.cols[index]!, BANK_Z, slot.model);
   });
 
   // The counter, the till and Freja.
   const CTR_X = 22;
   const CTR_Z = 14;
-  const ctrAsset: Asset = {
-    id: "shop:counter",
-    name: "Counter",
-    price: 0,
-    w: 6,
-    d: 1,
-    build: () => counter(6),
-  };
-  room.place(ctrAsset, CTR_X, CTR_Z, 0);
+  room.place(
+    shopAsset("shop:counter", "Counter", 6, 1, () => counter(6)),
+    CTR_X,
+    CTR_Z,
+    0,
+  );
+
   const rolls = wallpaperRolls();
-  const rollsAsset: Asset = {
-    id: "shop:rolls",
-    name: "Wallpaper rolls",
-    price: 0,
-    w: 1,
-    d: 1,
-    build: () => rolls,
-  };
-  room.place(rollsAsset, 20, 13, 0, rolls);
+  room.place(
+    shopAsset("shop:rolls", "Wallpaper rolls", 1, 1, () => rolls),
+    20,
+    13,
+    0,
+    rolls,
+  );
+
   // The company-supplies catalogue desk by the door: E on it opens the Company tab (`SUPPLIES_DESK` in core).
   const supplies = suppliesDesk();
   room.place(
-    { id: "shop:supplies", name: "Company supplies", price: 0, w: 2, d: 1, build: () => supplies },
+    shopAsset("shop:supplies", "Company supplies", 2, 1, () => supplies),
     SUPPLIES_DESK[0] - INSET[0],
     SUPPLIES_DESK[1] - INSET[1],
     0,
     supplies,
   );
+
   const keeper = makeShopkeeper();
   keeper.avatar.root.position.set(CTR_X - 0.9, 0.02, CTR_Z + 0.55);
   keeper.avatar.root.rotation.y = 0.35;
   room.group.add(keeper.avatar.root);
+
   // Her idle runs with the world's clock when nobody calls `update` on her.
-  let last = performance.now() / 1000;
+  let lastTick = performance.now() / 1000;
   ticks.push((t) => {
-    const dt = Math.min(0.1, Math.max(0, t - last));
-    last = t;
+    const dt = Math.min(0.1, Math.max(0, t - lastTick));
+    lastTick = t;
     keeper.avatar.update(dt, t);
   });
 
@@ -343,24 +352,26 @@ function buildInterior(): ReturnType<ShopSpec["buildInterior"]> {
     m.updateMatrixWorld(true);
     return new THREE.Box3().setFromObject(m);
   };
-  const hangNorth = (m: Model, centre: number, bottom: number) => {
-    const b = measure(m);
-    m.position.set(centre - (b.min.x + b.max.x) / 2, bottom - b.min.y, 0.01);
+  const hangNorth = (m: Model, centerX: number, bottom: number) => {
+    const bounds = measure(m);
+    m.position.set(centerX - (bounds.min.x + bounds.max.x) / 2, bottom - bounds.min.y, 0.01);
     room.group.add(m);
     return measure(m);
   };
 
-  let px = 1.0;
-  for (const r of POSTER_ROWS) {
-    const m = assetOf(r.asset)!.build();
-    const w = measure(m).getSize(new THREE.Vector3()).x;
-    const b = hangNorth(m, px + w / 2, 0.85);
-    const tag = wallTag(r, Math.max(1.0, w));
-    tag.position.set(px + w / 2, b.max.y + 0.06, 0.02);
+  let posterX = 1.0;
+  for (const row of POSTER_ROWS) {
+    const m = assetOf(row.asset)!.build();
+    const width = measure(m).getSize(new THREE.Vector3()).x;
+    const bounds = hangNorth(m, posterX + width / 2, 0.85);
+
+    const tag = wallTag(row, Math.max(1.0, width));
+    tag.position.set(posterX + width / 2, bounds.max.y + 0.06, 0.02);
     room.group.add(tag);
-    show(r, Math.floor(px + w / 2), 0, m);
-    px += w + 0.3;
+    show(row, Math.floor(posterX + width / 2), 0, m);
+    posterX += width + 0.3;
   }
+
   const hangings = [
     "certificate",
     "hanging-plant",
@@ -369,48 +380,49 @@ function buildInterior(): ReturnType<ShopSpec["buildInterior"]> {
     "neon-sign",
     "plant-wall",
   ];
-  let hx = 18.1;
+  let hangingX = 18.1;
   for (const id of hangings) {
-    const r = rowByAsset(id);
+    const row = rowByAsset(id);
     const m = assetOf(id)!.build();
-    const w = measure(m).getSize(new THREE.Vector3()).x;
-    const b = hangNorth(m, hx + w / 2, 1.0);
-    const tag = wallTag(r, Math.max(1.0, Math.min(w, 1.5)));
-    tag.position.set(hx + w / 2, b.min.y - 0.45, 0.02);
+    const width = measure(m).getSize(new THREE.Vector3()).x;
+    const bounds = hangNorth(m, hangingX + width / 2, 1.0);
+
+    const tag = wallTag(row, Math.max(1.0, Math.min(width, 1.5)));
+    tag.position.set(hangingX + width / 2, bounds.min.y - 0.45, 0.02);
     room.group.add(tag);
-    show(r, Math.floor(hx + w / 2), 0, m);
-    hx += w + 0.22;
+    show(row, Math.floor(hangingX + width / 2), 0, m);
+    hangingX += width + 0.22;
   }
 
   // Samples on the west wall: wallpaper in two rows of five, floors in two rows of five.
   const PANEL = { w: 1.35, h: 1.0 };
   const PITCH = 1.55;
-  const west = (m: Model, zc: number, y: number) => {
-    m.position.set(0.04, y, zc);
+  const west = (m: Model, centerZ: number, y: number) => {
+    m.position.set(0.04, y, centerZ);
     m.rotation.y = Math.PI / 2;
     room.group.add(m);
   };
   const sampleBlock = (
     rows: readonly FurnRow[],
     z0: number,
-    make: (r: FurnRow) => THREE.Texture,
+    make: (row: FurnRow) => THREE.Texture,
     thick: number,
   ) => {
-    rows.forEach((r, i) => {
-      const col = i % 5;
-      const rowIdx = Math.floor(i / 5);
-      const zc = z0 + PANEL.w / 2 + col * PITCH;
-      const m = samplePanel(r, make(r), PANEL, thick);
-      west(m, zc, 0.12 + rowIdx * 1.12);
-      show(r, 0, Math.min(D - 2, Math.floor(zc)), m);
+    rows.forEach((row, index) => {
+      const col = index % 5;
+      const rowIdx = Math.floor(index / 5);
+      const centerZ = z0 + PANEL.w / 2 + col * PITCH;
+      const m = samplePanel(row, make(row), PANEL, thick);
+      west(m, centerZ, 0.12 + rowIdx * 1.12);
+      show(row, 0, Math.min(D - 2, Math.floor(centerZ)), m);
     });
   };
   sampleBlock(
     WALLPAPER_ROWS,
     1.0,
-    (r) => {
-      const look = lookById(WALLPAPERS, r.asset);
-      const plain = r.asset === "plain";
+    (row) => {
+      const look = lookById(WALLPAPERS, row.asset);
+      const plain = row.asset === "plain";
       return windowOf(look.texture(), PANEL.w / look.span, plain ? 0.5 : 0.7 / WALL_H, 0, plain ? 0.2 : 0.3);
     },
     0.05,
@@ -418,13 +430,13 @@ function buildInterior(): ReturnType<ShopSpec["buildInterior"]> {
   sampleBlock(
     FLOOR_ROWS,
     9.7,
-    (r) => windowOf(lookById(FLOORS, r.asset).texture(), 0.45, 0.234, 0, 0.1),
+    (row) => windowOf(lookById(FLOORS, row.asset).texture(), 0.45, 0.234, 0, 0.1),
     0.1,
   );
-  const hdrW = headerBoard("WALLPAPER", "10 patterns · E to browse", 7.8, 0.28);
-  west(hdrW, 1.0 + 3.9, 2.38);
-  const hdrF = headerBoard("FLOOR SAMPLES", "10 floors · E to browse", 7.8, 0.28);
-  west(hdrF, 9.7 + 3.9, 2.38);
+  const wallpaperHeader = headerBoard("WALLPAPER", "10 patterns · E to browse", 7.8, 0.28);
+  west(wallpaperHeader, 1.0 + 3.9, 2.38);
+  const floorHeader = headerBoard("FLOOR SAMPLES", "10 floors · E to browse", 7.8, 0.28);
+  west(floorHeader, 9.7 + 3.9, 2.38);
   // The poster wall is labelled by its own tags, so it gets no header board.
 
   // Placards for the floor pieces.
@@ -444,9 +456,11 @@ function buildInterior(): ReturnType<ShopSpec["buildInterior"]> {
       { cx: p.x - 0.5, z: front, tiles: [p.x - 1] },
       { cx: p.x + fw + 0.5, z: front, tiles: [p.x + fw] },
     );
-    let spot = spots.find((s) => s.tiles.every((x) => tileOpen(x, front)));
+
+    let spot = spots.find((candidate) => candidate.tiles.every((x) => tileOpen(x, front)));
     spot ??= spots[0]!;
     for (const x of spot.tiles) used.add(tile(x, front));
+
     const tag = priceTag(row);
     tag.position.set(spot.cx, 0, spot.z + 0.28);
     room.group.add(tag);
@@ -463,9 +477,9 @@ function buildInterior(): ReturnType<ShopSpec["buildInterior"]> {
     ["KITCHENETTE", "coffee · fridges · vending", 24.0, 12.2],
   ];
   for (const [title, sub, x, z] of signs) {
-    const s = setSign(title, sub);
-    s.position.set(x, 0, z);
-    room.group.add(s);
+    const sign = setSign(title, sub);
+    sign.position.set(x, 0, z);
+    room.group.add(sign);
   }
 
   // Warm light for the night, and the shop windows.
@@ -481,23 +495,25 @@ function buildInterior(): ReturnType<ShopSpec["buildInterior"]> {
     [10, 15],
     [4, 2],
     [10, 2],
-  ] as const)
+  ] as const) {
     light(lamps, [x, 2.2, z], "#ffd9a0", 4, 9);
+  }
   room.group.add(lamps);
 
   // Every catalogue item has a display, and none is missing.
-  const missing = ITEMS.filter((i) => !seen.has(i.id));
+  const missing = ITEMS.filter((item) => !seen.has(item.id));
   if (missing.length) {
-    throw new Error(`furniture shop: not on display: ${missing.map((m) => m.id).join(", ")}`);
+    throw new Error(`furniture shop: not on display: ${missing.map((item) => item.id).join(", ")}`);
   }
 
   room.group.updateMatrixWorld(true);
   const box = new THREE.Box3();
-  displays.forEach((d, i) => {
-    const m = shown[i];
-    if (!m || box.setFromObject(m).isEmpty()) return;
-    const v = box.getCenter(new THREE.Vector3());
-    d.world = [v.x, v.y, v.z];
+  displays.forEach((display, index) => {
+    const model = shown[index];
+    if (!model || box.setFromObject(model).isEmpty()) return;
+
+    const center = box.getCenter(new THREE.Vector3());
+    display.world = [center.x, center.y, center.z];
   });
 
   return {

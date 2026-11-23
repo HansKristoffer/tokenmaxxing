@@ -51,8 +51,8 @@ export function poseOf(p: Posing, seat: string | undefined, walking: boolean): P
 }
 
 /**
- * A hop's height in world units, `t` being how far through it (0 to 1; past 1 is none). The 2D game's
- * seven pixels of a sixteen-pixel tile.
+ * A hop's height in world units, `t` being how far through it (0 to 1; past 1 is none). The 2D game hops seven
+ * pixels of a sixteen-pixel tile, which is about 0.44 world units here.
  */
 export function hopHeight(t: number): number {
   return t >= 0 && t < 1 ? Math.sin(t * Math.PI) * 0.44 : 0;
@@ -98,8 +98,6 @@ export function keyDirection(key: Facing, quarter: number): Facing {
   }
   return best;
 }
-
-// MARK: The walk cycle
 
 /** World units one full cycle (two steps) covers: the legs turn with the ground, so feet don't slide. */
 export const STRIDE = 1.5;

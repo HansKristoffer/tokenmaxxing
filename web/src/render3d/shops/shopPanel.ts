@@ -102,6 +102,7 @@ export function mountShopPanel(hooks: PanelHooks, backend: ShopBackend): ShopPan
     if (el.hidden || el.classList.contains("cx-collapsed") || !pipe) return;
     const t = performance.now() / 1000;
     spin.rotation.y = t * 0.7;
+
     const { style, pixelSize, night } = hooks.renderStyle();
     pipe.style = style;
     pipe.pixelSize = style === "voxel" ? 1 : pixelSize;
@@ -110,6 +111,7 @@ export function mountShopPanel(hooks: PanelHooks, backend: ShopBackend): ShopPan
     pipe.skyTop.set(night ? "#0d1226" : "#9fd2ea");
     pipe.skyHor.set(night ? "#1a2240" : "#dcf0ee");
     pipe.hazeColor.copy(pipe.skyHor);
+
     const w = canvas.clientWidth * 2;
     const h = canvas.clientHeight * 2;
     const aspect = w / h;
@@ -118,12 +120,15 @@ export function mountShopPanel(hooks: PanelHooks, backend: ShopBackend): ShopPan
     cam.top = radius;
     cam.bottom = -radius;
     cam.updateProjectionMatrix();
+
+    // A fixed three-quarter view from above, 20 units out, looking at the middle of the model.
     cam.position.set(
       20 * Math.cos(ELEVATION) * Math.sin(Math.PI / 4),
       centreY + 20 * Math.sin(ELEVATION),
       20 * Math.cos(ELEVATION) * Math.cos(Math.PI / 4),
     );
     cam.lookAt(0, centreY, 0);
+
     pipe.render(scene, cam, w, h);
     raf = requestAnimationFrame(frame);
   };
@@ -150,6 +155,9 @@ export function mountShopPanel(hooks: PanelHooks, backend: ShopBackend): ShopPan
     radius = Math.max(0.35, b2.getSize(new THREE.Vector3()).length() / 2) * 0.95;
   };
 
+  /** One write at a time: the buttons wait, then the card shows what the server decided and the toast says so. */
+  let pending = false;
+
   const render = (): void => {
     if (!current) return;
     const { shop, item } = current;
@@ -167,6 +175,7 @@ export function mountShopPanel(hooks: PanelHooks, backend: ShopBackend): ShopPan
     const actions = $(".actions");
     actions.replaceChildren();
     state.className = "shop-state";
+
     const g = info.gate;
     const level = backend.level();
     const purse = info.pays === "company" ? backend.companyCoins() : backend.coins();
@@ -220,8 +229,6 @@ export function mountShopPanel(hooks: PanelHooks, backend: ShopBackend): ShopPan
     }
   };
 
-  /** One write at a time: the buttons wait, then the card shows what the server decided and the toast says so. */
-  let pending = false;
   const run = async (f: () => Promise<Outcome>, fallback: string): Promise<void> => {
     if (pending) return;
     pending = true;

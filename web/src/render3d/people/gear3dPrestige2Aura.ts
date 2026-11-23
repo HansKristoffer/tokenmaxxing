@@ -62,11 +62,11 @@ AURA_BUILDERS["Orbiting token sigil"] = (m, tick) => {
   m.add(sigil);
   const spin = new THREE.Group();
   sigil.add(spin);
-  const R = 0.46;
+  const ringRadius = 0.46;
   for (let i = 0; i < 8; i++) {
     const a = (i / 8) * Math.PI * 2;
     const d = bit(spin, CUBE, basic(i % 2 ? CYAN : GLOW));
-    d.position.set(Math.cos(a) * R, 0, Math.sin(a) * R);
+    d.position.set(Math.cos(a) * ringRadius, 0, Math.sin(a) * ringRadius);
     d.rotation.y = -a;
     d.scale.set(0.012, 0.012, 0.11);
     // A faint cap at each end of a dash.
@@ -94,11 +94,11 @@ AURA_BUILDERS["Orbiting token sigil"] = (m, tick) => {
   const orbit = new THREE.Group();
   orbit.rotation.set(-0.5, 0, 0.35);
   m.add(orbit);
-  const OR = 0.4;
+  const orbitRadius = 0.4;
   for (let i = 0; i < 36; i++) {
     const a = (i / 36) * Math.PI * 2;
     const d = bit(orbit, CUBE, basic(CYAN, 0.35));
-    d.position.set(Math.cos(a) * OR, 0, Math.sin(a) * OR);
+    d.position.set(Math.cos(a) * orbitRadius, 0, Math.sin(a) * orbitRadius);
     d.rotation.y = -a;
     d.scale.set(0.006, 0.006, 0.05);
   }
@@ -140,7 +140,8 @@ AURA_BUILDERS["Orbiting token sigil"] = (m, tick) => {
     return { o, w: rnd() * 6, s: 0.7 + rnd() * 0.8 };
   });
 
-  const place = (a: number, at: THREE.Object3D) => at.position.set(Math.cos(a) * OR, 0, Math.sin(a) * OR);
+  const place = (a: number, at: THREE.Object3D) =>
+    at.position.set(Math.cos(a) * orbitRadius, 0, Math.sin(a) * orbitRadius);
   tick((t, walking) => {
     const w = walking ? 1.5 : 1;
     spin.rotation.y = -t * 0.35 * w;

@@ -26,8 +26,6 @@ import { wornFocus } from "../icon-key.ts";
 import type { IconSpec } from "../icons.ts";
 import type { LiveFrame } from "../rooms/rooms.ts";
 
-// MARK: Where things stand
-
 /** How high the surface a slot's item stands on is: the back wall's shelf tops and the glass cases' floors. */
 export const SHELF_Y = 0.5;
 export const CASE_Y = 0.38;
@@ -57,8 +55,6 @@ export function slotSpot(slot: number): Spot | null {
     shelf,
   };
 }
-
-// MARK: The card
 
 /** The card's picture in pixels: a square for the item and a strip for the tag under it. */
 const CARD_W = 128;
@@ -137,9 +133,11 @@ export function paintCard(
 ): void {
   g.clearRect(0, 0, CARD_W, CARD_H);
   const color = RARITY_COLOR[rarity];
+
   // The glow, and the soft shadow the item stands in.
   if (GLOW[rarity] > 0) {
-    const r = g.createRadialGradient(CARD_W / 2, ICON_H * 0.55, 4, CARD_W / 2, ICON_H * 0.55, ICON_H * 0.5);
+    const glowY = ICON_H * 0.55;
+    const r = g.createRadialGradient(CARD_W / 2, glowY, 4, CARD_W / 2, glowY, ICON_H * 0.5);
     // The glow's alpha as the two hex digits a `#rrggbbaa` colour takes.
     const alpha = Math.round(GLOW[rarity] * 255)
       .toString(16)
@@ -153,6 +151,7 @@ export function paintCard(
   g.beginPath();
   g.ellipse(CARD_W / 2, ICON_H - 8, CARD_W * 0.3, 7, 0, 0, Math.PI * 2);
   g.fill();
+
   // The item: its icon, or its emoji, or (while the icon waits) a faint gift box.
   g.textAlign = "center";
   g.textBaseline = "middle";
@@ -199,8 +198,6 @@ export function paintCard(
   }
 }
 
-// MARK: The free-slot marker
-
 /** A dashed square with a plus in it, lying on the surface: drawn once for every free slot. */
 function markerTexture(): THREE.CanvasTexture {
   const c = document.createElement("canvas");
@@ -225,8 +222,6 @@ function markerTexture(): THREE.CanvasTexture {
   t.colorSpace = THREE.SRGBColorSpace;
   return t;
 }
-
-// MARK: The layer
 
 const DIR = new THREE.Vector3();
 
@@ -324,14 +319,16 @@ export class MarketSlots {
   private show(l: Listing): void {
     const spot = slotSpot(l.slot);
     if (!spot) return;
+
     const item = itemById(l.item);
     const rarity = item ? rarityOf(item) : "common";
+    const emoji = item?.slot === "dance" ? (danceAt(item.index)?.emoji ?? null) : null;
+
     const canvas = document.createElement("canvas");
     canvas.width = CARD_W;
     canvas.height = CARD_H;
-    const g = canvas.getContext("2d")!;
-    const emoji = item?.slot === "dance" ? (danceAt(item.index)?.emoji ?? null) : null;
-    paintCard(g, l, rarity, emoji);
+    paintCard(canvas.getContext("2d")!, l, rarity, emoji);
+
     const texture = new THREE.CanvasTexture(canvas);
     texture.colorSpace = THREE.SRGBColorSpace;
     texture.anisotropy = 4;
@@ -345,8 +342,11 @@ export class MarketSlots {
     mesh.name = `market-slot-${l.slot}`;
     mesh.userData.live = true;
     this.group.add(mesh);
+
     const shown: Shown = { key: keyOf(l), mesh, texture, canvas, cancel: () => {} };
     this.shown.set(l.slot, shown);
+
+    // An emoji card is already complete; any other item waits for its picture.
     const spec = item && !emoji ? iconOf(item) : null;
     if (spec) this.fetch(shown, l, rarity, spec);
   }

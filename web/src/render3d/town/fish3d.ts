@@ -6,7 +6,8 @@ import { bake, darken, Grid, hash, lighten, noise, VOX } from "../pets/petvox.ts
  * The pond's fish (`core/src/fishing.ts`) as voxel sculptures, baked like the pets (`petvox.ts`): a body that is
  * round in section and tapers to the tail, fins that stand off it, eyes on both sides, and a tail of its own that
  * wags while the catch thrashes. The odd catches (the duck, the boot, the bug, the spaghetti, the eel, the
- * kraken's tentacle, the empty hook) are sculpted on their own. Sculpted nose to +z, then turned so the nose is +x.
+ * kraken's tentacle, the empty hook) are sculpted on their own. They are sculpted nose to +z, then turned so the
+ * nose is +x.
  */
 export interface FishRig {
   root: THREE.Group;
@@ -79,7 +80,8 @@ function shapeOf(s: FishSpec): Shape {
   const prof = s.prof ?? defaultProf(s.k ?? 1.15);
   const at = (u: number) => {
     const p = prof(Math.min(1, Math.max(0, u)));
-    return { yc: Math.round(s.bend?.(u) ?? 0), hy: Math.max(0.6, s.hi * p), hx: Math.max(0.6, s.wide * p) };
+    const yc = Math.round(s.bend?.(u) ?? 0);
+    return { yc, hy: Math.max(0.6, s.hi * p), hx: Math.max(0.6, s.wide * p) };
   };
   // The eye sits 84% of the way along the body, a quarter of the half height up.
   const ez = Math.round(0.84 * (s.len - 1));
@@ -100,7 +102,7 @@ function body(g: Grid, s: FishSpec, f: Shape): void {
   for (let z = 0; z < s.len; z++) {
     const u = z / (s.len - 1);
     const { yc, hy, hx } = f.at(u);
-    for (let y = Math.floor(-hy - FUDGE); y <= Math.ceil(hy + FUDGE); y++)
+    for (let y = Math.floor(-hy - FUDGE); y <= Math.ceil(hy + FUDGE); y++) {
       for (let x = Math.floor(-hx - FUDGE); x <= Math.ceil(hx + FUDGE); x++) {
         if ((Math.abs(x) / (hx + FUDGE)) ** SUPER + (Math.abs(y) / (hy + FUDGE)) ** SUPER > 1) continue;
 
@@ -108,6 +110,7 @@ function body(g: Grid, s: FishSpec, f: Shape): void {
         const marked = s.mark?.(c);
         g.set(x, yc + y, z, marked ?? plainColour(s, c));
       }
+    }
   }
 }
 
@@ -174,15 +177,17 @@ function face(g: Grid, s: FishSpec, f: Shape): void {
   const my = n.yc - Math.round(n.hy * 0.25);
   const lip = "#3a1f24";
   for (const dx of [-1, 0, 1]) if (g.has(dx, my, nose)) g.set(dx, my, nose, lip);
-  if (s.mouth === "big")
+  if (s.mouth === "big") {
     for (const dx of [-1, 0, 1]) if (g.has(dx, my - 1, nose)) g.set(dx, my - 1, nose, lip);
-  if (s.barbels)
+  }
+  if (s.barbels) {
     for (const side of [-1, 1]) {
       const c = darken(s.side, 0.35);
       g.set(side, my - 1, nose + 1, c);
       g.set(side, my - 2, nose + 1, c);
       g.set(side, my - 3, nose, c);
     }
+  }
 }
 
 /** The tail on its own, from z = -1 back, a cell thick: forked, round, or a koi's long fan. */
@@ -190,11 +195,11 @@ function tailOf(s: FishSpec, f: Shape): Grid {
   const g = new Grid();
   const root = f.at(0);
   const fan = s.tail === "fan";
-  const T = Math.round(s.len * (fan ? 0.38 : 0.28));
+  const length = Math.round(s.len * (fan ? 0.38 : 0.28));
   const top = s.hi * (fan ? 1.35 : 1.05);
   const ray = darken(s.fin, 0.22);
-  for (let d = 1; d <= T; d++) {
-    const v = d / T;
+  for (let d = 1; d <= length; d++) {
+    const v = d / length;
     // A round tail swells quickly, then pulls in a little at its very tip.
     const swell = Math.sin((Math.PI / 2) * Math.min(1, v * 1.4));
     const tip = v > 0.85 ? 0.75 : 1;
@@ -233,8 +238,8 @@ function sweep(
       const u = (walked + k) / total;
       const R = r(u);
       const n = Math.ceil(R);
-      for (let dx = -n; dx <= n; dx++)
-        for (let dy = -n; dy <= n; dy++)
+      for (let dx = -n; dx <= n; dx++) {
+        for (let dy = -n; dy <= n; dy++) {
           for (let dz = -n; dz <= n; dz++) {
             const x = Math.round(p[0] + dx);
             const y = Math.round(p[1] + dy);
@@ -242,6 +247,8 @@ function sweep(
             const off: V3 = [x - p[0], y - p[1], z - p[2]];
             if (Math.hypot(...off) <= R) g.set(x, y, z, col(u, off));
           }
+        }
+      }
     }
     walked += len;
   });
@@ -383,7 +390,7 @@ const SCULPTS: Record<string, () => { body: Grid; tail: Grid | null; opacity?: n
     g.ell(0, 0, 8, 3, 2, 2, dark);
     for (const s of [-1, 1]) {
       g.set(s * 2, 1, 9, "#14121a");
-      for (const z of [-3, 0, 3])
+      for (const z of [-3, 0, 3]) {
         sweep(
           g,
           [
@@ -394,6 +401,7 @@ const SCULPTS: Record<string, () => { body: Grid; tail: Grid | null; opacity?: n
           () => 0.8,
           () => dark,
         );
+      }
       sweep(
         g,
         [
@@ -466,7 +474,7 @@ const SCULPTS: Record<string, () => { body: Grid; tail: Grid | null; opacity?: n
       [2, -1],
       [0, 3],
     ];
-    for (const [x, z] of anchors)
+    for (const [x, z] of anchors) {
       sweep(
         g,
         [
@@ -477,6 +485,7 @@ const SCULPTS: Record<string, () => { body: Grid; tail: Grid | null; opacity?: n
         () => 0.6,
         () => "#f0d27a",
       );
+    }
     // The meatball, big enough to see through the noodles.
     g.ell(0, 0, 0, 4.6, 4.6, 4.6, (c) => {
       if (noise(c.x / 2, c.y / 2, c.z / 2, 3) > 0.6) return "#6e3a20";
@@ -622,10 +631,13 @@ const SCULPTS: Record<string, () => { body: Grid; tail: Grid | null; opacity?: n
     extra: (g, f) => {
       // Shades: a black lens over each eye and a bridge over the snout.
       const { y, z, x } = f.eye;
-      for (const s of [-1, 1])
-        for (let dy = -1; dy <= 2; dy++)
-          for (let dz = -2; dz <= 1; dz++)
+      for (const s of [-1, 1]) {
+        for (let dy = -1; dy <= 2; dy++) {
+          for (let dz = -2; dz <= 1; dz++) {
             g.set(s * (x + 1), y + dy, z + dz, dy === 2 && dz === -2 ? "*#3ddc84" : "#14121a");
+          }
+        }
+      }
       for (let dx = -x; dx <= x; dx++) g.set(dx, y + 2, z + 2, "#14121a");
     },
   }),
@@ -668,7 +680,7 @@ export function buildFish(id: string): FishRig {
   root.userData.noBlock = true;
   const sculpt = SCULPTS[id];
   if (!sculpt) return { root, tail: null };
-  const { body: g, tail: t, opacity } = sculpt();
+  const { body: g, tail: tailGrid, opacity } = sculpt();
   const b = g.bounds();
   const turned = new THREE.Group();
   turned.rotation.y = Math.PI / 2;
@@ -680,8 +692,8 @@ export function buildFish(id: string): FishRig {
   const mesh = bake(g, { origin: [cx, cy, cz], seed: 3, ...(opacity !== undefined && { opacity }) });
   turned.add(mesh);
   let tail: THREE.Object3D | null = null;
-  if (t) {
-    const tm = bake(t, { origin: [0, cy, -0.5], seed: 4, ...(opacity !== undefined && { opacity }) });
+  if (tailGrid) {
+    const tm = bake(tailGrid, { origin: [0, cy, -0.5], seed: 4, ...(opacity !== undefined && { opacity }) });
     tm.position.set(-cx * VOX, 0, (-0.5 - cz) * VOX);
     turned.add(tm);
     tail = tm;

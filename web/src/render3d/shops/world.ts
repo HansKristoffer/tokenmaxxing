@@ -17,6 +17,9 @@ export interface ShopWorld {
    * the Bag uses (`town.drop`). False when it has no placement mode (the caller then drops where the player stands).
    */
   startPlacement(itemId: string, company?: boolean): boolean;
-  /** The Office's wallpaper and floor, as core `decor.ts` ids; what the player sets changes at once, before the server answers. */
+  /**
+   * The Office's wallpaper and floor, as core `decor.ts` ids. What the player sets changes at once, before the
+   * server answers.
+   */
   applyDecor(d: { wall?: string; floor?: string }): void;
 }

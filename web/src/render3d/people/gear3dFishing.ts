@@ -9,7 +9,7 @@ import type { Model } from "../kit/kit.ts";
 import "./gear3dFishingAura.ts";
 import "./gear3dFishingBody.ts";
 import { COVERS_HAIR, type Ctx, HAT_BUILDERS } from "./gear3dHead.ts";
-import { isVox } from "./voxgear.ts";
+import { isVox, roundAt } from "./voxgear.ts";
 
 const OLIVE = "#7d8248";
 const OLIVE_LIGHT = "#9aa05e";
@@ -19,15 +19,6 @@ const KHAKI_DARK = "#9d8d55";
 const CORD = "#4a3a22";
 const STEEL = "#c3cad6";
 const STEEL_DARK = "#7a8394";
-
-/** A point at angle `a` round a head: on a circle for smooth models, on the square band for blocky ones. */
-function roundAt(m: Model, a: number, r: number): [number, number] {
-  const x = Math.sin(a);
-  const z = Math.cos(a);
-  if (!isVox(m)) return [x * r, z * r];
-  const k = (r * 0.92) / Math.max(Math.abs(x), Math.abs(z));
-  return [x * k, z * k];
-}
 
 /** The lures on the band, from the front round to the back: [angle, kind (0 fly, 1 spoon, 2 jig), three colours]. */
 // biome-ignore format: a table reads best one lure a line
@@ -82,7 +73,7 @@ function lureHat(m: Model, c: Ctx): void {
   for (const s of [-1, 1])
     for (const z of [0.03, 0.08]) m.ball(0.013, OLIVE_DARK, [s * 0.27, 0.2, z], [0.5, 1, 1], 6);
 
-  const swing = LURES.map(([a, kind, c1, c2, c3]) => {
+  const lures = LURES.map(([a, kind, c1, c2, c3]) => {
     const [x, z] = roundAt(m, a, 0.295);
     const p = m.part([x, 0.18, z], vox ? 0 : a);
     p.scale.setScalar(1.5);
@@ -90,8 +81,8 @@ function lureHat(m: Model, c: Ctx): void {
     return p;
   });
   c.tick((t) => {
-    for (let i = 0; i < swing.length; i++) {
-      const p = swing[i]!;
+    for (let i = 0; i < lures.length; i++) {
+      const p = lures[i]!;
       p.rotation.x = Math.sin(t * 1.7 + i * 1.3) * 0.1;
       p.rotation.z = Math.sin(t * 1.3 + i * 2.1) * 0.05;
     }

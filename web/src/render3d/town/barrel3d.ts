@@ -66,9 +66,11 @@ export class Barrel3d {
     const [x, z] = toWorld(BARREL.x, BARREL.y);
     this.group.position.set(x, 0, z);
     this.sign.at = [x, 2.6, z];
+
     const frame = frameModel();
     this.barrel.position.y = HANG_Y;
     this.group.add(frame, this.barrel, this.broken);
+
     // Merged off the origin, so each lies in one patch of floor (the batching splits at multiples of 100).
     for (const m of [frame, this.barrel, this.broken]) {
       m.position.x += 50;
@@ -77,6 +79,7 @@ export class Barrel3d {
       m.position.x -= 50;
       m.position.z -= 50;
     }
+
     this.group.traverse((o) => {
       o.userData.nopick = true;
     });
@@ -88,11 +91,13 @@ export class Barrel3d {
   update(t: number): void {
     this.group.visible = barrelNow();
     if (!this.group.visible) return;
+
     const b = hud.get().barrel;
     const broken = !!b?.king;
     this.barrel.visible = !broken;
     this.broken.visible = broken;
     if (broken) return;
+
     const hits = b?.hits ?? 0;
     // A slow sway, and a lean that grows with the cracks.
     this.barrel.rotation.z = Math.sin(t * 2.2 + hits) * 0.05 + cracks(hits) * 0.04;

@@ -21,8 +21,8 @@ const PENNANT = ["#e2443a", "#f5d14a", "#6f7fc9", "#a5d977", "#fbf7ef", "#f2a6c8
 export function buntingMeshes(strings: readonly Bunting[]): THREE.Group {
   const cords: THREE.BufferGeometry[] = [];
   const flags: THREE.BufferGeometry[] = [];
-  const A = new THREE.Vector3();
-  const B = new THREE.Vector3();
+  const start = new THREE.Vector3();
+  const end = new THREE.Vector3();
   const tri = new THREE.Shape();
   tri.moveTo(-0.1, 0);
   tri.lineTo(0.1, 0);
@@ -32,15 +32,16 @@ export function buntingMeshes(strings: readonly Bunting[]): THREE.Group {
   const q = new THREE.Quaternion();
   const e = new THREE.Euler();
   const one = new THREE.Vector3(1, 1, 1);
+
   for (const s of strings) {
-    A.set(...s.a);
-    B.set(...s.b);
-    const len = A.distanceTo(B);
+    start.set(...s.a);
+    end.set(...s.b);
+    const len = start.distanceTo(end);
     const at = (f: number, out = new THREE.Vector3()) =>
       out
-        .copy(A)
-        .lerp(B, f)
-        .setY(A.y + (B.y - A.y) * f - 4 * s.sag * f * (1 - f));
+        .copy(start)
+        .lerp(end, f)
+        .setY(start.y + (end.y - start.y) * f - 4 * s.sag * f * (1 - f));
     const segs = Math.max(6, Math.round(len * 3));
     const p = new THREE.Vector3();
     const n = new THREE.Vector3();
@@ -58,8 +59,9 @@ export function buntingMeshes(strings: readonly Bunting[]): THREE.Group {
       g.applyMatrix4(m);
       cords.push(g);
     }
+    // A pennant every 0.36 units, cycling through the palette, hung from the string's yaw.
     const count = Math.max(2, Math.round(len / 0.36));
-    const yaw = Math.atan2(B.x - A.x, B.z - A.z);
+    const yaw = Math.atan2(end.x - start.x, end.z - start.z);
     for (let i = 1; i < count; i++) {
       const g = flag.clone();
       const c = PENNANT[i % PENNANT.length]!;

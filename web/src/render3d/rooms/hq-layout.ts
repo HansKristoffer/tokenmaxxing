@@ -1,10 +1,10 @@
 import type { GameMap } from "@tokenmaxxing/core/maps.ts";
 
 /**
- * Where the company house's picture sits on its map, and what its hallways are made of. The house's 3D room is
- * the floor plan (`HQ_ROWS`) as a `Room` whose tile (0, 0) is map tile (1, 2); the hallways of office doors grow
- * above it at negative y (`hqMap`), so every tile keeps its coordinates and the map's origin moves. Pure, so a test
- * can hold the geometry to the map: what is walkable here is what the server lets you walk on.
+ * Where the company house's picture sits on its map, and what its hallways are made of. The house's 3D room is the
+ * floor plan (`HQ_ROWS`) as a `Room` whose tile (0, 0) is map tile (1, 2). The hallways of office doors grow above it
+ * at negative y (`hqMap`), so every tile keeps its coordinates and the map's origin moves. Pure, so a test can hold
+ * the geometry to the map: what is walkable here is what the server lets you walk on.
  */
 
 /** Map tile (x, y) as a room tile: the floor's walls are the room's own. */
@@ -23,10 +23,10 @@ export function hallwayTiles(map: GameMap): HallTile[] {
   const out: HallTile[] = [];
   for (let y = map.y0; y < 2; y++) {
     for (let x = map.x0; x < map.x0 + map.width; x++) {
-      const ch = map.at(x, y);
+      const glyph = map.at(x, y);
       const [rx, rz] = houseTile(x, y);
-      if (ch === "W") out.push({ kind: "wall", x, y, rx, rz });
-      else if (ch === "R") out.push({ kind: "door", x, y, rx, rz });
+      if (glyph === "W") out.push({ kind: "wall", x, y, rx, rz });
+      else if (glyph === "R") out.push({ kind: "door", x, y, rx, rz });
       else if (map.walkable(x, y)) out.push({ kind: "floor", x, y, rx, rz });
     }
   }

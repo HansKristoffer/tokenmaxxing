@@ -28,8 +28,6 @@ const PINK = "#ff7ad9";
 /** The spectrum from red to violet, as the 2D art has it (`art/prestige-5.ts`); the pink is set apart as an accent. */
 const SPECTRUM = ["#ff5d73", "#ff9a4d", "#ffe066", "#5df0a0", "#5fe0ff", "#6f9bff", "#a78bfa"];
 
-// MARK: Outfit
-
 // biome-ignore format: a catalogue reads best one to a line
 const OUTFITS: Record<number, (c: BodyCtx) => void> = {
   // Prismatic regalia: a pearl robe with a pearl collar, a sash of the whole spectrum from shoulder to hip, a belt with the
@@ -103,8 +101,6 @@ const OUTFITS: Record<number, (c: BodyCtx) => void> = {
   },
 };
 for (const [n, build] of Object.entries(OUTFITS)) OUTFIT_BUILDERS[PRESTIGE_BASE + Number(n)] = build;
-
-// MARK: Back
 
 /** Feather colours, top of the wing to the tip: green, cyan, blue, violet, pink and a pearl tip. */
 const FEATHERS = ["#5df0a0", "#5fe0ff", "#6f9bff", "#a78bfa", "#ff7ad9", "#f4f0ff"];

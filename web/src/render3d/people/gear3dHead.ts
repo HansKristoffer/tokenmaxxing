@@ -18,6 +18,7 @@ import {
   isVox,
   pixelPatch,
   place,
+  roundAt,
   squarePane,
   stepDome,
   tilt,
@@ -34,8 +35,6 @@ export interface Ctx {
   tick(fn: (t: number) => void): void;
 }
 export type Build = (m: Model, c: Ctx) => void;
-
-// MARK: Helpers
 
 const geo = new Map<string, THREE.BufferGeometry>();
 function cached(key: string, make: () => THREE.BufferGeometry): THREE.BufferGeometry {
@@ -108,7 +107,7 @@ function wedge(
   (o.material as THREE.Material).side = THREE.DoubleSide;
   return o;
 }
-/** A ring (a torus), flat by default (a halo, a brim); `tilt` stands it up. */
+/** A ring (a torus), flat by default (a halo, a brim); `flat = false` stands it up. */
 export function ring(
   m: THREE.Object3D,
   p: Paint,
@@ -176,6 +175,7 @@ export function sign(
   lightIt = false,
 ): THREE.Mesh {
   if (isVox(m)) {
+    // One sign pixel on a blocky head is 1.25 cm.
     const cell = 0.0125;
     return pixelPatch(m, {
       cols: Math.max(2, Math.round(w / cell)),
@@ -239,15 +239,6 @@ export function band(m: THREE.Object3D, p: Paint, r: number, h: number, y: numbe
   return o;
 }
 
-/** A point at angle `a` round a head: on a circle for smooth models, on the square band for blocky ones. */
-function roundAt(m: THREE.Object3D, a: number, r: number): [number, number] {
-  const x = Math.sin(a);
-  const z = Math.cos(a);
-  if (!isVox(m)) return [x * r, z * r];
-  const k = (r * 0.92) / Math.max(Math.abs(x), Math.abs(z));
-  return [x * k, z * k];
-}
-
 /** Blocks on a path, as [centre x, centre y, size] (a bent tip, a horn, a curl). */
 function path(m: Model, p: Paint, pts: [number, number, number][], z = 0, deep = 1): void {
   for (const [x, y, sz] of pts) m.box([sz, sz, sz * deep], p, [x, y - sz / 2, z]);
@@ -268,7 +259,7 @@ const cone = (
 /** A flat brim ring of radius `r`. */
 const brim = (m: Model, p: Paint, r: number, y: number, t = 0.03) => m.cyl(r, t, p, [0, y, 0], r, 24);
 
-/** A hat sitting on a stalk of starry cone with the tip bent over (wizard hats). */
+/** A wizard hat: a cone with a bent tip, a band, and stars on the tip. */
 function wizard(m: Model, c: { cone: string; dark: string; star: string; band: string }): void {
   brim(m, c.dark, 0.36, 0.12, 0.03);
   cone(m, c.cone, 0.21, 0.3, 0.14, [0, 0], 16, 0.1);
@@ -337,7 +328,10 @@ function stetson(m: Model, p: { main: string; dark: string; band: string; dent?:
     if (isVox(m)) {
       m.box([0.1, 0.04, 0.34], p.main, [s * 0.36, 0.15, 0]);
       m.box([0.07, 0.04, 0.3], p.main, [s * 0.43, 0.18, 0]);
-    } else m.box([0.14, 0.03, 0.32], p.main, [s * 0.34, 0.145, 0], 0.01).rotation.z = -s * 0.5;
+    } else {
+      const flap = m.box([0.14, 0.03, 0.32], p.main, [s * 0.34, 0.145, 0], 0.01);
+      flap.rotation.z = -s * 0.5;
+    }
   }
   m.cyl(0.19, 0.17, p.main, [0, 0.14, 0], 0.15, 18);
   m.cyl(0.192, 0.04, p.band, [0, 0.15, 0], 0.192, 18);
@@ -490,14 +484,16 @@ function whirly(
 function party(m: Model, p: { a: string; b: string; pom: string }): void {
   const h = m.part([0, 0.1, 0]);
   if (!isVox(m)) h.rotation.z = -0.12;
-  const R = 0.2;
-  const H = 0.46;
-  h.cyl(R, H, p.a, [0, 0, 0], 0.008, 16);
+  const radius = 0.2;
+  const height = 0.46;
+  h.cyl(radius, height, p.a, [0, 0, 0], 0.008, 16);
   for (let i = 0; i < 3; i++) {
     const y = 0.1 + i * 0.11;
-    h.cyl(R * (1 - y / H) + 0.003, 0.04, p.b, [0, y, 0], R * (1 - (y + 0.04) / H) + 0.003, 16);
+    const bottom = radius * (1 - y / height) + 0.003;
+    const top = radius * (1 - (y + 0.04) / height) + 0.003;
+    h.cyl(bottom, 0.04, p.b, [0, y, 0], top, 16);
   }
-  h.ball(0.045, p.pom, [0, H + 0.01, 0], [1, 1, 1], 10);
+  h.ball(0.045, p.pom, [0, height + 0.01, 0], [1, 1, 1], 10);
 }
 
 /** The halo: a ring that floats a little and turns. */
@@ -517,6 +513,7 @@ function wreath(m: Model): void {
   ring(m, "#3a7b2f", 0.265, 0.018, [0, 0.07, 0]);
   for (let i = 0; i < 18; i++) {
     const a = (i / 18) * Math.PI * 2;
+    // No leaves at the back, where the gold ribbon ties the wreath.
     if (Math.abs(a - Math.PI) < 0.35) continue;
     const [lx, lz] = roundAt(m, a, 0.268);
     const leaf = m.ball(
@@ -545,8 +542,6 @@ function spikes(
     m.cyl(0.035, p.h, p.tip, [x, p.y + 0.06, z], 0.004, 5);
   }
 }
-
-// MARK: Hats
 
 const letters = (
   g: CanvasRenderingContext2D,
@@ -905,7 +900,8 @@ export const HAT_BUILDERS: Record<string, Build> = {
     });
   },
   "Paid in Full crown": (m) => {
-    // The blocky head's hair stands higher than the round head these builders are drawn for: lift the crown clear of it.
+    // The blocky head's hair stands higher than the round head these builders are drawn for, so the crown
+    // is lifted clear of it.
     const up = isVox(m) ? 0.1 : 0;
     spikes(m, { base: "#f5c842", tip: "#f5c842", n: 5, h: 0.1, r: 0.24, y: 0.16 + up });
     band(m, "#c9971f", 0.246, 0.014, 0.158 + up);
@@ -937,11 +933,11 @@ export const HAT_BUILDERS: Record<string, Build> = {
   "Propeller beanie": (m, c) =>
     whirly(m, c, { a: "#e0584f", b: "#4f8fe0", brim: "#f5d14a", blade: "#f5d14a", hub: "#5d6470" }),
   "Spaghetti chef's toque": (m) =>
-    toque(m, (t) => {
-      const noodle = t.cyl(0.012, 0.0001, "#f0c45a", [0, 0, 0]);
+    toque(m, (hat) => {
+      const noodle = hat.cyl(0.012, 0.0001, "#f0c45a", [0, 0, 0]);
       noodle.visible = false;
       for (let i = 0; i < 8; i++)
-        t.ball(0.015, "#f0c45a", [-0.12 + i * 0.034, 0.1 + Math.sin(i * 1.4) * 0.018, 0.2], [1.2, 1, 1], 6);
+        hat.ball(0.015, "#f0c45a", [-0.12 + i * 0.034, 0.1 + Math.sin(i * 1.4) * 0.018, 0.2], [1.2, 1, 1], 6);
     }),
   "Friday deploy stetson": (m) =>
     stetson(m, { main: "#9a6a3c", dark: "#6e4a2a", band: "#c23a3a", dent: true }),
@@ -1050,10 +1046,10 @@ export const HAT_BUILDERS: Record<string, Build> = {
   // New Year's (`core/src/costumes.ts`, `nytar.ts`): a midnight-blue party cone with gold bands and streamers.
   Nytårshat: (m) => {
     party(m, { a: "#26356b", b: "#f4c95d", pom: "#fbf7ef" });
-    for (const [i, c] of ["#ff5d73", "#5ee0ff", "#f4c95d"].entries()) {
+    for (const [i, color] of ["#ff5d73", "#5ee0ff", "#f4c95d"].entries()) {
       const a = (i / 3) * Math.PI * 2 + 0.6;
       const [x, z] = roundAt(m, a, 0.06);
-      const r = m.box([0.02, 0.2, 0.012], c, [x, 0.46, z], 0.004);
+      const r = m.box([0.02, 0.2, 0.012], color, [x, 0.46, z], 0.004);
       r.rotation.set(Math.cos(a) * 0.7, 0, -Math.sin(a) * 0.7);
     }
   },
@@ -1292,7 +1288,8 @@ export const HAT_BUILDERS: Record<string, Build> = {
       tilt(m, m.box([0.014, 0.15, 0.03], "#d9323a", [0.27, -0.06, z], 0.004), lean, 0, 0.12);
   },
   ...HALLOWEEN_HAT_BUILDERS,
-  // The Nusantara case (`core/src/case-nusantara.ts`). A blocky head is taller than the builders' ball, so these ride `up` higher.
+  // The Nusantara case (`core/src/case-nusantara.ts`). A blocky head is taller than the round one these
+  // builders are drawn for, so these ride `up` higher.
   Blangkon: (m) => {
     // A folded batik headcloth: a brown dome with a lattice of cream and indigo diamonds, a tan band and the little
     // knot (the mondolan) at the back.
@@ -1380,8 +1377,6 @@ export const HAT_BUILDERS: Record<string, Build> = {
   },
 };
 
-// MARK: Face
-
 /** One round lens: a ring and a see-through disc. */
 function roundLens(e: Model, frame: string, glass: string, r = 0.062, opacity = 0.5): void {
   ring(e, frame, r, 0.009, [0, 0, 0], false);
@@ -1396,6 +1391,7 @@ function roundLens(e: Model, frame: string, glass: string, r = 0.062, opacity = 
   disc.position.z = 0.002;
   e.add(disc);
 }
+
 /** A bridge between the two lenses and arms back round the head. */
 function bridge(m: Model, color: string, y = EYE_Y, width = 0.2): void {
   m.box([width * 0.35, 0.012, 0.012], color, [0, y, 0.246], 0.004);

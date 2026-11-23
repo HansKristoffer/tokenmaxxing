@@ -24,5 +24,11 @@ export interface InstalledShops {
 export function installShops(world: ShopWorld): InstalledShops {
   const backend = createGameBackend({ net: realNet(), store: realStore(), world });
   const panel = mountShopPanel(world, backend);
-  return { backend, panel, open: (shop, item) => panel.open(shop, item), dispose: () => panel.dispose() };
+
+  return {
+    backend,
+    panel,
+    open: (shop, item) => panel.open(shop, item),
+    dispose: () => panel.dispose(),
+  };
 }

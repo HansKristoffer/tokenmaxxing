@@ -184,8 +184,6 @@ function face(head: Model, kind: FaceKind, faces: Rig["faces"], z: number): void
   head.add(m);
 }
 
-// MARK: The body
-
 /** The officer's uniform, also on the hat and the sleeves. */
 const NAVY = "#2c3e6b";
 
@@ -287,7 +285,7 @@ function tail(t: Voxels, k: Kind, fur: string): void {
   }
 }
 
-// MARK: Heads, the cube is x and z from -3 to 3, y from 0 to 6; the face is the z = 3 layer
+// A head is cubes with x and z from -3 to 3 and y from 0 to 6; its face is the z = 3 layer.
 function hair(h: Voxels, look: Look, c: string, recede: boolean, hatted: boolean): void {
   if (recede) {
     h.paint(-3, 2, -3, 7, 4, 1, c);
@@ -442,7 +440,9 @@ export function voxel(b: Model, look: Look): Rig {
   const faces: Rig["faces"] = [];
 
   const knees: Model[] = [];
-  const shoe = senior ? "#5a3a2a" : look.job === "officer" ? INK : "#3a3a48";
+  let shoe = "#3a3a48";
+  if (senior) shoe = "#5a3a2a";
+  else if (look.job === "officer") shoe = INK;
   const legs = [-1, 1].map((s) => {
     const leg = b.part([s * 2 * V, HIP * V, 0]);
     leg.add(new Voxels().fill(-1, -4, -1, 3, 4, 3, look.pants).mesh([0.5, 0, 0.5]));

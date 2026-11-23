@@ -3,8 +3,9 @@
  * `web/src/art/tavern.ts`, `art/tiles.ts` and `art/objects.ts` and the evening pass in `game/tavern.ts`:
  * the bar and its tap, back-bar shelves, stools, tables with candles, chairs, the hearth with its flames,
  * wall sconces, the stage with its drifting notes, barrels, the jukebox, the bar tab, quest board, Hall of
- * Fame, regulars' plaques, the open-offices board, the daily-special easel, the world clocks, the stairs and the exit, the
- * tip jar on the bar, the kitchen door, coat and umbrella stands, sofas, booths, Bent the barkeep and the dorm's beds.
+ * Fame, regulars' plaques, the open-offices board, the daily-special easel, the world clocks, the stairs and the
+ * exit, the tip jar on the bar, the kitchen door, coat and umbrella stands, sofas, booths, Bent the barkeep and the
+ * dorm's beds.
  *
  * Ids follow the 2D catalogue: `tile:<char>` for map tiles, `tavern:<name>` for what has no tile.
  * Hooks (all additive, none needed): a boards's `redraw` (bar tab, plaques, easel), `JukeboxModel.playing`,
@@ -178,7 +179,10 @@ const text = (
   g.fillText(s, x, y);
 };
 
-/** One tile of the counter: a polished top over a planked front. With `tap`, a brass tap, a drip tray, a mug and a lamp. */
+/**
+ * One tile of the counter: a polished top over a planked front. With `tap`, a brass tap, a drip tray, a mug and a
+ * lamp.
+ */
 function barCounter(tap: boolean): Model {
   const m = new Model();
   m.box([1, 0.96, 0.7], plank(WOOD_DARK, 3, 0.5), [0, 0, 0], 0.01);
@@ -212,18 +216,21 @@ function barCounter(tap: boolean): Model {
   return m;
 }
 
-/** Back-bar shelves for `w` tiles of the north wall: a cupboard, three shelves of bottles, mugs and a little barrel. */
+/**
+ * Back-bar shelves for `w` tiles of the north wall: a cupboard, three shelves of bottles, mugs and a little barrel.
+ */
 function backBar(w: number): Model {
   const m = new Model();
   const z = -0.38;
   m.box([w - 0.04, 0.78, 0.46], WOOD_DARK, [0, 0, z + 0.06], 0.015);
-  for (let i = 0; i < w * 2; i++)
+  for (let i = 0; i < w * 2; i++) {
     m.box(
       [0.46, 0.62, 0.015],
       tint(WOOD_DARK, (i % 2) * 0.1 - 0.05),
       [-w / 2 + 0.27 + i * 0.5, 0.08, z + 0.3],
       0.006,
     );
+  }
   for (let i = 0; i < w * 2; i++) m.ball(0.018, BRASS_LIGHT, [-w / 2 + 0.27 + i * 0.5 + 0.17, 0.4, z + 0.31]);
   m.box([w - 0.04, 0.05, 0.54], WOOD_LIGHT, [0, 0.78, z + 0.08], 0.01);
   // The wall behind: a dark panel with three shelves.
@@ -232,8 +239,9 @@ function backBar(w: number): Model {
   const colours = ["#58b36a", "#c4544b", "#f0b53c", "#8fe3ff", "#9b6fd6", "#e8e2d4"];
   for (const [i, y] of [1.05, 1.5, 1.9].entries()) {
     m.box([w - 0.1, 0.045, 0.24], WOOD, [0, y - 0.045, z + 0.02], 0.01);
-    for (const s of [-1, 1])
+    for (const s of [-1, 1]) {
       m.box([0.04, 0.12, 0.2], WOOD_DARK, [s * (w / 2 - 0.1), y - 0.12, z + 0.02], 0.01);
+    }
     for (let b = 0; b < Math.floor(w * 3.4); b++) {
       const x = -w / 2 + 0.2 + b * 0.29 + rnd() * 0.05;
       const kind = (b + i) % 4;
@@ -385,8 +393,9 @@ const hearthInner = (): Model => {
   m.box([1.0, 0.03, 0.6], "#2a2030", [0, 0.02, 0], 0.003);
   m.box([1.3, 0.06, 0.18], C.stoneLight, [0, 0, 0.42], 0.01);
   // Stone courses on the face.
-  for (const y of [0.3, 0.6, 0.9, 1.15])
+  for (const y of [0.3, 0.6, 0.9, 1.15]) {
     for (const s of [-1, 1]) m.box([0.5, 0.018, 0.012], C.stoneDark, [s * 0.75, y, 0.372], 0.003);
+  }
   m.box([1.0, 0.018, 0.012], C.stoneDark, [0, 0.95, 0.372], 0.003);
   for (const [x, y] of [
     [-0.85, 0.15],
@@ -459,7 +468,10 @@ const hearthInner = (): Model => {
   return m;
 };
 
-/** The hearth set into the north wall: its back (and the chimney breast) sits flush on the wall, and the flue goes up to the ceiling. */
+/**
+ * The hearth set into the north wall: its back and the chimney breast sit flush on the wall, and the flue goes up
+ * to the ceiling.
+ */
 const hearth = (): Model => {
   const m = new Model();
   const inner = hearthInner();
@@ -545,8 +557,9 @@ function stage(w: number, d: number): () => Model {
     lute.ball(0.17, WOOD_LIGHT, [0, 0.4, 0], [1, 1.1, 0.5], 12);
     lute.box([0.05, 0.55, 0.04], WOOD_DARK, [0, 0.55, -0.01], 0.01);
     lute.ball(0.045, INK, [0, 0.4, 0.07], [1, 1, 0.4], 8);
-    for (const s of [-1, 1])
+    for (const s of [-1, 1]) {
       lute.cyl(0.015, 0.4, WOOD_DARK, [s * 0.08, 0, -0.05], 0.012, 6).rotation.z = s * -0.25;
+    }
     m.cyl(0.07, 0.02, INK, [0.2, 0.14, d / 4], 0.07, 10);
     m.cyl(0.012, 1.2, C.metal, [0.2, 0.15, d / 4], 0.012, 6);
     m.ball(0.04, "#2b2433", [0.2, 1.38, d / 4]);
@@ -748,8 +761,9 @@ export function plaqueDraw(
     g.fillStyle = BRASS_LIGHT;
     g.fillRect(0, 0, w, Math.max(2, h * 0.04));
     const row = h / names.length;
-    for (const [i, n] of names.entries())
+    for (const [i, n] of names.entries()) {
       text(g, (n || "---").slice(0, 3), w / 2, i * row + row * 0.12, row * 0.72, BRASS_DARK, true, "center");
+    }
   };
 }
 
@@ -774,13 +788,16 @@ export function setPlaque(model: Model, names: readonly string[]): void {
   (model as Panel).redraw(plaqueDraw(names));
 }
 
-/** A corkboard `W` wide with notes pinned to it and a plank over it saying `label`. Notes are `[x, y, w, colour]` on a 28 by 16 grid. */
+/**
+ * A corkboard `W` wide with notes pinned to it and a plank over it saying `label`. Notes are `[x, y, w, colour]` on
+ * a 28 by 16 grid. With `ballPins`, each pin is a little ball (a few hundred triangles). Without it, the pins are
+ * painted on the notes, which keeps the Tavern inside its triangle budget.
+ */
 const corkBoard = (
   W: number,
   label: string,
   notes: [number, number, number, string][],
   signW: number,
-  /** Pins as little balls (a few hundred triangles); false paints them on the notes, for the Tavern's triangle budget. */
   ballPins = true,
 ): Model => {
   const m = new Model();
@@ -824,10 +841,12 @@ const corkBoard = (
       -0.46 + 0.056,
     ]);
     note.rotation.z = (((i * 37) % 11) - 5) * 0.012;
-    if (ballPins)
+    if (ballPins) {
       m.ball(0.022, C.rug, [note.position.x, note.position.y + nh / 2 - 0.04, -0.46 + 0.07], [1, 1, 0.6], 8);
+    }
   }
-  // A plank over it: QUESTS.
+
+  // The plank across the top, carrying the board's label.
   const sign = panel(
     signW,
     0.2,
@@ -929,8 +948,9 @@ const hallOfFame = (): Model => {
       g.fillStyle = C.stoneLight;
       g.fillRect(w * 0.14, h * 0.1, w * 0.72, h * 0.03);
       g.fillStyle = C.stoneDark;
-      for (let i = 0; i < 8; i++)
+      for (let i = 0; i < 8; i++) {
         g.fillRect(w * 0.22, h * (0.2 + i * 0.09), w * (0.3 + ((i * 3) % 3) * 0.1), h * 0.02);
+      }
     },
     { frame: BRASS, lift: 0.7, px: 64, smooth: true },
   );
@@ -949,7 +969,10 @@ function officeHeadline(open: OfficeBoardRows): string {
   return `${open.length} OPEN`;
 }
 
-/** Draws the open-offices sign: a little house with a lit window, and under it how many are open and the first few names. */
+/**
+ * Draws the open-offices sign: a little house with a lit window, and under it how many are open and the first few
+ * names.
+ */
 export function officeBoardDraw(
   open: OfficeBoardRows,
 ): (g: CanvasRenderingContext2D, w: number, h: number) => void {
@@ -977,8 +1000,9 @@ export function officeBoardDraw(
     g.font = `800 ${Math.round(h * 0.085)}px system-ui, sans-serif`;
     g.fillText(officeHeadline(open), w / 2, h * 0.55);
     g.font = `600 ${Math.round(h * 0.075)}px system-ui, sans-serif`;
-    for (const [i, name] of (open ?? []).slice(0, 3).entries())
+    for (const [i, name] of (open ?? []).slice(0, 3).entries()) {
       g.fillText(name.length > 12 ? `${name.slice(0, 11)}…` : name, w / 2, h * (0.67 + i * 0.1));
+    }
   };
 }
 
@@ -989,8 +1013,9 @@ const officeBoard = (): Model => {
   p.position.z = -0.46;
   m.add(p);
   (m as Panel).redraw = p.redraw;
-  // The window is lit from inside.
-  m.plane(0.1, 0.1, glow("#f8c43a"), [0.1, 0.85 + 0.06 + 0.78 * 0.5 - 0.1 + 0.02, -0.46 + 0.05]);
+  // The window is lit from inside. Its height is the house's middle on the sign's face.
+  const windowY = 0.85 + 0.06 + 0.78 * 0.5 - 0.1 + 0.02;
+  m.plane(0.1, 0.1, glow("#f8c43a"), [0.1, windowY, -0.46 + 0.05]);
   light(m, [0, 1.3, -0.2], "#f8c43a", 0.5, 2.5);
   return m;
 };
@@ -1030,8 +1055,9 @@ export function specialDraw(special: string): (g: CanvasRenderingContext2D, w: n
       }
     }
     lines.push(line);
-    for (const [i, l] of lines.slice(0, 6).entries())
+    for (const [i, l] of lines.slice(0, 6).entries()) {
       text(g, l, w / 2, h * 0.24 + i * h * 0.095, h * 0.078, i ? CHALK_DIM : CHALK, true, "center");
+    }
     // A doodle in pink chalk: a heart.
     const hx = w * 0.82;
     const hy = h * 0.86;
@@ -1061,8 +1087,9 @@ const easel = (): Model => {
   const back = m.box([0.05, 1.45, 0.04], WOOD_DARK, [0, 0, -0.34], 0.01);
   back.rotation.x = 0.28;
   m.box([0.9, 0.05, 0.1], WOOD_DARK, [0, 0.2, 0.16], 0.01);
-  for (const s of [-1, 1])
+  for (const s of [-1, 1]) {
     m.box([0.05, 0.45, 0.05], WOOD_DARK, [s * 0.4, 0, 0.1], 0.01).rotation.z = s * 0.06;
+  }
   m.box([0.1, 0.02, 0.02], CHALK, [0.2, 0.245, 0.2], 0.005);
   m.box([0.14, 0.04, 0.04], C.metalLight, [0, 1.46, -0.08], 0.01);
   return m;
@@ -1191,7 +1218,10 @@ export interface FountainModel extends Model {
   auto: boolean;
 }
 
-/** The tip jar on the bar (the indoor stand-in for the plaza's wishing fountain): coins land in it with a clink and a glint. */
+/**
+ * The tip jar on the bar, the indoor stand-in for the plaza's wishing fountain: coins land in it with a clink and
+ * a glint.
+ */
 const tipJar = (): Model => {
   const m = new Model() as FountainModel;
   m.auto = true;
@@ -1390,7 +1420,7 @@ const dormRug = (w: number) => (): Model => {
   return m;
 };
 
-/** A long red runner under the barkeep's feet (the cell behind the bar is a rug, not a floor). */
+/** Bent the barkeep, as the Tavern places him: his avatar, the root to position and the frame update. */
 export interface Barkeep {
   avatar: Avatar;
   root: THREE.Object3D;
@@ -1596,7 +1626,10 @@ export function buildTavernRoom(): TavernRoom {
     }
     return p;
   };
-  /** A piece hung on a wall (turn 0 north, 1 west, 2 south): it takes the wall's tiles, not the floor's. `ch` null: no tile. */
+  /**
+   * A piece hung on a wall (turn 0 north, 1 west, 2 south): it takes the wall's tiles, not the floor's. `ch` null:
+   * no tile.
+   */
   const hang = (id: string, x: number, z: number, turn: 0 | 1 | 2 = 0, ch: string | null = charOf(id)) => {
     const a = find(id);
     const [w, d] = Room.footprint(a, turn);
@@ -1608,7 +1641,11 @@ export function buildTavernRoom(): TavernRoom {
     if (ch) {
       for (let i = 0; i < w; i++) {
         for (let j = 0; j < d; j++) {
-          mark(ch, turn === 1 ? -1 : x + i, turn === 0 ? -1 : turn === 2 ? D : z + j);
+          const tileX = turn === 1 ? -1 : x + i;
+          let tileZ = z + j;
+          if (turn === 0) tileZ = -1;
+          else if (turn === 2) tileZ = D;
+          mark(ch, tileX, tileZ);
         }
       }
     }
@@ -1636,7 +1673,8 @@ export function buildTavernRoom(): TavernRoom {
   reg("tavern:tip-jar", jar);
   for (const x of [2, 4, 6, 8]) put("tile:v", x, 3, 2);
 
-  // North wall: coffee, the quest board, the specials easel, the Hall of Fame, the request pile, the world clocks, the hearth nook, books.
+  // North wall: coffee, the quest board, the specials easel, the Hall of Fame, the request pile, the world clocks,
+  // the hearth nook and books.
   put("coffee", 10, 0);
   hang("tile:m", 11, 0);
   put("tile:K", 13, 0);

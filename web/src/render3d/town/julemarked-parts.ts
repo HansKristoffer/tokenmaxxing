@@ -4,10 +4,11 @@ import { panel } from "../kit/panel.ts";
 import { nightGlow } from "./props.ts";
 
 /**
- * The Julemarked's shared 3D pieces (`core/src/julemarked.ts`) and its gate for the town: two red-brick gate huts under
- * snow-white roofs with a red stripe, a timber beam with the JULEMARKED sign, a wreath, red-and-white bunting, fairy
- * lights and a glimpse of the market through the opening. The market room itself is `rooms/julemarked3d.ts`, which
- * reuses the strings, the wreath and the palette from here. Warm and woolly: nisse red, cream, forest green, candle gold.
+ * The Julemarked's shared 3D pieces (`core/src/julemarked.ts`) and its gate for the town: two red-brick gate
+ * huts under snow-white roofs with a red stripe, a timber beam with the JULEMARKED sign, a wreath, red-and-white
+ * bunting, fairy lights and a glimpse of the market through the opening. The market room itself is
+ * `rooms/julemarked3d.ts`, which reuses the strings, the wreath and the palette from here.
+ * The palette is nisse red, cream, forest green and candle gold.
  */
 
 export const RED = "#b8302c";
@@ -114,22 +115,31 @@ export function wreath3(m: Model, at: V3, r = 0.3): void {
   m.box([r * 0.2, r * 0.22, r * 0.14], RED_D, [at[0], at[1] - r - r * 0.05, at[2] + r * 0.32], 0.01);
 }
 
-/** A red pitched hut roof in tiers: snow white with a red stripe at the eave, from `y`, `w` x `d` at its base. */
+/**
+ * A red pitched hut roof in tiers: snow white with a red stripe at the eave, from `y`, `w` x `d` at its base.
+ * Returns the height the stack reaches, where a post or finial can sit on it.
+ */
 export function snowRoof(m: Model, at: V3, w: number, d: number, tiers = 3, stripe = true): number {
-  let [x, y, z] = at;
-  let tw = w;
-  let td = d;
-  const h = 0.28;
+  const x = at[0];
+  const z = at[2];
+  const tierH = 0.28;
+  let y = at[1];
+  let tierW = w;
+  let tierD = d;
+
   for (let i = 0; i < tiers; i++) {
-    m.box([tw, h, td], SNOW, [x, y, z], 0.03);
+    m.box([tierW, tierH, tierD], SNOW, [x, y, z], 0.03);
     if (i === 0 && stripe) {
-      m.box([tw + 0.02, 0.09, td + 0.02], DANNEBROG, [x, y + 0.02, z], 0.01);
-      m.box([tw + 0.02, 0.03, td + 0.02], SNOW_SHADE, [x, y + 0.1, z], 0.005);
+      m.box([tierW + 0.02, 0.09, tierD + 0.02], DANNEBROG, [x, y + 0.02, z], 0.01);
+      m.box([tierW + 0.02, 0.03, tierD + 0.02], SNOW_SHADE, [x, y + 0.1, z], 0.005);
     }
-    y += h - 0.03;
-    tw *= 0.68;
-    td *= 0.68;
+
+    // Each tier sits a little into the one below it, and is 68% of its size.
+    y += tierH - 0.03;
+    tierW *= 0.68;
+    tierD *= 0.68;
   }
+
   return y;
 }
 
@@ -222,8 +232,9 @@ function hut(m: Model, x: number): void {
   const d = 1.9;
   m.box([w + 0.1, 0.22, d + 0.1], "#8a8682", [x, 0, 0], 0.02);
   m.box([w, 2.2, d], BRICK, [x, 0.2, 0], 0.03);
-  for (const y of [0.55, 0.95, 1.35, 1.75, 2.15])
+  for (const y of [0.55, 0.95, 1.35, 1.75, 2.15]) {
     m.box([w + 0.02, 0.04, d + 0.02], BRICK_D, [x, y, 0], 0.005);
+  }
   // The lit window with a cream frame, facing the street.
   m.box([0.78, 0.86, 0.06], CREAM, [x, 0.95, d / 2 + 0.02], 0.01);
   const pane = m.box([0.62, 0.7, 0.05], "#ffd98a", [x, 1.03, d / 2 + 0.05], 0.005);
@@ -238,8 +249,9 @@ function hut(m: Model, x: number): void {
 }
 
 /**
- * The festive gate for the town: origin at the middle of the front edge of its 7 by 3 tiles, the gate behind it (negative z).
- * The opening between the huts is the three door tiles; a lit glimpse of the market hangs behind it.
+ * The festive gate for the town. The origin is the middle of the front edge of its 7 by 3 tiles, and the gate
+ * stands behind it (negative z). The opening between the huts is the three door tiles, and a lit glimpse of the
+ * market hangs behind it.
  */
 export function julemarkedGate3d(): Model {
   const m = new Model();
@@ -249,8 +261,8 @@ export function julemarkedGate3d(): Model {
   hut(g, -hx);
   hut(g, hx);
   // The paving of the passage and the lit backdrop.
-  g.box([3.2, 0.06, 2.9], "#cfc8ba", [0, 0.0, -0.1], 0.01);
-  for (const dx of [-1.0, 0, 1.0]) g.box([0.04, 0.07, 2.9], "#b0a898", [dx, 0.0, -0.1], 0.005);
+  g.box([3.2, 0.06, 2.9], "#cfc8ba", [0, 0, -0.1], 0.01);
+  for (const dx of [-1, 0, 1]) g.box([0.04, 0.07, 2.9], "#b0a898", [dx, 0, -0.1], 0.005);
   const back = new THREE.Mesh(new THREE.PlaneGeometry(3.4, 2.5), glow("#fff", glimpse()));
   back.position.set(0, 1.35, -1.25);
   g.add(back);

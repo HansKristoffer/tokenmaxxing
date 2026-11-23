@@ -30,10 +30,11 @@ import { avatarFor } from "../people/gear3d.ts";
 import type { LiveFrame, Sign } from "../rooms/rooms.ts";
 
 /**
- * Nytårsaften in the 3D town (2D: `game/nytar.ts`, `art/nytar.ts`; the numbers are `core/src/nytar.ts`): the Nytårsur
- * with a hand on every side, the buffet with its kransekage tower and champagne, the jumping chair, balloons,
- * party lights between the square's corner lamps, and the confetti. Built the first frame the theme is on, merged
- * into a few meshes (the hands, bulbs, balloons and confetti stay live), and taken down when the window ends.
+ * Nytårsaften in the 3D town (2D: `game/nytar.ts`, `art/nytar.ts`; the numbers are `core/src/nytar.ts`): the
+ * Nytårsur with a hand on every side, the buffet with its kransekage tower and champagne, the jumping chair,
+ * balloons, party lights between the square's corner lamps, and the confetti. It is built the first frame the
+ * theme is on, merged into a few meshes (the hands, bulbs, balloons and confetti stay live), and taken down when
+ * the window ends.
  */
 
 const NAVY = "#26356b";
@@ -67,12 +68,13 @@ function dial(m: Model, hands: Hands[]): void {
   const ring = m.cyl(0.62, 0.04, GOLD, [0, 0, -0.03], 0.62, 28);
   ring.rotation.x = Math.PI / 2;
   for (let h = 0; h < 12; h++) {
-    const q = h % 3 === 0;
-    const len = q ? 0.12 : 0.06;
+    const isQuarter = h % 3 === 0;
+    const len = isQuarter ? 0.12 : 0.06;
+
     // The dial turns about z (`part` turns about y).
     const tick = m.part([0, 0, 0.02]);
     tick.rotation.z = (-h / 12) * Math.PI * 2;
-    tick.box([q ? 0.05 : 0.03, len, 0.02], q ? NAVY_D : "#a98225", [0, 0.47 - len, 0], 0.004);
+    tick.box([isQuarter ? 0.05 : 0.03, len, 0.02], isQuarter ? NAVY_D : "#a98225", [0, 0.47 - len, 0], 0.004);
   }
   const pivot = (len: number, w: number, z: number, colour: string) => {
     const g = new THREE.Group();
@@ -138,7 +140,10 @@ function clockModel(year: number): { model: Model; hands: Hands[] } {
   return { model: m, hands };
 }
 
-/** The buffet: a navy cloth with a gold hem, a kransekage tower, champagne and flutes. Origin: its middle, on the floor. */
+/**
+ * The buffet: a navy cloth with a gold hem, a kransekage tower, champagne and flutes. The origin is its middle,
+ * on the floor.
+ */
 function tableModel(): Model {
   const m = new Model();
   m.box([2.0, 0.78, 0.86], NAVY, [0, 0, 0], 0.03);
@@ -198,8 +203,8 @@ function balloons(colours: readonly string[]): Model {
     const x = Math.cos(a) * 0.22;
     const z = Math.sin(a) * 0.22;
     const top = 1.45 + i * 0.12;
-    const string = m.cyl(0.004, top, "#6b6578", [0, 0, 0], 0.004, 4);
-    string.rotation.set(Math.sin(a) * 0.15, 0, -Math.cos(a) * 0.15);
+    const strand = m.cyl(0.004, top, "#6b6578", [0, 0, 0], 0.004, 4);
+    strand.rotation.set(Math.sin(a) * 0.15, 0, -Math.cos(a) * 0.15);
     const b = m.ball(0.17, c, [x * 1.1, top, z * 1.1], [1, 1.25, 1], 12);
     b.userData.live = true;
   }
@@ -209,7 +214,7 @@ function balloons(colours: readonly string[]): Model {
 /** Strings of party lights between the lamps: the bulbs a mesh per colour (so they can twinkle), and the cord. */
 function lights(toWorld: ToWorld): { group: THREE.Group; bulbs: THREE.MeshBasicMaterial[] } {
   const group = new THREE.Group();
-  const per: THREE.BufferGeometry[][] = BULB_COLOURS.map(() => []);
+  const bulbGeoms: THREE.BufferGeometry[][] = BULB_COLOURS.map(() => []);
   const cord: THREE.BufferGeometry[] = [];
   const strings: [[number, number], [number, number], number][] = [
     [[NYTAR_LAMPS.left, NYTAR_LAMPS.top], [NYTAR_LAMPS.right, NYTAR_LAMPS.top], 0.6],
@@ -224,20 +229,25 @@ function lights(toWorld: ToWorld): { group: THREE.Group; bulbs: THREE.MeshBasicM
       const x = x0 + (x1 - x0) * t;
       const z = z0 + (z1 - z0) * t;
       const y = LAMP_Y - 4 * sag * t * (1 - t);
-      per[i % BULB_COLOURS.length]!.push(new THREE.BoxGeometry(0.1, 0.14, 0.1).translate(x, y - 0.08, z));
+      bulbGeoms[i % BULB_COLOURS.length]!.push(
+        new THREE.BoxGeometry(0.1, 0.14, 0.1).translate(x, y - 0.08, z),
+      );
+
+      // The cord runs from this bulb to the next one, as a short box laid along the sag.
       if (i < n) {
         const t2 = (i + 1) / n;
+        const nextX = x0 + (x1 - x0) * t2;
         const y2 = LAMP_Y - 4 * sag * t2 * (1 - t2);
         const len = Math.hypot((x1 - x0) / n, y2 - y);
         const seg = new THREE.BoxGeometry(len, 0.02, 0.02);
         seg.rotateZ(Math.atan2(y2 - y, (x1 - x0) / n));
-        seg.translate((x + x0 + (x1 - x0) * t2) / 2, (y + y2) / 2, z);
+        seg.translate((x + nextX) / 2, (y + y2) / 2, z);
         cord.push(seg);
       }
     }
   }
   const bulbs: THREE.MeshBasicMaterial[] = [];
-  for (const [i, geoms] of per.entries()) {
+  for (const [i, geoms] of bulbGeoms.entries()) {
     const mat = new THREE.MeshBasicMaterial({ color: BULB_COLOURS[i]! });
     bulbs.push(mat);
     const mesh = new THREE.Mesh(mergeGeometries(geoms), mat);
@@ -300,7 +310,7 @@ export class Nytar3d {
     const clockAt = toWorld(NYTAR_CLOCK.x, NYTAR_CLOCK.y);
     const chairAt = toWorld(NYTAR_CHAIR.x, NYTAR_CHAIR.y);
     const npcAt = toWorld(NYTAR_NPC_TILE.x, NYTAR_NPC_TILE.y);
-    // The clock (rebuilt at midnight, for the new year's plate).
+    // The clock is rebuilt at midnight, for the new year's plate.
     const { model: clock, hands } = clockModel(year);
     place(clock, clockAt, CLOCK_SCALE);
     const [t0x, t0z] = toWorld(NYTAR_TABLE[0]!.x, NYTAR_TABLE[0]!.y);
@@ -319,7 +329,7 @@ export class Nytar3d {
       mergeStill(m);
       m.position.set(0, 0, 0);
     }
-    // The balloons sway.
+    // Two bunches of balloons, which sway in `update`.
     const bunches = [
       balloons(["#f4c95d", "#ff5d73", "#5ee0ff"]),
       balloons(["#b18cff", "#fbf7ef", "#f4c95d"]),
@@ -378,73 +388,78 @@ export class Nytar3d {
     const year = midnightOf(sky).year;
     if (this.built && this.built.year !== year) this.clear();
     if (!this.built) this.built = this.build(year);
-    const b = this.built;
+    const built = this.built;
     this.group.visible = true;
     nytarTick(f.now);
-    // The hands on the real time.
-    const w = worldWall(sky);
-    const s = w.second + (sky % 1000) / 1000;
-    const m = w.minute + s / 60;
-    const h = (w.hour % 12) + m / 60;
-    for (const hand of b.hands) {
-      hand.hour.rotation.z = -(h / 12) * Math.PI * 2;
-      hand.min.rotation.z = -(m / 60) * Math.PI * 2;
-      hand.sec.rotation.z = -(s / 60) * Math.PI * 2;
+
+    // The hands on the real time. The milliseconds in `sky` make the second hand move smoothly.
+    const wall = worldWall(sky);
+    const seconds = wall.second + (sky % 1000) / 1000;
+    const minutes = wall.minute + seconds / 60;
+    const hours = (wall.hour % 12) + minutes / 60;
+    for (const hand of built.hands) {
+      hand.hour.rotation.z = -(hours / 12) * Math.PI * 2;
+      hand.min.rotation.z = -(minutes / 60) * Math.PI * 2;
+      hand.sec.rotation.z = -(seconds / 60) * Math.PI * 2;
     }
+
     if (!f.calm) {
-      for (const [i, mat] of b.bulbs.entries())
+      for (const [i, mat] of built.bulbs.entries()) {
         mat.color.copy(BASE_BULB[i]!).multiplyScalar(0.65 + 0.35 * Math.sin(f.t * 3.2 + i * 1.7));
-      for (const [i, g] of b.bunches.entries()) {
+      }
+      for (const [i, g] of built.bunches.entries()) {
         g.rotation.z = Math.sin(f.t * 1.1 + i * 2) * 0.06;
         g.rotation.x = Math.cos(f.t * 0.9 + i) * 0.05;
       }
     }
-    this.setFlakes(b.confetti);
+    this.setFlakes(built.confetti);
   }
 
   /** The pool, as instances: each flake spins about a different axis as it falls. */
   private setFlakes(mesh: THREE.InstancedMesh): void {
-    const c = confetti;
-    const d = this.dummy;
+    const dummy = this.dummy;
     const [ox, oz] = this.toWorld(0, 0);
-    for (let i = 0; i < c.n; i++) {
-      const spin = c.age[i]! * 6 + c.phase[i]!;
-      d.position.set(ox + c.x[i]!, Math.max(0.02, c.h[i]!), oz + c.y[i]!);
-      d.rotation.set(spin, spin * 0.7, c.phase[i]!);
-      const fade = Math.min(1, (c.life[i]! - c.age[i]!) * 2);
-      d.scale.setScalar(fade);
-      d.updateMatrix();
-      mesh.setMatrixAt(i, d.matrix);
-      mesh.setColorAt(i, this.hex[c.colour[i]!]!);
+    for (let i = 0; i < confetti.n; i++) {
+      const spin = confetti.age[i]! * 6 + confetti.phase[i]!;
+      dummy.position.set(ox + confetti.x[i]!, Math.max(0.02, confetti.h[i]!), oz + confetti.y[i]!);
+      dummy.rotation.set(spin, spin * 0.7, confetti.phase[i]!);
+      const fade = Math.min(1, (confetti.life[i]! - confetti.age[i]!) * 2);
+      dummy.scale.setScalar(fade);
+      dummy.updateMatrix();
+      mesh.setMatrixAt(i, dummy.matrix);
+      mesh.setColorAt(i, this.hex[confetti.colour[i]!]!);
     }
-    mesh.count = c.n;
+    mesh.count = confetti.n;
     mesh.instanceMatrix.needsUpdate = true;
     if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
   }
 
   /** The clock's sign, and the watchman's name (a button: it talks). */
   signs(): Sign[] {
-    const b = this.built;
+    const built = this.built;
     const npc = festiveNpcOf(festiveNow());
-    if (!b) return [];
+    if (!built) return [];
+
     const sky = skyNow();
+    const hopped = hoppedInto(built.year) ? " · ✓ hoppet" : "";
     const out: Sign[] = [
       {
         key: "nytar-clock",
-        at: [b.clockAt[0], 5.4 * CLOCK_SCALE, b.clockAt[1]],
+        at: [built.clockAt[0], 5.4 * CLOCK_SCALE, built.clockAt[1]],
         kind: "label",
         cls: "gold",
-        text: nytarCaption(sky) + (hoppedInto(b.year) ? " · ✓ hoppet" : ""),
+        text: nytarCaption(sky) + hopped,
       },
     ];
-    if (npc)
+    if (npc) {
       out.push({
         key: "nytar-npc",
-        at: [b.npcAt[0], 2.3, b.npcAt[1]],
+        at: [built.npcAt[0], 2.3, built.npcAt[1]],
         kind: "label",
         text: npc.name,
         onClick: talkToFestiveNpc,
       });
+    }
     return out;
   }
 
@@ -460,9 +475,11 @@ export function nytarNpcModel(_npc: FestiveNpc): THREE.Object3D {
   root.add(avatar.root);
   let last = 0;
   root.userData.tick = (t: number) => {
-    avatar.update(Math.min(0.1, Math.max(0, t - last)), t);
+    const dt = Math.min(0.1, Math.max(0, t - last));
+    avatar.update(dt, t);
     last = t;
   };
+
   // A gold scarf round the neck.
   const scarf = new Model();
   scarf.box([0.42, 0.1, 0.34], GOLD, [0, 0, 0], 0.03);

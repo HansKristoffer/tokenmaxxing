@@ -17,9 +17,9 @@ import { type ArenaDesk, arenaDesk, type GameTable, gameTable, seatStool } from 
 
 /**
  * The games in town, drawn: a table (or a row of arena desks) wherever the world says a game is, stools under the
- * players, the watcher count over it, the banner and the table's own callouts, the arena's live scoreboard, the sprint
- * race's start line, and the open tables' "Join" over their hosts. Each game's props are built when it appears and
- * freed when it is gone; everything here moves, so it is `live`.
+ * players, the watcher count over it, the banner and the table's own callouts, the arena's live scoreboard, the
+ * sprint race's start line, and the open tables' "Join" over their hosts. Each game's props are built when it
+ * appears and freed when it is gone. Everything here moves, so it is `live`.
  */
 
 interface Shown {
@@ -43,11 +43,12 @@ const CHEQUER = (() => {
       4,
       32,
       (g) => {
-        for (let y = 0; y < 32; y++)
+        for (let y = 0; y < 32; y++) {
           for (let x = 0; x < 4; x++) {
             g.fillStyle = (x + y) % 2 === 0 ? "#fbf7ef" : "#2b2433";
             g.fillRect(x, y, 1, 1);
           }
+        }
       },
       false,
     );
@@ -89,23 +90,27 @@ export class GamesLayer {
     const live = new Set<number>();
     for (const game of world.games.values()) {
       live.add(game.id);
-      let s = this.shown.get(game.id);
-      if (!s) {
-        s = this.make(game);
-        this.shown.set(game.id, s);
-      } else if (s.game !== game) this.refresh(s, game);
+      let entry = this.shown.get(game.id);
+      if (!entry) {
+        entry = this.make(game);
+        this.shown.set(game.id, entry);
+      } else if (entry.game !== game) {
+        this.refresh(entry, game);
+      }
+
       if (game.spot.kind === "arena") {
-        this.glow(s, t * 1000);
+        this.glow(entry, t * 1000);
         // The scoreboard turns to face wherever the camera is.
-        if (s.board && toward) s.board.rotation.y = Math.atan2(toward.x, toward.z);
+        if (entry.board && toward) entry.board.rotation.y = Math.atan2(toward.x, toward.z);
       }
     }
-    for (const [id, s] of this.shown)
-      if (!live.has(id)) {
-        s.group.removeFromParent();
-        disposeObject(s.group);
-        this.shown.delete(id);
-      }
+
+    for (const [id, entry] of this.shown) {
+      if (live.has(id)) continue;
+      entry.group.removeFromParent();
+      disposeObject(entry.group);
+      this.shown.delete(id);
+    }
     this.group.visible = this.shown.size > 0;
   }
 
@@ -146,7 +151,9 @@ export class GamesLayer {
       s.line = null;
       s.watchers = -1;
       this.build(s, game);
-    } else this.fill(s, game);
+    } else {
+      this.fill(s, game);
+    }
   }
 
   private build(s: Shown, game: WorldGame): void {
@@ -182,14 +189,12 @@ export class GamesLayer {
   }
 
   private nameOf(id: number): string {
-    return (
-      hud
-        .get()
-        .lobby?.matches.flatMap((m) => m.players)
-        .find((p) => p.userId === id)?.name ??
-      world.avatars.get(id)?.info.name ??
-      "?"
-    );
+    // A player in a lobby match is named there first, then by their avatar in the town.
+    const lobbyPlayer = hud
+      .get()
+      .lobby?.matches.flatMap((m) => m.players)
+      .find((p) => p.userId === id);
+    return lobbyPlayer?.name ?? world.avatars.get(id)?.info.name ?? "?";
   }
 
   /** Counts, scoreboard and the race's start line: what changes while the game runs. */
@@ -227,7 +232,9 @@ export class GamesLayer {
         const [cx, cz] = this.toWorld(game.spot.x + game.spot.w / 2 - 0.5, game.spot.y);
         s.board.position.set(cx, 0.9, cz - 0.1);
         s.group.add(s.board);
-      } else s.board.set(lines);
+      } else {
+        s.board.set(lines);
+      }
     }
     // The race's start line, across the lanes.
     if (game.game === "sprint") {
@@ -269,7 +276,7 @@ export class GamesLayer {
     for (const d of s.desks) d.desk.setGlow(arenaGlow(rankOf(board, d.player), nowMs));
   }
 
-  /** The words over the games: a banner for each (click to watch), the table's callout, the open tables' "Join". */
+  /** The words over the games: a banner for each (click to watch), the table's callout, and each open table's "Join". */
   signs(): Sign[] {
     const list: Sign[] = [];
     const at = serverNow();

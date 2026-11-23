@@ -36,12 +36,14 @@ export class Graveyard3D {
     const stones = currentStones();
     const key = stones.map((s) => `${s.id}@${s.plot}`).join("|");
     if (key === this.key) return;
+
     this.key = key;
     this.stones = stones;
     for (const old of [...this.group.children]) {
       this.group.remove(old);
       disposeObject(old);
     }
+
     for (const s of stones) {
       const [x, z] = this.toWorld(...GRAVES[s.plot]!);
       const model = tombstoneModel(providerOf(s.provider).accent);

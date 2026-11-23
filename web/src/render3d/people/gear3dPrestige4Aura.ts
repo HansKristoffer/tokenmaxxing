@@ -159,10 +159,10 @@ function circle(r: number): THREE.BufferGeometry {
 // turning as it goes, with a bright pen tip running along the edges of each as if it were being drawn. A drafted circle
 // of dashes and ticks turns round the middle of the body.
 AURA_BUILDERS["Orbiting wireframe"] = (m, tick) => {
-  const R = 0.5;
-  const unit = [0.07, 0.085, 0.08];
+  const orbitRadius = 0.5;
+  const radii = [0.07, 0.085, 0.08];
   const orbits = SOLIDS.map((s, i) => {
-    const r = unit[i]!;
+    const r = radii[i]!;
     const g = new THREE.Group();
     const frame = new THREE.Mesh(
       kept(`frame${i}`, () => bars(s, r, 0.008)),
@@ -186,7 +186,7 @@ AURA_BUILDERS["Orbiting wireframe"] = (m, tick) => {
     return { g, s, r, pen, i };
   });
   const dash = new THREE.Mesh(
-    kept("circle", () => circle(R)),
+    kept("circle", () => circle(orbitRadius)),
     basic(GLOW, 0.55),
   );
   dash.userData.noBlock = true;
@@ -209,9 +209,9 @@ AURA_BUILDERS["Orbiting wireframe"] = (m, tick) => {
     for (const o of orbits) {
       const a = t * 0.5 * pace + (o.i * Math.PI * 2) / 3;
       o.g.position.set(
-        Math.sin(a) * R,
+        Math.sin(a) * orbitRadius,
         Math.sin(t * 0.8 + o.i * 2.1) * 0.22 + (o.i - 1) * 0.04,
-        Math.cos(a) * R,
+        Math.cos(a) * orbitRadius,
       );
       o.g.rotation.set(0.5 + o.i * 0.4, t * (0.9 + o.i * 0.15), t * 0.3);
       // The pen goes edge to edge, a new one every second or so.
@@ -230,7 +230,11 @@ AURA_BUILDERS["Orbiting wireframe"] = (m, tick) => {
     dash.rotation.y = -t * 0.25;
     marks.forEach((o, i) => {
       const a = -t * 0.25 + (i * Math.PI) / 2;
-      o.position.set(Math.sin(a) * R, 0.035 + Math.sin(t * 2 + i) * 0.01, Math.cos(a) * R);
+      o.position.set(
+        Math.sin(a) * orbitRadius,
+        0.035 + Math.sin(t * 2 + i) * 0.01,
+        Math.cos(a) * orbitRadius,
+      );
     });
   });
 };

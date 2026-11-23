@@ -29,7 +29,10 @@ export type Purchase =
   | { kind: "variant"; pet: number; variant: number }
   /** Nothing to pay: free from the start (the creator's parts, the plain decor, the laptop). */
   | { kind: "free" }
-  /** Never sold: a level reward, raid loot, a case's item, the traveling merchant's cart; or a holiday costume out of season. */
+  /**
+   * Never sold: a level reward, raid loot, a case's item, the traveling merchant's cart, or a holiday costume
+   * out of season.
+   */
   | { kind: "unsold"; why: "level" | "loot" | "case" | "edition" | "earned" | "season" }
   | { kind: "unknown" };
 
@@ -89,8 +92,6 @@ export function purchaseOf(id: string, now = Date.now()): Purchase {
   if (item.price === 0) return { kind: "free" };
   return { kind: "item", id };
 }
-
-// MARK: Wearing
 
 /** What owning an item lets you do with it. */
 export type Equip =
@@ -164,8 +165,6 @@ export function wornIn(look: Look, id: string): boolean {
   }
 }
 
-// MARK: Failures
-
 export type FailReason =
   "coins" | "level" | "owned" | "unowned" | "company" | "unavailable" | "slow" | "offline" | "other";
 
@@ -191,6 +190,10 @@ const CODES: Record<string, FailReason> = {
 /** A failed server call as an outcome the panel can toast: the server's own words, sorted into a reason. */
 export function failOf(err: unknown): Outcome & { ok: false } {
   const e = err as { code?: string; message?: string } | null;
+
+  // Drops everything up to the first `: `, so an `Error: ` style prefix does not reach the toast.
   const message = e?.message?.replace(/^.*?: /, "") || "Something went wrong.";
-  return { ok: false, reason: (e?.code && CODES[e.code]) || "other", message };
+  const reason = (e?.code && CODES[e.code]) || "other";
+
+  return { ok: false, reason, message };
 }
