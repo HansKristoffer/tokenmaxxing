@@ -15,7 +15,7 @@ import { greeting } from "@tokenmaxxing/core/shopkeepers.ts";
 import { SHOP_TABS, SHOPS, type ShopId, shopOfRoom } from "@tokenmaxxing/core/shoprooms.ts";
 import type { Look } from "@tokenmaxxing/core/world.ts";
 import type { BagRow } from "@tokenmaxxing/server/registry";
-import { useEffect, useState } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import { itemFrame } from "../art/characters.ts";
 import { posterSprite } from "../art/furniture-posters.ts";
 import { goneCompany } from "../art/merch.ts";
@@ -78,10 +78,11 @@ function ShopPage({
     stall ? STALL_HELLO[stall] : greeting(shop!, Math.floor(Math.random() * 8)),
   );
   const shelfTabs: readonly string[] = stall ? STALL_TABS[stall] : SHOP_TABS[shop!];
+  // Company supplies are for company members: the owner orders, the rest see what is stored.
+  const isCompanyShop = !stall && shop === "furniture" && me?.company;
   const tabs = [
     ...TABS.filter(([t]) => shelfTabs.includes(t)),
-    // Company supplies are for company members: the owner orders, the rest see what is stored.
-    ...(!stall && shop === "furniture" && me?.company ? ([["company", "🏢 Company"]] as const) : []),
+    ...(isCompanyShop ? ([["company", "🏢 Company"]] as const) : []),
   ];
   const wallet = useHud((s) => s.wallet);
   const opened = useHud((s) => (s.panel?.kind === "shop" ? s.panel.tab : undefined));
@@ -123,6 +124,42 @@ function ShopPage({
       if (!wallet.owned.includes(item.id)) await wearIt(item, me.look, true);
     });
 
+  let body: ReactNode;
+  if (tab === "company") body = <CompanyOrder />;
+  else if (tab === "decor") body = <DecorGoods buy />;
+  else if (tab === "desk") body = <DeskGoods buy />;
+  else {
+    body = (
+      <ul className="shop">
+        {goods.map((item) => {
+          const owned = wallet.owned.includes(item.id);
+          const wearing = isWorn(item, me.look);
+          const n = bag.find((b) => b.item === item.id)?.count ?? 0;
+          const rowClass = `${wearing ? "wearing" : ""}${rarityClass(item)}`.trim() || undefined;
+          return (
+            <li key={item.id} className={rowClass} title={lootLine(item) ?? undefined}>
+              <ItemImage item={item} look={me.look} />
+              <span className="shop-item-name">
+                {item.name}
+                {n > 0 && <span className="muted"> ×{n}</span>}
+              </span>
+              <ItemTag item={item} />
+              {item.loot && <span className={`small rarity-text-${item.loot.rarity}`}>{lootLine(item)}</span>}
+              {item.holiday && (
+                <span className="small">
+                  {HOLIDAYS[item.holiday].emoji} {HOLIDAYS[item.holiday].name} only, till{" "}
+                  {dateLabel(item.holiday, Date.now(), ON_SALE.after)}
+                </span>
+              )}
+              {(owned || wearing) && <WearButton item={item} look={me.look} run={run} />}
+              {rowAction(item, owned, wallet.balance, buy(item))}
+            </li>
+          );
+        })}
+      </ul>
+    );
+  }
+
   return (
     <Modal
       title={`🛍 ${name}`}
@@ -147,46 +184,7 @@ function ShopPage({
         <p className="shop-hello">{hello}</p>
         {tabs.length > 1 && <Pills value={tab} options={tabs} onChange={setTab} />}
       </div>
-      {tab === "company" ? (
-        <CompanyOrder />
-      ) : tab === "decor" ? (
-        <DecorGoods buy />
-      ) : tab === "desk" ? (
-        <DeskGoods buy />
-      ) : (
-        <ul className="shop">
-          {goods.map((item) => {
-            const owned = wallet.owned.includes(item.id);
-            const wearing = isWorn(item, me.look);
-            const n = bag.find((b) => b.item === item.id)?.count ?? 0;
-            return (
-              <li
-                key={item.id}
-                className={`${wearing ? "wearing" : ""}${rarityClass(item)}`.trim() || undefined}
-                title={lootLine(item) ?? undefined}
-              >
-                <ItemImage item={item} look={me.look} />
-                <span className="shop-item-name">
-                  {item.name}
-                  {n > 0 && <span className="muted"> ×{n}</span>}
-                </span>
-                <ItemTag item={item} />
-                {item.loot && (
-                  <span className={`small rarity-text-${item.loot.rarity}`}>{lootLine(item)}</span>
-                )}
-                {item.holiday && (
-                  <span className="small">
-                    {HOLIDAYS[item.holiday].emoji} {HOLIDAYS[item.holiday].name} only, till{" "}
-                    {dateLabel(item.holiday, Date.now(), ON_SALE.after)}
-                  </span>
-                )}
-                {(owned || wearing) && <WearButton item={item} look={me.look} run={run} />}
-                {rowAction(item, owned, wallet.balance, buy(item))}
-              </li>
-            );
-          })}
-        </ul>
-      )}
+      {body}
       {error && <p className="error">{error}</p>}
     </Modal>
   );
@@ -197,8 +195,11 @@ export const wear = async (look: Look) => {
   await refreshMe();
 };
 
+/** Furniture and dances are not worn, so they have no wear button and nothing to put on. */
+const isNotWearable = (item: Item) => item.slot === "furniture" || item.slot === "dance";
+
 const wearIt = (item: Item, look: Look, on: boolean) =>
-  item.slot === "furniture" || item.slot === "dance" ? Promise.resolve() : wear(withItem(item, look, on));
+  isNotWearable(item) ? Promise.resolve() : wear(withItem(item, look, on));
 
 /** Wear it, or take it off; nothing for furniture or a dance. */
 export function WearButton({
@@ -210,7 +211,7 @@ export function WearButton({
   look: Look;
   run: ReturnType<typeof useRun>["run"];
 }) {
-  if (item.slot === "furniture" || item.slot === "dance") return null;
+  if (isNotWearable(item)) return null;
   const on = isWorn(item, look);
   return (
     <button type="button" onClick={run(() => wearIt(item, look, !on))}>

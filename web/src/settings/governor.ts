@@ -36,11 +36,9 @@ const MAX_REFRESH_MS = 1000 / 60;
 export function refreshInterval(gaps: readonly number[]): number {
   const ok = gaps.filter((g) => g > 0 && g < GAP_MS);
   if (ok.length < 5) return MAX_REFRESH_MS;
-  const med = percentile(
-    [...ok].sort((a, b) => a - b),
-    0.5,
-  );
-  return Math.min(MAX_REFRESH_MS, Math.max(MIN_REFRESH_MS, med));
+  const sorted = [...ok].sort((a, b) => a - b);
+  const median = percentile(sorted, 0.5);
+  return Math.min(MAX_REFRESH_MS, Math.max(MIN_REFRESH_MS, median));
 }
 
 export type Step =

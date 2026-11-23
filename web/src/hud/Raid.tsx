@@ -88,10 +88,21 @@ export function RaidBox() {
 /** Rungs shown past the current one, greyed, with what they'd pay. */
 const AHEAD = 3;
 
+/** Last week's result, as one line: the rung it fell at, or the boss that got away. */
+function lastWeekText(last: NonNullable<Raid["last"]>): string {
+  if (last.defeated) {
+    return `Last week: ${plural(last.cleared, "rung")}, up to ${last.boss.emoji} ${last.boss.name}, with ${last.raiders} raiders. `;
+  }
+  return `Last week: ${last.boss.emoji} ${last.boss.name} got away. `;
+}
+
 /** This week's ladder: the kills, the rung being fought, and the next few. */
 function Ladder({ raid }: { raid: Raid }) {
   const { rules } = raid;
   const reward = (rung: number) => rewardFor(rung, raid.level, raid.week);
+  // Rungs past the current one still to show, fewer near the last boss.
+  const aheadCount = Math.min(AHEAD, BOSSES.length - raid.boss.rung);
+
   return (
     <ol className="raid-ladder">
       {raid.kills.map((k) => (
@@ -124,7 +135,7 @@ function Ladder({ raid }: { raid: Raid }) {
       )}
       {!raid.closed &&
         !raid.cleared &&
-        Array.from({ length: Math.min(AHEAD, BOSSES.length - raid.boss.rung) }, (_, i) => {
+        Array.from({ length: aheadCount }, (_, i) => {
           const b = bossAt(raid.boss.rung + i + 1, raid.level);
           return (
             <li key={b.rung} className="ahead">
@@ -284,10 +295,7 @@ export function RaidPanel() {
             <Ladder raid={raid} />
             {(raid.last || (me && me.coins > 0)) && (
               <p className="muted small">
-                {raid.last &&
-                  (raid.last.defeated
-                    ? `Last week: ${plural(raid.last.cleared, "rung")}, up to ${raid.last.boss.emoji} ${raid.last.boss.name}, with ${raid.last.raiders} raiders. `
-                    : `Last week: ${raid.last.boss.emoji} ${raid.last.boss.name} got away. `)}
+                {raid.last && lastWeekText(raid.last)}
                 {me && me.coins > 0 && <>Raids have paid you 🪙 {me.coins}.</>}
               </p>
             )}
@@ -347,8 +355,10 @@ export function RaidToast() {
     if (!raid) return;
     const before = seen.current;
     if (before?.prelaunch && !raid.prelaunch) setOpened({ boss: raid.boss, at: Date.now() });
-    if (before && before.week === raid.week && raid.kills.length > before.kills)
+    if (before && before.week === raid.week && raid.kills.length > before.kills) {
       setFell({ kills: raid.kills.slice(before.kills), at: Date.now() });
+    }
+
     seen.current = { week: raid.week, kills: raid.kills.length, prelaunch: raid.prelaunch };
   }, [raid]);
   const showFell = useFresh(fell?.at, 10_000);

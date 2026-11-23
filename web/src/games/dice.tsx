@@ -12,20 +12,20 @@ export function Dice({ view, info, you, now, move, name }: GameProps<DiceView>) 
   const onTable = sumBy(Object.values(view.counts), (n) => n);
   const myTurn = you === view.turn && !view.reveal && !info.outcome;
   const seconds = secondsUntil(view.deadline, now);
-  const r = view.reveal;
+  const reveal = view.reveal;
 
   return (
     <div className="dice">
       <ul className="dice-players">
         {view.players.map((p) => (
-          <li key={p} className={`${p === view.turn && !r ? "turn" : ""}${p === you ? " me" : ""}`}>
+          <li key={p} className={`${p === view.turn && !reveal ? "turn" : ""}${p === you ? " me" : ""}`}>
             <strong>{name(p)}</strong>
             <span>{view.out.includes(p) ? "💀 out" : `🎲 ${view.counts[p]}`}</span>
-            {r ? (
+            {reveal ? (
               <span className="dice-row">
-                {(r.dice[p] ?? []).map((d, i) => (
+                {(reveal.dice[p] ?? []).map((d, i) => (
                   // biome-ignore lint/suspicious/noArrayIndexKey: dice have no identity
-                  <span key={i} className={d === r.claim.face || d === 1 ? "hit" : "miss"}>
+                  <span key={i} className={d === reveal.claim.face || d === 1 ? "hit" : "miss"}>
                     {FACES[d]}
                   </span>
                 ))}
@@ -36,11 +36,11 @@ export function Dice({ view, info, you, now, move, name }: GameProps<DiceView>) 
           </li>
         ))}
       </ul>
-      {r ? (
+      {reveal ? (
         <p className="dice-verdict">
-          {r.caller !== null && `${name(r.caller)}: "Liar!" `}
-          {name(r.claim.player)} said {r.claim.count}× {FACES[r.claim.face]}; there were{" "}
-          <strong>{r.actual}</strong>. {name(r.loser)} loses a die.
+          {reveal.caller !== null && `${name(reveal.caller)}: "Liar!" `}
+          {name(reveal.claim.player)} said {reveal.claim.count}× {FACES[reveal.claim.face]}; there were{" "}
+          <strong>{reveal.actual}</strong>. {name(reveal.loser)} loses a die.
         </p>
       ) : last ? (
         <p className="dice-claim">
@@ -62,7 +62,7 @@ export function Dice({ view, info, you, now, move, name }: GameProps<DiceView>) 
         </p>
       )}
       {myTurn && <Bid last={last} max={onTable} move={move} />}
-      {!myTurn && !r && !info.outcome && (
+      {!myTurn && !reveal && !info.outcome && (
         <p className="muted small">
           Waiting for {name(view.turn)} ({seconds}s)…
         </p>

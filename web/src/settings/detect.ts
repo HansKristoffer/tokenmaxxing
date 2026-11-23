@@ -71,6 +71,7 @@ export async function benchmark(): Promise<number | null> {
     const gl = canvas.getContext("webgl2");
     context = gl;
     if (!gl) return null;
+
     const shader = (type: number, src: string) => {
       const sh = gl.createShader(type)!;
       gl.shaderSource(sh, src);
@@ -96,6 +97,8 @@ export async function benchmark(): Promise<number | null> {
     if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) return null;
     // biome-ignore lint/correctness/useHookAtTopLevel: WebGL's useProgram, not a React hook
     gl.useProgram(prog);
+
+    // Random small triangles, so the GPU has real vertices to shade every frame.
     const verts = new Float32Array(TRIANGLES * 6);
     for (let i = 0; i < verts.length; i += 6) {
       const x = Math.random() * 2 - 1;
@@ -112,14 +115,17 @@ export async function benchmark(): Promise<number | null> {
     const draw = (i: number) => {
       gl.uniform1f(t, i);
       gl.drawArrays(gl.TRIANGLES, 0, TRIANGLES * 3);
+      // Reading one pixel makes the CPU wait for the GPU, so the timing covers the draw.
       gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px);
     };
+
     let total = 0;
     let frames = 0;
     // Up to nine frames. The first one warms the GPU up and is not counted.
     for (let i = 0; i < 9 && total < BENCH_BUDGET_MS; i++) {
       await new Promise<void>((resolve) => requestAnimationFrame(() => setTimeout(resolve, 0)));
       if (document.hidden || graphics.get().choice !== "auto") return null;
+
       const start = performance.now();
       draw(i);
       if (i > 0) {

@@ -70,6 +70,13 @@ const openCard = (userId: number) => hud.set({ panel: { kind: "card", userId } }
 const openCompany = (companyId: number) => hud.set({ panel: { kind: "companyCard", companyId } });
 const openRow = (r: Totals) => ("userId" in r ? openCard(r.userId) : openCompany(r.companyId));
 
+/** A row's line under its name: a player's level and company, a company's members and house tier. */
+function subOf(r: Totals): string {
+  if (!("userId" in r)) return `${members(r.members)} · ${houseTierName(r.tier)}`;
+  const company = r.company ? ` · ${r.company}` : "";
+  return `Lv${r.level}${company}`;
+}
+
 export function Leaderboard() {
   const me = useHud((s) => s.me?.userId);
   const [range, setRange] = useState<RangeKey>("today");
@@ -177,11 +184,7 @@ export function Leaderboard() {
                           {"userId" in r && <PrestigeMini rank={prestigeOf(r).rank} />}
                         </>
                       }
-                      sub={
-                        "userId" in r
-                          ? `Lv${r.level}${r.company ? ` · ${r.company}` : ""}`
-                          : `${members(r.members)} · ${houseTierName(r.tier)}`
-                      }
+                      sub={subOf(r)}
                       share={top > 0 ? Math.max(0.02, by.value(r) / top) : 0}
                       value={by.show(r)}
                       aside={by.aside(r)}

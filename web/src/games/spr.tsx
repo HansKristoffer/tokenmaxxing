@@ -4,6 +4,9 @@ import type { GameProps } from "./types.ts";
 
 const ORDER: Pick[] = ["ship", "pivot", "raise"];
 
+/** A pick's emoji, or the hourglass while the player is still choosing. */
+const pickEmoji = (pick: Pick | null | undefined) => (pick ? PICKS[pick].emoji : "⌛");
+
 export function Spr({ view, info, you, now, move, name }: GameProps<SprView>) {
   const other = view.players.find((p) => p !== you) ?? view.players[1];
   const last = view.rounds.at(-1);
@@ -22,7 +25,7 @@ export function Spr({ view, info, you, now, move, name }: GameProps<SprView>) {
         <div className="spr-reveal">
           {view.players.map((p) => (
             <span key={p} className="big">
-              {last.picks[p] ? PICKS[last.picks[p]!].emoji : "⌛"}
+              {pickEmoji(last.picks[p])}
             </span>
           ))}
           <p>
@@ -45,7 +48,7 @@ export function Spr({ view, info, you, now, move, name }: GameProps<SprView>) {
               {ORDER.map((p) => (
                 <button key={p} type="button" className="card" onClick={() => move({ pick: p })}>
                   <span className="big">{PICKS[p].emoji}</span>
-                  {p[0]!.toUpperCase() + p.slice(1)}
+                  {p.charAt(0).toUpperCase() + p.slice(1)}
                   <small className="muted">beats {PICKS[p].beats}</small>
                 </button>
               ))}
@@ -69,7 +72,7 @@ export function Spr({ view, info, you, now, move, name }: GameProps<SprView>) {
           {view.rounds.map((r, i) => (
             // biome-ignore lint/suspicious/noArrayIndexKey: rounds are only ever appended
             <li key={i}>
-              {view.players.map((p) => (r.picks[p] ? PICKS[r.picks[p]!].emoji : "⌛")).join(" vs ")}{" "}
+              {view.players.map((p) => pickEmoji(r.picks[p])).join(" vs ")}{" "}
               <span className="muted">{r.winner === null ? "draw" : name(r.winner)}</span>
             </li>
           ))}

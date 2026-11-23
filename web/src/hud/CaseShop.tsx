@@ -195,11 +195,8 @@ export function CaseShop({ shelf, shop = "natmarked" }: { shelf?: number; shop?:
                 const r = await town.sellDuplicates(current.id);
                 hud.set({ wallet: r.wallet });
                 setBag(await town.bag());
-                setSold(
-                  r.sold === 0
-                    ? "No spare copies to sell."
-                    : `Sold ${r.sold} spare ${r.sold === 1 ? "copy" : "copies"}.`,
-                );
+                const copyNoun = r.sold === 1 ? "copy" : "copies";
+                setSold(r.sold === 0 ? "No spare copies to sell." : `Sold ${r.sold} spare ${copyNoun}.`);
               })}
             />
           ) : (
@@ -215,18 +212,20 @@ export function CaseShop({ shelf, shop = "natmarked" }: { shelf?: number; shop?:
           ›
         </button>
         <nav className="cshop-dots" aria-label="Cases">
-          {Array.from({ length: SLIDES }, (_, k) => k).map((k) => (
-            <button
-              key={CASES[k]?.id ?? "soon"}
-              type="button"
-              className="cshop-dot"
-              aria-label={
-                CASES[k] ? `${CASES[k].name}, ${k + 1} of ${SLIDES}` : `Coming soon, ${k + 1} of ${SLIDES}`
-              }
-              aria-current={k === page.at ? "true" : undefined}
-              onClick={() => go(k)}
-            />
-          ))}
+          {Array.from({ length: SLIDES }, (_, k) => k).map((k) => {
+            const slide = `${k + 1} of ${SLIDES}`;
+            const label = CASES[k] ? `${CASES[k].name}, ${slide}` : `Coming soon, ${slide}`;
+            return (
+              <button
+                key={CASES[k]?.id ?? "soon"}
+                type="button"
+                className="cshop-dot"
+                aria-label={label}
+                aria-current={k === page.at ? "true" : undefined}
+                onClick={() => go(k)}
+              />
+            );
+          })}
           <span className="cshop-count muted small" aria-hidden="true">
             {page.at + 1} / {SLIDES}
           </span>

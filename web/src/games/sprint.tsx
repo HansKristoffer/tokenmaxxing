@@ -2,7 +2,7 @@ import { secondsUntil } from "@tokenmaxxing/core/format.ts";
 import { potShares } from "@tokenmaxxing/core/games/payouts.ts";
 import { GRACE_MS, MAX_EXTRA, type SprintView, score, TRACK_WPM } from "@tokenmaxxing/core/games/sprint.ts";
 import type { Look } from "@tokenmaxxing/core/world.ts";
-import { type KeyboardEvent, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { type KeyboardEvent, type ReactNode, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { characterFrame } from "../art/characters.ts";
 import { Pixels } from "../hud/ui.tsx";
 import { hud } from "../store.ts";
@@ -150,10 +150,12 @@ function Words({
   current: number;
   dim: boolean;
   onClick: () => void;
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   const at = useRef<HTMLSpanElement>(null);
   const [top, setTop] = useState(0);
+  const focus = Math.max(current, 0);
+
   // The word being typed stays on the second line once past the first.
   useLayoutEffect(() => {
     setTop(Math.max(0, (at.current?.offsetTop ?? 0) - LINE));
@@ -162,15 +164,16 @@ function Words({
     // biome-ignore lint/a11y/useKeyWithClickEvents lint/a11y/noStaticElementInteractions: the input inside takes the keys
     <div className={`sprint-words${dim ? " dim" : ""}`} onClick={onClick}>
       <div className="sprint-lines" style={{ transform: `translateY(-${top}px)` }}>
-        {words.slice(0, Math.max(current, 0) + AHEAD).map((w, i) => {
+        {words.slice(0, focus + AHEAD).map((w, i) => {
           const typed = parts[i];
           const done = i < current;
+          const isWrong = done && typed !== w;
           return (
             <span
               // biome-ignore lint/suspicious/noArrayIndexKey: the words never change
               key={i}
-              ref={i === Math.max(current, 0) ? at : undefined}
-              className={`sprint-word${i === current ? " now" : ""}${done && typed !== w ? " wrong" : ""}`}
+              ref={i === focus ? at : undefined}
+              className={`sprint-word${i === current ? " now" : ""}${isWrong ? " wrong" : ""}`}
             >
               {Array.from({ length: Math.max(w.length, typed?.length ?? 0) }, (_, j) => {
                 return (

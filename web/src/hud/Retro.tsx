@@ -15,6 +15,16 @@ type Point = { x: number; y: number };
 const same = (a: Point, b: Point) => a.x === b.x && a.y === b.y;
 const random = (n: number) => Math.floor(Math.random() * n);
 
+/**
+ * Whether brick `b` is standing at `stage` of the block breaker. The stages cycle through three layouts:
+ * all bricks, a checkerboard, then the top three rows plus the even columns.
+ */
+function brickAliveAt(stage: number, b: Point): boolean {
+  if (stage % 3 === 1) return true;
+  if (stage % 3 === 2) return (b.x + b.y) % 2 === 0;
+  return b.y < 3 || b.x % 2 === 0;
+}
+
 /** Solo cabinet scores are client-reported; they never affect the economy. */
 export function Retro({ cabinet }: { cabinet: number }) {
   const canvas = useRef<HTMLCanvasElement>(null);
@@ -48,7 +58,8 @@ export function Retro({ cabinet }: { cabinet: number }) {
   const bestKey = `retro.${cabinet}`;
   const [best, setBest] = useState(() => Number(storage.getItem(bestKey)) || 0);
   useEffect(() => {
-    void run; // Restart creates a fresh game.
+    // `run` is in the deps: Restart creates a fresh game.
+    void run;
     const g = canvas.current?.getContext("2d");
     if (!g) return;
     let points = 0;
@@ -69,7 +80,7 @@ export function Retro({ cabinet }: { cabinet: number }) {
       const high = Math.max(points, Number(storage.getItem(bestKey)) || 0);
       storage.setItem(bestKey, String(high));
       setBest(high);
-      if (points > 0)
+      if (points > 0) {
         town
           .retroScore(cabinet, points, stage)
           .then((rows) => {
@@ -77,6 +88,7 @@ export function Retro({ cabinet }: { cabinet: number }) {
             setBoardError(false);
           })
           .catch(() => setBoardError(true));
+      }
     };
     const add = (n: number) => {
       points += n;
@@ -130,12 +142,18 @@ export function Retro({ cabinet }: { cabinet: number }) {
     let shape = shapes[random(shapes.length)]!.map((row) => [...row]);
     let bx = 3;
     let by = 0;
+    // A piece fits where each of its filled cells is inside the walls and not on a settled block.
+    // Cells above the board are free; that is where a piece enters.
     const fits = (s: number[][], x: number, y: number) =>
       s.every((row, dy) =>
-        row.every(
-          (v, dx) =>
-            !v || (x + dx >= 0 && x + dx < 10 && y + dy < 20 && (y + dy < 0 || !board[y + dy]![x + dx])),
-        ),
+        row.every((v, dx) => {
+          if (!v) return true;
+          const cellX = x + dx;
+          const cellY = y + dy;
+          const inWalls = cellX >= 0 && cellX < 10 && cellY < 20;
+          if (!inWalls) return false;
+          return cellY < 0 || !board[cellY]![cellX];
+        }),
       );
     const drop = () => {
       if (fits(shape, bx, by + 1)) {
@@ -206,15 +224,17 @@ export function Retro({ cabinet }: { cabinet: number }) {
         return;
       }
       if (!playing) return;
+
       const moves: Record<string, Point> = {
         ArrowLeft: { x: -1, y: 0 },
         ArrowRight: { x: 1, y: 0 },
         ArrowUp: { x: 0, y: -1 },
         ArrowDown: { x: 0, y: 1 },
       };
-      if (cabinet === 0 && moves[key]) {
-        const d = moves[key]!;
-        if (d.x !== -dir.x || d.y !== -dir.y) next = d;
+      const move = moves[key];
+      if (cabinet === 0 && move) {
+        // A turn straight back into the snake is refused.
+        if (move.x !== -dir.x || move.y !== -dir.y) next = move;
       }
       if (cabinet === 1) {
         if (key === "ArrowLeft" && fits(shape, bx - 1, by)) bx--;
@@ -229,7 +249,7 @@ export function Retro({ cabinet }: { cabinet: number }) {
           drop();
         }
       }
-      if (cabinet === 2 && moves[key]) wish = moves[key]!;
+      if (cabinet === 2 && move) wish = move;
       if (cabinet === 3) {
         if (key === "ArrowLeft") paddle = Math.max(0, paddle - 1);
         if (key === "ArrowRight") paddle = Math.min(16, paddle + 1);
@@ -253,15 +273,12 @@ export function Retro({ cabinet }: { cabinet: number }) {
           dir = next;
           const head = { x: snake[0]!.x + dir.x, y: snake[0]!.y + dir.y };
           const eating = same(head, food);
-          if (
-            head.x < 0 ||
-            head.x >= 20 ||
-            head.y < 0 ||
-            head.y >= 20 ||
-            obstacles.some((p) => same(p, head)) ||
-            snake.slice(0, eating ? undefined : -1).some((p) => same(p, head))
-          )
-            finish();
+          const hitsWall = head.x < 0 || head.x >= 20 || head.y < 0 || head.y >= 20;
+          const hitsObstacle = obstacles.some((p) => same(p, head));
+          // The tail moves away this step unless the snake eats, so it is not a body to hit.
+          const hitsBody = snake.slice(0, eating ? undefined : -1).some((p) => same(p, head));
+
+          if (hitsWall || hitsObstacle || hitsBody) finish();
           else {
             snake.unshift(head);
             if (eating) {
@@ -282,13 +299,15 @@ export function Retro({ cabinet }: { cabinet: number }) {
                   .filter((p) => !snake.some((part) => same(part, p)));
               }
               const empty: Point[] = [];
-              for (let y = 0; y < 20; y++)
-                for (let x = 0; x < 20; x++)
-                  if (
-                    !snake.some((p) => p.x === x && p.y === y) &&
-                    !obstacles.some((p) => p.x === x && p.y === y)
-                  )
-                    empty.push({ x, y });
+              for (let y = 0; y < 20; y++) {
+                for (let x = 0; x < 20; x++) {
+                  const taken =
+                    snake.some((p) => p.x === x && p.y === y) ||
+                    obstacles.some((p) => p.x === x && p.y === y);
+                  if (!taken) empty.push({ x, y });
+                }
+              }
+
               if (!empty.length) finish();
               else food = empty[random(empty.length)]!;
             } else snake.pop();
@@ -376,28 +395,27 @@ export function Retro({ cabinet }: { cabinet: number }) {
             velocity.x = (ball.x - (paddle * 20 + 40)) / 12 || 1;
           }
           if (ball.y > 400) finish();
-          for (const b of bricks)
-            if (
+          // The ball breaks the first live brick it reaches, and bounces back.
+          const hit = bricks.find(
+            (b) =>
               b.alive &&
               ball.x >= b.x * 40 &&
               ball.x < b.x * 40 + 40 &&
               ball.y >= 30 + b.y * 20 &&
-              ball.y < 50 + b.y * 20
-            ) {
-              b.alive = false;
-              velocity.y *= -1;
-              add(10);
-              break;
-            }
+              ball.y < 50 + b.y * 20,
+          );
+          if (hit) {
+            hit.alive = false;
+            velocity.y *= -1;
+            add(10);
+          }
+
           if (bricks.every((b) => !b.alive)) {
             advance();
             add(100 * stage);
             velocity.x = Math.max(-6, Math.min(6, velocity.x * 1.1));
             velocity.y = Math.max(-6, Math.min(6, velocity.y * 1.1));
-            bricks = bricks.map((b) => ({
-              ...b,
-              alive: stage % 3 === 1 || (stage % 3 === 2 ? (b.x + b.y) % 2 === 0 : b.y < 3 || b.x % 2 === 0),
-            }));
+            bricks = bricks.map((b) => ({ ...b, alive: brickAliveAt(stage, b) }));
           }
         }
         bricks
@@ -419,6 +437,15 @@ export function Retro({ cabinet }: { cabinet: number }) {
       action.current = () => {};
     };
   }, [cabinet, run, bestKey]);
+  // The arrow buttons, and the drop button on the falling-blocks cabinet.
+  const controls: (readonly [string, string])[] = [
+    ["←", "ArrowLeft"],
+    ["↑", "ArrowUp"],
+    ["↓", "ArrowDown"],
+    ["→", "ArrowRight"],
+    ...(cabinet === 1 ? [["Drop", " "] as const] : []),
+  ];
+
   return (
     <Modal title={`🕹️ ${names[cabinet]}`}>
       <p>
@@ -445,14 +472,8 @@ export function Retro({ cabinet }: { cabinet: number }) {
             Start game
           </button>
         )}
-        {[
-          ["←", "ArrowLeft"],
-          ["↑", "ArrowUp"],
-          ["↓", "ArrowDown"],
-          ["→", "ArrowRight"],
-          ...(cabinet === 1 ? [["Drop", " "]] : []),
-        ].map(([label, key]) => (
-          <button type="button" key={key} onClick={() => action.current(key!)}>
+        {controls.map(([label, key]) => (
+          <button type="button" key={key} onClick={() => action.current(key)}>
             {label}
           </button>
         ))}

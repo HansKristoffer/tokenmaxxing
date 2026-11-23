@@ -13,6 +13,7 @@ import { house } from "../art/buildings.ts";
 import { characterFrame } from "../art/characters.ts";
 import { errorText } from "../errors.ts";
 import { world } from "../game/world.ts";
+import { prefersReducedMotion } from "../settings/graphics.ts";
 import { hud, type Panel } from "../store.ts";
 import { coins } from "./format.ts";
 
@@ -65,9 +66,6 @@ export function useTicker(ms: number, on = true): void {
   }, [ms, on]);
 }
 
-const lessMotion = () =>
-  typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
-
 /**
  * `value`, counted to from the last one over `ms` when it changes, not jumped to: coins landing or being spent.
  * A change mid-count carries on from the number showing.
@@ -78,7 +76,7 @@ export function useCounted(value: number, ms = 450): number {
   useEffect(() => {
     const from = at.current;
     if (from === value) return;
-    if (lessMotion()) {
+    if (prefersReducedMotion()) {
       at.current = value;
       setShown(value);
       return;

@@ -56,16 +56,20 @@ export function Sky() {
   const wind = Math.round(weather.windMs);
   const temp = Math.round(weather.tempC);
   const pollen = pollenLevel(weather.pollen);
+  const kindName = `${weather.kind.charAt(0).toUpperCase()}${weather.kind.slice(1)}`;
+  const misty = fogOf(weather) > 0.05 && weather.kind !== "fog";
+  const pollenLine = pollen === "none" ? [] : [`Pollen: ${pollen}${pollen === "high" ? " (achoo)" : ""}`];
+
   const detail = [
     `Season: ${seasonNow()}`,
     `Aarhus ${clockTime(now)}, ${light.phase}`,
     `Sunrise ${clockTime(sunrise)}, sunset ${clockTime(sunset)}`,
     `Moon: ${moon.name} (${Math.round(moon.lit * 100)}% lit)`,
-    `${weather.kind[0]!.toUpperCase()}${weather.kind.slice(1)}, cloud ${Math.round(weather.cloud * 100)}%`,
+    `${kindName}, cloud ${Math.round(weather.cloud * 100)}%`,
     `${temp} °C${iceOver(weather) ? ", the pond is frozen" : ""}`,
     `Wind ${weather.windMs} m/s from ${compass(weather.windDir)}`,
-    `Visibility ${distance(weather.visibilityM)}${fogOf(weather) > 0.05 && weather.kind !== "fog" ? ", misty" : ""}`,
-    ...(pollen === "none" ? [] : [`Pollen: ${pollen}${pollen === "high" ? " (achoo)" : ""}`]),
+    `Visibility ${distance(weather.visibilityM)}${misty ? ", misty" : ""}`,
+    ...pollenLine,
   ].join("\n");
   return (
     <span className="chip sky" title={detail} role="img" aria-label={detail.replaceAll("\n", ". ")}>

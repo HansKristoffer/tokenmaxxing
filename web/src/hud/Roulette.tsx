@@ -46,6 +46,13 @@ const PLAYER_COLORS = [
   "#a3e635",
 ];
 const sum = (bets: readonly Bet[]) => bets.reduce((a, b) => a + b.stake, 0);
+/** The stake on each spot, summed over the bets that name it. */
+const stakesBySpot = (bets: readonly Bet[]) => {
+  const totals = new Map<BetOn, number>();
+  for (const b of bets) totals.set(b.on, (totals.get(b.on) ?? 0) + b.stake);
+  return totals;
+};
+const betsOf = (totals: Map<BetOn, number>): Bet[] => [...totals].map(([on, stake]) => ({ on, stake }));
 const signed = (n: number) => (n > 0 ? `+${n}` : `${n}`);
 const reduced = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
 const NAMES: Record<string, string> = {
@@ -112,7 +119,10 @@ function Wheel({ table }: { table: Table | null }) {
     if (reduced() || !animated) {
       setAnimate(false);
       // Turn back by the angle from where the wheel stands to pocket `i`, within one turn.
-      setWheel((w) => w - ((((w + i * STEP) % 360) + 360) % 360));
+      setWheel((w) => {
+        const turnBack = (((w + i * STEP) % 360) + 360) % 360;
+        return w - turnBack;
+      });
       setArm((a) => Math.round(a / 360) * 360);
       return;
     }
@@ -246,7 +256,7 @@ function Spot({
 export function Roulette() {
   const seated = useHud((s) => s.roulette?.seats.some((x) => x.userId === world.selfId) ?? false);
   const wallet = useHud((s) => s.wallet);
-  // A fresh board every time you sit down.
+  // Rendered only while seated, so the dock starts with an empty board each time you sit down.
   return seated && wallet ? <RouletteDock /> : null;
 }
 
@@ -279,9 +289,8 @@ function RouletteDock() {
     if (phase === "result") void refreshWallet();
   }, [phase]);
 
-  const stakes = new Map<BetOn, number>();
-  for (const p of placed) stakes.set(p.on, (stakes.get(p.on) ?? 0) + p.stake);
-  const bets: Bet[] = [...stakes].map(([on, stake]) => ({ on, stake }));
+  const stakes = stakesBySpot(placed);
+  const bets = betsOf(stakes);
   const total = sum(bets);
   const left = phaseLeft(table);
   const open = !!table && phase === "betting" && left > 0;
@@ -309,9 +318,7 @@ function RouletteDock() {
   };
   const set = (next: Bet[]) => {
     setPlaced(next);
-    const m = new Map<BetOn, number>();
-    for (const p of next) m.set(p.on, (m.get(p.on) ?? 0) + p.stake);
-    void push([...m].map(([on, stake]) => ({ on, stake })));
+    void push(betsOf(stakesBySpot(next)));
   };
   const add = (on: BetOn) => {
     if (!open) return;
@@ -384,9 +391,10 @@ function RouletteDock() {
           {ROWS.map((row, r) => row.map((n) => spot(`n:${n}`, `${colorOf(n)} rl-r${r + 1}`, n)))}
           {(["c3", "c2", "c1"] as const).map((c, r) => spot(c, `rl-col rl-r${r + 1}`, "2:1"))}
           {(["d1", "d2", "d3"] as const).map((d, i) => spot(d, `rl-dozen rl-d${i + 1}`, NAMES[d]))}
-          {OUTSIDE.map((o, i) =>
-            spot(o.on, `rl-out ${o.on === "red" || o.on === "black" ? o.on : ""} rl-o${i + 1}`, o.label),
-          )}
+          {OUTSIDE.map((o, i) => {
+            const colour = o.on === "red" || o.on === "black" ? o.on : "";
+            return spot(o.on, `rl-out ${colour} rl-o${i + 1}`, o.label);
+          })}
         </div>
       </div>
       <div className="rl-chips">

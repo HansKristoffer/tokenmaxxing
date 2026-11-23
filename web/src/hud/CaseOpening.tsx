@@ -112,6 +112,13 @@ interface Run {
   jitter: number;
 }
 
+/** A reel whose strip and viewport are both mounted, so it can be animated. */
+interface MountedReel {
+  run: Run;
+  el: HTMLUListElement;
+  vp: HTMLDivElement;
+}
+
 const buildRun = (winner: Item, filler: () => Item): Run => {
   const tiles = Array.from({ length: TILES }, filler);
   tiles[WINNER_AT] = winner;
@@ -183,12 +190,12 @@ const BELL_RISE = { rare: 0, epic: 1, legendary: 2 } as const;
 
 type Phase = "idle" | "waiting" | "spinning" | "reveal";
 
+/** A rarity's place on the ladder: common is 0, legendary the last. */
+const rankOf = (r: Rarity): number => RARITIES.indexOf(r);
+
 /** The best rarity among `items` (common for none). */
 const bestOf = (items: readonly Item[]): Rarity =>
-  items.reduce<Rarity>(
-    (best, it) => (RARITIES.indexOf(rarityIn(it)) > RARITIES.indexOf(best) ? rarityIn(it) : best),
-    "common",
-  );
+  items.reduce<Rarity>((best, it) => (rankOf(rarityIn(it)) > rankOf(best) ? rarityIn(it) : best), "common");
 
 /** The open button's words: one case or several, the first time or again. */
 const openLabel = (n: number, again: boolean): string => {
@@ -262,16 +269,18 @@ export function CaseOpening({
   // landing spot and (with several) a little later than the one above. Only the top reel ticks.
   useEffect(() => {
     if (phase !== "spinning" || !runs.length) return;
-    const els = runs.map((_, i) => ({ el: strips.current[i], vp: viewports.current[i] }));
-    if (els.some((r) => !r.el || !r.vp)) return;
+    // A reel can only run once React has put its strip and viewport on screen.
+    const mounted = runs.map((run, i) => ({ run, el: strips.current[i], vp: viewports.current[i] }));
+    if (!mounted.every((r): r is MountedReel => !!r.el && !!r.vp)) return;
+
     const reduced = reducedMotion();
     const t0 = performance.now();
-    const reels = runs.map((run, i) => {
-      const vw = els[i]!.vp!.clientWidth;
+    const reels = mounted.map((r, i) => {
+      const vw = r.vp.clientWidth;
       return {
-        el: els[i]!.el!,
+        el: r.el,
         vw,
-        target: WINNER_AT * PITCH + TILE / 2 + run.jitter * TILE - vw / 2,
+        target: WINNER_AT * PITCH + TILE / 2 + r.run.jitter * TILE - vw / 2,
         ms: (reduced ? REDUCED_S : SPIN_S + i * STAGGER_S) * 1000,
         lastIdx: -1,
         lastX: 0,
@@ -291,7 +300,8 @@ export function CaseOpening({
         }
         const dt = now - r.lastT;
         if (dt > 0) {
-          r.el.dataset.speed = t < 1 ? speedClass(((x - r.lastX) / dt) * 1000) : "slow";
+          const pxPerSecond = ((x - r.lastX) / dt) * 1000;
+          r.el.dataset.speed = t < 1 ? speedClass(pxPerSecond) : "slow";
           r.lastX = x;
           r.lastT = now;
         }
@@ -341,7 +351,7 @@ export function CaseOpening({
   const multi = reels.length > 1;
 
   // Julemarked: a soft bell triad when a rare or better item lands (a higher bell for each tier above rare).
-  const bellFor = wins.length && def?.id === "julemarked" ? bestOf(wins) : undefined;
+  const bellFor = wins.length > 0 && def?.id === "julemarked" ? bestOf(wins) : undefined;
   useEffect(() => {
     if (!bellFor || bellFor === "common" || bellFor === "uncommon") return;
     if (hud.get().jukeSettings.muted) return;
@@ -513,7 +523,7 @@ function PlayerHint() {
 
 /** Several cases at once: everything won, best first, each card in its rarity's colour. */
 function RevealAll({ items }: { items: readonly Item[] }) {
-  const sorted = [...items].sort((a, b) => RARITIES.indexOf(rarityIn(b)) - RARITIES.indexOf(rarityIn(a)));
+  const sorted = [...items].sort((a, b) => rankOf(rarityIn(b)) - rankOf(rarityIn(a)));
   const best = bestOf(items);
   return (
     <div className="cs-reveal-all" role="status">

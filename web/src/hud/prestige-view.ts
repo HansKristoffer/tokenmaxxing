@@ -1,6 +1,7 @@
 import type { CaseItem } from "@tokenmaxxing/core/case.ts";
 import { MAX_LEVEL } from "@tokenmaxxing/core/format.ts";
 import {
+  PRESTIGE_BASE,
   PRESTIGE_ITEMS,
   PRESTIGE_TRACKS,
   type PrestigeTrack,
@@ -74,17 +75,21 @@ const LABEL = {
 function rewardName(kind: PlanRow["kind"], t: PrestigeTrack, item: CaseItem | undefined): string {
   if (kind === "petwear") return t.petwear.name;
   if (kind === "trophy") return t.trophy.name;
-  if (!item) throw new Error(`No ${kind} for prestige track ${t.rank}`);
+  if (!item) {
+    const message = `No ${kind} for prestige track ${t.rank}`;
+    throw new Error(message);
+  }
   return item.name;
 }
 
 /** The track's six rewards in the order they unlock. */
 export const rewardPlan = (t: PrestigeTrack): PlanRow[] =>
   (["hat", "outfit", "petwear", "back", "aura", "trophy"] as const).map((kind) => {
-    const item =
-      kind === "petwear" || kind === "trophy"
-        ? undefined
-        : PRESTIGE_ITEMS.find((i) => i.slot === kind && i.index === 700 + t.rank - 1);
+    // Each track's wearables sit at PRESTIGE_BASE plus its rank; the pet accessory and trophy have none.
+    const hasBagItem = kind !== "petwear" && kind !== "trophy";
+    const item = hasBagItem
+      ? PRESTIGE_ITEMS.find((i) => i.slot === kind && i.index === PRESTIGE_BASE + t.rank - 1)
+      : undefined;
     const name = rewardName(kind, t, item);
     return { kind, level: REWARD_LEVEL[kind], label: LABEL[kind], name, item };
   });
@@ -132,7 +137,10 @@ export const runToasts = (rank: number, from: number, to: number): RunToast[] =>
     });
   }
 
-  for (const r of rewards)
-    if (r.kind !== "tag") out.push({ key: r.kind, text: `${REWARD_ICON[r.kind]} Unlocked: ${r.name}` });
+  for (const r of rewards) {
+    if (r.kind === "tag") continue;
+    out.push({ key: r.kind, text: `${REWARD_ICON[r.kind]} Unlocked: ${r.name}` });
+  }
+
   return out;
 };
