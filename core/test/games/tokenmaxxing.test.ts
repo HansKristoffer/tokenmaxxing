@@ -32,7 +32,8 @@ describe("Tokenmaxxing", () => {
   });
 
   test("the scoreboard, the lead callout and the flag", () => {
-    let s = tm.tick!(start(), start().startsAt);
+    const fresh = start();
+    let s = tm.tick!(fresh, fresh.startsAt);
     const before = s;
     s = use(s, 3, 2_000_000, s.startsAt + 1000, true);
     expect(tm.board!(s, 0)[0]).toEqual({ player: 3, value: 2_000_000, label: "2.0M" });

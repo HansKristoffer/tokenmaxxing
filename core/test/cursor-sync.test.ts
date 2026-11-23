@@ -23,6 +23,12 @@ const row = (timestamp = until - 1000) => ({
   kind: "Included",
   tokenUsage: { inputTokens: 10, outputTokens: 20, cacheWriteTokens: 30, cacheReadTokens: 40 },
 });
+/** Keeps every message id it is sent, and reports which were new and which were already there. */
+const storeInto = (stored: Set<string>) => async (events: TokenEvent[]) => {
+  const before = stored.size;
+  for (const e of events) stored.add(e.messageId);
+  return { inserted: stored.size - before, duplicates: events.length - (stored.size - before) };
+};
 const page = (rows: unknown[], total = rows.length) =>
   Response.json({
     usageEventsDisplay: rows,
@@ -136,14 +142,13 @@ describe("Cursor sync checkpoint", () => {
       }),
     };
     const stored = new Set<string>();
+    const store = storeInto(stored);
     let sends = 0;
     const sizes: number[] = [];
     const sending = async (events: TokenEvent[]) => {
       sizes.push(events.length);
       if (++sends === 2) throw new Error("offline");
-      const before = stored.size;
-      for (const e of events) stored.add(e.messageId);
-      return { inserted: stored.size - before, duplicates: events.length - (stored.size - before) };
+      return store(events);
     };
     await expect(sync({ files: {} }, { ...opts, send: sending })).rejects.toThrow("offline");
     const state = await loadState(statePath);
@@ -176,11 +181,7 @@ describe("Cursor sync checkpoint", () => {
         const offset = (request.page - 1) * request.pageSize;
         return page(rows.slice(offset, offset + request.pageSize), rows.length);
       }),
-      send: async (events: TokenEvent[]) => {
-        const before = stored.size;
-        for (const e of events) stored.add(e.messageId);
-        return { inserted: stored.size - before, duplicates: events.length - (stored.size - before) };
-      },
+      send: storeInto(stored),
     };
     const first = await sync({ files: {} }, opts);
     expect(sentBeforeSecondPage).toBe(true);

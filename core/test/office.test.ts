@@ -173,25 +173,20 @@ describe("offices", () => {
     ]);
     // A three wide sofa turns about its middle tile; four turns bring it back.
     expect(turnedAround(3, 4, 3, 0, 1)).toEqual({ x: 4, y: 3 });
-    let at = { x: 3, y: 4 };
-    for (const [from, to] of [
-      [0, 1],
-      [1, 2],
-      [2, 3],
-      [3, 0],
-    ] as const)
-      at = turnedAround(at.x, at.y, 3, from, to);
-    expect(at).toEqual({ x: 3, y: 4 });
+    const fullCircle = (width: number) => {
+      let at = { x: 3, y: 4 };
+      for (const [from, to] of [
+        [0, 1],
+        [1, 2],
+        [2, 3],
+        [3, 0],
+      ] as const)
+        at = turnedAround(at.x, at.y, width, from, to);
+      return at;
+    };
+    expect(fullCircle(3)).toEqual({ x: 3, y: 4 });
     // A two wide one: about its left tile (the lower middle), the same way round.
-    at = { x: 3, y: 4 };
-    for (const [from, to] of [
-      [0, 1],
-      [1, 2],
-      [2, 3],
-      [3, 0],
-    ] as const)
-      at = turnedAround(at.x, at.y, 2, from, to);
-    expect(at).toEqual({ x: 3, y: 4 });
+    expect(fullCircle(2)).toEqual({ x: 3, y: 4 });
     expect(turnedAround(3, 4, 1, 0, 1)).toEqual({ x: 3, y: 4 });
   });
 

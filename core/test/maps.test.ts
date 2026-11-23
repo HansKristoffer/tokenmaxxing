@@ -34,20 +34,22 @@ import {
 } from "../src/shoprooms.ts";
 import { portal, RAIDERS_SHOWN, roomEntry } from "../src/world.ts";
 
+const AROUND = [
+  [0, 1],
+  [0, -1],
+  [1, 0],
+  [-1, 0],
+] as const;
+
 /** Tiles you can walk onto or stand next to (to sit, read or open a door) from (x, y). */
 function reachable(map: GameMap, x: number, y: number): Set<string> {
   const seen = new Set([`${x},${y}`]);
   const queue = [[x, y] as [number, number]];
   while (queue.length) {
     const [cx, cy] = queue.shift()!;
-    for (const [dx, dy] of [
-      [0, 1],
-      [0, -1],
-      [1, 0],
-      [-1, 0],
-    ]) {
-      const nx = cx + dx!;
-      const ny = cy + dy!;
+    for (const [dx, dy] of AROUND) {
+      const nx = cx + dx;
+      const ny = cy + dy;
       const key = `${nx},${ny}`;
       if (seen.has(key)) continue;
       seen.add(key);
@@ -56,6 +58,10 @@ function reachable(map: GameMap, x: number, y: number): Set<string> {
   }
   return seen;
 }
+
+/** Whether a tile the walk reached lies beside (x, y), so someone can stand there and face it. */
+const reachableBeside = (map: GameMap, seen: Set<string>, x: number, y: number) =>
+  AROUND.some(([dx, dy]) => seen.has(`${x + dx},${y + dy}`) && map.walkable(x + dx, y + dy));
 
 describe("maps", () => {
   for (const map of Object.values(MAPS)) {
@@ -226,14 +232,7 @@ describe("maps", () => {
         "u",
       ]) {
         expect(cells(ch).length).toBeGreaterThan(0);
-        const standable = cells(ch).some(([x, y]) =>
-          [
-            [0, 1],
-            [0, -1],
-            [1, 0],
-            [-1, 0],
-          ].some(([dx, dy]) => map.walkable(x + dx!, y + dy!) && seen.has(`${x + dx!},${y + dy!}`)),
-        );
+        const standable = cells(ch).some(([x, y]) => reachableBeside(map, seen, x, y));
         expect(standable).toBe(true);
       }
       expect(cells("A")).toHaveLength(4);
@@ -438,20 +437,14 @@ describe("the shops", () => {
       expect(map.kind(...shop.counter).counter).toBe(true);
       expect(map.walkable(...shop.keeper)).toBe(true);
       expect(shop.displays.length).toBeGreaterThan(0);
-      const next = (x: number, y: number) =>
-        [
-          [0, 1],
-          [0, -1],
-          [1, 0],
-          [-1, 0],
-        ].some(([dx, dy]) => seen.has(`${x + dx!},${y + dy!}`) && map.walkable(x + dx!, y + dy!));
-      expect(next(...shop.counter)).toBe(true);
+      expect(reachableBeside(map, seen, ...shop.counter)).toBe(true);
       for (const [x, y, tab] of shop.displays) {
         expect(map.kind(x, y).shop).toBe(id);
         expect(displayTab(id, x, y)).toBe(tab);
-        expect(next(x, y)).toBe(true);
+        expect(reachableBeside(map, seen, x, y)).toBe(true);
       }
-      for (const s of layoutOf(map).seats) expect(seen.has(`${s.x},${s.y}`) || next(s.x, s.y)).toBe(true);
+      for (const s of layoutOf(map).seats)
+        expect(seen.has(`${s.x},${s.y}`) || reachableBeside(map, seen, s.x, s.y)).toBe(true);
     });
 
     test(`${id}: every display opens a tab this shop carries`, () => {
@@ -462,14 +455,12 @@ describe("the shops", () => {
     test(`${id}: the door leads in from the town and back out below the storefront`, () => {
       const [dx, dy] = MAPS.town.find(SHOP_DOOR_CHAR[id])[0]!;
       expect(portal("town", { ch: SHOP_DOOR_CHAR[id], x: dx, y: dy }, null, none)).toEqual(entry);
-      expect(portal(SHOP_ROOM[id], { ch: "x", ...{ x: shop.door[0], y: shop.door[1] } }, null, none)).toEqual(
-        {
-          room: "town",
-          x: dx,
-          y: dy + 1,
-          facing: "down",
-        },
-      );
+      expect(portal(SHOP_ROOM[id], { ch: "x", x: shop.door[0], y: shop.door[1] }, null, none)).toEqual({
+        room: "town",
+        x: dx,
+        y: dy + 1,
+        facing: "down",
+      });
     });
   }
 
@@ -487,13 +478,6 @@ describe("Møbelhuset sells everything a room needs, at displays you walk up to"
   const map = MAPS[SHOP_ROOM.furniture];
   const entry = roomEntry(SHOP_ROOM.furniture);
   const seen = reachable(map, entry.x, entry.y);
-  const stand = (x: number, y: number) =>
-    [
-      [0, 1],
-      [0, -1],
-      [1, 0],
-      [-1, 0],
-    ].some(([dx, dy]) => seen.has(`${x + dx!},${y + dy!}`) && map.walkable(x + dx!, y + dy!));
 
   test("it has tabs for furniture, wallpaper and floors, monitors and company supplies", () => {
     expect(SHOP_TABS.furniture).toEqual(["furniture", "decor", "desk", "company"]);
@@ -514,11 +498,11 @@ describe("Møbelhuset sells everything a room needs, at displays you walk up to"
   test("a customer can stand at every tab's display tiles", () => {
     for (const tab of SHOP_TABS.furniture) {
       const tiles = shop.displays.filter(([, , t]) => t === tab);
-      expect(tiles.filter(([x, y]) => stand(x, y)).length).toBe(tiles.length);
+      expect(tiles.filter(([x, y]) => reachableBeside(map, seen, x, y)).length).toBe(tiles.length);
     }
     const [sx, sy] = SUPPLIES_DESK;
     expect(map.kind(sx, sy).shop).toBe("furniture");
-    expect(stand(sx, sy) && stand(sx + 1, sy)).toBe(true);
+    expect(reachableBeside(map, seen, sx, sy) && reachableBeside(map, seen, sx + 1, sy)).toBe(true);
   });
 });
 
@@ -581,8 +565,9 @@ describe("the Julemarked", () => {
     const shut = portal("town", gate, null, none, [], at("2026-07-01T12:00:00Z"));
     expect(shut).toHaveProperty("notice");
     const out = portal("julemarked", { ch: "x", x: 11, y: 15 }, null, none, [], open);
+    if ("notice" in out) throw new Error(out.notice);
     expect(out).toMatchObject({ room: "town", facing: "down" });
-    expect(town.walkable((out as { x: number }).x, (out as { y: number }).y)).toBe(true);
+    expect(town.walkable(out.x, out.y)).toBe(true);
   });
 
   test("julemarkedOn: J-dag through 26 December, Copenhagen time", () => {

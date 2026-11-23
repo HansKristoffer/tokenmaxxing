@@ -80,7 +80,7 @@ describe("the Julemarked's coin stalls", () => {
       expect(stallAt(w.slot, w.index)).toBe(w);
     }
     expect(STALL_BASE).toBeGreaterThanOrEqual(JULEMARKED_BASE + 100);
-    for (const c of ALL_CASE_ITEMS) expect(c.index < STALL_BASE).toBe(true);
+    for (const c of ALL_CASE_ITEMS) expect(c.index).toBeLessThan(STALL_BASE);
     expect(STALL_WEARABLES.filter((w) => w.slot === "held")).toHaveLength(7);
   });
 
@@ -93,7 +93,7 @@ describe("the Julemarked's coin stalls", () => {
     const by = (s: string) => ITEMS.filter((i) => i.stall === s).map((i) => i.slot);
     expect(new Set(by("godter"))).toEqual(new Set(["held"]));
     expect(new Set(by("pynt"))).toEqual(new Set(["furniture"]));
-    expect(by("varme").sort()).toEqual(
+    expect<string[]>(by("varme").sort()).toEqual(
       [
         "back",
         "back",
@@ -113,10 +113,10 @@ describe("the Julemarked's coin stalls", () => {
         "pet",
         "pet",
         "pet",
-      ].sort() as never,
+      ].sort(),
     );
     for (const id of SHOP_STALL_IDS)
-      for (const slot of by(id)) expect(STALL_TABS[id]).toContain(slot as never);
+      for (const slot of by(id)) expect<readonly string[]>(STALL_TABS[id]).toContain(slot);
   });
 
   test("a stall item is worn through parseLook; an unknown index in a stall range is not", () => {
