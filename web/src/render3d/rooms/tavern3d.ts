@@ -8,7 +8,7 @@
  * dorm's beds.
  *
  * Ids follow the 2D catalogue: `tile:<char>` for map tiles, `tavern:<name>` for what has no tile.
- * Hooks (all additive, none needed): a boards's `redraw` (bar tab, plaques, easel), `JukeboxModel.playing`,
+ * Hooks (all additive, none needed): a board's `redraw` (bar tab, plaques, easel), `JukeboxModel.playing`,
  * `ClocksModel.show()`, `FountainModel.toss()` (the tip jar's coin toss), `setTavernNight()`.
  */
 
@@ -670,7 +670,8 @@ const jukebox = (): Model => {
     if (on && m.track) {
       g.fillStyle = "rgba(20,12,36,0.7)";
       g.fillRect(0, 31, 52, 9);
-      text(g, `♪ ${m.track}`.slice(0, 11), 2, 32, 7, "#ffe9a8");
+      const label = `♪ ${m.track}`.slice(0, 11);
+      text(g, label, 2, 32, 7, "#ffe9a8");
     }
     window.needsUpdate = true;
   };
@@ -762,7 +763,8 @@ export function plaqueDraw(
     g.fillRect(0, 0, w, Math.max(2, h * 0.04));
     const row = h / names.length;
     for (const [i, n] of names.entries()) {
-      text(g, (n || "---").slice(0, 3), w / 2, i * row + row * 0.12, row * 0.72, BRASS_DARK, true, "center");
+      const label = (n || "---").slice(0, 3);
+      text(g, label, w / 2, i * row + row * 0.12, row * 0.72, BRASS_DARK, true, "center");
     }
   };
 }
@@ -829,7 +831,10 @@ const corkBoard = (
       g.fillRect(0, 0, w * 4, 24);
       g.fillStyle = C.stoneDark;
       const rnd = seeded(i + 40);
-      for (const ly of [6, 11, 16]) g.fillRect(3, ly, Math.floor((w * 4 - 8) * (0.55 + rnd() * 0.45)), 2);
+      for (const ly of [6, 11, 16]) {
+        const lineWidth = Math.floor((w * 4 - 8) * (0.55 + rnd() * 0.45));
+        g.fillRect(3, ly, lineWidth, 2);
+      }
       if (!ballPins) {
         g.fillStyle = C.rug;
         g.fillRect(w * 2 - 2, 1, 4, 4);
@@ -842,7 +847,8 @@ const corkBoard = (
     ]);
     note.rotation.z = (((i * 37) % 11) - 5) * 0.012;
     if (ballPins) {
-      m.ball(0.022, C.rug, [note.position.x, note.position.y + nh / 2 - 0.04, -0.46 + 0.07], [1, 1, 0.6], 8);
+      const pinY = note.position.y + nh / 2 - 0.04;
+      m.ball(0.022, C.rug, [note.position.x, pinY, -0.46 + 0.07], [1, 1, 0.6], 8);
     }
   }
 
@@ -1001,7 +1007,8 @@ export function officeBoardDraw(
     g.fillText(officeHeadline(open), w / 2, h * 0.55);
     g.font = `600 ${Math.round(h * 0.075)}px system-ui, sans-serif`;
     for (const [i, name] of (open ?? []).slice(0, 3).entries()) {
-      g.fillText(name.length > 12 ? `${name.slice(0, 11)}…` : name, w / 2, h * (0.67 + i * 0.1));
+      const shown = name.length > 12 ? `${name.slice(0, 11)}…` : name;
+      g.fillText(shown, w / 2, h * (0.67 + i * 0.1));
     }
   };
 }
@@ -1027,6 +1034,7 @@ export function setOfficeBoard(model: Model, open: OfficeBoardRows): void {
 
 function specialToday(): string {
   const day = aarhusDay(new Date());
+  // The modulus keeps the index inside SPECIALS, which always has entries.
   return SPECIALS[(day * STRIDE) % SPECIALS.length]!;
 }
 
@@ -1141,7 +1149,8 @@ export function clocksDraw({
       for (let k = 0; k < 12; k++) {
         const a = (k / 12) * Math.PI * 2;
         const s = k % 3 === 0 ? 2.4 : 1.4;
-        g.fillRect(cx + Math.sin(a) * r * 0.7 - s / 2, cy - Math.cos(a) * r * 0.7 - s / 2, s, s);
+        const tickR = r * 0.7;
+        g.fillRect(cx + Math.sin(a) * tickR - s / 2, cy - Math.cos(a) * tickR - s / 2, s, s);
       }
       const { hour, minute } = hands[i] ?? { hour: 0, minute: 0 };
       const hand = (turns: number, len: number, width: number, color: string) => {
@@ -1154,8 +1163,10 @@ export function clocksDraw({
         g.lineTo(cx + Math.sin(a) * len, cy - Math.cos(a) * len);
         g.stroke();
       };
-      hand(((hour % 12) + minute / 60) / 12, r * 0.42, 3, C.rug);
-      hand(minute / 60, r * 0.64, 2, INK);
+      const hourTurns = ((hour % 12) + minute / 60) / 12;
+      const minuteTurns = minute / 60;
+      hand(hourTurns, r * 0.42, 3, C.rug);
+      hand(minuteTurns, r * 0.64, 2, INK);
       g.fillStyle = INK;
       g.beginPath();
       g.arc(cx, cy, 2, 0, Math.PI * 2);
@@ -1264,8 +1275,9 @@ const tipJar = (): Model => {
       f.coin.rotation.set(k * 14, 0, k * 6);
     }
     // After a clink the jar glints for a moment.
-    glint.visible = t - hit < 0.5;
-    (glint.material as THREE.MeshBasicMaterial).opacity = Math.max(0, 1 - (t - hit) * 2) * 0.9;
+    const sinceHit = t - hit;
+    glint.visible = sinceHit < 0.5;
+    (glint.material as THREE.MeshBasicMaterial).opacity = Math.max(0, 1 - sinceHit * 2) * 0.9;
   });
   return m;
 };
@@ -1383,7 +1395,8 @@ let bedCount = 0;
 
 /** A dorm bed, head to -z: a timber frame, a pillow and a duvet in its own colour. */
 const dormBed = (): Model => {
-  const color = BLANKETS[bedCount++ % BLANKETS.length]!;
+  const color = BLANKETS[bedCount % BLANKETS.length]!;
+  bedCount += 1;
   const m = new Model();
   const [w, d] = [0.95, 1.85];
   m.box([w, 0.22, d], WOOD_DARK, [0, 0, 0], 0.03);
@@ -1460,8 +1473,8 @@ export function makeBarkeep(): Barkeep {
     update(dt, t) {
       avatar.update(dt, t);
       // Polishing: the mug hand comes up and goes round.
-      arms[1]!.rotation.x = -0.9 + Math.sin(t * 2.4) * 0.14;
-      arms[1]!.rotation.z = -0.15 + Math.cos(t * 2.4) * 0.08;
+      hand.rotation.x = -0.9 + Math.sin(t * 2.4) * 0.14;
+      hand.rotation.z = -0.15 + Math.cos(t * 2.4) * 0.08;
     },
   };
 }
@@ -1587,6 +1600,9 @@ const CHARS: Record<string, string> = {
 export const TAVERN_W = 26;
 export const TAVERN_D = 16;
 
+/** A Tavern asset by id. Shared pieces such as the rug, plant and coffee table come from the furniture catalogue. */
+const findAsset = (id: string): Asset => TAVERN_ASSETS.find((t) => t.id === id) ?? assetById.get(id)!;
+
 /**
  * The Tavern's floor plan (`inn` in `core/src/maps.ts`), less its walls: 26 by 16 tiles, north wall at the top.
  * The bar runs along the north wall's west end with the barkeep's cell and the back-bar behind it, the boards
@@ -1607,7 +1623,6 @@ export function buildTavernRoom(): TavernRoom {
   });
   const by = new Map<string, Model[]>();
   const layout = new Map<string, string>();
-  const find = (id: string) => TAVERN_ASSETS.find((t) => t.id === id) ?? assetById.get(id)!;
   const charOf = (id: string) => CHARS[id] ?? (id.startsWith("tile:") ? id.slice(5) : "_");
   const mark = (ch: string, x: number, z: number, keep = false) => {
     const k = `${x},${z}`;
@@ -1616,9 +1631,13 @@ export function buildTavernRoom(): TavernRoom {
   const reg = (id: string, model: Model) => by.set(id, [...(by.get(id) ?? []), model]);
   /** A piece on the floor: it blocks the tiles it stands on. */
   const put = (id: string, x: number, z: number, turn: Turn = 0, face?: [number, number]) => {
-    const a = find(id);
+    const a = findAsset(id);
     const p = room.place(a, x, z, turn);
-    if (face) p.model.rotation.y = Math.atan2(face[0] - p.model.position.x, face[1] - p.model.position.z);
+    if (face) {
+      const dx = face[0] - p.model.position.x;
+      const dz = face[1] - p.model.position.z;
+      p.model.rotation.y = Math.atan2(dx, dz);
+    }
     reg(id, p.model);
     const [w, d] = Room.footprint(a, turn);
     for (let i = 0; i < w; i++) {
@@ -1631,7 +1650,7 @@ export function buildTavernRoom(): TavernRoom {
    * no tile.
    */
   const hang = (id: string, x: number, z: number, turn: 0 | 1 | 2 = 0, ch: string | null = charOf(id)) => {
-    const a = find(id);
+    const a = findAsset(id);
     const [w, d] = Room.footprint(a, turn);
     const model = a.build();
     model.position.set(x + w / 2, 0, z + d / 2);
@@ -1652,7 +1671,7 @@ export function buildTavernRoom(): TavernRoom {
     return model;
   };
   const sconceAt = (x: number, z: number, turn: 0 | 1 = 0) => {
-    const s = find("tavern:sconce").build();
+    const s = findAsset("tavern:sconce").build();
     s.position.set(x + 0.5, 0, z + 0.5);
     s.rotation.y = (turn * Math.PI) / 2;
     room.group.add(s);
@@ -1667,7 +1686,7 @@ export function buildTavernRoom(): TavernRoom {
   put("tile:h", 9, 0);
   put("tile:h", 9, 1);
   for (let x = 0; x <= 9; x++) put(x === 3 ? "tile:y" : "tile:a", x, 2);
-  const jar = find("tavern:tip-jar").build();
+  const jar = findAsset("tavern:tip-jar").build();
   jar.position.set(7.5, 1.03, 2.5);
   room.group.add(jar);
   reg("tavern:tip-jar", jar);
@@ -1693,8 +1712,9 @@ export function buildTavernRoom(): TavernRoom {
     [22, 1],
     [19, 3],
     [22, 3],
-  ] as const)
+  ] as const) {
     put("rug", x, z);
+  }
   put("coffee-table", 21, 3);
   put("tavern:sofa-r", 21, 4, 2);
   put("tavern:sofa-l", 22, 4, 2);
@@ -1787,5 +1807,5 @@ export function buildDormRoom(): DormRoom {
 }
 
 function put(room: Room, id: string, x: number, z: number, turn: Turn = 0): Placed {
-  return room.place(TAVERN_ASSETS.find((t) => t.id === id) ?? assetById.get(id)!, x, z, turn);
+  return room.place(findAsset(id), x, z, turn);
 }
