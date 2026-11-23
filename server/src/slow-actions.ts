@@ -8,6 +8,7 @@ export const SLOW_ACTION_MS = 5_000;
 type Definition = { config: { actions?: Record<string, unknown> } };
 type Ctx = { key?: unknown[] };
 
+/** Logs the action when it ran at least `slowMs`; `failed` says whether it threw or rejected. */
 function reportSlow(
   name: string,
   action: string,
@@ -19,7 +20,7 @@ function reportSlow(
 ): void {
   const ms = Math.round(performance.now() - start);
   if (ms < slowMs) return;
-  const key = c?.key?.join("/") ?? "";
+  const key = c.key?.join("/") ?? "";
   const outcome = failed ? " (failed)" : "";
   log(`[slow] ${name}[${key}].${action} ${ms} ms${outcome}`);
 }
@@ -40,21 +41,17 @@ export function logSlowActions(
       try {
         out = handler(c, ...args);
       } catch (err) {
-        if (performance.now() - start >= slowMs) reportSlow(name, action, c, start, true, slowMs, log);
+        reportSlow(name, action, c, start, true, slowMs, log);
         throw err;
       }
 
       // The timing only observes the result: the caller still gets the promise itself.
       if (out instanceof Promise) {
         out.then(
-          () => {
-            if (performance.now() - start >= slowMs) reportSlow(name, action, c, start, false, slowMs, log);
-          },
-          () => {
-            if (performance.now() - start >= slowMs) reportSlow(name, action, c, start, true, slowMs, log);
-          },
+          () => reportSlow(name, action, c, start, false, slowMs, log),
+          () => reportSlow(name, action, c, start, true, slowMs, log),
         );
-      } else if (performance.now() - start >= slowMs) {
+      } else {
         reportSlow(name, action, c, start, false, slowMs, log);
       }
       return out;

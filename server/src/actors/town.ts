@@ -921,8 +921,9 @@ export const town = actor({
           process.env.MARKET_ANY_AGE === "1" ? 0 : undefined,
         ),
       );
+      const itemName = itemById(sale.item)?.name ?? "item";
       await notify(c.client<typeof registry>(), sellerId, {
-        text: `${sale.buyer} bought your ${itemById(sale.item)?.name ?? "item"} for 🪙 ${sale.price}.`,
+        text: `${sale.buyer} bought your ${itemName} for 🪙 ${sale.price}.`,
         open: "market",
       });
       return after;
@@ -1231,10 +1232,10 @@ export const town = actor({
       const want = parseSide(rawWant);
       if (give && want && emptySide(give) && emptySide(want))
         throw new UserError("Offer something, or ask for something.", { code: "invalid_trade" });
-      if (!give || !want)
-        throw new UserError(`Up to 🪙 ${TRADE_COINS_CAP} and ${TRADE_ITEMS_CAP} shop items a side.`, {
-          code: "invalid_trade",
-        });
+      if (!give || !want) {
+        const message = `Up to 🪙 ${TRADE_COINS_CAP} and ${TRADE_ITEMS_CAP} shop items a side.`;
+        throw new UserError(message, { code: "invalid_trade" });
+      }
       const now = Date.now();
       const trade = { fromId: userId, from: me.name, toId, to: them.name, give, want, at: now };
       // Their coins are theirs to know: accepting checks them.
@@ -1502,10 +1503,10 @@ export const town = actor({
     setBio: async (c, raw: unknown): Promise<string | null> => {
       const userId = requireUser(callerOf(c));
       const bio = parseBio(raw);
-      if (bio === null)
-        throw new UserError(`One line, up to ${BIO_MAX_LENGTH} characters, and no links.`, {
-          code: "invalid_bio",
-        });
+      if (bio === null) {
+        const message = `One line, up to ${BIO_MAX_LENGTH} characters, and no links.`;
+        throw new UserError(message, { code: "invalid_bio" });
+      }
       if (!c.vars.bioEdits.take(String(userId), Date.now()))
         throw new UserError("That's a lot of edits. Try again in an hour.", { code: "rate_limited" });
       const text = bio === "clear" ? null : bio;
@@ -2006,9 +2007,10 @@ const userOf = (sql: Sql, raw: unknown) => userById(sql, playerId(raw));
 
 /** Coins an admin sets: a whole number up to 10M. */
 function coinAmount(raw: unknown): number {
-  if (!Number.isSafeInteger(raw) || (raw as number) < 0 || (raw as number) > 10_000_000)
+  const coins = raw as number;
+  if (!Number.isSafeInteger(raw) || coins < 0 || coins > 10_000_000)
     throw new UserError("Use a whole number from 0 to 10,000,000.", { code: "invalid_amount" });
-  return raw as number;
+  return coins;
 }
 
 /** For the player themselves, and for the admin page. Run under `serial`, since names are unique. */
@@ -2120,18 +2122,10 @@ async function shelfOf(
   const state = await collectionFor(c, userId).catch(() => null);
   if (!state) return [];
   const views = resolvePins(state, pins);
-  if (views.length < pins.length && !withoutTrophies.has(state))
-    await c.vars.serial(() =>
-      c.db.transaction(
-        (tx) =>
-          setPins(
-            tx,
-            userId,
-            views.map((v) => v.id),
-          ),
-        { name: "shelf" },
-      ),
-    );
+  if (views.length < pins.length && !withoutTrophies.has(state)) {
+    const keptIds = views.map((v) => v.id);
+    await c.vars.serial(() => c.db.transaction((tx) => setPins(tx, userId, keptIds), { name: "shelf" }));
+  }
   return views;
 }
 
@@ -2201,10 +2195,10 @@ async function inShop(
   if (shop === null) throw new UserError("That isn't sold in any shop.", { code: "not_for_sale" });
   const room = await main(c.client()).world.roomOfPlayer(userId);
   // "julemarked": a stall of the Christmas market (`julemarked-shop.ts`), bought from inside the courtyard.
-  if (room !== (shop === "julemarked" ? "julemarked" : SHOP_ROOM[shop]))
-    throw new UserError(shop === "julemarked" ? "Go to the Julemarked to buy that." : goToShop(shop), {
-      code: "not_in_shop",
-    });
+  if (room !== (shop === "julemarked" ? "julemarked" : SHOP_ROOM[shop])) {
+    const message = shop === "julemarked" ? "Go to the Julemarked to buy that." : goToShop(shop);
+    throw new UserError(message, { code: "not_in_shop" });
+  }
 }
 
 /** Torvehallen's door rule, like `inShop`: putting something on display and buying it happen in the hall. */
@@ -2231,13 +2225,12 @@ async function inCaseShop(
   const julemarked = def.shop === "julemarked";
   const room = julemarked ? "julemarked" : (SHOP_ROOM as Record<string, string | undefined>)[CASE_SHOP_ID];
   if (!room) throw new UserError("The Night Market isn't open yet.", { code: "not_in_shop" });
-  if ((await main(c.client()).world.roomOfPlayer(userId)) !== room)
-    throw new UserError(
-      julemarked ? "Go to the Julemarked to open this case." : "Go to the Night Market to open a case.",
-      {
-        code: "not_in_shop",
-      },
-    );
+  if ((await main(c.client()).world.roomOfPlayer(userId)) !== room) {
+    const message = julemarked
+      ? "Go to the Julemarked to open this case."
+      : "Go to the Night Market to open a case.";
+    throw new UserError(message, { code: "not_in_shop" });
+  }
 }
 
 /**
@@ -2287,9 +2280,12 @@ function tileArg(raw: unknown): { x: number; y: number; rot?: number } | undefin
   const t = raw as { x?: unknown; y?: unknown; rot?: unknown };
   if (!Number.isInteger(t.x) || !Number.isInteger(t.y))
     throw new UserError("Pick a tile.", { code: "bad_request" });
-  if (t.rot !== undefined && !(Number.isInteger(t.rot) && (t.rot as number) >= 0 && (t.rot as number) < 4))
-    throw new UserError("Pick a facing.", { code: "bad_request" });
-  return { x: t.x as number, y: t.y as number, ...(t.rot !== undefined && { rot: t.rot as number }) };
+
+  const facing = t.rot as number;
+  const isFacing = Number.isInteger(t.rot) && facing >= 0 && facing < 4;
+  if (t.rot !== undefined && !isFacing) throw new UserError("Pick a facing.", { code: "bad_request" });
+
+  return { x: t.x as number, y: t.y as number, ...(t.rot !== undefined && { rot: facing }) };
 }
 
 const OPEN_OFFICES_TTL = 5_000;

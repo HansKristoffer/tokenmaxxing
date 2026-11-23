@@ -192,9 +192,9 @@ for (const [net, bits] of [
  */
 export async function isPublicHost(host: string): Promise<boolean> {
   const bare = host.replace(/^\[|\]$/g, "");
-  const addrs = isIP(bare)
-    ? [{ address: bare, family: isIP(bare) }]
-    : await lookup(bare, { all: true }).catch(() => []);
+  // An IP literal needs no lookup: it is checked as it is.
+  const family = isIP(bare);
+  const addrs = family ? [{ address: bare, family }] : await lookup(bare, { all: true }).catch(() => []);
   return addrs.length > 0 && addrs.every((a) => !PRIVATE.check(a.address, a.family === 6 ? "ipv6" : "ipv4"));
 }
 

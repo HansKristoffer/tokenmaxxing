@@ -122,7 +122,7 @@ const TOKEN_CACHE_MAX = 10_000;
  */
 const TOKEN_STALE_MS = 10 * 60_000;
 const VERIFY_WAIT_MS = 3_000;
-export type TokenCache = Map<string, { caller: Caller; until: number }>;
+type TokenCache = Map<string, { caller: Caller; until: number }>;
 
 /** One cache for every actor: `town`, `world`, `arcade` and each `match` see the same tokens. */
 const TOKENS: TokenCache = new Map();

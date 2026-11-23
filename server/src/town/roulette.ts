@@ -100,8 +100,13 @@ export async function rouletteResolve(
       for (const r of rows) {
         const s = settle(JSON.parse(r.bets) as Bet[], pocket);
         if (s.payout > 0) await ledgerAdd(tx, r.userId, s.payout, "roulette", "roulette:win", now);
-        const name = (await one<{ name: string }>(tx, "SELECT name FROM users WHERE id = ?", r.userId))?.name;
-        results.push({ userId: r.userId, name: name ?? "Someone", staked: s.staked, payout: s.payout });
+        const player = await one<{ name: string }>(tx, "SELECT name FROM users WHERE id = ?", r.userId);
+        results.push({
+          userId: r.userId,
+          name: player?.name ?? "Someone",
+          staked: s.staked,
+          payout: s.payout,
+        });
       }
       await tx.execute("DELETE FROM roulette_bets WHERE round = ?", round);
       return { pocket, results };

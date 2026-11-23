@@ -169,10 +169,13 @@ export const match = actor({
       if (!text) return;
       if (!c.vars.chat.take(String(userId), Date.now()))
         throw new UserError("Slow down a little.", { code: "rate_limited" });
+
+      // A player's name is on the match; anyone else watching is named by `town`.
       const name =
         c.vars.state.players.find((p) => p.userId === userId)?.name ??
         (await main(c.client()).town.names([userId]))[userId] ??
         "?";
+
       const chat = c.vars.state.chat ?? [];
       const lineId = (chat.at(-1)?.id ?? 0) + 1;
       const line: MatchChatLine = { id: lineId, userId, name, text, at: Date.now() };
@@ -200,13 +203,16 @@ export const match = actor({
       const def = defOf(s);
       const window = def.usageWindow?.(s.state);
       if (!window || !def.usage || !standing(s, userId)) return null;
+
       const used = await c
         .client()
         .player.get([String(userId)], internal)
         .tokensBetween(window.from, window.to);
+
       // Another sync or tick may have updated the match while the player query was running.
       const current = plain(c.vars.state);
       if (!standing(current, userId)) return null;
+
       const next = def.usage(current.state, userId, used, Date.now());
       if (next !== current.state) await apply(c, next, current.state);
       return standing(plain(c.vars.state), userId);

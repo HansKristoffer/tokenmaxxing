@@ -32,11 +32,12 @@ export async function migratePrestige(sql: Sql): Promise<void> {
 
 /** `userId`'s prestiges, first to latest. */
 export async function prestigesOf(sql: Sql, userId: number): Promise<PrestigeTaken[]> {
-  return all<{ rank: number }>(
+  const rows = await all<{ rank: number }>(
     sql,
     "SELECT rank FROM prestiges WHERE user_id = ? ORDER BY rank",
     userId,
-  ).then((rows) => rows.map((r) => ({ startedAt: runStart(r.rank) })));
+  );
+  return rows.map((r) => ({ startedAt: runStart(r.rank) }));
 }
 
 /** Everyone's prestiges (only those who took one), for the admin page's coins. */

@@ -154,12 +154,12 @@ const tallyOf = (f: DayFacts, picks: DayQuest[] | undefined, c: Counts): DayTall
  * day pays what its frozen picks say (a day with none pays nothing: nothing was dealt).
  */
 export function questPay(d: QuestData): QuestPay {
-  const v2 = paidFrom();
+  const from = paidFrom();
   const daily = new Map<string, number>();
   const tallies = new Map<string, DayTally[]>();
   for (const day of new Set([...d.facts.keys(), ...d.picks.keys()])) {
     const f = d.facts.get(day) ?? EMPTY_DAY;
-    if (day < v2) {
+    if (day < from) {
       daily.set(day, legacyQuestCoins(f));
       continue;
     }
@@ -220,7 +220,8 @@ export async function freezeDay(sql: Sql, userId: number, day: string): Promise<
 export async function freezeDays(sql: Sql, userId: number, days: string[], now: number) {
   const me = await one<{ at: number }>(sql, "SELECT created_at AS at FROM users WHERE id = ?", userId);
   const signup = me ? dayKey(me.at) : dayKey(now);
-  const first = paidFrom() > signup ? paidFrom() : signup;
+  const paid = paidFrom();
+  const first = paid > signup ? paid : signup;
   const today = dayKey(now);
   for (const day of [...days].sort()) {
     if (day >= first && day <= today) await freezeDay(sql, userId, day);

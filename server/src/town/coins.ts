@@ -190,7 +190,8 @@ export async function wallet(
   // Pay only counts frozen days (as `balances` does); today's unfrozen picks are shown, and paid once frozen.
   const live = today >= paidFrom() ? (data.picks.get(today) ?? (await dayPicks(sql, userId, today))) : null;
   const pay = questPay(data);
-  const level = levelFor(sumBy(everyDay, "tokens"));
+  const lifetime = sumBy(everyDay, "tokens");
+  const level = levelFor(lifetime);
   const byDay = new Map(days.map((d) => [d.day, d.tokens]));
   const dayCoins = (day: string) => coinsForTokens(byDay.get(day) ?? 0, day) + (pay.daily.get(day) ?? 0);
   const active = days.filter((d) => d.tokens > 0).map((d) => d.day);
@@ -213,7 +214,7 @@ export async function wallet(
     (await badgeAwardCoins(sql, userId)) +
     (await trophyAwardCoins(sql, userId)) +
     sumBy(launched, "coins") +
-    prestigeCoins(await prestigesOf(sql, userId), sumBy(everyDay, "tokens")) +
+    prestigeCoins(await prestigesOf(sql, userId), lifetime) +
     streak;
   const since = addDays(today, -29);
   const todays = data.facts.get(today) ?? EMPTY_DAY;
@@ -300,7 +301,11 @@ export async function balances(sql: Sql, now: number): Promise<Map<number, numbe
   const tokenDays = new Map<number, Map<string, number>>();
   for (const d of days) {
     add(d.userId, coinsForTokens(d.tokens, d.day));
-    if (d.tokens > 0) tokenDays.set(d.userId, (tokenDays.get(d.userId) ?? new Map()).set(d.day, d.tokens));
+    if (d.tokens > 0) {
+      const dayTokens = tokenDays.get(d.userId) ?? new Map<string, number>();
+      dayTokens.set(d.day, d.tokens);
+      tokenDays.set(d.userId, dayTokens);
+    }
   }
   const dailies = new Map<number, Map<string, number>>();
   for (const [userId, d] of await loadQuestData(sql, signups)) {
