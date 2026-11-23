@@ -9,32 +9,7 @@ import { RAGNAROK_AURAS } from "../src/art/case-ragnarok-aura.ts";
 import { RAGNAROK_BACKS, RAGNAROK_HELD, RAGNAROK_OUTFITS } from "../src/art/case-ragnarok-body.ts";
 import { drawRagnarokBox } from "../src/art/case-ragnarok-box.ts";
 import { PETS } from "../src/art/pet-base.ts";
-import { Pen } from "../src/art/pixels.ts";
-
-/** Every row is a line of `pal`'s characters (or `.`), no wider than 16 (the character's frame). */
-const checkRows = (what: string, rows: readonly string[], pal: Record<string, string>, width = 16) => {
-  for (const [y, row] of rows.entries()) {
-    expect(row.length, `${what} row ${y} is ${row.length} wide`).toBeLessThanOrEqual(width);
-    for (const c of row)
-      if (c !== ".") expect(pal[c], `${what} row ${y}: "${c}" is not in the palette`).toBeDefined();
-  }
-};
-
-/** A pen that only records where it paints, so a sprite can be checked against its canvas without one. */
-const recorder = (w: number, h: number) => {
-  const bad: string[] = [];
-  let painted = 0;
-  const g = {
-    fillStyle: "",
-    fillRect(x: number, y: number, rw: number, rh: number) {
-      if (rw <= 0 || rh <= 0) return;
-      painted++;
-      if (![x, y, rw, rh].every(Number.isInteger) || x < 0 || y < 0 || x + rw > w || y + rh > h)
-        bad.push(`${x},${y} ${rw}x${rh}`);
-    },
-  };
-  return { pen: new Pen(g as unknown as CanvasRenderingContext2D), bad, painted: () => painted };
-};
+import { checkRows, recorder } from "./support.ts";
 
 const ragnarok = RAGNAROK_ITEMS;
 const of = (slot: string) => ragnarok.filter((i) => i.slot === slot);

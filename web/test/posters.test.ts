@@ -3,7 +3,7 @@ import { COMPANY_FURNITURE } from "@tokenmaxxing/core/office.ts";
 import { POSTERS } from "@tokenmaxxing/core/posters.ts";
 import { TILE } from "@tokenmaxxing/core/world.ts";
 import { drawPoster, POSTER_ART, POSTER_H, posterArt } from "../src/art/furniture-posters.ts";
-import { Pen } from "../src/art/pixels.ts";
+import { recorder } from "./support.ts";
 
 test("every poster in the catalog has its art, and every art is a poster", () => {
   for (const p of COMPANY_FURNITURE.filter((f) => f.wall)) {
@@ -20,19 +20,9 @@ test("every poster in the catalog has its art, and every art is a poster", () =>
 
 test("every poster draws something on whole pixels inside its sprite", () => {
   for (const a of POSTER_ART) {
-    const bad: string[] = [];
-    let painted = 0;
-    const g = {
-      fillStyle: "",
-      fillRect(x: number, y: number, w: number, h: number) {
-        if (w <= 0 || h <= 0) return;
-        painted++;
-        if (![x, y, w, h].every(Number.isInteger) || x < 0 || y < 0 || x + w > a.w * TILE || y + h > POSTER_H)
-          bad.push(`${x},${y} ${w}x${h}`);
-      },
-    };
-    drawPoster(new Pen(g as unknown as CanvasRenderingContext2D), a);
-    expect({ id: a.id, bad }).toEqual({ id: a.id, bad: [] });
-    expect(painted).toBeGreaterThan(40);
+    const r = recorder(a.w * TILE, POSTER_H);
+    drawPoster(r.pen, a);
+    expect({ id: a.id, bad: r.bad }).toEqual({ id: a.id, bad: [] });
+    expect(r.painted()).toBeGreaterThan(40);
   }
 });

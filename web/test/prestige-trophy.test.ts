@@ -1,29 +1,11 @@
 import { expect, test } from "bun:test";
 import { PRESTIGE_TRACKS } from "@tokenmaxxing/core/prestige.ts";
 import * as THREE from "three";
-import { Pen } from "../src/art/pixels.ts";
 import { PRESTIGE_TROPHIES, prestigeTrophy } from "../src/art/prestige-trophy.ts";
 import { installHeadlessGlobals } from "../src/render3d/perf/stubs.ts";
+import { recorder } from "./support.ts";
 
 installHeadlessGlobals();
-
-/** A pen that records every paint, so a sprite can be checked against its canvas without one. */
-const recorder = (w: number, h: number) => {
-  const bad: string[] = [];
-  const colors = new Set<string>();
-  let painted = 0;
-  const g = {
-    fillStyle: "",
-    fillRect(x: number, y: number, rw: number, rh: number) {
-      if (rw <= 0 || rh <= 0) return;
-      painted++;
-      colors.add(this.fillStyle);
-      if (![x, y, rw, rh].every(Number.isInteger) || x < 0 || y < 0 || x + rw > w || y + rh > h)
-        bad.push(`${x},${y} ${rw}x${rh}`);
-    },
-  };
-  return { pen: new Pen(g as unknown as CanvasRenderingContext2D), bad, painted: () => painted, colors };
-};
 
 test("each rank has a trophy with its catalogue name and width, found by rank", () => {
   expect(PRESTIGE_TROPHIES.length).toBe(PRESTIGE_TRACKS.length);

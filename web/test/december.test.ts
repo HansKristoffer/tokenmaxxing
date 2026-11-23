@@ -49,12 +49,7 @@ test("julefrokost lays every Tavern table in 2D, and the 3D spread shows on the 
   expect(meshes).toBeLessThanOrEqual(8);
 
   setSystemTime(FRIDAY);
-  expect(drawn2D().sort()).toEqual(
-    MAPS.inn
-      .find("n")
-      .map(([x, y]): [number, number] => [x, y])
-      .sort(),
-  );
+  expect(drawn2D().sort()).toEqual([...MAPS.inn.find("n")].sort());
   spread.update();
   expect(spread.group.visible).toBe(true);
 

@@ -5,16 +5,9 @@ import { NUSANTARA_PIECES } from "@tokenmaxxing/core/case-nusantara-furniture.ts
 import * as THREE from "three";
 import { CASE_PET_SPECIES, NUSANTARA_PET_SPECIES, PET_NAME, speciesAt } from "../src/render3d/data/pets.ts";
 import { installHeadlessGlobals } from "../src/render3d/perf/stubs.ts";
+import { countMeshes } from "./support.ts";
 
 installHeadlessGlobals();
-
-const meshes = (o: THREE.Object3D) => {
-  let n = 0;
-  o.traverse((c) => {
-    if ((c as THREE.Mesh).isMesh) n++;
-  });
-  return n;
-};
 
 test("a pet index is the Night Market's from 300, the Nusantara's from 400, and nothing past a case's six", () => {
   expect(CASE_PET_SPECIES.map((_, i) => speciesAt(300 + i))).toEqual([...CASE_PET_SPECIES]);
@@ -49,12 +42,12 @@ test("every Nusantara cosmetic has its 3D builder, under its name or its look in
 test("a character wearing each Nusantara cosmetic is dressed in more than a bare one, and its animation runs", async () => {
   const { avatarFor } = await import("../src/render3d/people/gear3d.ts");
   const bare = { style: 0, skin: 1, hair: 2, outfit: 1 };
-  const base = meshes(avatarFor(bare).root);
+  const base = countMeshes(avatarFor(bare).root);
   for (const item of NUSANTARA_ITEMS) {
     if (item.slot === "pet") continue;
     const look = { ...bare, [item.slot]: item.index };
     const a = avatarFor(look);
-    expect(meshes(a.root), `${item.slot}: ${item.name}`).toBeGreaterThan(base);
+    expect(countMeshes(a.root), `${item.slot}: ${item.name}`).toBeGreaterThan(base);
     for (const t of [0, 0.7, 1.9]) a.update(1 / 30, t);
     a.pose = "walk";
     a.update(1 / 30, 2.5);
@@ -70,7 +63,7 @@ test("each Nusantara pet stands up, walks and is named", async () => {
     const pet = petFrom2D(NUSANTARA_BASE + i);
     expect(pet.species).toBe(species);
     expect(pet.label).toBe(PET_NAME[species]);
-    expect(meshes(pet.root)).toBeGreaterThan(3);
+    expect(countMeshes(pet.root)).toBeGreaterThan(3);
     pet.update(1);
     pet.moving = true;
     for (let t = 1; t < 2; t += 0.1) pet.update(t, 0.05);
@@ -94,7 +87,7 @@ test("each Nusantara piece has a model that fits its footprint, and the wall pie
     const box = new THREE.Box3().setFromObject(model);
     expect(box.max.x - box.min.x, `${p.name}: width`).toBeLessThanOrEqual((p.w ?? 1) + 0.35);
     expect(box.max.z - box.min.z, `${p.name}: depth`).toBeLessThanOrEqual(1.2);
-    expect(meshes(model), p.name).toBeGreaterThan(5);
+    expect(countMeshes(model), p.name).toBeGreaterThan(5);
   }
 });
 
@@ -102,8 +95,8 @@ test("each case draws its own box and key, the Night Market's unchanged", async 
   const { buildCaseBox, buildCaseKey } = await import("../src/render3d/case-box3d.ts");
   for (const open of [false, true]) {
     const night = buildCaseBox(open);
-    expect(meshes(buildCaseBox(open, "night-market"))).toBe(meshes(night));
-    expect(meshes(buildCaseBox(open, "nusantara"))).not.toBe(meshes(night));
+    expect(countMeshes(buildCaseBox(open, "night-market"))).toBe(countMeshes(night));
+    expect(countMeshes(buildCaseBox(open, "nusantara"))).not.toBe(countMeshes(night));
   }
-  expect(meshes(buildCaseKey("nusantara"))).not.toBe(meshes(buildCaseKey()));
+  expect(countMeshes(buildCaseKey("nusantara"))).not.toBe(countMeshes(buildCaseKey()));
 });

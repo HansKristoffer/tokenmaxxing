@@ -1,10 +1,9 @@
 import { expect, test } from "bun:test";
 import { PRESTIGE_BASE, PRESTIGE_ITEMS, PRESTIGE_TRACKS } from "@tokenmaxxing/core/prestige.ts";
-import type * as THREE from "three";
 import { CASE_HATS } from "../src/art/case.ts";
-import { Pen } from "../src/art/pixels.ts";
 import { TRACK } from "../src/art/prestige-4.ts";
 import { installHeadlessGlobals } from "../src/render3d/perf/stubs.ts";
+import { checkRows, countMeshes, recorder } from "./support.ts";
 
 installHeadlessGlobals();
 
@@ -12,37 +11,6 @@ const rank = 4;
 const index = PRESTIGE_BASE + rank - 1;
 const mine = PRESTIGE_ITEMS.filter((i) => i.index === index);
 const named = (slot: string) => mine.find((i) => i.slot === slot)!;
-
-const checkRows = (what: string, rows: readonly string[], pal: Record<string, string>, width = 16) => {
-  for (const [y, row] of rows.entries()) {
-    expect(row.length, `${what} row ${y} is ${row.length} wide`).toBeLessThanOrEqual(width);
-    for (const c of row)
-      if (c !== ".") expect(pal[c], `${what} row ${y}: "${c}" is not in the palette`).toBeDefined();
-  }
-};
-
-const recorder = (w: number, h: number) => {
-  const bad: string[] = [];
-  let painted = 0;
-  const g = {
-    fillStyle: "",
-    fillRect(x: number, y: number, rw: number, rh: number) {
-      if (rw <= 0 || rh <= 0) return;
-      painted++;
-      if (![x, y, rw, rh].every(Number.isInteger) || x < 0 || y < 0 || x + rw > w || y + rh > h)
-        bad.push(`${x},${y} ${rw}x${rh}`);
-    },
-  };
-  return { pen: new Pen(g as unknown as CanvasRenderingContext2D), bad, painted: () => painted };
-};
-
-const meshes = (o: THREE.Object3D) => {
-  let n = 0;
-  o.traverse((c) => {
-    if ((c as THREE.Mesh).isMesh) n++;
-  });
-  return n;
-};
 
 test("track 4 has all four wearables", () => {
   expect(PRESTIGE_TRACKS[rank - 1]!.key).toBe("architect");
@@ -102,9 +70,9 @@ test("dressed in the set, smooth or blocky, a character has more parts than a ba
   await import("../src/render3d/people/gear3dPrestige.ts");
   const bare = { style: 0, skin: 1, hair: 2, outfit: 1 };
   for (const style of ["voxel", "grown"] as const) {
-    const base = meshes(avatarFor(bare, undefined, style).root);
+    const base = countMeshes(avatarFor(bare, undefined, style).root);
     const a = avatarFor({ ...bare, outfit: index, hat: index, back: index, aura: index }, undefined, style);
-    expect(meshes(a.root), style).toBeGreaterThan(base + 10);
+    expect(countMeshes(a.root), style).toBeGreaterThan(base + 10);
     for (const t of [0, 0.7, 1.9, 3.1]) a.update(1 / 30, t);
     a.pose = "walk";
     a.update(1 / 30, 4.5);

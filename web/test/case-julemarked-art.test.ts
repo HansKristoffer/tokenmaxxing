@@ -3,15 +3,7 @@ import { JULEMARKED_BASE, JULEMARKED_ITEMS } from "@tokenmaxxing/core/case-julem
 import { CASE_GLASSES, CASE_HATS } from "../src/art/case.ts";
 import { JULEMARKED_GLASSES, JULEMARKED_HATS, JULEMARKED_WEAR_WALK } from "../src/art/case-julemarked.ts";
 import { JULEMARKED_BACKS, JULEMARKED_HELD, JULEMARKED_OUTFITS } from "../src/art/case-julemarked-body.ts";
-
-/** Every row is a line of `pal`'s characters (or `.`), no wider than 16 (the character's frame). */
-const checkRows = (what: string, rows: readonly string[], pal: Record<string, string>, width = 16) => {
-  for (const [y, row] of rows.entries()) {
-    expect(row.length, `${what} row ${y} is ${row.length} wide`).toBeLessThanOrEqual(width);
-    for (const c of row)
-      if (c !== ".") expect(pal[c], `${what} row ${y}: "${c}" is not in the palette`).toBeDefined();
-  }
-};
+import { checkRows } from "./support.ts";
 
 const julemarked = JULEMARKED_ITEMS;
 const of = (slot: string) => julemarked.filter((i) => i.slot === slot);

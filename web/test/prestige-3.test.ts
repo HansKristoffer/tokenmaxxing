@@ -6,37 +6,13 @@ import { Pen } from "../src/art/pixels.ts";
 import { PRESTIGE_AURAS, PRESTIGE_BACKS, PRESTIGE_HATS, PRESTIGE_OUTFITS } from "../src/art/prestige.ts";
 import { TRACK } from "../src/art/prestige-3.ts";
 import { installHeadlessGlobals } from "../src/render3d/perf/stubs.ts";
+import { checkRows, countMeshes, recorder } from "./support.ts";
 
 installHeadlessGlobals();
 
 const INDEX = PRESTIGE_BASE + 2;
 const items = PRESTIGE_ITEMS.filter((i) => i.index === INDEX);
 const named = (slot: string) => items.find((i) => i.slot === slot)!;
-
-/** Every row is a line of `pal`'s characters (or `.`), no wider than `width` (16, the character's frame). */
-const checkRows = (what: string, rows: readonly string[], pal: Record<string, string>, width = 16) => {
-  for (const [y, row] of rows.entries()) {
-    expect(row.length, `${what} row ${y} is ${row.length} wide`).toBeLessThanOrEqual(width);
-    for (const c of row)
-      if (c !== ".") expect(pal[c], `${what} row ${y}: "${c}" is not in the palette`).toBeDefined();
-  }
-};
-
-/** A pen that only records where it paints, so a draw can be checked against its canvas without one. */
-const recorder = (w: number, h: number) => {
-  const bad: string[] = [];
-  let painted = 0;
-  const g = {
-    fillStyle: "",
-    fillRect(x: number, y: number, rw: number, rh: number) {
-      if (rw <= 0 || rh <= 0) return;
-      painted++;
-      if (![x, y, rw, rh].every(Number.isInteger) || x < 0 || y < 0 || x + rw > w || y + rh > h)
-        bad.push(`${x},${y} ${rw}x${rh}`);
-    },
-  };
-  return { pen: new Pen(g as unknown as CanvasRenderingContext2D), bad, painted: () => painted };
-};
 
 test("track 3 is the Voidwalker, with art in all four slots filed at its look index", () => {
   expect(PRESTIGE_TRACKS[2]!.key).toBe("voidwalker");
@@ -116,21 +92,14 @@ test("the 3D builders are registered under their keys: hat, back and aura by nam
 
 test("a character in the set, blocky or smooth, is dressed in more than a bare one, and every animation runs", async () => {
   const { avatarFor } = await import("../src/render3d/people/gear3d.ts");
-  const meshes = (o: THREE.Object3D) => {
-    let n = 0;
-    o.traverse((c) => {
-      if ((c as THREE.Mesh).isMesh) n++;
-    });
-    return n;
-  };
   const bare = { style: 0, skin: 1, hair: 2, outfit: 1 };
   for (const style of ["voxel", "grown"] as const) {
-    const base = meshes(avatarFor(bare, undefined, style).root);
+    const base = countMeshes(avatarFor(bare, undefined, style).root);
     for (const slot of ["hat", "outfit", "back", "aura"] as const) {
       // The armour and the mantle are cubes on the blocky torso only (`gear3d.ts` skips them on the others).
       if (style !== "voxel" && (slot === "outfit" || slot === "back")) continue;
       const a = avatarFor({ ...bare, [slot]: INDEX }, undefined, style);
-      expect(meshes(a.root), `${style} ${slot}`).toBeGreaterThan(base);
+      expect(countMeshes(a.root), `${style} ${slot}`).toBeGreaterThan(base);
       for (const t of [0, 0.7, 1.9, 3.1]) a.update(1 / 30, t);
       a.pose = "walk";
       a.update(1 / 30, 4.5);

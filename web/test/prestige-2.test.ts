@@ -1,40 +1,16 @@
 import { expect, test } from "bun:test";
 import { PRESTIGE_BASE, PRESTIGE_ITEMS } from "@tokenmaxxing/core/prestige.ts";
 import { CASE_HATS } from "../src/art/case.ts";
-import { Pen } from "../src/art/pixels.ts";
 import { PRESTIGE_AURAS, PRESTIGE_BACKS, PRESTIGE_OUTFITS } from "../src/art/prestige.ts";
 import { TRACK } from "../src/art/prestige-2.ts";
 import { installHeadlessGlobals } from "../src/render3d/perf/stubs.ts";
+import { checkRows, recorder } from "./support.ts";
 
 installHeadlessGlobals();
 
 const INDEX = PRESTIGE_BASE + 1;
 const items = PRESTIGE_ITEMS.filter((i) => i.index === INDEX);
 const named = (slot: string) => items.find((i) => i.slot === slot)!;
-
-/** Every row is a line of `pal`'s characters (or `.`), no wider than `width`. */
-const checkRows = (what: string, rows: readonly string[], pal: Record<string, string>, width = 16) => {
-  for (const [y, row] of rows.entries()) {
-    expect(row.length, `${what} row ${y} is ${row.length} wide`).toBeLessThanOrEqual(width);
-    for (const c of row)
-      if (c !== ".") expect(pal[c], `${what} row ${y}: "${c}" is not in the palette`).toBeDefined();
-  }
-};
-
-const recorder = (w: number, h: number) => {
-  const bad: string[] = [];
-  let painted = 0;
-  const g = {
-    fillStyle: "",
-    fillRect(x: number, y: number, rw: number, rh: number) {
-      if (rw <= 0 || rh <= 0) return;
-      painted++;
-      if (![x, y, rw, rh].every(Number.isInteger) || x < 0 || y < 0 || x + rw > w || y + rh > h)
-        bad.push(`${x},${y} ${rw}x${rh}`);
-    },
-  };
-  return { pen: new Pen(g as unknown as CanvasRenderingContext2D), bad, painted: () => painted };
-};
 
 test("the Cosmic hat is 16 wide in all three views and filed under its id", () => {
   const hat = CASE_HATS[named("hat").id]!;
