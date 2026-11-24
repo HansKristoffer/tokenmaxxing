@@ -145,23 +145,28 @@ export class ShowcaseCache {
     return this.known.get(id) ?? null;
   }
 
-  /** Called every frame with someone who is close and has no fresh answer: starts a request when it is time. */
-  want(id: number, now: number): void {
-    if (id <= 0 || this.busy || now - this.lastAt < this.options.every) return;
+  /**
+   * Called every frame with someone who is close and has no fresh answer: starts a request when it is time
+   * and returns its settling promise, or null when skipped.
+   */
+  want(id: number, now: number): Promise<void> | null {
+    if (id <= 0 || this.busy || now - this.lastAt < this.options.every) return null;
     const entry = this.known.get(id);
-    if (entry && now - entry.at < this.options.ttl) return;
-    if (now - (this.failed.get(id) ?? -Infinity) < this.options.backoff) return;
+    if (entry && now - entry.at < this.options.ttl) return null;
+    if (now - (this.failed.get(id) ?? -Infinity) < this.options.backoff) return null;
 
     this.busy = true;
     this.lastAt = now;
-    this.options
+    return this.options
       .fetch(id)
       .then((pins) => {
         const chips = chipsOf(pins);
         if (this.known.size >= this.options.max) this.known.delete(this.known.keys().next().value!);
         this.known.set(id, { at: now, chips, key: pins.map((p) => `${p.id}:${p.frame ?? ""}`).join() });
       })
-      .catch(() => this.failed.set(id, now))
+      .catch(() => {
+        this.failed.set(id, now);
+      })
       .finally(() => {
         this.busy = false;
       });

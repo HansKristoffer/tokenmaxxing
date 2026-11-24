@@ -89,10 +89,10 @@ const changed = (): void => {
 let stirs = 0;
 
 /**
- * E on (x, y), facing `facing`: knocks a doorstep (the server opens it), stirs the cauldron or reads a lawn
- * stone. False when it's none of those, or when the theme is off.
+ * E on (x, y), facing `facing`: knocks a doorstep (returning the knock's settling promise), stirs the
+ * cauldron or reads a lawn stone (returning true). False when it's none of those, or when the theme is off.
  */
-export function spookyInteract(x: number, y: number, facing: Facing): boolean {
+export function spookyInteract(x: number, y: number, facing: Facing): boolean | Promise<void> {
   if (!spookyOn()) return false;
   if (x === CAULDRON.x && y === CAULDRON.y) {
     hud.set({ dialog: STIR_LINES[stirs++ % STIR_LINES.length]! });
@@ -108,7 +108,7 @@ export function spookyInteract(x: number, y: number, facing: Facing): boolean {
   const day = dayKey(skyNow());
   // The Tavern's step also gets the paper. Ask the server first: local storage cannot prove a door counted.
   const tavern = world.map.at(step.door[0], step.door[1]) === "I";
-  void conn
+  return conn
     .knock(facing)
     .then((r) => {
       if (!r) return;
@@ -119,8 +119,9 @@ export function spookyInteract(x: number, y: number, facing: Facing): boolean {
       knocked(r, day);
       if (tavern && r.treat === null) hud.set({ dialog: null, panel: { kind: "paper" } });
     })
-    .catch(() => hud.set({ dialog: "🎃 Nobody heard you. Try again." }));
-  return true;
+    .catch(() => {
+      hud.set({ dialog: "🎃 Nobody heard you. Try again." });
+    });
 }
 
 /** What the door said: the bucket takes the server's count (it keeps the knocks, for the badge), and the line. */

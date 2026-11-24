@@ -23,22 +23,31 @@ export const sigOf = (trophies: readonly Pick<Trophy, "id">[]): string =>
     .sort()
     .join(",");
 
-/** Asks for `owner`'s shelf when it has not been, or is stale: at most one request in flight per owner. */
-export function watchShelf(owner: number, now: number, ask: (owner: number) => Promise<Trophy[]>): void {
+/**
+ * Asks for `owner`'s shelf when it has not been, or is stale: at most one request in flight per owner.
+ * Returns the settling promise when a request starts, or null when skipped.
+ */
+export function watchShelf(
+  owner: number,
+  now: number,
+  ask: (owner: number) => Promise<Trophy[]>,
+): Promise<void> | null {
   const s = shelves.get(owner);
-  if (s && (s.asking || now - s.at < REFRESH_MS)) return;
+  if (s && (s.asking || now - s.at < REFRESH_MS)) return null;
   const entry = s ?? { ids: new Set<string>(), sig: "", at: 0, asking: false };
   entry.asking = true;
   entry.at = now;
   shelves.set(owner, entry);
-  ask(owner)
-    .then((list) => {
-      entry.ids = new Set(list.map((t) => t.id));
-      entry.sig = sigOf(list);
-    })
-    // A failed ask keeps the shelf as it was, and the next ask comes after `REFRESH_MS` like any other.
-    .catch(() => {})
-    .finally(() => {
-      entry.asking = false;
-    });
+  return (
+    ask(owner)
+      .then((list) => {
+        entry.ids = new Set(list.map((t) => t.id));
+        entry.sig = sigOf(list);
+      })
+      // A failed ask keeps the shelf as it was, and the next ask comes after `REFRESH_MS` like any other.
+      .catch(() => {})
+      .finally(() => {
+        entry.asking = false;
+      })
+  );
 }

@@ -47,6 +47,7 @@ GTK/AppIndicator and D-Bus development packages (see the desktop CI job for the 
 
 ```bash
 bun install --ignore-scripts
+bun run prepare                        # install the git pre-commit hook (typecheck + lint)
 bun run dev                            # http://localhost:8787 (the site; the game is at /play; data in ./.data/rivet); restart to see web edits
 bun run site:dev                       # the marketing site alone, with hot reload
 bun run dev:seed                       # a few people, two companies, and a link that signs you in

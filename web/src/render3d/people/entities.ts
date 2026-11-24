@@ -772,7 +772,7 @@ export class Entities {
     const company = info.companyId === null ? undefined : world.companies.get(info.companyId);
     const isMe = info.id === world.selfId;
     const prestige = prestigeOf(info);
-    if (close && !isMe) this.showcase.want(info.id, now);
+    if (close && !isMe) void this.showcase.want(info.id, now);
     const pins = isMe ? null : this.showcase.get(info.id);
     const from = r.tagFrom;
     if (from[0] !== info || from[1] !== company || from[2] !== pins) {
