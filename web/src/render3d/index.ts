@@ -319,7 +319,7 @@ class Renderer3D implements Renderer {
     if (world.room !== "town") {
       // An office's shelf of trophies is asked for while you are there; a new trophy builds the room again.
       const owner = ownerOfOffice(world.room);
-      if (owner !== null) watchShelf(owner, performance.now(), loadTrophies);
+      if (owner !== null) void watchShelf(owner, performance.now(), loadTrophies);
       return `${world.room}:${mapKey(world.map)}${owner === null ? "" : `:${trophySignature(owner)}`}`;
     }
     return this.townIdentity();

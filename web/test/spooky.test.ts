@@ -52,7 +52,10 @@ mock.module("../src/net.ts", () => ({
 const knockAt = async (step: { x: number; y: number; door: readonly [number, number] }): Promise<boolean> => {
   facing = doorKey(step.door);
   const r = spookyInteract(step.x, step.y, "up");
-  await Bun.sleep(0);
+  if (r instanceof Promise) {
+    await r;
+    return true;
+  }
   return r;
 };
 const { bucket, blocksSpooky, drawSpooky, spookyInteract, spookyOn } = await import("../src/game/spooky.ts");

@@ -95,8 +95,6 @@ test("the Tavern dims with the sky but never goes black", () => {
   expect(tavernDim(1, 1)).toBe(0.7);
 });
 
-const flush = () => new Promise((r) => setTimeout(r, 0));
-
 const pin = (
   kind: PinView["kind"],
   id: string,
@@ -132,25 +130,28 @@ test("showcases are asked one at a time, slowly, never for bots, and kept", asyn
       return id === 9 ? Promise.reject(new Error("no")) : [pin("badge", "badge:streak", "silver")];
     },
   });
-  cache.want(-3, 0);
-  cache.want(5, 0);
+  expect(cache.want(-3, 0)).toBeNull();
+  const first = cache.want(5, 0);
+  expect(first).not.toBeNull();
   // Busy: a second ask while the first is in flight is dropped.
-  cache.want(6, 10);
-  await flush();
+  expect(cache.want(6, 10)).toBeNull();
+  await first;
   expect(asked).toEqual([5]);
   expect(cache.get(5)?.chips.badges[0]?.frame).toBe("silver");
   // Too soon after the last request.
-  cache.want(6, 500);
+  expect(cache.want(6, 500)).toBeNull();
   expect(asked).toEqual([5]);
-  cache.want(6, 1500);
-  cache.want(5, 5000);
-  await flush();
+  const second = cache.want(6, 1500);
+  expect(second).not.toBeNull();
+  await second;
   // 5 is still fresh: only 6 was asked.
+  expect(cache.want(5, 5000)).toBeNull();
   expect(asked).toEqual([5, 6]);
   // A failure is left alone for a while.
-  cache.want(9, 9000);
-  await flush();
-  cache.want(9, 10_000);
+  const failed = cache.want(9, 9000);
+  expect(failed).not.toBeNull();
+  await failed;
+  expect(cache.want(9, 10_000)).toBeNull();
   expect(asked.filter((id) => id === 9)).toHaveLength(1);
   expect(cache.get(9)).toBeNull();
 });
@@ -163,15 +164,18 @@ test("a trophy shelf is asked for once a minute and its signature follows what i
     calls++;
     return [{ id: "3am", day: "2026-10-01" }];
   };
-  watchShelf(77, 0, ask);
-  watchShelf(77, 100, ask);
-  await flush();
+  const first = watchShelf(77, 0, ask);
+  expect(first).not.toBeNull();
+  expect(watchShelf(77, 100, ask)).toBeNull();
+  await first;
   expect(calls).toBe(1);
   expect(earnedBy(77).has("3am")).toBe(true);
   expect(signature(77)).toBe("3am");
-  watchShelf(77, 30_000, ask);
+  expect(watchShelf(77, 30_000, ask)).toBeNull();
   expect(calls).toBe(1);
-  watchShelf(77, 61_000, ask);
+  const refresh = watchShelf(77, 61_000, ask);
+  expect(refresh).not.toBeNull();
+  await refresh;
   expect(calls).toBe(2);
 });
 
