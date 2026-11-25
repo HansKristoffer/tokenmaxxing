@@ -652,7 +652,7 @@ export function buildTown3d(
   for (const [dx, dy] of map.find("D")) {
     const plot = plotId(...blockOf(dx, dy));
     const c = byPlot.get(plot);
-    const tier = c ? houseTier(c.topTokens30d ?? c.tokens30d) : 0;
+    const tier = c ? houseTier(c.tokens30d, c.members) : 0;
     const model = companyHouse(tier, c?.name ?? "Vacant", c?.brand ?? null);
     const [cx] = toWorld(dx, dy);
     add(model, cx, wz(dy) + 0.25);

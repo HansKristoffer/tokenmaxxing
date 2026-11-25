@@ -447,8 +447,6 @@ export interface CompanyInfo {
   members: number;
   todayTokens: number;
   tokens30d: number;
-  /** The 30-day tokens of its `HOUSE_TOP` heaviest users: what builds the house. Absent from older servers. */
-  topTokens30d?: number;
   /** Bare host, e.g. `acme.com`. */
   website: string | null;
   brand: Brand | null;
@@ -645,19 +643,15 @@ const TIERS = [
 ] as const;
 export const HOUSE_TIERS = TIERS.length;
 
-/** Only a company's heaviest users build its house, so people who rarely use AI don't drag it down. */
-export const HOUSE_TOP = 5;
-
-/** What each of the top `HOUSE_TOP` users averages over 30 days: what a company's house is built from. */
-export const topEach = (topTokens30d: number): number => topTokens30d / HOUSE_TOP;
+/** Tokens per member over the last 30 days: what a company's house is built from. */
+export const perMember = (tokens30d: number, members: number): number => tokens30d / Math.max(1, members);
 
 /**
- * A company's house reflects how hard its heaviest users push, not how many people it has: the tokens of
- * its top `HOUSE_TOP` over 30 days, averaged over five seats. A company with fewer than five people has
- * empty seats, so a lone heavy user can't build a mansion by themselves.
+ * A company's house reflects how hard its people push, not how many there are:
+ * a big team of light users lives in a basement, two heavy users in a mansion.
  */
-export const houseTier = (topTokens30d: number): number =>
-  TIERS.findLastIndex((t) => topEach(topTokens30d) >= t.min);
+export const houseTier = (tokens30d: number, members: number): number =>
+  TIERS.findLastIndex((t) => perMember(tokens30d, members) >= t.min);
 export const houseTierName = (tier: number): string => TIERS[tier]?.name ?? TIERS[0].name;
 export const nextTierAt = (tier: number): number | null => TIERS[tier + 1]?.min ?? null;
 

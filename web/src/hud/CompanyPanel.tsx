@@ -2,7 +2,7 @@ import { DESKS } from "@tokenmaxxing/core/desks.ts";
 import { compact, plural } from "@tokenmaxxing/core/format.ts";
 import { CORE_BLOCKS, frontier, plotBlock } from "@tokenmaxxing/core/maps.ts";
 import { itemById } from "@tokenmaxxing/core/shop.ts";
-import { HOUSE_TOP, houseTierName, nextTierAt, topEach } from "@tokenmaxxing/core/world.ts";
+import { houseTierName, nextTierAt, perMember } from "@tokenmaxxing/core/world.ts";
 import type { WalletLine } from "@tokenmaxxing/server/registry";
 import { isTruthy, sumBy, typedSwitch } from "hanzio";
 import { useEffect, useState } from "react";
@@ -65,7 +65,7 @@ export function CompanyPanel() {
   }
 
   const next = nextTierAt(co.tier);
-  const each = topEach(co.topTokens30d);
+  const each = perMember(co.tokens30d, co.members.length);
   const tabs = [
     ["home", "Overview"],
     ["members", co.applicants.length > 0 ? `Members · ${co.applicants.length} asking` : "Members"],
@@ -78,14 +78,11 @@ export function CompanyPanel() {
         <>
           <div
             className="co-tier"
-            title={`Your house is built by your ${HOUSE_TOP} heaviest users, so people who rarely use AI don't drag it down.`}
+            title="Your house shows how hard your people push, not how many you are: tokens per member decide it."
           >
             <p>
               <strong>{houseTierName(co.tier)}</strong>
-              <span className="muted small">
-                {" "}
-                · top {HOUSE_TOP} average {compact(each)} tokens, 30 days
-              </span>
+              <span className="muted small"> · {compact(each)} tokens each, 30 days</span>
             </p>
             {next !== null && (
               <>
@@ -374,8 +371,8 @@ function Listings({ applied, onApply }: { applied: number | null; onApply: (id: 
             {c.website && <span className="muted"> · {c.website}</span>}
             <br />
             <small className="muted">
-              {houseTierName(c.tier)} · {plural(c.members, "member")} · {compact(topEach(c.topTokens30d))}{" "}
-              each for its top {HOUSE_TOP} in 30 days
+              {houseTierName(c.tier)} · {plural(c.members, "member")} ·{" "}
+              {compact(perMember(c.tokens30d, c.members))} each in 30 days
             </small>
           </span>
           {applied === c.id ? (

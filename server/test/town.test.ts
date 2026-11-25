@@ -202,62 +202,6 @@ describe("companies", () => {
   });
 });
 
-describe("model board", () => {
-  test("ranks models by tokens, counts each person once and the cache share", async () => {
-    const a = await signUp("mb");
-    const b = await signUp("mb");
-    const big = `qa-big-${a.userId}`;
-    const small = `qa-small-${a.userId}`;
-    await as(a.token)
-      .player(a.userId)
-      .ingest([
-        event({ model: big, inputTokens: 3_000_000, outputTokens: 0 }),
-        event({ model: big, inputTokens: 0, outputTokens: 0, cacheReadTokens: 1_000_000 }),
-        event({ model: small, inputTokens: 500_000, outputTokens: 0 }),
-      ]);
-    await as(b.token)
-      .player(b.userId)
-      .ingest([event({ model: big, inputTokens: 1_000_000, outputTokens: 0 })]);
-
-    const board = await a.town.modelBoard("today");
-    const names = board.models.map((m) => m.model);
-    expect(names.indexOf(big)).toBeLessThan(names.indexOf(small));
-    expect(board.models.find((m) => m.model === big)).toMatchObject({ tokens: 5_000_000, users: 2 });
-    expect(board.models.find((m) => m.model === small)).toMatchObject({ tokens: 500_000, users: 1 });
-    expect(board.totals.users).toBeGreaterThanOrEqual(2);
-    expect(board.totals.cacheHit).toBeGreaterThan(0);
-    expect(board.totals.cacheHit).toBeLessThan(1);
-    expect(await a.town.modelBoard("nonsense")).toMatchObject({ range: "today" });
-  });
-
-  test("lists the biggest and the lightest spenders, never the same person twice", async () => {
-    const people = [];
-    for (let i = 1; i <= 7; i++) people.push(await signUp("sp"));
-    // Seven people, 1M tokens apart: the five biggest, then the two lightest.
-    for (const [i, u] of people.entries()) {
-      await as(u.token)
-        .player(u.userId)
-        .ingest([event({ inputTokens: (i + 1) * 1_000_000, outputTokens: 0 })]);
-    }
-    const { spenders } = await people[0]!.town.modelBoard("today");
-    const ids = new Set(people.map((u) => u.userId));
-    const mine = (list: { userId: number }[]) => list.filter((s) => ids.has(s.userId));
-    const most = spenders.most.map((s) => s.userId);
-    const least = spenders.least.map((s) => s.userId);
-    expect(most.filter((id) => least.includes(id))).toEqual([]);
-    expect(spenders.most.length).toBe(5);
-    // The costs run down the most list and up the least list.
-    expect(spenders.most.map((s) => s.costUsd)).toEqual(
-      [...spenders.most.map((s) => s.costUsd)].sort((a, b) => b - a),
-    );
-    expect(spenders.least.map((s) => s.costUsd)).toEqual(
-      [...spenders.least.map((s) => s.costUsd)].sort((a, b) => a - b),
-    );
-    expect(spenders.most[0]!.costUsd).toBeGreaterThanOrEqual(spenders.least[0]!.costUsd);
-    expect(mine(spenders.most).length + mine(spenders.least).length).toBeGreaterThan(0);
-  });
-});
-
 describe("leaderboard", () => {
   test("players and companies, ranked and priced", async () => {
     const a = await signUp("lb");

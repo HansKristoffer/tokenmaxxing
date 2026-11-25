@@ -281,12 +281,12 @@ describe("looks and houses", () => {
     expect(wearPet({ ...base, pet: 0, petVariant: 0 }, 1)).toEqual({ ...base, pet: 1, petVariant: 0 });
   });
 
-  test("houses follow the top five users, averaged over five seats", () => {
-    expect(houseTier(0)).toBe(0);
-    expect(houseTier(499e6)).toBe(0); // under 100M a seat
-    expect(houseTier(500e6)).toBe(1); // exactly 100M a seat: a shack
-    expect(houseTier(5e9)).toBe(2); // one heavy user alone gets a cottage at best
-    expect(houseTier(200e9)).toBe(5);
+  test("houses follow tokens per member, not the team's total", () => {
+    expect(houseTier(0, 0)).toBe(0);
+    expect(houseTier(2e9, 1)).toBe(2); // one heavy user: a cottage
+    expect(houseTier(2e9, 40)).toBe(0); // the same tokens over 40 people: a basement
+    expect(houseTier(2e9, 20)).toBe(1); // exactly 100M each: a shack
+    expect(houseTier(1e12, 3)).toBe(5);
   });
 });
 

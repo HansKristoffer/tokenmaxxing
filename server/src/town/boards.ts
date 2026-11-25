@@ -227,7 +227,7 @@ async function buildBoard(
     companyId: u.companyId,
     company: u.companyId === null ? null : (companyName.get(u.companyId) ?? null),
   }));
-  const topTokens = new Map((await companyInfos(sql, "all")).map((i) => [i.id, i.topTokens30d ?? 0]));
+  const tokens30d = new Map((await companyInfos(sql, "all")).map((i) => [i.id, i.tokens30d]));
   const byCompany = Map.groupBy(players, (p) => p.companyId);
   return {
     players,
@@ -238,7 +238,7 @@ async function buildBoard(
         companyId: co.id,
         name: co.name,
         members: members.length,
-        tier: houseTier(topTokens.get(co.id) ?? 0),
+        tier: houseTier(tokens30d.get(co.id) ?? 0, members.length),
       };
     }),
   };
@@ -485,7 +485,7 @@ export async function companyProfile(
     logo: info?.brand?.logo ?? null,
     brand: info?.brand ?? null,
     // Not on the board yet: it opened a moment ago, before the board heard (`boardsChanged`).
-    tier: row?.tier ?? houseTier(info?.topTokens30d ?? 0),
+    tier: row?.tier ?? houseTier(info?.tokens30d ?? 0, people.length),
     range,
     rank: row && row.tokens > 0 ? row.rank : null,
     wallet: await companyWallet(sql, companyId),
