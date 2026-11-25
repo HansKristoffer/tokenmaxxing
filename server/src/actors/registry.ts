@@ -68,6 +68,7 @@ export type {
   MyCompany,
   Profile,
   Raid,
+  Spender,
   Today,
   Trade,
   Trend,

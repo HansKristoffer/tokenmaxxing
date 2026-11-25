@@ -4,9 +4,10 @@ import { houseTierName } from "@tokenmaxxing/core/world.ts";
 import type {
   Leaderboard as Board,
   BoardCompany,
+  BoardModel,
   BoardPlayer,
   GamePlayer,
-  BoardModel,
+  Spender,
   Trend,
 } from "@tokenmaxxing/server/registry";
 import { typedSwitch } from "hanzio";
@@ -566,8 +567,35 @@ function ModelsBoard({ range }: { range: RangeKey }) {
               ))}
             </ol>
           )}
+          <Spenders title="💸 Biggest spenders" list={data.spenders.most} />
+          <Spenders title="🌱 Lightest spenders" list={data.spenders.least} />
         </>
       )}
+    </>
+  );
+}
+
+/** One end of the town's spending: people ranked by dollars, with their tokens beside. */
+function Spenders({ title, list }: { title: string; list: Spender[] }) {
+  if (list.length === 0) return null;
+  const top = Math.max(...list.map((p) => p.costUsd));
+  return (
+    <>
+      <h3>{title}</h3>
+      <ol className="lb-list">
+        {list.map((p) => (
+          <BoardRow
+            key={p.userId}
+            picture={<AvatarImage look={p.look} scale={2} />}
+            name={p.name}
+            sub={p.company ?? "No company"}
+            share={top > 0 ? Math.max(0.02, p.costUsd / top) : 0}
+            value={usd(p.costUsd)}
+            aside={`${compact(p.tokens)} tokens`}
+            onClick={() => openCard(p.userId)}
+          />
+        ))}
+      </ol>
     </>
   );
 }

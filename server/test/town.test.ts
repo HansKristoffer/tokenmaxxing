@@ -229,6 +229,33 @@ describe("model board", () => {
     expect(board.totals.cacheHit).toBeLessThan(1);
     expect(await a.town.modelBoard("nonsense")).toMatchObject({ range: "today" });
   });
+
+  test("lists the biggest and the lightest spenders, never the same person twice", async () => {
+    const people = [];
+    for (let i = 1; i <= 7; i++) people.push(await signUp("sp"));
+    // Seven people, 1M tokens apart: the five biggest, then the two lightest.
+    for (const [i, u] of people.entries()) {
+      await as(u.token)
+        .player(u.userId)
+        .ingest([event({ inputTokens: (i + 1) * 1_000_000, outputTokens: 0 })]);
+    }
+    const { spenders } = await people[0]!.town.modelBoard("today");
+    const ids = new Set(people.map((u) => u.userId));
+    const mine = (list: { userId: number }[]) => list.filter((s) => ids.has(s.userId));
+    const most = spenders.most.map((s) => s.userId);
+    const least = spenders.least.map((s) => s.userId);
+    expect(most.filter((id) => least.includes(id))).toEqual([]);
+    expect(spenders.most.length).toBe(5);
+    // The costs run down the most list and up the least list.
+    expect(spenders.most.map((s) => s.costUsd)).toEqual(
+      [...spenders.most.map((s) => s.costUsd)].sort((a, b) => b - a),
+    );
+    expect(spenders.least.map((s) => s.costUsd)).toEqual(
+      [...spenders.least.map((s) => s.costUsd)].sort((a, b) => a - b),
+    );
+    expect(spenders.most[0]!.costUsd).toBeGreaterThanOrEqual(spenders.least[0]!.costUsd);
+    expect(mine(spenders.most).length + mine(spenders.least).length).toBeGreaterThan(0);
+  });
 });
 
 describe("leaderboard", () => {

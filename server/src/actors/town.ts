@@ -251,7 +251,7 @@ export type { BagRow, Office, Trade, Wallet } from "../town/coins.ts";
 export type { Listing, MyCompany, WalletLine } from "../town/companies.ts";
 export type { GamePlayer } from "../town/games.ts";
 export type { Calendar } from "../town/julekalender.ts";
-export type { BoardModel, ModelBoard } from "../town/models.ts";
+export type { BoardModel, ModelBoard, Spender } from "../town/models.ts";
 export type { Cart, Copy } from "../town/merchant.ts";
 export type { Raid } from "../town/raid.ts";
 export type { PlayerCore } from "../town/users.ts";
