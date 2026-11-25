@@ -5,7 +5,6 @@ import {
   type Brand,
   COMPANY_CAP,
   type CompanyInfo,
-  HOUSE_TOP,
   houseTier,
   type MerchDesign,
   parseMerchDesign,
@@ -23,8 +22,6 @@ export interface MyCompany {
   plot: number;
   tier: number;
   tokens30d: number;
-  /** What its `HOUSE_TOP` heaviest users made in 30 days: what builds the house. */
-  topTokens30d: number;
   website: string | null;
   /** Reading the website: under way, didn't work, or null (done, or nothing to do). */
   branding: "working" | "failed" | null;
@@ -59,7 +56,6 @@ export interface Listing {
   members: number;
   tier: number;
   tokens30d: number;
-  topTokens30d: number;
   full: boolean;
 }
 
@@ -146,9 +142,8 @@ export async function myCompany(sql: Sql, companyId: number, viewer: number): Pr
     name: company.name,
     isOwner,
     plot: company.plot,
-    tier: houseTier(info?.topTokens30d ?? 0),
+    tier: houseTier(info?.tokens30d ?? 0, members.length),
     tokens30d: info?.tokens30d ?? 0,
-    topTokens30d: info?.topTokens30d ?? 0,
     website: company.website,
     branding: company.branding,
     members: members.map((m) => ({ ...m, isOwner: m.userId === company.ownerId })),
@@ -319,12 +314,11 @@ export async function listings(sql: Sql): Promise<Listing[]> {
       name: c.name,
       website: c.website,
       members: c.members,
-      tier: houseTier(c.topTokens30d ?? 0),
+      tier: houseTier(c.tokens30d, c.members),
       tokens30d: c.tokens30d,
-      topTokens30d: c.topTokens30d ?? 0,
       full: c.members >= COMPANY_CAP,
     })),
-    { by: (c) => c.topTokens30d, order: "desc" },
+    { by: (c) => c.tokens30d / Math.max(1, c.members), order: "desc" },
   );
 }
 
@@ -435,13 +429,9 @@ export async function companyInfos(sql: Sql, ids: Ids): Promise<CompanyInfo[]> {
             COALESCE((SELECT SUM(${TOKENS}) FROM usage_daily d
                       JOIN users u ON u.id = d.user_id WHERE u.company_id = c.id AND d.day = ?), 0) AS todayTokens,
             COALESCE((SELECT SUM(${TOKENS}) FROM usage_daily d
-                      JOIN users u ON u.id = d.user_id WHERE u.company_id = c.id AND d.day >= ?), 0) AS tokens30d,
-            COALESCE((SELECT SUM(t) FROM (SELECT SUM(${TOKENS}) AS t FROM usage_daily d
-                      JOIN users u ON u.id = d.user_id WHERE u.company_id = c.id AND d.day >= ?
-                      GROUP BY d.user_id ORDER BY t DESC LIMIT ${HOUSE_TOP})), 0) AS topTokens30d
+                      JOIN users u ON u.id = d.user_id WHERE u.company_id = c.id AND d.day >= ?), 0) AS tokens30d
      FROM companies c WHERE ${where}`,
     today,
-    addDays(today, -29),
     addDays(today, -29),
     ...args,
   );

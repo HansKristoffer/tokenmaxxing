@@ -233,7 +233,7 @@ export async function companies(sql: Sql): Promise<AdminCompany[]> {
         createdAt: r.createdAt,
         members: members.filter((m) => m.companyId === r.id).map(({ id, name }) => ({ id, name })),
         applicants: r.applicants,
-        tier: houseTier(info.topTokens30d ?? 0),
+        tier: houseTier(info.tokens30d, info.members),
         tokensToday: info.todayTokens,
         tokens30d: info.tokens30d,
         wallet: r.wallet,

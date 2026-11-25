@@ -312,7 +312,7 @@ export function render(canvas: HTMLCanvasElement, now: number, dpr = window.devi
   for (const b of buildings(map)) {
     const company = b.plot === null ? null : companyOnPlot(b.plot);
     if (b.plot !== null && !company) continue; // the town catches up with a company closing
-    const tier = company ? houseTier(company.topTokens30d ?? company.tokens30d) : 0;
+    const tier = company ? houseTier(company.tokens30d, company.members) : 0;
     // A cellar hatch (tier 0) is already open; every other building's door swings, seen or not.
     const swing = !company || tier > 0 ? doorSwing(b.x + 3, b.y + b.h - 1, now, spots) : 0;
     const plan = company ? house(tier, company.brand) : null;

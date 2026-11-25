@@ -333,7 +333,7 @@ class Renderer3D implements Renderer {
         key: `town:${[...world.companies.values()]
           .map(
             (c) =>
-              `${c.plot}.${houseTier(c.topTokens30d ?? c.tokens30d)}.${c.brand?.roof ?? ""}${c.brand?.logo ?? ""}.${c.deskFleet ?? 0}`,
+              `${c.plot}.${houseTier(c.tokens30d, c.members)}.${c.brand?.roof ?? ""}${c.brand?.logo ?? ""}.${c.deskFleet ?? 0}`,
           )
           .sort()
           .join()}`,
