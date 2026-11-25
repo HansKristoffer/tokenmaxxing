@@ -181,7 +181,6 @@ import {
   sawSales,
 } from "../town/market.ts";
 import { buyEdition, type Cart, type Copy, cart, copiesOf } from "../town/merchant.ts";
-import { type ModelBoard, modelBoard } from "../town/models.ts";
 import {
   applyDecor,
   buyDecor,
@@ -252,7 +251,6 @@ export type { Listing, MyCompany, WalletLine } from "../town/companies.ts";
 export type { GamePlayer } from "../town/games.ts";
 export type { Calendar } from "../town/julekalender.ts";
 export type { Cart, Copy } from "../town/merchant.ts";
-export type { BoardModel, ModelBoard, Spender } from "../town/models.ts";
 export type { Raid } from "../town/raid.ts";
 export type { PlayerCore } from "../town/users.ts";
 
@@ -1722,11 +1720,6 @@ export const town = actor({
     retroBoard: (c, game: unknown): Promise<RetroScore[]> => {
       requireUser(callerOf(c));
       return retroBoard(c.db, game);
-    },
-
-    modelBoard: (c, rawRange: unknown): Promise<ModelBoard> => {
-      requireUser(callerOf(c));
-      return modelBoard(c.db, isRangeKey(rawRange) ? rawRange : "today", Date.now());
     },
 
     gameBoard: (c, rawRange: unknown): Promise<GamePlayer[]> => {
