@@ -45,4 +45,5 @@ ENV NODE_ENV=production \
 EXPOSE 8787
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
   CMD ["bun", "-e", "fetch('http://127.0.0.1:'+(process.env.PORT||8787)+'/health').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))"]
-CMD ["bun", "server/src/main.ts"]
+# start.ts runs the engine itself and restarts main.ts on it when a start fails (see there).
+CMD ["bun", "server/src/start.ts"]
