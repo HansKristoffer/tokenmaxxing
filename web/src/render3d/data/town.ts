@@ -141,6 +141,8 @@ export interface Company {
   plot: number;
   members: number;
   tokens30d: number;
+  /** What its five heaviest users made in 30 days; the house follows this. Absent from older servers. */
+  topTokens30d?: number;
   brand: Brand | null;
   /** The house-wide desk tier the wallet bought (`DESKS`). */
   deskFleet?: number;
@@ -151,9 +153,9 @@ export interface Company {
 export const HOUSE_TIER_NAMES = ["Basement", "Shack", "Cottage", "House", "Villa", "Mansion"] as const;
 const TIER_MIN = [0, 100e6, 1e9, 5e9, 15e9, 40e9];
 export const HOUSE_TIERS = TIER_MIN.length;
-/** Tokens per member over the last 30 days decide the house. */
-export const houseTier = (tokens30d: number, members: number): number =>
-  TIER_MIN.findLastIndex((m) => tokens30d / Math.max(1, members) >= m);
+/** The 30-day tokens of a company's five heaviest users, averaged over five seats, decide the house. */
+export const houseTier = (topTokens30d: number): number =>
+  TIER_MIN.findLastIndex((m) => topTokens30d / 5 >= m);
 
 /** The floor of a company building: the game's own `MAPS.hq` rows (row 1 is the wall face where posters hang). */
 export const HQ_ROWS: readonly string[] = MAPS.hq.rows;
