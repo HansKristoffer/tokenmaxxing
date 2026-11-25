@@ -164,7 +164,6 @@ import { buyDesk, buyDeskFleet, type MyDesk, myDesk, setDesk } from "../town/des
 import { barrel, type Whack, whack } from "../town/fastelavn.ts";
 import { fishingJournal, fishingState, type Landed, recordFish } from "../town/fishing.ts";
 import { type GamePlayer, gameBoard, type Placed, recordMatch } from "../town/games.ts";
-import { type ModelBoard, modelBoard } from "../town/models.ts";
 import { recordGreen } from "../town/grid.ts";
 import { type HallOfFame, hallOfFame } from "../town/hall.ts";
 import { knock } from "../town/halloween.ts";
@@ -182,6 +181,7 @@ import {
   sawSales,
 } from "../town/market.ts";
 import { buyEdition, type Cart, type Copy, cart, copiesOf } from "../town/merchant.ts";
+import { type ModelBoard, modelBoard } from "../town/models.ts";
 import {
   applyDecor,
   buyDecor,
@@ -251,8 +251,8 @@ export type { BagRow, Office, Trade, Wallet } from "../town/coins.ts";
 export type { Listing, MyCompany, WalletLine } from "../town/companies.ts";
 export type { GamePlayer } from "../town/games.ts";
 export type { Calendar } from "../town/julekalender.ts";
-export type { BoardModel, ModelBoard, Spender } from "../town/models.ts";
 export type { Cart, Copy } from "../town/merchant.ts";
+export type { BoardModel, ModelBoard, Spender } from "../town/models.ts";
 export type { Raid } from "../town/raid.ts";
 export type { PlayerCore } from "../town/users.ts";
 
