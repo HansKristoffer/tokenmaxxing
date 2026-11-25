@@ -1,5 +1,28 @@
 # Changelog
 
+## [1.23.0](https://github.com/HansKristoffer/tokenmaxxing/compare/v1.22.0...v1.23.0) (2026-11-25)
+
+
+### Features
+
+* bring back top 5 houses and the Models board ([b7e73a4](https://github.com/HansKristoffer/tokenmaxxing/commit/b7e73a43c33ff1befa708fe299dc0b433f48f770))
+* bring back top 5 houses and the Models board ([d55014c](https://github.com/HansKristoffer/tokenmaxxing/commit/d55014c349cb2ca7b65ca72c9467081c91db049c))
+* **leaderboard:** a Models board of what the town runs ([8f56a29](https://github.com/HansKristoffer/tokenmaxxing/commit/8f56a29bca76f40eaed302c2186cd68a33799352))
+* **leaderboard:** a Models board of what the town runs ([5914095](https://github.com/HansKristoffer/tokenmaxxing/commit/59140950daa563aeb5d217454de3231578761bd5))
+* **leaderboard:** the biggest and the lightest spenders on the Models board ([4848de5](https://github.com/HansKristoffer/tokenmaxxing/commit/4848de567b5e84ebfc4d2916b108405dbcd5dbbb))
+* **town:** build a company's house from its top 5 users ([473f284](https://github.com/HansKristoffer/tokenmaxxing/commit/473f2843e9b654e3312df3d0d2d1cdc7d0d7a9b6))
+* **town:** build a company's house from its top 5 users ([99191c0](https://github.com/HansKristoffer/tokenmaxxing/commit/99191c0fa9fc888d563ccc4a3cd43edff8340342))
+
+
+### Bug Fixes
+
+* **server:** keep the engine running across failed starts ([#203](https://github.com/HansKristoffer/tokenmaxxing/issues/203)) ([a1de898](https://github.com/HansKristoffer/tokenmaxxing/commit/a1de898d56976fba38033a22de3b20b0ed92569c))
+
+
+### Reverts
+
+* top 5 houses ([#198](https://github.com/HansKristoffer/tokenmaxxing/issues/198)) and the Models board ([#199](https://github.com/HansKristoffer/tokenmaxxing/issues/199)) ([2f642e1](https://github.com/HansKristoffer/tokenmaxxing/commit/2f642e113f70b4a973170f30ae14e05731f8e112))
+
 ## [1.22.0](https://github.com/HansKristoffer/tokenmaxxing/compare/v1.21.0...v1.22.0) (2026-11-22)
 
 
