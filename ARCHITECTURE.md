@@ -323,8 +323,9 @@ to `town.report`, then tells `world` how many agents are live, and `arcade.usage
 
 ## Companies and houses
 
-- A house's size follows its 30-day tokens **per member** (`houseTier`): basement, shack from 100M, cottage
-  1B, house 5B, villa 15B, mansion 40B.
+- A house's size follows the 30-day tokens of a company's **top five** users, averaged over five seats
+  (`houseTier`, `HOUSE_TOP`), so light users don't drag it down: basement, shack from 100M, cottage 1B,
+  house 5B, villa 15B, mansion 40B.
 - **Websites** (`brand.ts`). The owner sets one; it goes on the sign at once. If `FIRECRAWL_API_KEY` is set,
   Firecrawl's `branding` format reads the site's colours and logo. Claude (`claude-opus-5-5`, low effort,
   structured output) turns them into roof, wall, trim and plaque colours; without `ANTHROPIC_API_KEY` the site's
