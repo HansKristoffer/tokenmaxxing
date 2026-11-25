@@ -202,6 +202,35 @@ describe("companies", () => {
   });
 });
 
+describe("model board", () => {
+  test("ranks models by tokens, counts each person once and the cache share", async () => {
+    const a = await signUp("mb");
+    const b = await signUp("mb");
+    const big = `qa-big-${a.userId}`;
+    const small = `qa-small-${a.userId}`;
+    await as(a.token)
+      .player(a.userId)
+      .ingest([
+        event({ model: big, inputTokens: 3_000_000, outputTokens: 0 }),
+        event({ model: big, inputTokens: 0, outputTokens: 0, cacheReadTokens: 1_000_000 }),
+        event({ model: small, inputTokens: 500_000, outputTokens: 0 }),
+      ]);
+    await as(b.token)
+      .player(b.userId)
+      .ingest([event({ model: big, inputTokens: 1_000_000, outputTokens: 0 })]);
+
+    const board = await a.town.modelBoard("today");
+    const names = board.models.map((m) => m.model);
+    expect(names.indexOf(big)).toBeLessThan(names.indexOf(small));
+    expect(board.models.find((m) => m.model === big)).toMatchObject({ tokens: 5_000_000, users: 2 });
+    expect(board.models.find((m) => m.model === small)).toMatchObject({ tokens: 500_000, users: 1 });
+    expect(board.totals.users).toBeGreaterThanOrEqual(2);
+    expect(board.totals.cacheHit).toBeGreaterThan(0);
+    expect(board.totals.cacheHit).toBeLessThan(1);
+    expect(await a.town.modelBoard("nonsense")).toMatchObject({ range: "today" });
+  });
+});
+
 describe("leaderboard", () => {
   test("players and companies, ranked and priced", async () => {
     const a = await signUp("lb");
