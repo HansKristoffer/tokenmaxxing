@@ -22,6 +22,7 @@ beforeEach(async () => {
   process.env.XDG_DATA_HOME = join(dir, "data");
   // Antigravity's conversations, and the language server it asks about older ones.
   process.env.ANTIGRAVITY_DATA_DIR = join(dir, "antigravity");
+  process.env.ANTIGRAVITY_CLI_DATA_DIR = join(dir, "antigravity-cli");
   await mkdir(join(dir, "claude", "projects", "p"), { recursive: true });
   await writeFile(
     join(dir, "claude", "projects", "p", "s1.jsonl"),
@@ -47,6 +48,7 @@ afterEach(async () => {
     "POSTHOG_DESKTOP_DIR",
     "XDG_DATA_HOME",
     "ANTIGRAVITY_DATA_DIR",
+    "ANTIGRAVITY_CLI_DATA_DIR",
   ]) {
     delete process.env[k];
   }
