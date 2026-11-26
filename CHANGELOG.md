@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.23.1](https://github.com/HansKristoffer/tokenmaxxing/compare/v1.23.0...v1.23.1) (2026-11-26)
+
+
+### Bug Fixes
+
+* **sync:** count the Antigravity CLI's usage ([#204](https://github.com/HansKristoffer/tokenmaxxing/issues/204)) ([e67a5f8](https://github.com/HansKristoffer/tokenmaxxing/commit/e67a5f8f11624c11b67df521eb2f8623ea780b1f))
+
 ## [1.23.0](https://github.com/HansKristoffer/tokenmaxxing/compare/v1.22.0...v1.23.0) (2026-11-25)
 
 
