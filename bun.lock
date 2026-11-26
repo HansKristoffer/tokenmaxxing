@@ -26,7 +26,7 @@
       "name": "@tokenmaxxing/core",
       "dependencies": {
         "hanzio": "^3.4.0",
-        "llm-usage-extraction": "^0.5.1",
+        "llm-usage-extraction": "^0.5.2",
       },
     },
     "server": {
@@ -723,7 +723,7 @@
 
     "lightningcss-win32-x64-msvc": ["lightningcss-win32-x64-msvc@1.33.0", "", { "os": "win32", "cpu": "x64" }, "sha512-OlEICDx/Xl0FqSp4bry8zFnCvGpig3Gl4gCquvYwHuqJKEC1+n9NgDniFvqHGmMv1ZkqDJrDqKKSykTDX+ehuA=="],
 
-    "llm-usage-extraction": ["llm-usage-extraction@0.5.1", "", {}, "sha512-ZRDJQKLH8K+wLu++OonVdXpGg251Wpu6b39TMZZOTY94DTRUTuYNpJ4lF4wLRobUk6MXd6CrcXxHb1keRdCAqw=="],
+    "llm-usage-extraction": ["llm-usage-extraction@0.5.2", "", {}, "sha512-+rs3ljosmEwX7Mahy96Omz1R5f5fGYtwgfHasEJNWTgRDeJy1pUwUCXl0pNLNMkWOimseSv1bzMB10wR6WfkVg=="],
 
     "locate-path": ["locate-path@5.0.0", "", { "dependencies": { "p-locate": "^4.1.0" } }, "sha512-t7hw9pI+WvuwNJXwk5zVHpyhIqzg2qTlklJOf0mVxGSbe3Fp2VieZcduNYjaLDoy6p9uGpQEGWG87WpMKlNq8g=="],
 
