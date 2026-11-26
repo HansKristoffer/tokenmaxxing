@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.23.2](https://github.com/HansKristoffer/tokenmaxxing/compare/v1.23.1...v1.23.2) (2026-11-26)
+
+
+### Bug Fixes
+
+* **sync:** count Antigravity threads run in T3 Code ([#206](https://github.com/HansKristoffer/tokenmaxxing/issues/206)) ([aef8298](https://github.com/HansKristoffer/tokenmaxxing/commit/aef82983a19a54009c319b3d818420acff0ab548))
+
 ## [1.23.1](https://github.com/HansKristoffer/tokenmaxxing/compare/v1.23.0...v1.23.1) (2026-11-26)
 
 
